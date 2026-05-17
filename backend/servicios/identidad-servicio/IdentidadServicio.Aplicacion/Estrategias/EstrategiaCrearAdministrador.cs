@@ -1,0 +1,36 @@
+using IdentidadServicio.Aplicacion.Puertos;
+using IdentidadServicio.Commons.Dtos;
+using IdentidadServicio.Dominio.Entidades;
+using IdentidadServicio.Dominio.Enums;
+
+namespace IdentidadServicio.Aplicacion.Estrategias;
+
+public sealed class EstrategiaCrearAdministrador : IEstrategiaCreacionUsuario
+{
+    public bool PuedeCrear(TipoUsuario tipoUsuario) => tipoUsuario == TipoUsuario.Administrador;
+
+    public RolUsuario ObtenerRol() => RolUsuario.Administrador;
+
+    public Usuario CrearUsuarioDominio(CrearUsuarioDto dto, DateTime fechaRegistro)
+    {
+        var (nombre, correo, persona, contacto, sexo) = BaseEstrategia.ParsearDatosBasicos(dto);
+
+        return Administrador.Crear(
+            nombreUsuario: nombre,
+            correo: correo,
+            nombrePersona: persona,
+            datosContacto: contacto,
+            sexo: sexo,
+            fechaNacimiento: dto.FechaNacimiento,
+            codigoAdministrador: dto.CodigoAdministrador,
+            fechaRegistro: fechaRegistro);
+    }
+
+    public Task GuardarAsync(
+        Usuario usuario, string idKeycloak,
+        IRepositorioIdentidad repositorio, CancellationToken cancelacion)
+    {
+        return repositorio.GuardarAdministradorAsync(
+            (Administrador)usuario, idKeycloak, cancelacion);
+    }
+}
