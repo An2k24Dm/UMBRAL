@@ -1,0 +1,132 @@
+{
+  "realm": "umbral",
+  "enabled": true,
+  "displayName": "UMBRAL",
+  "registrationAllowed": false,
+  "resetPasswordAllowed": true,
+  "loginWithEmailAllowed": false,
+  "duplicateEmailsAllowed": true,
+  "accessTokenLifespan": 300,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+
+  "roles": {
+    "realm": [
+      {
+        "name": "Administrador",
+        "description": "Administrador de la plataforma UMBRAL"
+      },
+      { "name": "Operador", "description": "Operador de sesiones UMBRAL" },
+      {
+        "name": "Participante",
+        "description": "Participante de sesiones UMBRAL"
+      }
+    ]
+  },
+
+  "clients": [
+    {
+      "clientId": "umbral-backend",
+      "name": "Backend UMBRAL (identidad-servicio)",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "umbral-backend-secreto",
+      "protocol": "openid-connect",
+      "directAccessGrantsEnabled": true,
+      "standardFlowEnabled": false,
+      "serviceAccountsEnabled": true
+    },
+    {
+      "clientId": "umbral-web",
+      "name": "Frontend Web UMBRAL",
+      "enabled": true,
+      "publicClient": true,
+      "protocol": "openid-connect",
+      "redirectUris": ["http://localhost:3000/*"],
+      "webOrigins": ["http://localhost:3000"],
+      "directAccessGrantsEnabled": true,
+      "standardFlowEnabled": true
+    },
+    {
+      "clientId": "umbral-movil",
+      "name": "Aplicación móvil UMBRAL",
+      "enabled": true,
+      "publicClient": true,
+      "protocol": "openid-connect",
+      "redirectUris": ["umbral://*"],
+      "directAccessGrantsEnabled": true,
+      "standardFlowEnabled": true
+    }
+  ],
+
+  "users": [
+    {
+      "id": "kc-administrador-001",
+      "username": "administrador01",
+      "email": "administrador01@umbral.com",
+      "firstName": "Angelo",
+      "lastName": "Di Martino",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Temporal123*",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["Administrador"]
+    },
+    {
+      "id": "kc-operador-001",
+      "username": "operador01",
+      "email": "operador01@umbral.com",
+      "firstName": "Carlos",
+      "lastName": "Perez",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Temporal123*",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["Operador"]
+    },
+    {
+      "id": "kc-participante-001",
+      "username": "participante01",
+      "email": "participante01@umbral.com",
+      "firstName": "Maria",
+      "lastName": "Gomez",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Temporal123*",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["Participante"]
+    },
+    {
+      "id": "kc-inactivo-001",
+      "username": "participante_inactivo01",
+      "email": "participante.inactivo01@umbral.com",
+      "firstName": "Pedro",
+      "lastName": "Inactivo",
+      "enabled": false,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Temporal123*",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["Participante"]
+    }
+  ]
+}
