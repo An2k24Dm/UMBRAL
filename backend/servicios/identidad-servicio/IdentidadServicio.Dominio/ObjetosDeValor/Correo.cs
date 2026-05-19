@@ -3,11 +3,9 @@ using IdentidadServicio.Dominio.Excepciones;
 
 namespace IdentidadServicio.Dominio.ObjetosDeValor;
 
-// Correo electrónico como objeto de valor independiente.
-// Es distinto del NombreUsuario: NombreUsuario es el username de Keycloak
-// (p. ej. "operador01"); Correo es el email del usuario (p. ej.
-// "operador@umbral.com"). Ambos viajan separados al backend y a Keycloak.
-public sealed class Correo : IEquatable<Correo>
+// Objeto de valor inmutable (record) — comparación por valor.
+// Correo electrónico independiente; NO está dentro de DatosContacto.
+public sealed record Correo
 {
     private static readonly Regex Patron = new(
         @"^[^@\s]+@[^@\s]+\.[^@\s]+$",
@@ -30,8 +28,5 @@ public sealed class Correo : IEquatable<Correo>
         return new Correo(normalizado);
     }
 
-    public bool Equals(Correo? otro) => otro is not null && Valor == otro.Valor;
-    public override bool Equals(object? obj) => obj is Correo c && Equals(c);
-    public override int GetHashCode() => Valor.GetHashCode();
     public override string ToString() => Valor;
 }

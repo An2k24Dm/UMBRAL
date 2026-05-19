@@ -12,14 +12,15 @@ public sealed class EstrategiaCrearParticipante : IEstrategiaCreacionUsuario
 
     public RolUsuario ObtenerRol() => RolUsuario.Participante;
 
-    public Usuario CrearUsuarioDominio(CrearUsuarioDto dto, DateTime fechaRegistro)
+    public Task<Usuario> CrearUsuarioDominioAsync(
+        CrearUsuarioDto dto, DateTime fechaRegistro, CancellationToken cancelacion)
     {
         if (string.IsNullOrWhiteSpace(dto.Alias))
             throw new DatosUsuarioInvalidosExcepcion("El alias del participante es obligatorio.");
 
         var (nombre, correo, persona, contacto, sexo) = BaseEstrategia.ParsearDatosBasicos(dto);
 
-        return Participante.Crear(
+        Usuario participante = Participante.Crear(
             nombreUsuario: nombre,
             correo: correo,
             nombrePersona: persona,
@@ -28,6 +29,8 @@ public sealed class EstrategiaCrearParticipante : IEstrategiaCreacionUsuario
             fechaNacimiento: dto.FechaNacimiento,
             alias: dto.Alias!,
             fechaRegistro: fechaRegistro);
+
+        return Task.FromResult(participante);
     }
 
     public Task GuardarAsync(

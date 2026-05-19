@@ -26,17 +26,17 @@ public class IniciarSesionManejadorPruebas
 
     private static Administrador NuevoAdmin() => Administrador.Crear(
         NombreUsuario.Crear("admin_umbral"), Correo.Crear("admin@umbral.com"),
-        NombrePersona.Crear("Ada", "Admin"), DatosContacto.Vacio(),
+        NombrePersona.Crear("Ada", "Admin"), DatosContacto.Crear("Av. Bolívar, Caracas", "04143710260"),
         SexoPersona.Femenino, Nac, "ADM-001", Ahora);
 
     private static Operador NuevoOperador() => Operador.Crear(
         NombreUsuario.Crear("operador01"), Correo.Crear("op@umbral.com"),
-        NombrePersona.Crear("Olivia", "Op"), DatosContacto.Vacio(),
+        NombrePersona.Crear("Olivia", "Op"), DatosContacto.Crear("Av. Bolívar, Caracas", "04143710260"),
         SexoPersona.Femenino, Nac, "OP-001", Ahora);
 
     private static Participante NuevoParticipante() => Participante.Crear(
         NombreUsuario.Crear("participante01"), Correo.Crear("par@umbral.com"),
-        NombrePersona.Crear("Pablo", "Par"), DatosContacto.Vacio(),
+        NombrePersona.Crear("Pablo", "Par"), DatosContacto.Crear("Av. Bolívar, Caracas", "04143710260"),
         SexoPersona.Masculino, Nac, "pablito", Ahora);
 
     private void TokenValido(string idKc) =>

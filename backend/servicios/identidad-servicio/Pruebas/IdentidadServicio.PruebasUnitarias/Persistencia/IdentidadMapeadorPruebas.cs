@@ -18,7 +18,7 @@ public class IdentidadMapeadorPruebas
         var admin = Administrador.Crear(
             NombreUsuario.Crear("admin_umbral"), Correo.Crear("ada@umbral.com"),
             NombrePersona.Crear("Ada", "Admin"),
-            DatosContacto.Crear("Calle 1", "555"),
+            DatosContacto.Crear("Calle 1", "04141234567"),
             SexoPersona.Femenino, Nac, "ADM-001", Ahora);
 
         var m = _mapeador.AModelos(admin, "kc-admin");
@@ -49,7 +49,7 @@ public class IdentidadMapeadorPruebas
     {
         var op = Operador.Crear(
             NombreUsuario.Crear("operador01"), Correo.Crear("op@umbral.com"),
-            NombrePersona.Crear("Olivia", "Op"), DatosContacto.Vacio(),
+            NombrePersona.Crear("Olivia", "Op"), DatosContacto.Crear("Av. Bolívar", "04143710260"),
             SexoPersona.Femenino, Nac, "OP-001", Ahora);
 
         var m = _mapeador.AModelos(op, "kc-op");
@@ -63,7 +63,7 @@ public class IdentidadMapeadorPruebas
     {
         var par = Participante.Crear(
             NombreUsuario.Crear("participante01"), Correo.Crear("par@umbral.com"),
-            NombrePersona.Crear("Pablo", "Par"), DatosContacto.Vacio(),
+            NombrePersona.Crear("Pablo", "Par"), DatosContacto.Crear("Av. Bolívar", "04143710260"),
             SexoPersona.Masculino, Nac, "pablito", Ahora);
 
         var m = _mapeador.AModelos(par, "kc-par");
@@ -76,7 +76,8 @@ public class IdentidadMapeadorPruebas
     {
         var admin = Administrador.Crear(
             NombreUsuario.Crear("admin_umbral"), Correo.Crear("ada@umbral.com"),
-            NombrePersona.Crear("Ada", "Admin"), DatosContacto.Crear(null, null),
+            NombrePersona.Crear("Ada", "Admin"),
+            DatosContacto.Crear("Av. Bolívar", "04141234567"),
             SexoPersona.Femenino, Nac, "ADM-001", Ahora);
         var modelos = _mapeador.AModelos(admin, "kc-admin");
 

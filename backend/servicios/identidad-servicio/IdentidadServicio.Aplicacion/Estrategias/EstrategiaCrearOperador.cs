@@ -1,23 +1,29 @@
+using IdentidadServicio.Aplicacion.Generadores;
 using IdentidadServicio.Aplicacion.Puertos;
 using IdentidadServicio.Commons.Dtos;
 using IdentidadServicio.Dominio.Entidades;
 using IdentidadServicio.Dominio.Enums;
-using IdentidadServicio.Dominio.Excepciones;
 
 namespace IdentidadServicio.Aplicacion.Estrategias;
 
 public sealed class EstrategiaCrearOperador : IEstrategiaCreacionUsuario
 {
+    private readonly IGeneradorCodigoUsuario _generador;
+
+    public EstrategiaCrearOperador(IGeneradorCodigoUsuario generador)
+    {
+        _generador = generador;
+    }
+
     public bool PuedeCrear(TipoUsuario tipoUsuario) => tipoUsuario == TipoUsuario.Operador;
 
     public RolUsuario ObtenerRol() => RolUsuario.Operador;
 
-    public Usuario CrearUsuarioDominio(CrearUsuarioDto dto, DateTime fechaRegistro)
+    public async Task<Usuario> CrearUsuarioDominioAsync(
+        CrearUsuarioDto dto, DateTime fechaRegistro, CancellationToken cancelacion)
     {
-        if (string.IsNullOrWhiteSpace(dto.CodigoOperador))
-            throw new DatosUsuarioInvalidosExcepcion("El código de operador es obligatorio.");
-
         var (nombre, correo, persona, contacto, sexo) = BaseEstrategia.ParsearDatosBasicos(dto);
+        var codigoOperador = await _generador.GenerarCodigoOperadorAsync(cancelacion);
 
         return Operador.Crear(
             nombreUsuario: nombre,
@@ -26,7 +32,7 @@ public sealed class EstrategiaCrearOperador : IEstrategiaCreacionUsuario
             datosContacto: contacto,
             sexo: sexo,
             fechaNacimiento: dto.FechaNacimiento,
-            codigoOperador: dto.CodigoOperador!,
+            codigoOperador: codigoOperador,
             fechaRegistro: fechaRegistro);
     }
 

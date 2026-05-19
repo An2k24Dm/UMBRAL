@@ -15,7 +15,9 @@ internal static class BaseEstrategia
             NombreUsuario.Crear(dto.NombreUsuario),
             Correo.Crear(dto.Correo),
             NombrePersona.Crear(dto.Nombre, dto.Apellido),
-            DatosContacto.Crear(dto.DatosContacto?.Direccion, dto.DatosContacto?.Telefono),
+            DatosContacto.Crear(
+                dto.DatosContacto?.Direccion ?? string.Empty,
+                dto.DatosContacto?.Telefono ?? string.Empty),
             DtoMapeador.ParsearSexo(dto.Sexo)
         );
     }

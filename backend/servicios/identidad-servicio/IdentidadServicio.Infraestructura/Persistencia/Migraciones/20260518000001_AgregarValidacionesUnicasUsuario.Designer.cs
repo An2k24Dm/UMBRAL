@@ -3,15 +3,17 @@ using System;
 using IdentidadServicio.Infraestructura.Persistencia;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
 namespace IdentidadServicio.Infraestructura.Persistencia.Migraciones
 {
     [DbContext(typeof(ContextoIdentidad))]
-    partial class ContextoIdentidadModelSnapshot : ModelSnapshot
+    [Migration("20260518000001_AgregarValidacionesUnicasUsuario")]
+    partial class AgregarValidacionesUnicasUsuario
     {
-        protected override void BuildModel(ModelBuilder mb)
+        protected override void BuildTargetModel(ModelBuilder mb)
         {
             mb.HasDefaultSchema("identidad")
               .HasAnnotation("ProductVersion", "8.0.10")
@@ -58,7 +60,6 @@ namespace IdentidadServicio.Infraestructura.Persistencia.Migraciones
                 b.Property<DateTime>("FechaRegistro").HasColumnType("timestamp with time zone").HasColumnName("fecha_registro");
                 b.HasKey("Id");
                 b.HasIndex("PersonaId").IsUnique();
-                b.HasIndex("CodigoAdministrador").IsUnique().HasFilter("\"codigo_administrador\" IS NOT NULL");
                 b.ToTable("Administrador", "identidad");
             });
 

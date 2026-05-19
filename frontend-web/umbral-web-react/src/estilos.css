@@ -57,3 +57,54 @@ body {
   padding: 6px 12px;
   cursor: pointer;
 }
+.acciones { margin-top: 24px; }
+.acciones h2 { font-size: 1.05rem; color: #334155; margin-bottom: 12px; }
+.boton-enlace {
+  display: inline-block;
+  padding: 8px 14px;
+  background: #1d4ed8;
+  color: #fff;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 600;
+}
+.boton-enlace:hover { background: #1e40af; }
+.formulario-usuario {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px 16px;
+  margin-top: 16px;
+}
+.formulario-usuario .campo { margin-bottom: 0; }
+.formulario-usuario .boton { grid-column: span 2; margin-top: 8px; }
+.formulario-usuario select {
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  background: #fff;
+}
+.error-campo {
+  display: block;
+  margin-top: 4px;
+  color: #b91c1c;
+  font-size: 0.8rem;
+}
+.opcional {
+  color: #94a3b8;
+  font-weight: normal;
+  font-size: 0.8rem;
+}
+.campo-no-editable {
+  background: #f1f5f9;
+  color: #64748b;
+  cursor: not-allowed;
+}
+.exito {
+  background: #dcfce7;
+  color: #166534;
+  padding: 10px 12px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-size: 0.9rem;
+}

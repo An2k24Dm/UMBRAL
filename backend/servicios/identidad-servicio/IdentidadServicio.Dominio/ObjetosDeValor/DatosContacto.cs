@@ -1,27 +1,57 @@
+using System.Text.RegularExpressions;
+using IdentidadServicio.Dominio.Excepciones;
+
 namespace IdentidadServicio.Dominio.ObjetosDeValor;
 
-public sealed class DatosContacto : IEquatable<DatosContacto>
+// Objeto de valor inmutable (record) — comparación por valor.
+// Dirección y teléfono ahora son obligatorios. NO contiene Correo (Correo es VO
+// independiente). Teléfono se normaliza sin espacios ni guiones.
+public sealed record DatosContacto
 {
-    public string? Direccion { get; }
-    public string? Telefono { get; }
+    private static readonly Regex RegexTelefonoDigitos =
+        new(@"^\d+$", RegexOptions.Compiled);
 
-    private DatosContacto(string? direccion, string? telefono)
+    private static readonly string[] CodigosTelefonoValidos =
+        { "0414", "0412", "0424", "0416", "0426", "0212" };
+
+    public string Direccion { get; }
+    public string Telefono { get; }
+
+    private DatosContacto(string direccion, string telefono)
     {
         Direccion = direccion;
         Telefono = telefono;
     }
 
-    public static DatosContacto Crear(string? direccion, string? telefono)
+    public static DatosContacto Crear(string direccion, string telefono)
     {
-        return new DatosContacto(
-            direccion: string.IsNullOrWhiteSpace(direccion) ? null : direccion.Trim(),
-            telefono: string.IsNullOrWhiteSpace(telefono) ? null : telefono.Trim());
+        var dir = direccion?.Trim() ?? string.Empty;
+        if (dir.Length == 0)
+            throw new DatosUsuarioInvalidosExcepcion("La dirección es obligatoria.");
+        if (dir.Length < 5)
+            throw new DatosUsuarioInvalidosExcepcion(
+                "La dirección debe tener al menos 5 caracteres.");
+
+        var tel = NormalizarTelefono(telefono);
+        if (string.IsNullOrEmpty(tel))
+            throw new DatosUsuarioInvalidosExcepcion("El teléfono es obligatorio.");
+        if (!RegexTelefonoDigitos.IsMatch(tel))
+            throw new DatosUsuarioInvalidosExcepcion(
+                "El teléfono debe contener solo números.");
+        if (tel.Length != 11)
+            throw new DatosUsuarioInvalidosExcepcion("El teléfono debe tener 11 dígitos.");
+        if (!CodigosTelefonoValidos.Any(c => tel.StartsWith(c)))
+            throw new DatosUsuarioInvalidosExcepcion(
+                "El teléfono debe comenzar con un código válido, por ejemplo 0414, 0212, 0424 o 0412.");
+
+        return new DatosContacto(dir, tel);
     }
 
-    public static DatosContacto Vacio() => new(null, null);
+    private static string NormalizarTelefono(string? telefono)
+    {
+        if (string.IsNullOrWhiteSpace(telefono)) return string.Empty;
+        return new string(telefono.Where(c => !char.IsWhiteSpace(c) && c != '-').ToArray());
+    }
 
-    public bool Equals(DatosContacto? otro) =>
-        otro is not null && Direccion == otro.Direccion && Telefono == otro.Telefono;
-    public override bool Equals(object? obj) => obj is DatosContacto d && Equals(d);
-    public override int GetHashCode() => HashCode.Combine(Direccion, Telefono);
+    public override string ToString() => $"{Direccion} — {Telefono}";
 }

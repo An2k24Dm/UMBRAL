@@ -8,13 +8,17 @@ namespace IdentidadServicio.Aplicacion.Estrategias;
 // Strategy: una implementación por cada TipoUsuario.
 //   - PuedeCrear: criterio de selección (lo usa la fábrica).
 //   - ObtenerRol: rol que se asignará en Keycloak.
-//   - CrearUsuarioDominio: factory de la entidad concreta.
+//   - CrearUsuarioDominioAsync: factory de la entidad concreta. Es async porque
+//     las estrategias de Operador y Administrador llaman al GeneradorCodigoUsuario.
 //   - GuardarAsync: delega en el método específico del repositorio.
 public interface IEstrategiaCreacionUsuario
 {
     bool PuedeCrear(TipoUsuario tipoUsuario);
     RolUsuario ObtenerRol();
-    Usuario CrearUsuarioDominio(CrearUsuarioDto dto, DateTime fechaRegistro);
+    Task<Usuario> CrearUsuarioDominioAsync(
+        CrearUsuarioDto dto,
+        DateTime fechaRegistro,
+        CancellationToken cancelacion);
     Task GuardarAsync(
         Usuario usuario,
         string idKeycloak,

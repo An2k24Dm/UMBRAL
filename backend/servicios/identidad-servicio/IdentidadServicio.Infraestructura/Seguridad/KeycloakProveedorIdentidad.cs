@@ -98,23 +98,26 @@ public sealed class KeycloakProveedorIdentidad : IProveedorIdentidad
     }
 
     public async Task<string> CrearUsuarioAsync(
-        string nombreUsuario, string correo, string contrasenaTemporal, CancellationToken cancelacion)
+        DatosCreacionUsuarioIdentidad datos, CancellationToken cancelacion)
     {
         var tokenAdmin = await ObtenerTokenAdminAsync(cancelacion);
 
         // Envía username y email como campos SEPARADOS a Keycloak.
-        // No se asume "Email as username" en el realm: pueden coexistir distintos.
+        // Incluye firstName y lastName para que el panel de Keycloak los muestre.
+        // temporary = false → la contraseña no se marca como temporal.
         using var solicitud = new HttpRequestMessage(HttpMethod.Post, _opciones.UrlAdminUsuarios)
         {
             Content = JsonContent.Create(new
             {
-                username = nombreUsuario,
-                email = correo,
+                username = datos.NombreUsuario,
+                email = datos.Correo,
+                firstName = datos.Nombre,
+                lastName = datos.Apellido,
                 enabled = true,
                 emailVerified = true,
                 credentials = new[]
                 {
-                    new { type = "password", value = contrasenaTemporal, temporary = false }
+                    new { type = "password", value = datos.Contrasena, temporary = false }
                 }
             })
         };
@@ -125,7 +128,7 @@ public sealed class KeycloakProveedorIdentidad : IProveedorIdentidad
         {
             var detalle = await respuesta.Content.ReadAsStringAsync(cancelacion);
             _registro.LogError("Keycloak rechazó creación de {Nombre}. {Estado} {Cuerpo}",
-                nombreUsuario, respuesta.StatusCode, detalle);
+                datos.NombreUsuario, respuesta.StatusCode, detalle);
             respuesta.EnsureSuccessStatusCode();
         }
 

@@ -5,13 +5,16 @@ namespace IdentidadServicio.Commons.Dtos;
 //   - NombreUsuario  → username de Keycloak  (p. ej. "operador01")
 //   - Correo         → email de Keycloak    (p. ej. "operador@umbral.com")
 // El TipoUsuario selecciona la estrategia (Strategy + Factory).
+//
+// Nota HU02: los códigos OP-### / AD-### los genera el backend
+// (IGeneradorCodigoUsuario). El frontend ya no los envía.
 public sealed class CrearUsuarioDto
 {
     public TipoUsuario TipoUsuario { get; set; }
 
     public string NombreUsuario { get; set; } = string.Empty;
     public string Correo { get; set; } = string.Empty;
-    public string ContrasenaTemporal { get; set; } = string.Empty;
+    public string Contrasena { get; set; } = string.Empty;
 
     public string Nombre { get; set; } = string.Empty;
     public string Apellido { get; set; } = string.Empty;
@@ -22,8 +25,7 @@ public sealed class CrearUsuarioDto
 
     public DatosContactoDto DatosContacto { get; set; } = new();
 
-    // Campos opcionales según TipoUsuario.
-    public string? CodigoAdministrador { get; set; }
-    public string? CodigoOperador { get; set; }
+    // Alias se conserva para el registro futuro de Participante desde la app
+    // móvil (HU03). No se usa en el flujo de registro web.
     public string? Alias { get; set; }
 }

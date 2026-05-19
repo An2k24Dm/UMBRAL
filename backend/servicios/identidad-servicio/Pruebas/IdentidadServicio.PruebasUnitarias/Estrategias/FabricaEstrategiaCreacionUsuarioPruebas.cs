@@ -1,20 +1,26 @@
 using FluentAssertions;
 using IdentidadServicio.Aplicacion.Estrategias;
 using IdentidadServicio.Aplicacion.Fabricas;
+using IdentidadServicio.Aplicacion.Generadores;
 using IdentidadServicio.Commons.Dtos;
 using IdentidadServicio.Dominio.Enums;
 using IdentidadServicio.Dominio.Excepciones;
+using Moq;
 
 namespace IdentidadServicio.PruebasUnitarias.Estrategias;
 
 public class FabricaEstrategiaCreacionUsuarioPruebas
 {
-    private static FabricaEstrategiaCreacionUsuario CrearFabrica() => new(new IEstrategiaCreacionUsuario[]
+    private static FabricaEstrategiaCreacionUsuario CrearFabrica()
     {
-        new EstrategiaCrearAdministrador(),
-        new EstrategiaCrearOperador(),
-        new EstrategiaCrearParticipante()
-    });
+        var generador = new Mock<IGeneradorCodigoUsuario>().Object;
+        return new FabricaEstrategiaCreacionUsuario(new IEstrategiaCreacionUsuario[]
+        {
+            new EstrategiaCrearAdministrador(generador),
+            new EstrategiaCrearOperador(generador),
+            new EstrategiaCrearParticipante()
+        });
+    }
 
     [Fact]
     public void Obtener_Administrador_DevuelveEstrategiaCrearAdministrador()

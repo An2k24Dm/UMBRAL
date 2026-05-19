@@ -44,6 +44,35 @@ public sealed class RepositorioIdentidad : IRepositorioIdentidad
             .AnyAsync(x => x.Correo == normalizado, cancelacion);
     }
 
+    public async Task<bool> ExisteTelefonoAsync(string telefono, CancellationToken cancelacion)
+    {
+        var normalizado = telefono.Trim();
+        if (normalizado.Length == 0) return false;
+        return await _contexto.Personas.AsNoTracking()
+            .AnyAsync(x => x.Telefono == normalizado, cancelacion);
+    }
+
+    // Códigos con formato OP-### / AD-###. Como están zero-padded a 3 dígitos,
+    // un orden alfabético descendente coincide con el orden numérico descendente
+    // hasta 999 (suficiente para esta etapa).
+    public async Task<string?> ObtenerUltimoCodigoOperadorAsync(CancellationToken cancelacion)
+    {
+        return await _contexto.Operadores.AsNoTracking()
+            .Where(o => o.CodigoOperador.StartsWith("OP-"))
+            .OrderByDescending(o => o.CodigoOperador)
+            .Select(o => o.CodigoOperador)
+            .FirstOrDefaultAsync(cancelacion);
+    }
+
+    public async Task<string?> ObtenerUltimoCodigoAdministradorAsync(CancellationToken cancelacion)
+    {
+        return await _contexto.Administradores.AsNoTracking()
+            .Where(a => a.CodigoAdministrador != null && a.CodigoAdministrador.StartsWith("AD-"))
+            .OrderByDescending(a => a.CodigoAdministrador)
+            .Select(a => a.CodigoAdministrador)
+            .FirstOrDefaultAsync(cancelacion);
+    }
+
     public async Task GuardarAdministradorAsync(
         Administrador administrador, string idKeycloak, CancellationToken cancelacion)
     {
