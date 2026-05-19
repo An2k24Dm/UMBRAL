@@ -55,6 +55,10 @@ public sealed class ContextoIdentidad : DbContext
 
             e.HasIndex(x => x.UsuarioId).IsUnique();
             e.HasIndex(x => x.Correo).IsUnique();
+            // Filtrado: solo aplica para teléfonos no nulos. PostgreSQL ya
+            // considera NULLs como distintos, pero dejamos el filtro explícito
+            // por claridad y compatibilidad con otros motores.
+            e.HasIndex(x => x.Telefono).IsUnique().HasFilter("\"telefono\" IS NOT NULL");
 
             e.HasOne(x => x.Administrador)
                 .WithOne(a => a.Persona)
@@ -80,6 +84,10 @@ public sealed class ContextoIdentidad : DbContext
             e.Property(x => x.CodigoAdministrador).HasColumnName("codigo_administrador").HasMaxLength(50);
             e.Property(x => x.FechaRegistro).HasColumnName("fecha_registro").IsRequired();
             e.HasIndex(x => x.PersonaId).IsUnique();
+            // El generador siempre asigna AD-###; el filtro deja convivir
+            // semillas históricas con código nulo o en otro formato.
+            e.HasIndex(x => x.CodigoAdministrador).IsUnique()
+                .HasFilter("\"codigo_administrador\" IS NOT NULL");
         });
 
         // ---------- Operador ----------

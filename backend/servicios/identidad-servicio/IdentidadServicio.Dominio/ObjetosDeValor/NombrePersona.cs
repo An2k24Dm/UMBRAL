@@ -1,9 +1,16 @@
+using System.Text.RegularExpressions;
 using IdentidadServicio.Dominio.Excepciones;
 
 namespace IdentidadServicio.Dominio.ObjetosDeValor;
 
-public sealed class NombrePersona : IEquatable<NombrePersona>
+// Objeto de valor inmutable (record) — comparación por valor.
+// Acepta letras (incluye acentos y ñ) y espacios; longitud 2-50 por parte.
+public sealed record NombrePersona
 {
+    private static readonly Regex Patron = new(
+        @"^[A-Za-zÁÉÍÓÚáéíóúÑñÜü\s]{2,50}$",
+        RegexOptions.Compiled);
+
     public string Nombre { get; }
     public string Apellido { get; }
 
@@ -15,18 +22,28 @@ public sealed class NombrePersona : IEquatable<NombrePersona>
 
     public static NombrePersona Crear(string nombre, string apellido)
     {
-        if (string.IsNullOrWhiteSpace(nombre))
-            throw new DatosUsuarioInvalidosExcepcion("El nombre de la persona es obligatorio.");
-        if (string.IsNullOrWhiteSpace(apellido))
-            throw new DatosUsuarioInvalidosExcepcion("El apellido de la persona es obligatorio.");
+        var n = nombre?.Trim() ?? string.Empty;
+        var a = apellido?.Trim() ?? string.Empty;
 
-        return new NombrePersona(nombre.Trim(), apellido.Trim());
+        if (n.Length == 0)
+            throw new DatosUsuarioInvalidosExcepcion("El nombre de la persona es obligatorio.");
+        if (!Patron.IsMatch(n))
+            throw new DatosUsuarioInvalidosExcepcion(
+                "El nombre solo puede contener letras y espacios (2 a 50 caracteres).");
+
+        if (a.Length == 0)
+            throw new DatosUsuarioInvalidosExcepcion("El apellido de la persona es obligatorio.");
+        if (!Patron.IsMatch(a))
+            throw new DatosUsuarioInvalidosExcepcion(
+                "El apellido solo puede contener letras y espacios (2 a 50 caracteres).");
+
+        return new NombrePersona(n, a);
     }
 
-    public string Completo => $"{Nombre} {Apellido}".Trim();
+    public string ObtenerNombreCompleto() => $"{Nombre} {Apellido}".Trim();
 
-    public bool Equals(NombrePersona? otro) =>
-        otro is not null && Nombre == otro.Nombre && Apellido == otro.Apellido;
-    public override bool Equals(object? obj) => obj is NombrePersona n && Equals(n);
-    public override int GetHashCode() => HashCode.Combine(Nombre, Apellido);
+    // Alias por retrocompatibilidad con código que usaba esta propiedad.
+    public string Completo => ObtenerNombreCompleto();
+
+    public override string ToString() => ObtenerNombreCompleto();
 }

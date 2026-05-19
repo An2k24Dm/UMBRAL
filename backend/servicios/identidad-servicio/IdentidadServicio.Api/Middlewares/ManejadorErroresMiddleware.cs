@@ -1,11 +1,17 @@
 using System.Net;
 using System.Text.Json;
+using IdentidadServicio.Aplicacion.Validaciones;
 using IdentidadServicio.Dominio.Excepciones;
 
 namespace IdentidadServicio.Api.Middlewares;
 
 public sealed class ManejadorErroresMiddleware
 {
+    private static readonly JsonSerializerOptions OpcionesJson = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    };
+
     private readonly RequestDelegate _siguiente;
     private readonly ILogger<ManejadorErroresMiddleware> _registro;
 
@@ -22,40 +28,55 @@ public sealed class ManejadorErroresMiddleware
         {
             await _siguiente(contexto);
         }
+        catch (ExcepcionValidacion ex)
+        {
+            // HU02: errores por campo → HTTP 400 con { codigo, mensaje, errores }.
+            await EscribirJsonAsync(contexto, HttpStatusCode.BadRequest, new
+            {
+                codigo = "VALIDACION",
+                mensaje = ex.Message,
+                errores = ex.Errores.Select(e => new { campo = e.Campo, mensaje = e.Mensaje })
+            });
+        }
         catch (CuentaDesactivadaExcepcion ex)
         {
-            await EscribirAsync(contexto, HttpStatusCode.Forbidden, "CUENTA_DESACTIVADA", ex.Message);
+            await EscribirCodigoAsync(contexto, HttpStatusCode.Forbidden, "CUENTA_DESACTIVADA", ex.Message);
         }
         catch (AccesoNoPermitidoExcepcion ex)
         {
-            await EscribirAsync(contexto, HttpStatusCode.Forbidden, "ACCESO_NO_PERMITIDO", ex.Message);
+            await EscribirCodigoAsync(contexto, HttpStatusCode.Forbidden, "ACCESO_NO_PERMITIDO", ex.Message);
         }
         catch (RolNoValidoExcepcion ex)
         {
-            await EscribirAsync(contexto, HttpStatusCode.Forbidden, "ROL_NO_VALIDO", ex.Message);
+            await EscribirCodigoAsync(contexto, HttpStatusCode.Forbidden, "ROL_NO_VALIDO", ex.Message);
         }
         catch (DatosUsuarioInvalidosExcepcion ex)
         {
-            // En HU01 reutilizamos para "credenciales inválidas" (401) y datos inválidos (400).
+            // HU01 reutiliza esta excepción para "credenciales inválidas" (401)
+            // y como defensa del dominio para datos inválidos (400).
             var codigo = ex.Message.Contains("Credenciales", StringComparison.OrdinalIgnoreCase)
                 ? HttpStatusCode.Unauthorized
                 : HttpStatusCode.BadRequest;
-            await EscribirAsync(contexto, codigo, "DATOS_INVALIDOS", ex.Message);
+            await EscribirCodigoAsync(contexto, codigo, "DATOS_INVALIDOS", ex.Message);
         }
         catch (Exception ex)
         {
             _registro.LogError(ex, "Error no controlado.");
-            await EscribirAsync(contexto, HttpStatusCode.InternalServerError,
+            await EscribirCodigoAsync(contexto, HttpStatusCode.InternalServerError,
                 "ERROR_INTERNO", "Ocurrió un error inesperado en el servidor.");
         }
     }
 
-    private static Task EscribirAsync(HttpContext contexto, HttpStatusCode estado, string codigo, string mensaje)
+    private static Task EscribirCodigoAsync(
+        HttpContext contexto, HttpStatusCode estado, string codigo, string mensaje)
+    {
+        return EscribirJsonAsync(contexto, estado, new { codigo, mensaje });
+    }
+
+    private static Task EscribirJsonAsync(HttpContext contexto, HttpStatusCode estado, object cuerpo)
     {
         contexto.Response.StatusCode = (int)estado;
         contexto.Response.ContentType = "application/json";
-        var cuerpo = JsonSerializer.Serialize(new { codigo, mensaje },
-            new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
-        return contexto.Response.WriteAsync(cuerpo);
+        return contexto.Response.WriteAsync(JsonSerializer.Serialize(cuerpo, OpcionesJson));
     }
 }

@@ -21,7 +21,7 @@ public abstract class Usuario
     public DateTime FechaRegistro { get; protected set; }
 
     public NombrePersona NombrePersona { get; protected set; } = default!;
-    public DatosContacto DatosContacto { get; protected set; } = DatosContacto.Vacio();
+    public DatosContacto DatosContacto { get; protected set; } = default!;
     public SexoPersona Sexo { get; protected set; }
     public DateTime FechaNacimiento { get; protected set; }
 
@@ -57,7 +57,8 @@ public abstract class Usuario
         Estado = estado;
         FechaRegistro = fechaRegistro;
         NombrePersona = nombrePersona;
-        DatosContacto = datosContacto ?? DatosContacto.Vacio();
+        DatosContacto = datosContacto
+            ?? throw new DatosUsuarioInvalidosExcepcion("Los datos de contacto son obligatorios.");
         Sexo = sexo;
         FechaNacimiento = fechaNacimiento;
     }

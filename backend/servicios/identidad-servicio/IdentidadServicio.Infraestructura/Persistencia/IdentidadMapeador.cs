@@ -66,7 +66,7 @@ public sealed class IdentidadMapeador
                 (EstadoUsuario)t.Usuario.Estado,
                 t.Usuario.FechaRegistro,
                 NombrePersona.Crear(t.Persona.Nombre, t.Persona.Apellido),
-                DatosContacto.Crear(t.Persona.Direccion, t.Persona.Telefono),
+                DatosContacto.Crear(t.Persona.Direccion ?? string.Empty, t.Persona.Telefono ?? string.Empty),
                 (SexoPersona)t.Persona.Sexo,
                 t.Persona.FechaNacimiento,
                 t.Administrador.CodigoAdministrador));
@@ -80,7 +80,7 @@ public sealed class IdentidadMapeador
                 (EstadoUsuario)t.Usuario.Estado,
                 t.Usuario.FechaRegistro,
                 NombrePersona.Crear(t.Persona.Nombre, t.Persona.Apellido),
-                DatosContacto.Crear(t.Persona.Direccion, t.Persona.Telefono),
+                DatosContacto.Crear(t.Persona.Direccion ?? string.Empty, t.Persona.Telefono ?? string.Empty),
                 (SexoPersona)t.Persona.Sexo,
                 t.Persona.FechaNacimiento,
                 t.Operador.CodigoOperador));
@@ -94,7 +94,7 @@ public sealed class IdentidadMapeador
                 (EstadoUsuario)t.Usuario.Estado,
                 t.Usuario.FechaRegistro,
                 NombrePersona.Crear(t.Persona.Nombre, t.Persona.Apellido),
-                DatosContacto.Crear(t.Persona.Direccion, t.Persona.Telefono),
+                DatosContacto.Crear(t.Persona.Direccion ?? string.Empty, t.Persona.Telefono ?? string.Empty),
                 (SexoPersona)t.Persona.Sexo,
                 t.Persona.FechaNacimiento,
                 t.Participante.Alias));

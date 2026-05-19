@@ -1,6 +1,8 @@
 using System.Reflection;
 using IdentidadServicio.Aplicacion.Estrategias;
 using IdentidadServicio.Aplicacion.Fabricas;
+using IdentidadServicio.Aplicacion.Generadores;
+using IdentidadServicio.Aplicacion.Validaciones;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace IdentidadServicio.Aplicacion.Dependencias;
@@ -19,6 +21,12 @@ public static class RegistroAplicacion
 
         // Patrón Factory: recibe el IEnumerable<IEstrategiaCreacionUsuario>.
         servicios.AddScoped<FabricaEstrategiaCreacionUsuario>();
+
+        // Validador reutilizable de caso de uso (HU02).
+        servicios.AddScoped<IValidadorCrearUsuario, ValidadorCrearUsuario>();
+
+        // Generador de códigos correlativos (HU02): OP-### / AD-###.
+        servicios.AddScoped<IGeneradorCodigoUsuario, GeneradorCodigoUsuario>();
 
         return servicios;
     }

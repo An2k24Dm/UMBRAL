@@ -3,15 +3,17 @@ using System;
 using IdentidadServicio.Infraestructura.Persistencia;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
 namespace IdentidadServicio.Infraestructura.Persistencia.Migraciones
 {
     [DbContext(typeof(ContextoIdentidad))]
-    partial class ContextoIdentidadModelSnapshot : ModelSnapshot
+    [Migration("20260519000001_AgregarCodigosUnicosUsuario")]
+    partial class AgregarCodigosUnicosUsuario
     {
-        protected override void BuildModel(ModelBuilder mb)
+        protected override void BuildTargetModel(ModelBuilder mb)
         {
             mb.HasDefaultSchema("identidad")
               .HasAnnotation("ProductVersion", "8.0.10")

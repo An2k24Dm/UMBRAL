@@ -39,7 +39,7 @@ public static class SembradorIdentidad
             "administrador01@umbral.com",
             SexoPersona.Masculino,
             nacimientoAdmin,
-            "ADM-001",
+            "AD-001",
             ahora,
             cancelacion);
 
@@ -288,6 +288,10 @@ public static class SembradorIdentidad
         DateTime ahora,
         CancellationToken cancelacion)
     {
+        // Dirección y teléfono ahora son obligatorios en DatosContacto (HU02);
+        // la reconstrucción del dominio fallaría si quedaran nulos.
+        var (direccion, telefono) = ObtenerContactoSembrado(usuarioId);
+
         var persona = await contexto.Personas
             .FirstOrDefaultAsync(p => p.UsuarioId == usuarioId, cancelacion);
 
@@ -296,6 +300,8 @@ public static class SembradorIdentidad
             persona.Nombre = nombre;
             persona.Apellido = apellido;
             persona.Correo = correo;
+            persona.Direccion ??= direccion;
+            persona.Telefono ??= telefono;
             persona.Sexo = (int)sexo;
             persona.FechaNacimiento = fechaNacimiento;
             return persona;
@@ -308,6 +314,8 @@ public static class SembradorIdentidad
             Nombre = nombre,
             Apellido = apellido,
             Correo = correo,
+            Direccion = direccion,
+            Telefono = telefono,
             Sexo = (int)sexo,
             FechaNacimiento = fechaNacimiento,
             FechaRegistro = ahora
@@ -316,6 +324,15 @@ public static class SembradorIdentidad
         contexto.Personas.Add(persona);
 
         return persona;
+    }
+
+    private static (string Direccion, string Telefono) ObtenerContactoSembrado(Guid usuarioId)
+    {
+        if (usuarioId == IdAdmin)               return ("Av. Bolívar, Caracas", "04141000001");
+        if (usuarioId == IdOperador)            return ("Av. Libertador, Caracas", "04141000002");
+        if (usuarioId == IdParticipanteActivo)  return ("Av. Urdaneta, Caracas", "04141000003");
+        if (usuarioId == IdParticipanteInactivo) return ("Av. Sucre, Caracas", "04141000004");
+        return ("Caracas, Venezuela", "04141000099");
     }
 
     private static async Task EjecutarMigracionConReintentosAsync(

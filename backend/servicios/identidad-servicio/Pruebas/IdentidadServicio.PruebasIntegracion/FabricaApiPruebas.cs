@@ -1,6 +1,7 @@
 using IdentidadServicio.Aplicacion.Puertos;
 using IdentidadServicio.Dominio.Enums;
 using IdentidadServicio.Infraestructura.Persistencia;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -29,6 +30,16 @@ public sealed class FabricaApiPruebas : WebApplicationFactory<Program>
             var descProv = servicios.SingleOrDefault(d => d.ServiceType == typeof(IProveedorIdentidad));
             if (descProv is not null) servicios.Remove(descProv);
             servicios.AddSingleton(MockProveedor.Object);
+
+            // Reemplaza JwtBearer por un esquema de prueba dirigido por cabecera.
+            servicios.AddAuthentication(opciones =>
+            {
+                opciones.DefaultAuthenticateScheme = AuthHandlerPruebas.Esquema;
+                opciones.DefaultChallengeScheme = AuthHandlerPruebas.Esquema;
+                opciones.DefaultScheme = AuthHandlerPruebas.Esquema;
+            })
+            .AddScheme<AuthenticationSchemeOptions, AuthHandlerPruebas>(
+                AuthHandlerPruebas.Esquema, _ => { });
 
             using var alcance = servicios.BuildServiceProvider().CreateScope();
             var contexto = alcance.ServiceProvider.GetRequiredService<ContextoIdentidad>();
@@ -63,22 +74,27 @@ public sealed class FabricaApiPruebas : WebApplicationFactory<Program>
                 Rol = (int)RolUsuario.Participante, Estado = (int)EstadoUsuario.Inactivo, FechaRegistro = ahora
             });
 
+        // Teléfonos únicos sembrados: HU02 añade índice único sobre persona.telefono.
+        // Direcciones y teléfonos válidos: HU02 hace que DatosContacto sea estricto.
         var pAdmin = new PersonaModelo
         {
             Id = Guid.NewGuid(), UsuarioId = idAdmin,
             Nombre = "Ada", Apellido = "Admin", Correo = "ada@umbral.com",
+            Direccion = "Av. Bolívar, Caracas", Telefono = "04120000001",
             Sexo = (int)SexoPersona.Femenino, FechaNacimiento = nac, FechaRegistro = ahora
         };
         var pParActivo = new PersonaModelo
         {
             Id = Guid.NewGuid(), UsuarioId = idParticipanteActivo,
             Nombre = "Pablo", Apellido = "Par", Correo = "pablo@umbral.com",
+            Direccion = "Av. Libertador, Caracas", Telefono = "04120000002",
             Sexo = (int)SexoPersona.Masculino, FechaNacimiento = nac, FechaRegistro = ahora
         };
         var pInactivo = new PersonaModelo
         {
             Id = Guid.NewGuid(), UsuarioId = idInactivo,
             Nombre = "Iván", Apellido = "Inactivo", Correo = "ivan@umbral.com",
+            Direccion = "Av. Urdaneta, Caracas", Telefono = "04120000003",
             Sexo = (int)SexoPersona.Masculino, FechaNacimiento = nac, FechaRegistro = ahora
         };
         contexto.Personas.AddRange(pAdmin, pParActivo, pInactivo);
@@ -86,7 +102,7 @@ public sealed class FabricaApiPruebas : WebApplicationFactory<Program>
         contexto.Administradores.Add(new AdministradorModelo
         {
             Id = Guid.NewGuid(), PersonaId = pAdmin.Id,
-            CodigoAdministrador = "ADM-001", FechaRegistro = ahora
+            CodigoAdministrador = "AD-001", FechaRegistro = ahora
         });
         contexto.Participantes.AddRange(
             new ParticipanteModelo
