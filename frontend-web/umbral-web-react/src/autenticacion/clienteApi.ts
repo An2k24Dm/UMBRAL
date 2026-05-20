@@ -24,8 +24,12 @@ const ENDPOINTS = {
   perfilActual: '/api/autenticacion/perfil-actual',
   // HU02 — registro de Operador/Administrador.
   registrarUsuario: '/api/usuarios',
-  // HU07 — listado de Participantes. TODO backend: confirmar nombre y filtros.
+  // HU07 — listado de Participantes.
   listarParticipantes: '/api/usuarios/participantes',
+  // HU07 — detalle/perfil completo de un Participante seleccionado.
+  detalleParticipante: (id: string) =>
+    `/api/usuarios/participantes/${encodeURIComponent(id)}`,
+  // Detalle de un usuario por id (HU08 ver perfil). HU07 usa su ruta propia.
   // HU08 — listado de Operadores y Administradores.
   listarUsuariosInternos: '/api/usuarios/internos',
   // HU08 — detalle de un usuario interno (Operador / Administrador).
@@ -53,6 +57,7 @@ async function pedirJson<T>(url: string, token: string): Promise<T> {
   const respuesta = await fetch(url, { headers: autorizacion(token) })
   if (respuesta.status === 401) throw new Error('Debe iniciar sesión.')
   if (respuesta.status === 403) throw new Error('No tiene permisos para consultar este recurso.')
+  if (respuesta.status === 404) throw new Error(await leerError(respuesta))
   if (respuesta.status === 404) throw new Error('Usuario no encontrado.')
   if (!respuesta.ok) throw new Error(await leerError(respuesta))
   return (await respuesta.json()) as T
@@ -193,13 +198,29 @@ export async function obtenerParticipantes(
   const query = construirQuery({
     pagina: filtros.pagina,
     tamanioPagina: filtros.tamanioPagina,
-    busqueda: filtros.busqueda,
     ordenEstado: filtros.ordenEstado ?? undefined
   })
   return pedirJson<ResultadoPaginado<UsuarioListadoParticipante>>(
     `${URL_API}${ENDPOINTS.listarParticipantes}${query}`,
     token
   )
+}
+
+// HU07 — detalle/perfil de un Participante seleccionado. Maneja 401/403/404
+// con mensajes específicos para la pantalla de detalle.
+export async function obtenerDetalleParticipante(
+  id: string,
+  token: string
+): Promise<UsuarioDetalle> {
+  const respuesta = await fetch(
+    `${URL_API}${ENDPOINTS.detalleParticipante(id)}`,
+    { headers: autorizacion(token) }
+  )
+  if (respuesta.status === 401) throw new Error('Debe iniciar sesión.')
+  if (respuesta.status === 403) throw new Error('No tiene permisos para consultar este participante.')
+  if (respuesta.status === 404) throw new Error('Participante no encontrado.')
+  if (!respuesta.ok) throw new Error(await leerError(respuesta))
+  return (await respuesta.json()) as UsuarioDetalle
 }
 
 // ---------------------------------------------------------------------------

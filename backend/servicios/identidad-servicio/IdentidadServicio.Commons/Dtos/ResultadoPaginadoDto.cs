@@ -1,11 +1,22 @@
 namespace IdentidadServicio.Commons.Dtos;
 
-// Resultado paginado genérico para consultas que entregan listados.
-// Se mantiene neutral respecto al dominio para poder reutilizarse en HU07/HU08.
+// Sobre genérico para listados paginados. Se mantiene en Commons para que
+// pueda viajar entre la capa de Aplicación y los controladores sin acoplarlos
+// a tipos específicos del dominio.
 public sealed class ResultadoPaginadoDto<T>
 {
     public IReadOnlyList<T> Elementos { get; init; } = Array.Empty<T>();
     public int Pagina { get; init; }
     public int TamanioPagina { get; init; }
     public int Total { get; init; }
+
+    public ResultadoPaginadoDto() { }
+
+    public ResultadoPaginadoDto(IReadOnlyList<T> elementos, int pagina, int tamanioPagina, int total)
+    {
+        Elementos = elementos;
+        Pagina = pagina;
+        TamanioPagina = tamanioPagina;
+        Total = total;
+    }
 }

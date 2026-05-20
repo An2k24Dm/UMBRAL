@@ -17,6 +17,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\IdentidadServicio.Api\IdentidadServicio.Api.csproj" />
     <ProjectReference Include="..\..\IdentidadServicio.Aplicacion\IdentidadServicio.Aplicacion.csproj" />
     <ProjectReference Include="..\..\IdentidadServicio.Dominio\IdentidadServicio.Dominio.csproj" />
     <ProjectReference Include="..\..\IdentidadServicio.Commons\IdentidadServicio.Commons.csproj" />

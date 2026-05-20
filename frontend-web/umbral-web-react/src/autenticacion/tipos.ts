@@ -89,7 +89,6 @@ export type OrdenEstado = 'asc' | 'desc' | null
 export interface FiltrosParticipantes {
   pagina: number
   tamanioPagina: number
-  busqueda?: string
   ordenEstado?: OrdenEstado
 }
 

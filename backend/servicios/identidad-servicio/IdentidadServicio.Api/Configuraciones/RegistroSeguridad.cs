@@ -62,6 +62,10 @@ public static class RegistroSeguridad
             opcAuth.AddPolicy("PoliticaAdministrador", p => p.RequireRole("Administrador"));
             opcAuth.AddPolicy("PoliticaOperador", p => p.RequireRole("Operador"));
             opcAuth.AddPolicy("PoliticaParticipante", p => p.RequireRole("Participante"));
+            // HU07: consulta de Participantes desde el panel web. Permite a
+            // Administrador y Operador. Participante no puede acceder al panel.
+            opcAuth.AddPolicy("PoliticaAdministradorUOperador",
+                p => p.RequireRole("Administrador", "Operador"));
         });
 
         return servicios;
