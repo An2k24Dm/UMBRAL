@@ -4,9 +4,7 @@ import { LayoutPanel } from '../componentes/LayoutPanel'
 import { TablaUsuarios, type ColumnaTabla } from '../componentes/TablaUsuarios'
 import { Paginacion } from '../componentes/Paginacion'
 import { BadgeEstado } from '../componentes/BadgeEstado'
-import { CampoFormulario } from '../componentes/CampoFormulario'
 import { Alerta } from '../componentes/Alerta'
-import { Boton } from '../componentes/Boton'
 import { obtenerParticipantes } from '../autenticacion/clienteApi'
 import { usarAutenticacion } from '../autenticacion/ProveedorAutenticacion'
 import type {
@@ -16,7 +14,7 @@ import type {
 } from '../autenticacion/tipos'
 
 // HU07 — listar Participantes. Visible para Administrador y Operador.
-// La columna "Número" es la posición en la página (no es el id).
+// La columna "Número" es la posición en la página (no es el id de BD).
 
 const TAMANIO_PAGINA = 10
 
@@ -35,8 +33,6 @@ export function PaginaListaParticipantes({ rutaBaseDetalle }: Props) {
   const navegar = useNavigate()
 
   const [pagina, setPagina] = useState(1)
-  const [busqueda, setBusqueda] = useState('')
-  const [busquedaAplicada, setBusquedaAplicada] = useState('')
   const [ordenEstado, setOrdenEstado] = useState<OrdenEstado>(null)
 
   const [estado, setEstado] = useState<'cargando' | 'error' | 'vacio' | 'listo'>('cargando')
@@ -58,7 +54,6 @@ export function PaginaListaParticipantes({ rutaBaseDetalle }: Props) {
           {
             pagina,
             tamanioPagina: TAMANIO_PAGINA,
-            busqueda: busquedaAplicada || undefined,
             ordenEstado
           },
           token
@@ -75,7 +70,7 @@ export function PaginaListaParticipantes({ rutaBaseDetalle }: Props) {
     }
     cargar()
     return () => { cancelado = true }
-  }, [token, pagina, busquedaAplicada, ordenEstado])
+  }, [token, pagina, ordenEstado])
 
   const inicioNumeracion = useMemo(
     () => (pagina - 1) * TAMANIO_PAGINA + 1,
@@ -96,20 +91,10 @@ export function PaginaListaParticipantes({ rutaBaseDetalle }: Props) {
     { clave: 'sexo', encabezado: 'Sexo', render: (f) => noDisponible(f.sexo) }
   ]
 
+  // La columna Estado cicla entre asc → desc → sin orden.
   const alOrdenar = (clave: string) => {
     if (clave !== 'estado') return
     setOrdenEstado((actual) => (actual === 'asc' ? 'desc' : actual === 'desc' ? null : 'asc'))
-    setPagina(1)
-  }
-
-  const aplicarBusqueda = () => {
-    setPagina(1)
-    setBusquedaAplicada(busqueda.trim())
-  }
-
-  const limpiarBusqueda = () => {
-    setBusqueda('')
-    setBusquedaAplicada('')
     setPagina(1)
   }
 
@@ -119,24 +104,8 @@ export function PaginaListaParticipantes({ rutaBaseDetalle }: Props) {
         <div className="seccion-cabecera">
           <div>
             <h2>Participantes registrados</h2>
-            <p>Use la búsqueda y el ordenamiento para localizar un participante específico.</p>
+            <p>Use el ordenamiento por estado para localizar participantes.</p>
           </div>
-        </div>
-
-        <div className="barra-filtros">
-          <CampoFormulario etiqueta="Buscar" htmlFor="busqueda" opcional="username, alias, nombre o apellido">
-            <input
-              id="busqueda"
-              value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') aplicarBusqueda() }}
-              placeholder="Escriba para filtrar…"
-            />
-          </CampoFormulario>
-          <Boton variante="primario" onClick={aplicarBusqueda}>Buscar</Boton>
-          <Boton variante="secundario" onClick={limpiarBusqueda} disabled={!busquedaAplicada && !busqueda}>
-            Limpiar
-          </Boton>
         </div>
 
         {estado === 'error' && mensajeError && <Alerta tono="error">{mensajeError}</Alerta>}
@@ -147,7 +116,7 @@ export function PaginaListaParticipantes({ rutaBaseDetalle }: Props) {
           obtenerId={(f) => f.id}
           estadoCarga={estado}
           mensajeError={mensajeError ?? undefined}
-          mensajeVacio="No se encontraron participantes con los criterios seleccionados."
+          mensajeVacio="Sin participantes registrados."
           inicioNumeracion={inicioNumeracion}
           mostrarColumnaNumero
           alVerPerfil={(f) => navegar(`${rutaBaseDetalle}/${f.id}`)}

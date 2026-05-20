@@ -103,6 +103,83 @@ public sealed class RepositorioIdentidad : IRepositorioIdentidad
         await _contexto.SaveChangesAsync(cancelacion);
     }
 
+    // HU07: lista paginada de Participantes para el panel web.
+    // Filtra estrictamente por Rol = Participante (deja fuera Operadores y
+    // Administradores) y permite ordenar por estado. El orden secundario por
+    // NombreUsuario garantiza una paginación estable cuando varias filas
+    // comparten el mismo estado.
+    public async Task<IReadOnlyList<Participante>> ConsultarParticipantesAsync(
+        int pagina, int tamanioPagina, string? ordenEstado, CancellationToken cancelacion)
+    {
+        if (pagina <= 0) pagina = 1;
+        if (tamanioPagina <= 0) tamanioPagina = 10;
+
+        var consulta = _contexto.Usuarios.AsNoTracking()
+            .Where(u => u.Rol == (int)RolUsuario.Participante);
+
+        var ordenNormalizado = ordenEstado?.Trim().ToLowerInvariant();
+        IOrderedQueryable<UsuarioModelo> ordenada = ordenNormalizado switch
+        {
+            "asc"  => consulta.OrderBy(u => u.Estado).ThenBy(u => u.NombreUsuario),
+            "desc" => consulta.OrderByDescending(u => u.Estado).ThenBy(u => u.NombreUsuario),
+            _      => consulta.OrderBy(u => u.NombreUsuario)
+        };
+
+        var usuarios = await ordenada
+            .Skip((pagina - 1) * tamanioPagina)
+            .Take(tamanioPagina)
+            .ToListAsync(cancelacion);
+
+        if (usuarios.Count == 0) return Array.Empty<Participante>();
+
+        var ids = usuarios.Select(u => u.Id).ToList();
+        var personas = await _contexto.Personas.AsNoTracking()
+            .Where(p => ids.Contains(p.UsuarioId))
+            .ToListAsync(cancelacion);
+        var personaIds = personas.Select(p => p.Id).ToList();
+        var participantes = await _contexto.Participantes.AsNoTracking()
+            .Where(p => personaIds.Contains(p.PersonaId))
+            .ToListAsync(cancelacion);
+
+        var resultado = new List<Participante>(usuarios.Count);
+        foreach (var u in usuarios)
+        {
+            var persona = personas.FirstOrDefault(p => p.UsuarioId == u.Id);
+            if (persona is null) continue;
+            var par = participantes.FirstOrDefault(p => p.PersonaId == persona.Id);
+            if (par is null) continue;
+            resultado.Add(_mapeador.AParticipante(u, persona, par));
+        }
+
+        return resultado;
+    }
+
+    public async Task<int> ContarParticipantesAsync(CancellationToken cancelacion)
+    {
+        return await _contexto.Usuarios.AsNoTracking()
+            .CountAsync(u => u.Rol == (int)RolUsuario.Participante, cancelacion);
+    }
+
+    public async Task<Participante?> ObtenerParticipantePorIdAsync(
+        Guid id, CancellationToken cancelacion)
+    {
+        var usuario = await _contexto.Usuarios.AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Id == id, cancelacion);
+        // Si el usuario no existe o no es Participante, no devolvemos nada:
+        // HU07 jamás debe exponer Operadores ni Administradores.
+        if (usuario is null || usuario.Rol != (int)RolUsuario.Participante) return null;
+
+        var persona = await _contexto.Personas.AsNoTracking()
+            .FirstOrDefaultAsync(p => p.UsuarioId == usuario.Id, cancelacion);
+        if (persona is null) return null;
+
+        var participante = await _contexto.Participantes.AsNoTracking()
+            .FirstOrDefaultAsync(p => p.PersonaId == persona.Id, cancelacion);
+        if (participante is null) return null;
+
+        return _mapeador.AParticipante(usuario, persona, participante);
+    }
+
     private async Task<Usuario?> ReconstruirAsync(UsuarioModelo u, CancellationToken cancelacion)
     {
         var persona = await _contexto.Personas.AsNoTracking()

@@ -23,4 +23,15 @@ public interface IRepositorioIdentidad
         Operador operador, string idKeycloak, CancellationToken cancelacion);
     Task GuardarParticipanteAsync(
         Participante participante, string idKeycloak, CancellationToken cancelacion);
+
+    // HU07: listado paginado de Participantes. La exclusión de Operadores y
+    // Administradores ocurre en la implementación de infraestructura.
+    Task<IReadOnlyList<Participante>> ConsultarParticipantesAsync(
+        int pagina, int tamanioPagina, string? ordenEstado, CancellationToken cancelacion);
+    Task<int> ContarParticipantesAsync(CancellationToken cancelacion);
+
+    // HU07: detalle de un Participante por su Id. Devuelve null si el id no
+    // existe o si corresponde a un usuario interno (Operador/Administrador).
+    Task<Participante?> ObtenerParticipantePorIdAsync(
+        Guid id, CancellationToken cancelacion);
 }

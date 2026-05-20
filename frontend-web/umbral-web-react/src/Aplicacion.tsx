@@ -6,6 +6,7 @@ import { PaginaOperador } from './paginas/PaginaOperador'
 import { PaginaParticipante } from './paginas/PaginaParticipante'
 import { PaginaPerfilUsuarioAutenticado } from './paginas/PaginaPerfilUsuarioAutenticado'
 import { PaginaListaParticipantes } from './paginas/PaginaListaParticipantes'
+import { PaginaDetalleParticipante } from './paginas/PaginaDetalleParticipante'
 import { PaginaListaUsuariosInternos } from './paginas/PaginaListaUsuariosInternos'
 import { PaginaDetalleUsuario } from './paginas/PaginaDetalleUsuario'
 import { RutaProtegida } from './autenticacion/RutaProtegida'
@@ -45,7 +46,15 @@ export function Aplicacion() {
         path="/administrador/usuarios/participantes"
         element={
           <RutaProtegida rolesPermitidos={['Administrador']}>
-            <PaginaListaParticipantes rutaBaseDetalle="/administrador/usuarios" />
+            <PaginaListaParticipantes rutaBaseDetalle="/administrador/usuarios/participantes" />
+          </RutaProtegida>
+        }
+      />
+      <Route
+        path="/administrador/usuarios/participantes/:id"
+        element={
+          <RutaProtegida rolesPermitidos={['Administrador']}>
+            <PaginaDetalleParticipante />
           </RutaProtegida>
         }
       />
@@ -87,15 +96,15 @@ export function Aplicacion() {
         path="/operador/usuarios/participantes"
         element={
           <RutaProtegida rolesPermitidos={['Operador']}>
-            <PaginaListaParticipantes rutaBaseDetalle="/operador/usuarios" />
+            <PaginaListaParticipantes rutaBaseDetalle="/operador/usuarios/participantes" />
           </RutaProtegida>
         }
       />
       <Route
-        path="/operador/usuarios/:id"
+        path="/operador/usuarios/participantes/:id"
         element={
           <RutaProtegida rolesPermitidos={['Operador']}>
-            <PaginaDetalleUsuario rolesPermitidosVista={['Participante']} />
+            <PaginaDetalleParticipante />
           </RutaProtegida>
         }
       />
