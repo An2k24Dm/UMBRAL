@@ -1,4 +1,6 @@
+using IdentidadServicio.Commons.Dtos;
 using IdentidadServicio.Dominio.Entidades;
+using IdentidadServicio.Dominio.Enums;
 
 namespace IdentidadServicio.Aplicacion.Puertos;
 
@@ -34,4 +36,17 @@ public interface IRepositorioIdentidad
     // existe o si corresponde a un usuario interno (Operador/Administrador).
     Task<Participante?> ObtenerParticipantePorIdAsync(
         Guid id, CancellationToken cancelacion);
+    // HU08 — consulta paginada de cuentas internas (Operador / Administrador).
+    // El filtro de rol es null para "Todos". El orden por estado puede ser
+    // "asc", "desc" o null (sin orden explícito; se ordena por nombre).
+    Task<ResultadoPaginadoDto<UsuarioInternoListadoDto>> ConsultarUsuariosInternosAsync(
+        int pagina,
+        int tamanioPagina,
+        RolUsuario? rolFiltro,
+        string? ordenEstado,
+        CancellationToken cancelacion);
+
+    // HU08 — detalle de un usuario interno por id. Devuelve null cuando no
+    // existe el id O cuando el usuario es Participante (no es interno).
+    Task<Usuario?> ObtenerUsuarioInternoPorIdAsync(Guid id, CancellationToken cancelacion);
 }

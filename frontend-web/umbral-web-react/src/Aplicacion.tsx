@@ -9,6 +9,7 @@ import { PaginaListaParticipantes } from './paginas/PaginaListaParticipantes'
 import { PaginaDetalleParticipante } from './paginas/PaginaDetalleParticipante'
 import { PaginaListaUsuariosInternos } from './paginas/PaginaListaUsuariosInternos'
 import { PaginaDetalleUsuario } from './paginas/PaginaDetalleUsuario'
+import { obtenerDetalleUsuarioInterno } from './autenticacion/clienteApi'
 import { RutaProtegida } from './autenticacion/RutaProtegida'
 
 export function Aplicacion() {
@@ -63,6 +64,19 @@ export function Aplicacion() {
         element={
           <RutaProtegida rolesPermitidos={['Administrador']}>
             <PaginaListaUsuariosInternos />
+          </RutaProtegida>
+        }
+      />
+      {/* HU08 — detalle de Operadores y Administradores: usa el endpoint
+          /api/usuarios/internos/{id} que excluye Participantes. */}
+      <Route
+        path="/administrador/usuarios/internos/:id"
+        element={
+          <RutaProtegida rolesPermitidos={['Administrador']}>
+            <PaginaDetalleUsuario
+              rolesPermitidosVista={['Operador', 'Administrador']}
+              obtenerUsuario={obtenerDetalleUsuarioInterno}
+            />
           </RutaProtegida>
         }
       />

@@ -9,15 +9,21 @@ import { usarAutenticacion } from '../autenticacion/ProveedorAutenticacion'
 import type { UsuarioDetalle } from '../autenticacion/tipos'
 
 // Vista de detalle/perfil completo de un usuario seleccionado desde una lista.
-// - Administrador: detalle de Participantes, Operadores y Administradores.
+// - Administrador: detalle de Participantes (HU07), Operadores y Administradores (HU08).
 // - Operador: detalle restringido a Participantes (validación final en backend).
+//
+// La función de carga (obtenerUsuario) es inyectable para que HU07 y HU08
+// usen sus endpoints específicos sin duplicar la vista.
 
 interface Props {
   // Restringe a nivel de UI qué roles puede consultar el usuario actual.
   rolesPermitidosVista?: Array<'Participante' | 'Operador' | 'Administrador'>
+  // Fuente de datos del detalle. Por defecto se usa el endpoint genérico de HU07.
+  obtenerUsuario?: (id: string, token: string) => Promise<UsuarioDetalle>
 }
 
-export function PaginaDetalleUsuario({ rolesPermitidosVista }: Props) {
+export function PaginaDetalleUsuario({ rolesPermitidosVista, obtenerUsuario }: Props) {
+  const cargarDetalle = obtenerUsuario ?? obtenerDetalleUsuario
   const { id } = useParams<{ id: string }>()
   const { token } = usarAutenticacion()
   const navegar = useNavigate()
@@ -41,7 +47,7 @@ export function PaginaDetalleUsuario({ rolesPermitidosVista }: Props) {
       setEstado('cargando')
       setMensajeError(null)
       try {
-        const detalle = await obtenerDetalleUsuario(id, token)
+        const detalle = await cargarDetalle(id, token)
         if (cancelado) return
         if (rolesPermitidosVista && !rolesPermitidosVista.includes(detalle.rol)) {
           setEstado('denegado')
@@ -58,7 +64,7 @@ export function PaginaDetalleUsuario({ rolesPermitidosVista }: Props) {
     }
     cargar()
     return () => { cancelado = true }
-  }, [token, id, rolesPermitidosVista])
+  }, [token, id, rolesPermitidosVista, cargarDetalle])
 
   return (
     <LayoutPanel titulo="Detalle de usuario" descripcion="Perfil completo del usuario seleccionado.">

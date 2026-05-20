@@ -107,4 +107,51 @@ public sealed class UsuariosControlador : ControllerBase
             });
         }
     }
+
+    // HU08 — listado paginado de cuentas internas (Operador / Administrador).
+    // Restringido a Administrador (la política replica la seguridad del frontend).
+    [HttpGet("internos")]
+    [Authorize(Policy = "PoliticaAdministrador")]
+    [ProducesResponseType(typeof(ResultadoPaginadoDto<UsuarioInternoListadoDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<ResultadoPaginadoDto<UsuarioInternoListadoDto>>> ListarUsuariosInternos(
+        [FromQuery] int pagina = 1,
+        [FromQuery] int tamanioPagina = 10,
+        [FromQuery] string? rol = null,
+        [FromQuery] string? ordenEstado = null,
+        CancellationToken cancelacion = default)
+    {
+        var resultado = await _mediador.Send(
+            new ConsultarUsuariosInternosConsulta(pagina, tamanioPagina, rol, ordenEstado),
+            cancelacion);
+        return Ok(resultado);
+    }
+
+    // HU08 — detalle de un usuario interno. Se devuelve como object para que
+    // System.Text.Json serialice las propiedades del tipo derivado
+    // (PerfilOperadorDto / PerfilAdministradorDto).
+    [HttpGet("internos/{id:guid}")]
+    [Authorize(Policy = "PoliticaAdministrador")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<object>> ObtenerUsuarioInterno(
+        Guid id, CancellationToken cancelacion)
+    {
+        var perfil = await _mediador.Send(
+            new ObtenerUsuarioInternoDetalleConsulta(id), cancelacion);
+
+        if (perfil is null)
+        {
+            return NotFound(new
+            {
+                codigo = "USUARIO_NO_ENCONTRADO",
+                mensaje = "El usuario interno solicitado no existe."
+            });
+        }
+
+        return Ok((object)perfil);
+    }
 }

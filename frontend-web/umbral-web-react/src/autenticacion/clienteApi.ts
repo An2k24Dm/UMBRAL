@@ -29,9 +29,13 @@ const ENDPOINTS = {
   // HU07 — detalle/perfil completo de un Participante seleccionado.
   detalleParticipante: (id: string) =>
     `/api/usuarios/participantes/${encodeURIComponent(id)}`,
-  // HU08 — listado de Operadores y Administradores. TODO backend: confirmar.
-  listarUsuariosInternos: '/api/usuarios/internos',
   // Detalle de un usuario por id (HU08 ver perfil). HU07 usa su ruta propia.
+  // HU08 — listado de Operadores y Administradores.
+  listarUsuariosInternos: '/api/usuarios/internos',
+  // HU08 — detalle de un usuario interno (Operador / Administrador).
+  detalleUsuarioInterno: (id: string) =>
+    `/api/usuarios/internos/${encodeURIComponent(id)}`,
+  // Detalle genérico (HU07 ver perfil de Participante). TODO backend.
   detalleUsuario: (id: string) => `/api/usuarios/${encodeURIComponent(id)}`
 }
 
@@ -54,6 +58,7 @@ async function pedirJson<T>(url: string, token: string): Promise<T> {
   if (respuesta.status === 401) throw new Error('Debe iniciar sesión.')
   if (respuesta.status === 403) throw new Error('No tiene permisos para consultar este recurso.')
   if (respuesta.status === 404) throw new Error(await leerError(respuesta))
+  if (respuesta.status === 404) throw new Error('Usuario no encontrado.')
   if (!respuesta.ok) throw new Error(await leerError(respuesta))
   return (await respuesta.json()) as T
 }
@@ -238,11 +243,26 @@ export async function obtenerUsuariosInternos(
 }
 
 // ---------------------------------------------------------------------------
-// Detalle de usuario (HU07 / HU08 ver perfil)
+// Detalle de usuario (HU07 — ver perfil de Participante)
 // ---------------------------------------------------------------------------
 export async function obtenerDetalleUsuario(
   id: string,
   token: string
 ): Promise<UsuarioDetalle> {
   return pedirJson<UsuarioDetalle>(`${URL_API}${ENDPOINTS.detalleUsuario(id)}`, token)
+}
+
+// ---------------------------------------------------------------------------
+// HU08 — detalle de un usuario interno (Operador o Administrador). El backend
+// devuelve 404 si el id corresponde a un Participante: la pantalla muestra el
+// mensaje de "Usuario no encontrado" que produce pedirJson.
+// ---------------------------------------------------------------------------
+export async function obtenerDetalleUsuarioInterno(
+  id: string,
+  token: string
+): Promise<UsuarioDetalle> {
+  return pedirJson<UsuarioDetalle>(
+    `${URL_API}${ENDPOINTS.detalleUsuarioInterno(id)}`,
+    token
+  )
 }
