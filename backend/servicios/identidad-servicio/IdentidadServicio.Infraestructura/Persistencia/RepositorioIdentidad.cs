@@ -1,4 +1,5 @@
 using IdentidadServicio.Aplicacion.Puertos;
+using IdentidadServicio.Commons.Dtos;
 using IdentidadServicio.Dominio.Entidades;
 using IdentidadServicio.Dominio.Enums;
 using Microsoft.EntityFrameworkCore;
@@ -101,6 +102,94 @@ public sealed class RepositorioIdentidad : IRepositorioIdentidad
         _contexto.Personas.Add(modelos.Persona);
         _contexto.Participantes.Add(modelos.Participante);
         await _contexto.SaveChangesAsync(cancelacion);
+    }
+
+    // HU08 — listado paginado de cuentas internas. Se hace todo en SQL: join
+    // con Persona (datos personales) y outer-join con Administrador/Operador
+    // para resolver el código según el rol. Participantes quedan excluidos.
+    public async Task<ResultadoPaginadoDto<UsuarioInternoListadoDto>> ConsultarUsuariosInternosAsync(
+        int pagina,
+        int tamanioPagina,
+        RolUsuario? rolFiltro,
+        string? ordenEstado,
+        CancellationToken cancelacion)
+    {
+        if (pagina < 1) pagina = 1;
+        if (tamanioPagina < 1) tamanioPagina = 10;
+
+        var rolAdmin = (int)RolUsuario.Administrador;
+        var rolOperador = (int)RolUsuario.Operador;
+
+        var consulta =
+            from u in _contexto.Usuarios.AsNoTracking()
+            where u.Rol == rolAdmin || u.Rol == rolOperador
+            join p in _contexto.Personas.AsNoTracking() on u.Id equals p.UsuarioId
+            join a in _contexto.Administradores.AsNoTracking()
+                on p.Id equals a.PersonaId into joinAdmin
+            from a in joinAdmin.DefaultIfEmpty()
+            join o in _contexto.Operadores.AsNoTracking()
+                on p.Id equals o.PersonaId into joinOper
+            from o in joinOper.DefaultIfEmpty()
+            select new { u, p, a, o };
+
+        if (rolFiltro is RolUsuario.Administrador)
+            consulta = consulta.Where(x => x.u.Rol == rolAdmin);
+        else if (rolFiltro is RolUsuario.Operador)
+            consulta = consulta.Where(x => x.u.Rol == rolOperador);
+
+        var total = await consulta.CountAsync(cancelacion);
+
+        // Orden estable: estado opcional + nombre/apellido como desempate.
+        var ordenada = ordenEstado?.Trim().ToLowerInvariant() switch
+        {
+            "asc"  => consulta.OrderBy(x => x.u.Estado)
+                              .ThenBy(x => x.p.Nombre)
+                              .ThenBy(x => x.p.Apellido),
+            "desc" => consulta.OrderByDescending(x => x.u.Estado)
+                              .ThenBy(x => x.p.Nombre)
+                              .ThenBy(x => x.p.Apellido),
+            _      => consulta.OrderBy(x => x.p.Nombre)
+                              .ThenBy(x => x.p.Apellido)
+        };
+
+        var filas = await ordenada
+            .Skip((pagina - 1) * tamanioPagina)
+            .Take(tamanioPagina)
+            .Select(x => new UsuarioInternoListadoDto
+            {
+                Id = x.u.Id,
+                CodigoOperador = x.o != null ? x.o.CodigoOperador : null,
+                CodigoAdministrador = x.a != null ? x.a.CodigoAdministrador : null,
+                NombreUsuario = x.u.NombreUsuario,
+                Nombre = x.p.Nombre,
+                Apellido = x.p.Apellido,
+                Rol = ((RolUsuario)x.u.Rol).ToString(),
+                Estado = ((EstadoUsuario)x.u.Estado).ToString(),
+                Sexo = ((SexoPersona)x.p.Sexo).ToString()
+            })
+            .ToListAsync(cancelacion);
+
+        return new ResultadoPaginadoDto<UsuarioInternoListadoDto>
+        {
+            Elementos = filas,
+            Pagina = pagina,
+            TamanioPagina = tamanioPagina,
+            Total = total
+        };
+    }
+
+    public async Task<Usuario?> ObtenerUsuarioInternoPorIdAsync(Guid id, CancellationToken cancelacion)
+    {
+        var u = await _contexto.Usuarios.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == id, cancelacion);
+        if (u is null) return null;
+
+        // HU08 sólo expone Operadores y Administradores como "usuarios internos".
+        var rol = (RolUsuario)u.Rol;
+        if (rol != RolUsuario.Administrador && rol != RolUsuario.Operador)
+            return null;
+
+        return await ReconstruirAsync(u, cancelacion);
     }
 
     private async Task<Usuario?> ReconstruirAsync(UsuarioModelo u, CancellationToken cancelacion)
