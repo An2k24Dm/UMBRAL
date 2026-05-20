@@ -137,7 +137,7 @@ export function PaginaListaUsuariosInternos() {
           estadoCarga={estado}
           mensajeError={mensajeError ?? undefined}
           mensajeVacio="No se encontraron usuarios con los criterios seleccionados."
-          alVerPerfil={(f) => navegar(`/administrador/usuarios/${f.id}`)}
+          alVerPerfil={(f) => navegar(`/administrador/usuarios/internos/${f.id}`)}
           columnaOrdenada="estado"
           direccionOrden={ordenEstado}
           alOrdenar={alOrdenar}
