@@ -1,4 +1,5 @@
 using IdentidadServicio.Aplicacion.CasosDeUso.Comandos;
+using IdentidadServicio.Aplicacion.Enums;
 using IdentidadServicio.Aplicacion.Mapeadores;
 using IdentidadServicio.Aplicacion.Puertos;
 using IdentidadServicio.Commons.Dtos;

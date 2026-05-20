@@ -15,7 +15,7 @@ public sealed class EstrategiaCrearOperador : IEstrategiaCreacionUsuario
         _generador = generador;
     }
 
-    public bool PuedeCrear(TipoUsuario tipoUsuario) => tipoUsuario == TipoUsuario.Operador;
+    public bool PuedeCrear(RolUsuario rol) => rol == RolUsuario.Operador;
 
     public RolUsuario ObtenerRol() => RolUsuario.Operador;
 

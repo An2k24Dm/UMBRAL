@@ -8,7 +8,7 @@ namespace IdentidadServicio.Aplicacion.Estrategias;
 
 public sealed class EstrategiaCrearParticipante : IEstrategiaCreacionUsuario
 {
-    public bool PuedeCrear(TipoUsuario tipoUsuario) => tipoUsuario == TipoUsuario.Participante;
+    public bool PuedeCrear(RolUsuario rol) => rol == RolUsuario.Participante;
 
     public RolUsuario ObtenerRol() => RolUsuario.Participante;
 

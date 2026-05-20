@@ -4,6 +4,7 @@ using System.Text.Json;
 using FluentAssertions;
 using IdentidadServicio.Aplicacion.Puertos;
 using IdentidadServicio.Commons.Dtos;
+using IdentidadServicio.Dominio.Enums;
 using Moq;
 
 namespace IdentidadServicio.PruebasIntegracion;
@@ -29,7 +30,7 @@ public class UsuariosEndpointPruebas : IClassFixture<FabricaApiPruebas>
 
     private static CrearUsuarioDto DtoOperador() => new()
     {
-        TipoUsuario = TipoUsuario.Operador,
+        TipoUsuario = RolUsuario.Operador,
         NombreUsuario = "op" + Guid.NewGuid().ToString("N").Substring(0, 8),
         Correo = $"{Guid.NewGuid():N}@umbral.com",
         Contrasena = "Abc1*",
@@ -43,7 +44,7 @@ public class UsuariosEndpointPruebas : IClassFixture<FabricaApiPruebas>
     private static CrearUsuarioDto DtoAdministrador()
     {
         var dto = DtoOperador();
-        dto.TipoUsuario = TipoUsuario.Administrador;
+        dto.TipoUsuario = RolUsuario.Administrador;
         dto.NombreUsuario = "ad" + Guid.NewGuid().ToString("N").Substring(0, 8);
         return dto;
     }
@@ -259,7 +260,7 @@ public class UsuariosEndpointPruebas : IClassFixture<FabricaApiPruebas>
         ConfigurarKeycloakOk();
 
         var dto = DtoOperador();
-        dto.TipoUsuario = TipoUsuario.Participante;
+        dto.TipoUsuario = RolUsuario.Participante;
         dto.Alias = "alias01";
 
         var respuesta = await _cliente.SendAsync(Solicitud(dto, "Administrador"));

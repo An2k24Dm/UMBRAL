@@ -1,3 +1,4 @@
+using IdentidadServicio.Aplicacion.Enums;
 using IdentidadServicio.Commons.Dtos;
 using MediatR;
 

@@ -14,7 +14,7 @@ public class EstrategiasPruebas
     private static readonly DateTime Ahora = new(2026, 5, 17, 0, 0, 0, DateTimeKind.Utc);
     private static readonly DateTime Nacimiento = new(1990, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
-    private static CrearUsuarioDto DtoBase(TipoUsuario tipo) => new()
+    private static CrearUsuarioDto DtoBase(RolUsuario tipo) => new()
     {
         TipoUsuario = tipo,
         NombreUsuario = "usuario01",
@@ -43,7 +43,7 @@ public class EstrategiasPruebas
         var generador = GeneradorConCodigos("OP-IGNORADO", "AD-007");
 
         var usuario = await new EstrategiaCrearAdministrador(generador.Object)
-            .CrearUsuarioDominioAsync(DtoBase(TipoUsuario.Administrador), Ahora, default);
+            .CrearUsuarioDominioAsync(DtoBase(RolUsuario.Administrador), Ahora, default);
 
         usuario.Should().BeOfType<Administrador>();
         usuario.Rol.Should().Be(RolUsuario.Administrador);
@@ -58,7 +58,7 @@ public class EstrategiasPruebas
         var generador = GeneradorConCodigos("OP-042", "AD-IGNORADO");
 
         var usuario = await new EstrategiaCrearOperador(generador.Object)
-            .CrearUsuarioDominioAsync(DtoBase(TipoUsuario.Operador), Ahora, default);
+            .CrearUsuarioDominioAsync(DtoBase(RolUsuario.Operador), Ahora, default);
 
         usuario.Should().BeOfType<Operador>();
         ((Operador)usuario).CodigoOperador.Should().Be("OP-042");
@@ -71,7 +71,7 @@ public class EstrategiasPruebas
     {
         // El DTO no expone CodigoOperador: la estrategia genera siempre el código.
         var generador = GeneradorConCodigos("OP-001", "AD-001");
-        var dto = DtoBase(TipoUsuario.Operador);
+        var dto = DtoBase(RolUsuario.Operador);
 
         var usuario = await new EstrategiaCrearOperador(generador.Object)
             .CrearUsuarioDominioAsync(dto, Ahora, default);
@@ -82,7 +82,7 @@ public class EstrategiasPruebas
     [Fact]
     public async Task EstrategiaCrearParticipante_CreaParticipanteConAlias()
     {
-        var dto = DtoBase(TipoUsuario.Participante);
+        var dto = DtoBase(RolUsuario.Participante);
         dto.Alias = "ana123";
 
         var usuario = await new EstrategiaCrearParticipante()
@@ -96,7 +96,7 @@ public class EstrategiasPruebas
     public async Task EstrategiaCrearParticipante_SinAlias_Lanza()
     {
         Func<Task> accion = async () => await new EstrategiaCrearParticipante()
-            .CrearUsuarioDominioAsync(DtoBase(TipoUsuario.Participante), Ahora, default);
+            .CrearUsuarioDominioAsync(DtoBase(RolUsuario.Participante), Ahora, default);
         await accion.Should().ThrowAsync<DatosUsuarioInvalidosExcepcion>();
     }
 }

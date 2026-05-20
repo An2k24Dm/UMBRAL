@@ -1,12 +1,67 @@
-import type { RespuestaError, ResultadoInicioSesion } from './tipos'
+import type {
+  FiltrosParticipantes,
+  FiltrosUsuariosInternos,
+  RespuestaError,
+  ResultadoInicioSesion,
+  ResultadoPaginado,
+  UsuarioDetalle,
+  UsuarioListadoInterno,
+  UsuarioListadoParticipante
+} from './tipos'
 
 const URL_API = import.meta.env.VITE_API_URL ?? 'http://localhost:5000'
 
+// ---------------------------------------------------------------------------
+// Endpoints — punto único para mantener las rutas alineadas con el backend.
+// Cuando el equipo de backend confirme las rutas reales, basta con ajustarlas
+// aquí. No mockear: si el endpoint todavía no existe, la pantalla mostrará el
+// estado de error correspondiente.
+// ---------------------------------------------------------------------------
+const ENDPOINTS = {
+  // HU01 — ya implementado.
+  iniciarSesion: '/api/autenticacion/login-web',
+  // HU05, HU06 — perfil del usuario autenticado.
+  perfilActual: '/api/autenticacion/perfil-actual',
+  // HU02 — registro de Operador/Administrador.
+  registrarUsuario: '/api/usuarios',
+  // HU07 — listado de Participantes. TODO backend: confirmar nombre y filtros.
+  listarParticipantes: '/api/usuarios/participantes',
+  // HU08 — listado de Operadores y Administradores. TODO backend: confirmar.
+  listarUsuariosInternos: '/api/usuarios/internos',
+  // Detalle de un usuario por id (HU07 / HU08 ver perfil). TODO backend.
+  detalleUsuario: (id: string) => `/api/usuarios/${encodeURIComponent(id)}`
+}
+
+// ---------------------------------------------------------------------------
+// Utilidades internas
+// ---------------------------------------------------------------------------
+function autorizacion(token: string) {
+  return { Authorization: `Bearer ${token}` }
+}
+
+async function leerError(respuesta: Response): Promise<string> {
+  const cuerpo = (await respuesta.json().catch(() => null)) as
+    | { mensaje?: string }
+    | null
+  return cuerpo?.mensaje ?? `Error ${respuesta.status} al consultar el servidor.`
+}
+
+async function pedirJson<T>(url: string, token: string): Promise<T> {
+  const respuesta = await fetch(url, { headers: autorizacion(token) })
+  if (respuesta.status === 401) throw new Error('Debe iniciar sesión.')
+  if (respuesta.status === 403) throw new Error('No tiene permisos para consultar este recurso.')
+  if (!respuesta.ok) throw new Error(await leerError(respuesta))
+  return (await respuesta.json()) as T
+}
+
+// ---------------------------------------------------------------------------
+// HU01 — autenticación
+// ---------------------------------------------------------------------------
 export async function iniciarSesion(
   nombreUsuario: string,
   contrasena: string
 ): Promise<ResultadoInicioSesion> {
-  const respuesta = await fetch(`${URL_API}/api/autenticacion/login-web`, {
+  const respuesta = await fetch(`${URL_API}${ENDPOINTS.iniciarSesion}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ nombreUsuario, contrasena })
@@ -20,14 +75,16 @@ export async function iniciarSesion(
   return (await respuesta.json()) as ResultadoInicioSesion
 }
 
-export async function obtenerPerfilActual(token: string) {
-  const respuesta = await fetch(`${URL_API}/api/autenticacion/perfil-actual`, {
-    headers: { Authorization: `Bearer ${token}` }
-  })
-  if (!respuesta.ok) throw new Error('No autorizado.')
-  return await respuesta.json()
+// ---------------------------------------------------------------------------
+// HU06 — perfil del usuario autenticado
+// ---------------------------------------------------------------------------
+export async function obtenerPerfilActual(token: string): Promise<UsuarioDetalle> {
+  return pedirJson<UsuarioDetalle>(`${URL_API}${ENDPOINTS.perfilActual}`, token)
 }
 
+// ---------------------------------------------------------------------------
+// HU02 — registrar Operador/Administrador
+// ---------------------------------------------------------------------------
 export type TipoUsuarioRegistro = 'Administrador' | 'Operador'
 
 // Los códigos OP-### / AD-### los genera el backend (HU02). El frontend nunca
@@ -85,11 +142,11 @@ export async function registrarUsuario(
     datosContacto: { direccion: datos.direccion, telefono: datos.telefono }
   }
 
-  const respuesta = await fetch(`${URL_API}/api/usuarios`, {
+  const respuesta = await fetch(`${URL_API}${ENDPOINTS.registrarUsuario}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`
+      ...autorizacion(token)
     },
     body: JSON.stringify(cuerpo)
   })
@@ -111,4 +168,61 @@ export async function registrarUsuario(
   }
 
   return (await respuesta.json()) as RespuestaCrearUsuario
+}
+
+// ---------------------------------------------------------------------------
+// HU07 — listado de Participantes
+// ---------------------------------------------------------------------------
+function construirQuery(parametros: Record<string, string | number | undefined | null>): string {
+  const partes: string[] = []
+  for (const [clave, valor] of Object.entries(parametros)) {
+    if (valor === undefined || valor === null || valor === '') continue
+    partes.push(`${encodeURIComponent(clave)}=${encodeURIComponent(String(valor))}`)
+  }
+  return partes.length > 0 ? `?${partes.join('&')}` : ''
+}
+
+export async function obtenerParticipantes(
+  filtros: FiltrosParticipantes,
+  token: string
+): Promise<ResultadoPaginado<UsuarioListadoParticipante>> {
+  const query = construirQuery({
+    pagina: filtros.pagina,
+    tamanioPagina: filtros.tamanioPagina,
+    busqueda: filtros.busqueda,
+    ordenEstado: filtros.ordenEstado ?? undefined
+  })
+  return pedirJson<ResultadoPaginado<UsuarioListadoParticipante>>(
+    `${URL_API}${ENDPOINTS.listarParticipantes}${query}`,
+    token
+  )
+}
+
+// ---------------------------------------------------------------------------
+// HU08 — listado de Operadores y Administradores
+// ---------------------------------------------------------------------------
+export async function obtenerUsuariosInternos(
+  filtros: FiltrosUsuariosInternos,
+  token: string
+): Promise<ResultadoPaginado<UsuarioListadoInterno>> {
+  const query = construirQuery({
+    pagina: filtros.pagina,
+    tamanioPagina: filtros.tamanioPagina,
+    rol: filtros.rol && filtros.rol !== 'Todos' ? filtros.rol : undefined,
+    ordenEstado: filtros.ordenEstado ?? undefined
+  })
+  return pedirJson<ResultadoPaginado<UsuarioListadoInterno>>(
+    `${URL_API}${ENDPOINTS.listarUsuariosInternos}${query}`,
+    token
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Detalle de usuario (HU07 / HU08 ver perfil)
+// ---------------------------------------------------------------------------
+export async function obtenerDetalleUsuario(
+  id: string,
+  token: string
+): Promise<UsuarioDetalle> {
+  return pedirJson<UsuarioDetalle>(`${URL_API}${ENDPOINTS.detalleUsuario(id)}`, token)
 }

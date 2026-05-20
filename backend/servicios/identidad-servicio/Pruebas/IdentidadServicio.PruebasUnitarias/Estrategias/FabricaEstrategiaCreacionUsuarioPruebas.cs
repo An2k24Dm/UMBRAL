@@ -25,7 +25,7 @@ public class FabricaEstrategiaCreacionUsuarioPruebas
     [Fact]
     public void Obtener_Administrador_DevuelveEstrategiaCrearAdministrador()
     {
-        var estrategia = CrearFabrica().Obtener(TipoUsuario.Administrador);
+        var estrategia = CrearFabrica().Obtener(RolUsuario.Administrador);
         estrategia.Should().BeOfType<EstrategiaCrearAdministrador>();
         estrategia.ObtenerRol().Should().Be(RolUsuario.Administrador);
     }
@@ -33,7 +33,7 @@ public class FabricaEstrategiaCreacionUsuarioPruebas
     [Fact]
     public void Obtener_Operador_DevuelveEstrategiaCrearOperador()
     {
-        var estrategia = CrearFabrica().Obtener(TipoUsuario.Operador);
+        var estrategia = CrearFabrica().Obtener(RolUsuario.Operador);
         estrategia.Should().BeOfType<EstrategiaCrearOperador>();
         estrategia.ObtenerRol().Should().Be(RolUsuario.Operador);
     }
@@ -41,7 +41,7 @@ public class FabricaEstrategiaCreacionUsuarioPruebas
     [Fact]
     public void Obtener_Participante_DevuelveEstrategiaCrearParticipante()
     {
-        var estrategia = CrearFabrica().Obtener(TipoUsuario.Participante);
+        var estrategia = CrearFabrica().Obtener(RolUsuario.Participante);
         estrategia.Should().BeOfType<EstrategiaCrearParticipante>();
         estrategia.ObtenerRol().Should().Be(RolUsuario.Participante);
     }
@@ -49,7 +49,7 @@ public class FabricaEstrategiaCreacionUsuarioPruebas
     [Fact]
     public void Obtener_TipoInvalido_LanzaRolNoValido()
     {
-        Action accion = () => CrearFabrica().Obtener((TipoUsuario)999);
+        Action accion = () => CrearFabrica().Obtener((RolUsuario)999);
         accion.Should().Throw<RolNoValidoExcepcion>();
     }
 }

@@ -1,5 +1,5 @@
 using IdentidadServicio.Aplicacion.CasosDeUso.Consultas;
-using IdentidadServicio.Aplicacion.Mapeadores;
+using IdentidadServicio.Aplicacion.Fabricas;
 using IdentidadServicio.Aplicacion.Puertos;
 using IdentidadServicio.Commons.Dtos;
 using IdentidadServicio.Dominio.Excepciones;
@@ -11,10 +11,14 @@ public sealed class ObtenerPerfilActualManejador
     : IRequestHandler<ObtenerPerfilActualConsulta, PerfilUsuarioDto>
 {
     private readonly IRepositorioIdentidad _repositorio;
+    private readonly FabricaEstrategiaMapeoPerfilUsuario _fabricaMapeo;
 
-    public ObtenerPerfilActualManejador(IRepositorioIdentidad repositorio)
+    public ObtenerPerfilActualManejador(
+        IRepositorioIdentidad repositorio,
+        FabricaEstrategiaMapeoPerfilUsuario fabricaMapeo)
     {
         _repositorio = repositorio;
+        _fabricaMapeo = fabricaMapeo;
     }
 
     public async Task<PerfilUsuarioDto> Handle(
@@ -23,6 +27,8 @@ public sealed class ObtenerPerfilActualManejador
         var usuario = await _repositorio.ObtenerPorIdKeycloakAsync(consulta.IdKeycloak, cancelacion)
                       ?? throw new DatosUsuarioInvalidosExcepcion("Usuario no registrado.");
 
-        return DtoMapeador.APerfilUsuario(usuario);
+        // La fábrica devuelve la instancia derivada apropiada
+        // (PerfilAdministradorDto / PerfilOperadorDto / PerfilParticipanteDto).
+        return _fabricaMapeo.Mapear(usuario);
     }
 }

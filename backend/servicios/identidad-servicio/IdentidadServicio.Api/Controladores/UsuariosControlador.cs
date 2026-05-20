@@ -1,5 +1,6 @@
 using IdentidadServicio.Aplicacion.CasosDeUso.Comandos;
 using IdentidadServicio.Commons.Dtos;
+using IdentidadServicio.Dominio.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -19,8 +20,8 @@ public sealed class UsuariosControlador : ControllerBase
         _autorizacion = autorizacion;
     }
 
-    // Endpoint único de creación. El TipoUsuario del DTO selecciona la estrategia
-    // (Administrador / Operador / Participante).
+    // Endpoint único de creación. El TipoUsuario del DTO (mapeado a RolUsuario)
+    // selecciona la estrategia (Administrador / Operador / Participante).
     //
     // HU02: crear Operador o Administrador exige token de Administrador.
     // Participante queda abierto (registro público desde la app móvil — HU03).
@@ -33,7 +34,7 @@ public sealed class UsuariosControlador : ControllerBase
     public async Task<IActionResult> CrearUsuario(
         [FromBody] CrearUsuarioDto dto, CancellationToken cancelacion)
     {
-        if (dto.TipoUsuario != TipoUsuario.Participante)
+        if (dto.TipoUsuario != RolUsuario.Participante)
         {
             if (User?.Identity?.IsAuthenticated != true)
             {

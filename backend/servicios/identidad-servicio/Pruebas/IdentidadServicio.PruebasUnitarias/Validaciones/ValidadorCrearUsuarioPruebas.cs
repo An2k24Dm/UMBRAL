@@ -2,6 +2,7 @@ using FluentAssertions;
 using IdentidadServicio.Aplicacion.Puertos;
 using IdentidadServicio.Aplicacion.Validaciones;
 using IdentidadServicio.Commons.Dtos;
+using IdentidadServicio.Dominio.Enums;
 using Moq;
 
 namespace IdentidadServicio.PruebasUnitarias.Validaciones;
@@ -20,7 +21,7 @@ public class ValidadorCrearUsuarioPruebas
 
     private static CrearUsuarioDto DtoOperadorValido() => new()
     {
-        TipoUsuario = TipoUsuario.Operador,
+        TipoUsuario = RolUsuario.Operador,
         NombreUsuario = "operador02",
         Correo = "operador02@gmail.com",
         Contrasena = "Abc1*",
@@ -38,7 +39,7 @@ public class ValidadorCrearUsuarioPruebas
     private static CrearUsuarioDto DtoAdministradorValido()
     {
         var dto = DtoOperadorValido();
-        dto.TipoUsuario = TipoUsuario.Administrador;
+        dto.TipoUsuario = RolUsuario.Administrador;
         dto.NombreUsuario = "admin02";
         dto.Correo = "admin02@gmail.com";
         dto.Nombre = "Ana";
@@ -343,7 +344,7 @@ public class ValidadorCrearUsuarioPruebas
     public async Task Falla_Si_TipoUsuarioParticipante_EnRegistroWeb()
     {
         var dto = DtoOperadorValido();
-        dto.TipoUsuario = TipoUsuario.Participante;
+        dto.TipoUsuario = RolUsuario.Participante;
         var errores = await ValidarYObtenerErroresAsync(dto);
         TieneError(errores, "tipoUsuario", MensajesValidacionUsuario.TipoUsuarioInvalidoWeb)
             .Should().BeTrue();
