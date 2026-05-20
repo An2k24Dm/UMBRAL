@@ -4,6 +4,10 @@ import { PaginaAdministrador } from './paginas/PaginaAdministrador'
 import { PaginaRegistrarUsuario } from './paginas/PaginaRegistrarUsuario'
 import { PaginaOperador } from './paginas/PaginaOperador'
 import { PaginaParticipante } from './paginas/PaginaParticipante'
+import { PaginaPerfilUsuarioAutenticado } from './paginas/PaginaPerfilUsuarioAutenticado'
+import { PaginaListaParticipantes } from './paginas/PaginaListaParticipantes'
+import { PaginaListaUsuariosInternos } from './paginas/PaginaListaUsuariosInternos'
+import { PaginaDetalleUsuario } from './paginas/PaginaDetalleUsuario'
 import { RutaProtegida } from './autenticacion/RutaProtegida'
 
 export function Aplicacion() {
@@ -12,6 +16,7 @@ export function Aplicacion() {
       <Route path="/" element={<Navigate to="/iniciar-sesion" replace />} />
       <Route path="/iniciar-sesion" element={<PaginaInicioSesion />} />
 
+      {/* ----- Administrador ----- */}
       <Route
         path="/administrador"
         element={
@@ -29,13 +34,79 @@ export function Aplicacion() {
         }
       />
       <Route
-        path="/operador/sesiones"
+        path="/administrador/perfil"
+        element={
+          <RutaProtegida rolesPermitidos={['Administrador']}>
+            <PaginaPerfilUsuarioAutenticado />
+          </RutaProtegida>
+        }
+      />
+      <Route
+        path="/administrador/usuarios/participantes"
+        element={
+          <RutaProtegida rolesPermitidos={['Administrador']}>
+            <PaginaListaParticipantes rutaBaseDetalle="/administrador/usuarios" />
+          </RutaProtegida>
+        }
+      />
+      <Route
+        path="/administrador/usuarios/internos"
+        element={
+          <RutaProtegida rolesPermitidos={['Administrador']}>
+            <PaginaListaUsuariosInternos />
+          </RutaProtegida>
+        }
+      />
+      <Route
+        path="/administrador/usuarios/:id"
+        element={
+          <RutaProtegida rolesPermitidos={['Administrador']}>
+            <PaginaDetalleUsuario rolesPermitidosVista={['Participante', 'Operador', 'Administrador']} />
+          </RutaProtegida>
+        }
+      />
+
+      {/* ----- Operador ----- */}
+      <Route
+        path="/operador"
         element={
           <RutaProtegida rolesPermitidos={['Operador']}>
             <PaginaOperador />
           </RutaProtegida>
         }
       />
+      <Route
+        path="/operador/perfil"
+        element={
+          <RutaProtegida rolesPermitidos={['Operador']}>
+            <PaginaPerfilUsuarioAutenticado />
+          </RutaProtegida>
+        }
+      />
+      <Route
+        path="/operador/usuarios/participantes"
+        element={
+          <RutaProtegida rolesPermitidos={['Operador']}>
+            <PaginaListaParticipantes rutaBaseDetalle="/operador/usuarios" />
+          </RutaProtegida>
+        }
+      />
+      <Route
+        path="/operador/usuarios/:id"
+        element={
+          <RutaProtegida rolesPermitidos={['Operador']}>
+            <PaginaDetalleUsuario rolesPermitidosVista={['Participante']} />
+          </RutaProtegida>
+        }
+      />
+      {/* Compatibilidad con el destino anterior usado por la respuesta de inicio
+          de sesión (rutaRedireccion = /operador/sesiones). Redirige al dashboard. */}
+      <Route
+        path="/operador/sesiones"
+        element={<Navigate to="/operador" replace />}
+      />
+
+      {/* ----- Participante (sin panel web; se mantiene la lógica actual) ----- */}
       <Route
         path="/participante/sesiones"
         element={

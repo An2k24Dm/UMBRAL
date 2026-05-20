@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 using IdentidadServicio.Aplicacion.Puertos;
 using IdentidadServicio.Commons.Dtos;
+using IdentidadServicio.Dominio.Enums;
 
 namespace IdentidadServicio.Aplicacion.Validaciones;
 
@@ -72,7 +73,7 @@ public sealed class ValidadorCrearUsuario : IValidadorCrearUsuario
     {
         // El endpoint de panel administrador permite solo Administrador y Operador.
         // Participante se registra desde la app móvil (HU03).
-        if (dto.TipoUsuario != TipoUsuario.Administrador && dto.TipoUsuario != TipoUsuario.Operador)
+        if (dto.TipoUsuario != RolUsuario.Administrador && dto.TipoUsuario != RolUsuario.Operador)
             r.Agregar(MensajesValidacionUsuario.CampoTipoUsuario,
                 MensajesValidacionUsuario.TipoUsuarioInvalidoWeb);
     }

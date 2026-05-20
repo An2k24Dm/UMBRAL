@@ -1,4 +1,4 @@
-namespace IdentidadServicio.Commons.Dtos;
+namespace IdentidadServicio.Aplicacion.Enums;
 
 // Indica desde qué aplicación se está iniciando sesión.
 // Determina qué roles pueden autenticarse:

@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using FluentAssertions;
 using IdentidadServicio.Aplicacion.Puertos;
 using IdentidadServicio.Commons.Dtos;
+using IdentidadServicio.Dominio.Enums;
 using Moq;
 
 namespace IdentidadServicio.PruebasIntegracion;
@@ -38,7 +39,7 @@ public class FlujoHU02Pruebas : IClassFixture<FabricaApiPruebas>
         var nombreUsuario = "ophu02" + Guid.NewGuid().ToString("N").Substring(0, 6);
         var dto = new CrearUsuarioDto
         {
-            TipoUsuario = TipoUsuario.Operador,
+            TipoUsuario = RolUsuario.Operador,
             NombreUsuario = nombreUsuario,
             Correo = $"{nombreUsuario}@umbral.com",
             Contrasena = "Abc1*",

@@ -52,7 +52,7 @@ public class CrearUsuarioManejadorPruebas
             _validador.Object, NullLogger<CrearUsuarioManejador>.Instance);
     }
 
-    private static CrearUsuarioDto Dto(TipoUsuario tipo) => new()
+    private static CrearUsuarioDto Dto(RolUsuario tipo) => new()
     {
         TipoUsuario = tipo,
         NombreUsuario = "operador01",
@@ -78,7 +78,7 @@ public class CrearUsuarioManejadorPruebas
             .ReturnsAsync("OP-042");
 
         var resultado = await CrearManejador().Handle(
-            new CrearUsuarioComando(Dto(TipoUsuario.Operador)), CancellationToken.None);
+            new CrearUsuarioComando(Dto(RolUsuario.Operador)), CancellationToken.None);
 
         resultado.Rol.Should().Be("Operador");
         resultado.Codigo.Should().Be("OP-042");
@@ -103,7 +103,7 @@ public class CrearUsuarioManejadorPruebas
             .ReturnsAsync("kc-op-x");
 
         await CrearManejador().Handle(
-            new CrearUsuarioComando(Dto(TipoUsuario.Operador)), CancellationToken.None);
+            new CrearUsuarioComando(Dto(RolUsuario.Operador)), CancellationToken.None);
 
         capturado.Should().NotBeNull();
         capturado!.NombreUsuario.Should().Be("operador01");
@@ -121,7 +121,7 @@ public class CrearUsuarioManejadorPruebas
             .ReturnsAsync("AD-007");
 
         var resultado = await CrearManejador().Handle(
-            new CrearUsuarioComando(Dto(TipoUsuario.Administrador)), CancellationToken.None);
+            new CrearUsuarioComando(Dto(RolUsuario.Administrador)), CancellationToken.None);
 
         resultado.Rol.Should().Be("Administrador");
         resultado.Codigo.Should().Be("AD-007");
@@ -139,7 +139,7 @@ public class CrearUsuarioManejadorPruebas
         ConfigurarKeycloak("kc-par-x");
 
         var resultado = await CrearManejador().Handle(
-            new CrearUsuarioComando(Dto(TipoUsuario.Participante)), CancellationToken.None);
+            new CrearUsuarioComando(Dto(RolUsuario.Participante)), CancellationToken.None);
 
         resultado.Rol.Should().Be("Participante");
         resultado.Codigo.Should().BeNull();
@@ -158,7 +158,7 @@ public class CrearUsuarioManejadorPruebas
                 new[] { new ErrorValidacion("nombreUsuario", "duplicado") }));
 
         Func<Task> accion = async () => await CrearManejador().Handle(
-            new CrearUsuarioComando(Dto(TipoUsuario.Operador)), CancellationToken.None);
+            new CrearUsuarioComando(Dto(RolUsuario.Operador)), CancellationToken.None);
 
         await accion.Should().ThrowAsync<ExcepcionValidacion>();
         _proveedor.Verify(p => p.CrearUsuarioAsync(
@@ -177,7 +177,7 @@ public class CrearUsuarioManejadorPruebas
             .ThrowsAsync(new InvalidOperationException("DB caída"));
 
         Func<Task> accion = async () => await CrearManejador().Handle(
-            new CrearUsuarioComando(Dto(TipoUsuario.Operador)), CancellationToken.None);
+            new CrearUsuarioComando(Dto(RolUsuario.Operador)), CancellationToken.None);
 
         await accion.Should().ThrowAsync<InvalidOperationException>();
         _proveedor.Verify(p => p.EliminarUsuarioAsync("kc-op-x", It.IsAny<CancellationToken>()),
@@ -196,7 +196,7 @@ public class CrearUsuarioManejadorPruebas
             .Returns(Task.CompletedTask);
 
         var resultado = await CrearManejador().Handle(
-            new CrearUsuarioComando(Dto(TipoUsuario.Operador)), CancellationToken.None);
+            new CrearUsuarioComando(Dto(RolUsuario.Operador)), CancellationToken.None);
 
         resultado.Estado.Should().Be("Activo");
         capturado!.Estado.Should().Be(EstadoUsuario.Activo);
@@ -208,7 +208,7 @@ public class CrearUsuarioManejadorPruebas
         ConfigurarKeycloak("kc-op-x");
 
         await CrearManejador().Handle(
-            new CrearUsuarioComando(Dto(TipoUsuario.Operador)), CancellationToken.None);
+            new CrearUsuarioComando(Dto(RolUsuario.Operador)), CancellationToken.None);
 
         _reloj.Verify(r => r.ObtenerFechaHoraUtc(), Times.AtLeastOnce);
     }
@@ -222,7 +222,7 @@ public class CrearUsuarioManejadorPruebas
         ConfigurarKeycloak("kc-op-x");
 
         var resultado = await CrearManejador().Handle(
-            new CrearUsuarioComando(Dto(TipoUsuario.Operador)), CancellationToken.None);
+            new CrearUsuarioComando(Dto(RolUsuario.Operador)), CancellationToken.None);
 
         resultado.Codigo.Should().Be("OP-001");
     }

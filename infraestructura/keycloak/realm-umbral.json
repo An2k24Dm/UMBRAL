@@ -6,8 +6,8 @@
   "resetPasswordAllowed": true,
   "loginWithEmailAllowed": false,
   "duplicateEmailsAllowed": true,
-  "accessTokenLifespan": 300,
-  "ssoSessionIdleTimeout": 1800,
+  "accessTokenLifespan": 3600,
+  "ssoSessionIdleTimeout": 3600,
   "ssoSessionMaxLifespan": 36000,
 
   "roles": {

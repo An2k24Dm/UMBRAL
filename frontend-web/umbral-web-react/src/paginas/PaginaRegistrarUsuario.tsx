@@ -7,10 +7,15 @@ import {
   type TipoUsuarioRegistro
 } from '../autenticacion/clienteApi'
 import { usarAutenticacion } from '../autenticacion/ProveedorAutenticacion'
+import { LayoutPanel } from '../componentes/LayoutPanel'
+import { CampoFormulario } from '../componentes/CampoFormulario'
+import { Boton } from '../componentes/Boton'
+import { Alerta } from '../componentes/Alerta'
 
 // HU02: registro de usuarios desde panel administrador.
-// Solo Administrador y Operador. Los códigos OP-### / AD-### los genera el
-// backend; el formulario los muestra como campo de solo lectura.
+// Solo Administrador puede acceder. El formulario permite crear Administrador
+// u Operador; el código OP-### / AD-### lo genera el backend y se muestra como
+// campo de solo lectura.
 
 const ESTADO_INICIAL: DatosNuevoUsuario = {
   tipoUsuario: 'Operador',
@@ -30,8 +35,6 @@ const CARACTERES_ESPECIALES = '!@#$%^&*_-.?'
 
 type Errores = Partial<Record<keyof DatosNuevoUsuario | 'general', string>>
 
-// Mapea el nombre de campo que devuelve el backend (puede ser plano o con
-// notación punteada de DatosContacto) al input del formulario.
 const MAPA_CAMPOS_BACKEND: Record<string, keyof DatosNuevoUsuario> = {
   nombreUsuario: 'nombreUsuario',
   correo: 'correo',
@@ -191,120 +194,155 @@ export function PaginaRegistrarUsuario() {
     }
   }
 
-  const Mensaje = ({ campo }: { campo: keyof DatosNuevoUsuario }) =>
-    errores[campo] ? <span className="error-campo">{errores[campo]}</span> : null
-
   const etiquetaCodigo = datos.tipoUsuario === 'Operador'
     ? 'Código de operador'
     : 'Código de administrador'
-
-  // Si ya se registró el último usuario y el rol coincide, mostramos el código
-  // recibido; en otro caso, mostramos el placeholder de "auto-generado".
-  const valorCodigoMostrado = codigoGenerado ?? ''
   const placeholderCodigo = datos.tipoUsuario === 'Operador' ? 'OP-### (automático)' : 'AD-### (automático)'
 
   return (
-    <div className="panel">
-      <header>
-        <h1>Registrar usuario</h1>
-        <button className="salir" onClick={() => navegar('/administrador')}>Volver</button>
-      </header>
-
-      {errorGeneral && <div className="error">{errorGeneral}</div>}
-      {exito && <div className="exito">{exito}</div>}
-
-      <form onSubmit={enviar} className="formulario-usuario">
-        <div className="campo">
-          <label>Rol</label>
-          <select value={datos.tipoUsuario}
-            onChange={(e) => cambiarRol(e.target.value as TipoUsuarioRegistro)}>
-            <option value="Administrador">Administrador</option>
-            <option value="Operador">Operador</option>
-          </select>
+    <LayoutPanel
+      titulo="Registrar usuario"
+      descripcion="Crear cuentas de Operador o Administrador. El código se genera automáticamente."
+    >
+      <div className="cabecera-pagina">
+        <div>
+          <h2 style={{ margin: 0 }}>Nuevo usuario</h2>
+          <p style={{ margin: '4px 0 0', color: 'var(--color-texto-tenue)' }}>
+            Complete todos los campos. Los datos se enviarán al backend para crear la cuenta.
+          </p>
         </div>
-
-        <div className="campo">
-          <label>{etiquetaCodigo} <span className="opcional">(generado automáticamente)</span></label>
-          <input
-            value={valorCodigoMostrado}
-            placeholder={placeholderCodigo}
-            readOnly
-            disabled
-            aria-readonly="true"
-            className="campo-no-editable"
-          />
+        <div className="cabecera-pagina-acciones">
+          <Boton variante="volver" onClick={() => navegar('/administrador')}>← Volver</Boton>
         </div>
+      </div>
 
-        <div className="campo">
-          <label>Nombre de usuario</label>
-          <input value={datos.nombreUsuario}
-            onChange={(e) => actualizar('nombreUsuario', e.target.value)} required />
-          <Mensaje campo="nombreUsuario" />
-        </div>
+      <section className="seccion">
+        {errorGeneral && <Alerta tono="error">{errorGeneral}</Alerta>}
+        {exito && <Alerta tono="exito">{exito}</Alerta>}
 
-        <div className="campo">
-          <label>Correo</label>
-          <input type="email" value={datos.correo}
-            onChange={(e) => actualizar('correo', e.target.value)} required />
-          <Mensaje campo="correo" />
-        </div>
+        <form onSubmit={enviar} className="formulario-usuario" noValidate>
+          <CampoFormulario etiqueta="Rol" htmlFor="rol">
+            <select
+              id="rol"
+              value={datos.tipoUsuario}
+              onChange={(e) => cambiarRol(e.target.value as TipoUsuarioRegistro)}
+            >
+              <option value="Administrador">Administrador</option>
+              <option value="Operador">Operador</option>
+            </select>
+          </CampoFormulario>
 
-        <div className="campo">
-          <label>Contraseña</label>
-          <input type="password" value={datos.contrasena} maxLength={10}
-            onChange={(e) => actualizar('contrasena', e.target.value)} required />
-          <Mensaje campo="contrasena" />
-        </div>
+          <CampoFormulario etiqueta={etiquetaCodigo} opcional="generado automáticamente">
+            <input
+              value={codigoGenerado ?? ''}
+              placeholder={placeholderCodigo}
+              readOnly
+              disabled
+              aria-readonly="true"
+              className="campo-no-editable"
+            />
+          </CampoFormulario>
 
-        <div className="campo">
-          <label>Nombre</label>
-          <input value={datos.nombre}
-            onChange={(e) => actualizar('nombre', e.target.value)} required />
-          <Mensaje campo="nombre" />
-        </div>
+          <CampoFormulario etiqueta="Nombre de usuario" htmlFor="nombreUsuario" error={errores.nombreUsuario}>
+            <input
+              id="nombreUsuario"
+              value={datos.nombreUsuario}
+              onChange={(e) => actualizar('nombreUsuario', e.target.value)}
+              required
+            />
+          </CampoFormulario>
 
-        <div className="campo">
-          <label>Apellido</label>
-          <input value={datos.apellido}
-            onChange={(e) => actualizar('apellido', e.target.value)} required />
-          <Mensaje campo="apellido" />
-        </div>
+          <CampoFormulario etiqueta="Correo" htmlFor="correo" error={errores.correo}>
+            <input
+              id="correo"
+              type="email"
+              value={datos.correo}
+              onChange={(e) => actualizar('correo', e.target.value)}
+              required
+            />
+          </CampoFormulario>
 
-        <div className="campo">
-          <label>Sexo</label>
-          <select value={datos.sexo} onChange={(e) => actualizar('sexo', e.target.value)}>
-            <option value="Femenino">Femenino</option>
-            <option value="Masculino">Masculino</option>
-            <option value="Otro">Otro</option>
-            <option value="Indefinido">Indefinido</option>
-          </select>
-        </div>
+          <CampoFormulario etiqueta="Contraseña" htmlFor="contrasena" error={errores.contrasena}>
+            <input
+              id="contrasena"
+              type="password"
+              value={datos.contrasena}
+              maxLength={10}
+              onChange={(e) => actualizar('contrasena', e.target.value)}
+              required
+            />
+          </CampoFormulario>
 
-        <div className="campo">
-          <label>Fecha de nacimiento</label>
-          <input type="date" value={datos.fechaNacimiento}
-            onChange={(e) => actualizar('fechaNacimiento', e.target.value)} required />
-          <Mensaje campo="fechaNacimiento" />
-        </div>
+          <CampoFormulario etiqueta="Nombre" htmlFor="nombre" error={errores.nombre}>
+            <input
+              id="nombre"
+              value={datos.nombre}
+              onChange={(e) => actualizar('nombre', e.target.value)}
+              required
+            />
+          </CampoFormulario>
 
-        <div className="campo">
-          <label>Dirección</label>
-          <input value={datos.direccion}
-            onChange={(e) => actualizar('direccion', e.target.value)} required />
-          <Mensaje campo="direccion" />
-        </div>
+          <CampoFormulario etiqueta="Apellido" htmlFor="apellido" error={errores.apellido}>
+            <input
+              id="apellido"
+              value={datos.apellido}
+              onChange={(e) => actualizar('apellido', e.target.value)}
+              required
+            />
+          </CampoFormulario>
 
-        <div className="campo">
-          <label>Teléfono</label>
-          <input value={datos.telefono} placeholder="04141356230"
-            onChange={(e) => actualizar('telefono', e.target.value)} required />
-          <Mensaje campo="telefono" />
-        </div>
+          <CampoFormulario etiqueta="Sexo" htmlFor="sexo">
+            <select
+              id="sexo"
+              value={datos.sexo}
+              onChange={(e) => actualizar('sexo', e.target.value)}
+            >
+              <option value="Femenino">Femenino</option>
+              <option value="Masculino">Masculino</option>
+              <option value="Otro">Otro</option>
+              <option value="Indefinido">Indefinido</option>
+            </select>
+          </CampoFormulario>
 
-        <button className="boton" type="submit" disabled={cargando}>
-          {cargando ? 'Registrando…' : 'Registrar usuario'}
-        </button>
-      </form>
-    </div>
+          <CampoFormulario etiqueta="Fecha de nacimiento" htmlFor="fechaNacimiento" error={errores.fechaNacimiento}>
+            <input
+              id="fechaNacimiento"
+              type="date"
+              value={datos.fechaNacimiento}
+              onChange={(e) => actualizar('fechaNacimiento', e.target.value)}
+              required
+            />
+          </CampoFormulario>
+
+          <CampoFormulario etiqueta="Dirección" htmlFor="direccion" error={errores.direccion}>
+            <input
+              id="direccion"
+              value={datos.direccion}
+              onChange={(e) => actualizar('direccion', e.target.value)}
+              required
+            />
+          </CampoFormulario>
+
+          <CampoFormulario etiqueta="Teléfono" htmlFor="telefono" error={errores.telefono}>
+            <input
+              id="telefono"
+              value={datos.telefono}
+              placeholder="04141356230"
+              onChange={(e) => actualizar('telefono', e.target.value)}
+              required
+            />
+          </CampoFormulario>
+
+          <div className="acciones-formulario">
+            <Boton variante="secundario" type="button" onClick={() => navegar('/administrador')}>
+              Cancelar
+            </Boton>
+            <Boton variante="primario" type="submit" disabled={cargando}>
+              {cargando ? 'Registrando…' : 'Registrar usuario'}
+            </Boton>
+          </div>
+        </form>
+      </section>
+    </LayoutPanel>
   )
 }

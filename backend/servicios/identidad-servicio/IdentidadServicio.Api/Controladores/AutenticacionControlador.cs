@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using IdentidadServicio.Aplicacion.CasosDeUso.Comandos;
 using IdentidadServicio.Aplicacion.CasosDeUso.Consultas;
+using IdentidadServicio.Aplicacion.Enums;
 using IdentidadServicio.Commons.Dtos;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -43,14 +44,18 @@ public sealed class AutenticacionControlador : ControllerBase
         return Ok(resultado);
     }
 
+    // HU06: el perfil devuelto es siempre una instancia derivada
+    // (PerfilAdministradorDto, PerfilOperadorDto o PerfilParticipanteDto). Para
+    // que System.Text.Json serialice las propiedades del tipo concreto (y no
+    // solo las del DTO base declarado), se retorna como object.
     [HttpGet("perfil-actual")]
     [Authorize]
-    public async Task<ActionResult<PerfilUsuarioDto>> ObtenerPerfilActual(CancellationToken cancelacion)
+    public async Task<ActionResult<object>> ObtenerPerfilActual(CancellationToken cancelacion)
     {
         var idKeycloak = User.FindFirstValue(ClaimTypes.NameIdentifier)
                          ?? User.FindFirstValue("sub")
                          ?? string.Empty;
         var perfil = await _mediador.Send(new ObtenerPerfilActualConsulta(idKeycloak), cancelacion);
-        return Ok(perfil);
+        return Ok((object)perfil);
     }
 }

@@ -7,4 +7,13 @@
     <RootNamespace>IdentidadServicio.Commons</RootNamespace>
   </PropertyGroup>
 
+  <ItemGroup>
+    <!--
+      Commons reutiliza los enums del dominio (RolUsuario, etc.) para evitar
+      duplicar conceptos como TipoUsuario. Dominio no referencia a Commons, por
+      lo que no se introduce dependencia circular.
+    -->
+    <ProjectReference Include="..\IdentidadServicio.Dominio\IdentidadServicio.Dominio.csproj" />
+  </ItemGroup>
+
 </Project>

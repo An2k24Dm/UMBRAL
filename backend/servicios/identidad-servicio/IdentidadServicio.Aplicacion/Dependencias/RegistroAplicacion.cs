@@ -2,6 +2,7 @@ using System.Reflection;
 using IdentidadServicio.Aplicacion.Estrategias;
 using IdentidadServicio.Aplicacion.Fabricas;
 using IdentidadServicio.Aplicacion.Generadores;
+using IdentidadServicio.Aplicacion.Mapeadores.Perfil;
 using IdentidadServicio.Aplicacion.Validaciones;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -21,6 +22,13 @@ public static class RegistroAplicacion
 
         // Patrón Factory: recibe el IEnumerable<IEstrategiaCreacionUsuario>.
         servicios.AddScoped<FabricaEstrategiaCreacionUsuario>();
+
+        // Strategy/Factory para el mapeo de perfil. Cada rol tiene su estrategia
+        // y devuelve el DTO derivado correspondiente (HU06 / OCP).
+        servicios.AddScoped<IEstrategiaMapeoPerfilUsuario, EstrategiaMapeoPerfilAdministrador>();
+        servicios.AddScoped<IEstrategiaMapeoPerfilUsuario, EstrategiaMapeoPerfilOperador>();
+        servicios.AddScoped<IEstrategiaMapeoPerfilUsuario, EstrategiaMapeoPerfilParticipante>();
+        servicios.AddScoped<FabricaEstrategiaMapeoPerfilUsuario>();
 
         // Validador reutilizable de caso de uso (HU02).
         servicios.AddScoped<IValidadorCrearUsuario, ValidadorCrearUsuario>();

@@ -1,5 +1,5 @@
 using IdentidadServicio.Aplicacion.Estrategias;
-using IdentidadServicio.Commons.Dtos;
+using IdentidadServicio.Dominio.Enums;
 using IdentidadServicio.Dominio.Excepciones;
 
 namespace IdentidadServicio.Aplicacion.Fabricas;
@@ -13,14 +13,14 @@ public sealed class FabricaEstrategiaCreacionUsuario
         _estrategias = estrategias;
     }
 
-    public IEstrategiaCreacionUsuario Obtener(TipoUsuario tipoUsuario)
+    public IEstrategiaCreacionUsuario Obtener(RolUsuario rol)
     {
-        if (!Enum.IsDefined(typeof(TipoUsuario), tipoUsuario))
+        if (!Enum.IsDefined(typeof(RolUsuario), rol))
         {
             throw new RolNoValidoExcepcion();
         }
 
-        return _estrategias.FirstOrDefault(e => e.PuedeCrear(tipoUsuario))
+        return _estrategias.FirstOrDefault(e => e.PuedeCrear(rol))
                ?? throw new RolNoValidoExcepcion();
     }
 }

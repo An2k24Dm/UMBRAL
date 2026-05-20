@@ -1,6 +1,7 @@
 using FluentAssertions;
 using IdentidadServicio.Aplicacion.CasosDeUso.Comandos;
 using IdentidadServicio.Aplicacion.CasosDeUso.Manejadores;
+using IdentidadServicio.Aplicacion.Enums;
 using IdentidadServicio.Aplicacion.Puertos;
 using IdentidadServicio.Commons.Dtos;
 using IdentidadServicio.Dominio.Entidades;

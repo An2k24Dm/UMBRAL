@@ -1,3 +1,5 @@
+using IdentidadServicio.Dominio.Enums;
+
 namespace IdentidadServicio.Commons.Dtos;
 
 // DTO único para crear cualquier tipo de usuario.
@@ -5,12 +7,15 @@ namespace IdentidadServicio.Commons.Dtos;
 //   - NombreUsuario  → username de Keycloak  (p. ej. "operador01")
 //   - Correo         → email de Keycloak    (p. ej. "operador@umbral.com")
 // El TipoUsuario selecciona la estrategia (Strategy + Factory).
+// Para evitar duplicar conceptos, el tipo se reutiliza desde el dominio
+// (RolUsuario). Se conserva el nombre de propiedad "TipoUsuario" porque el
+// frontend envía esa clave en el JSON.
 //
 // Nota HU02: los códigos OP-### / AD-### los genera el backend
 // (IGeneradorCodigoUsuario). El frontend ya no los envía.
 public sealed class CrearUsuarioDto
 {
-    public TipoUsuario TipoUsuario { get; set; }
+    public RolUsuario TipoUsuario { get; set; }
 
     public string NombreUsuario { get; set; } = string.Empty;
     public string Correo { get; set; } = string.Empty;
