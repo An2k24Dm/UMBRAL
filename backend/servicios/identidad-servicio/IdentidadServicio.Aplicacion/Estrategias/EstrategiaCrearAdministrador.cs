@@ -1,6 +1,5 @@
 using IdentidadServicio.Aplicacion.Generadores;
 using IdentidadServicio.Aplicacion.Puertos;
-using IdentidadServicio.Commons.Dtos;
 using IdentidadServicio.Dominio.Entidades;
 using IdentidadServicio.Dominio.Enums;
 
@@ -20,9 +19,9 @@ public sealed class EstrategiaCrearAdministrador : IEstrategiaCreacionUsuario
     public RolUsuario ObtenerRol() => RolUsuario.Administrador;
 
     public async Task<Usuario> CrearUsuarioDominioAsync(
-        CrearUsuarioDto dto, DateTime fechaRegistro, CancellationToken cancelacion)
+        DatosCreacionUsuario datos, DateTime fechaRegistro, CancellationToken cancelacion)
     {
-        var (nombre, correo, persona, contacto, sexo) = BaseEstrategia.ParsearDatosBasicos(dto);
+        var (nombre, correo, persona, contacto, sexo) = BaseEstrategia.ParsearDatosBasicos(datos);
         var codigoAdministrador = await _generador.GenerarCodigoAdministradorAsync(cancelacion);
 
         return Administrador.Crear(
@@ -31,7 +30,7 @@ public sealed class EstrategiaCrearAdministrador : IEstrategiaCreacionUsuario
             nombrePersona: persona,
             datosContacto: contacto,
             sexo: sexo,
-            fechaNacimiento: dto.FechaNacimiento,
+            fechaNacimiento: datos.FechaNacimiento,
             codigoAdministrador: codigoAdministrador,
             fechaRegistro: fechaRegistro);
     }

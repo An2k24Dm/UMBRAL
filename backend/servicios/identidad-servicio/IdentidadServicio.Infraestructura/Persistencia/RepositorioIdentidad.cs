@@ -1,5 +1,4 @@
 using IdentidadServicio.Aplicacion.Puertos;
-using IdentidadServicio.Commons.Dtos;
 using IdentidadServicio.Dominio.Entidades;
 using IdentidadServicio.Dominio.Enums;
 using Microsoft.EntityFrameworkCore;
@@ -51,6 +50,17 @@ public sealed class RepositorioIdentidad : IRepositorioIdentidad
         if (normalizado.Length == 0) return false;
         return await _contexto.Personas.AsNoTracking()
             .AnyAsync(x => x.Telefono == normalizado, cancelacion);
+    }
+
+    // HU03 — verifica si ya existe un Participante con el alias dado. El alias
+    // tiene índice único a nivel de base de datos; esta consulta evita golpear
+    // la creación en Keycloak cuando el alias ya está ocupado.
+    public async Task<bool> ExisteAliasAsync(string alias, CancellationToken cancelacion)
+    {
+        var normalizado = alias.Trim();
+        if (normalizado.Length == 0) return false;
+        return await _contexto.Participantes.AsNoTracking()
+            .AnyAsync(x => x.Alias == normalizado, cancelacion);
     }
 
     // Códigos con formato OP-### / AD-###. Como están zero-padded a 3 dígitos,
@@ -181,10 +191,11 @@ public sealed class RepositorioIdentidad : IRepositorioIdentidad
         return _mapeador.AParticipante(usuario, persona, participante);
     }
 
-    // HU08 — listado paginado de cuentas internas. Se hace todo en SQL: join
-    // con Persona (datos personales) y outer-join con Administrador/Operador
-    // para resolver el código según el rol. Participantes quedan excluidos.
-    public async Task<ResultadoPaginadoDto<UsuarioInternoListadoDto>> ConsultarUsuariosInternosAsync(
+    // HU08 — listado paginado de cuentas internas. Filtra por rol Operador o
+    // Administrador (nunca Participante), aplica orden y paginación en SQL y
+    // reconstruye las entidades de dominio concretas usando el mapeador. El
+    // armado del DTO de respuesta lo hace el manejador del caso de uso.
+    public async Task<IReadOnlyList<Usuario>> ConsultarUsuariosInternosAsync(
         int pagina,
         int tamanioPagina,
         RolUsuario? rolFiltro,
@@ -194,65 +205,86 @@ public sealed class RepositorioIdentidad : IRepositorioIdentidad
         if (pagina < 1) pagina = 1;
         if (tamanioPagina < 1) tamanioPagina = 10;
 
+        var consulta = ConsultaUsuariosInternosBase(rolFiltro);
+
+        // Orden estable: estado opcional + nombre de usuario como desempate.
+        var ordenada = ordenEstado?.Trim().ToLowerInvariant() switch
+        {
+            "asc"  => consulta.OrderBy(u => u.Estado).ThenBy(u => u.NombreUsuario),
+            "desc" => consulta.OrderByDescending(u => u.Estado).ThenBy(u => u.NombreUsuario),
+            _      => consulta.OrderBy(u => u.NombreUsuario)
+        };
+
+        var usuarios = await ordenada
+            .Skip((pagina - 1) * tamanioPagina)
+            .Take(tamanioPagina)
+            .ToListAsync(cancelacion);
+
+        if (usuarios.Count == 0) return Array.Empty<Usuario>();
+
+        var ids = usuarios.Select(u => u.Id).ToList();
+        var personas = await _contexto.Personas.AsNoTracking()
+            .Where(p => ids.Contains(p.UsuarioId))
+            .ToListAsync(cancelacion);
+        var personaIds = personas.Select(p => p.Id).ToList();
+        var administradores = await _contexto.Administradores.AsNoTracking()
+            .Where(a => personaIds.Contains(a.PersonaId))
+            .ToListAsync(cancelacion);
+        var operadores = await _contexto.Operadores.AsNoTracking()
+            .Where(o => personaIds.Contains(o.PersonaId))
+            .ToListAsync(cancelacion);
+
+        var resultado = new List<Usuario>(usuarios.Count);
+        foreach (var u in usuarios)
+        {
+            var persona = personas.FirstOrDefault(p => p.UsuarioId == u.Id);
+            if (persona is null) continue;
+
+            switch ((RolUsuario)u.Rol)
+            {
+                case RolUsuario.Administrador:
+                {
+                    var a = administradores.FirstOrDefault(x => x.PersonaId == persona.Id);
+                    if (a is null) continue;
+                    resultado.Add(_mapeador.AAdministrador(u, persona, a));
+                    break;
+                }
+                case RolUsuario.Operador:
+                {
+                    var o = operadores.FirstOrDefault(x => x.PersonaId == persona.Id);
+                    if (o is null) continue;
+                    resultado.Add(_mapeador.AOperador(u, persona, o));
+                    break;
+                }
+                // Participantes no entran en HU08; la consulta base ya los excluye.
+            }
+        }
+
+        return resultado;
+    }
+
+    public async Task<int> ContarUsuariosInternosAsync(
+        RolUsuario? rolFiltro, CancellationToken cancelacion)
+    {
+        return await ConsultaUsuariosInternosBase(rolFiltro).CountAsync(cancelacion);
+    }
+
+    // Consulta base para HU08: parte de Usuarios filtrando estrictamente por
+    // rol Operador / Administrador y aplica el filtro opcional de rol.
+    private IQueryable<UsuarioModelo> ConsultaUsuariosInternosBase(RolUsuario? rolFiltro)
+    {
         var rolAdmin = (int)RolUsuario.Administrador;
         var rolOperador = (int)RolUsuario.Operador;
 
-        var consulta =
-            from u in _contexto.Usuarios.AsNoTracking()
-            where u.Rol == rolAdmin || u.Rol == rolOperador
-            join p in _contexto.Personas.AsNoTracking() on u.Id equals p.UsuarioId
-            join a in _contexto.Administradores.AsNoTracking()
-                on p.Id equals a.PersonaId into joinAdmin
-            from a in joinAdmin.DefaultIfEmpty()
-            join o in _contexto.Operadores.AsNoTracking()
-                on p.Id equals o.PersonaId into joinOper
-            from o in joinOper.DefaultIfEmpty()
-            select new { u, p, a, o };
+        var consulta = _contexto.Usuarios.AsNoTracking()
+            .Where(u => u.Rol == rolAdmin || u.Rol == rolOperador);
 
         if (rolFiltro is RolUsuario.Administrador)
-            consulta = consulta.Where(x => x.u.Rol == rolAdmin);
+            consulta = consulta.Where(u => u.Rol == rolAdmin);
         else if (rolFiltro is RolUsuario.Operador)
-            consulta = consulta.Where(x => x.u.Rol == rolOperador);
+            consulta = consulta.Where(u => u.Rol == rolOperador);
 
-        var total = await consulta.CountAsync(cancelacion);
-
-        // Orden estable: estado opcional + nombre/apellido como desempate.
-        var ordenada = ordenEstado?.Trim().ToLowerInvariant() switch
-        {
-            "asc"  => consulta.OrderBy(x => x.u.Estado)
-                              .ThenBy(x => x.p.Nombre)
-                              .ThenBy(x => x.p.Apellido),
-            "desc" => consulta.OrderByDescending(x => x.u.Estado)
-                              .ThenBy(x => x.p.Nombre)
-                              .ThenBy(x => x.p.Apellido),
-            _      => consulta.OrderBy(x => x.p.Nombre)
-                              .ThenBy(x => x.p.Apellido)
-        };
-
-        var filas = await ordenada
-            .Skip((pagina - 1) * tamanioPagina)
-            .Take(tamanioPagina)
-            .Select(x => new UsuarioInternoListadoDto
-            {
-                Id = x.u.Id,
-                CodigoOperador = x.o != null ? x.o.CodigoOperador : null,
-                CodigoAdministrador = x.a != null ? x.a.CodigoAdministrador : null,
-                NombreUsuario = x.u.NombreUsuario,
-                Nombre = x.p.Nombre,
-                Apellido = x.p.Apellido,
-                Rol = ((RolUsuario)x.u.Rol).ToString(),
-                Estado = ((EstadoUsuario)x.u.Estado).ToString(),
-                Sexo = ((SexoPersona)x.p.Sexo).ToString()
-            })
-            .ToListAsync(cancelacion);
-
-        return new ResultadoPaginadoDto<UsuarioInternoListadoDto>
-        {
-            Elementos = filas,
-            Pagina = pagina,
-            TamanioPagina = tamanioPagina,
-            Total = total
-        };
+        return consulta;
     }
 
     public async Task<Usuario?> ObtenerUsuarioInternoPorIdAsync(Guid id, CancellationToken cancelacion)

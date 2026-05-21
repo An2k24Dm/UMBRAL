@@ -1,11 +1,14 @@
 using System.Text.RegularExpressions;
 using IdentidadServicio.Aplicacion.Puertos;
 using IdentidadServicio.Commons.Dtos;
-using IdentidadServicio.Dominio.Enums;
 
 namespace IdentidadServicio.Aplicacion.Validaciones;
 
-public sealed class ValidadorCrearUsuario : IValidador<CrearUsuarioDto>
+// HU03 — validador del registro público de Participante desde la app móvil.
+// Aplica las mismas reglas de formato/duplicados/edad que HU02 sobre los
+// campos compartidos, pero sin la restricción de TipoUsuario (HU03 siempre
+// es Participante) y añadiendo las reglas propias del alias.
+public sealed class ValidadorRegistrarParticipante : IValidador<RegistrarParticipanteDto>
 {
     private static readonly Regex RegexNombreUsuario =
         new(@"^[a-zA-Z0-9._]{4,30}$", RegexOptions.Compiled);
@@ -13,53 +16,55 @@ public sealed class ValidadorCrearUsuario : IValidador<CrearUsuarioDto>
     private static readonly Regex RegexCorreo =
         new(@"^[^@\s]+@[^@\s]+\.[^@\s]+$", RegexOptions.Compiled);
 
-    // Solo dígitos para teléfono ya normalizado.
     private static readonly Regex RegexTelefonoDigitos =
         new(@"^\d+$", RegexOptions.Compiled);
 
-    // Nombre/apellido: letras (incluye acentos y ñ) y espacios.
     private static readonly Regex RegexSoloLetras =
         new(@"^[A-Za-zÁÉÍÓÚáéíóúÑñÜü\s]+$", RegexOptions.Compiled);
+
+    private static readonly Regex RegexAlias =
+        new(@"^[a-zA-Z0-9._]+$", RegexOptions.Compiled);
 
     private const string CaracteresEspeciales = "!@#$%^&*_-.?";
 
     private static readonly string[] CodigosTelefonoValidos =
         { "0414", "0412", "0424", "0416", "0426", "0212" };
 
+    private static readonly string[] SexosPermitidos =
+        { "Masculino", "Femenino", "Otro", "Indefinido" };
+
     private readonly IRepositorioIdentidad _repositorio;
     private readonly IProveedorFechaHora _reloj;
 
-    public ValidadorCrearUsuario(IRepositorioIdentidad repositorio, IProveedorFechaHora reloj)
+    public ValidadorRegistrarParticipante(IRepositorioIdentidad repositorio, IProveedorFechaHora reloj)
     {
         _repositorio = repositorio;
         _reloj = reloj;
     }
 
-    public async Task ValidarAsync(CrearUsuarioDto dto, CancellationToken cancelacion)
+    public async Task ValidarAsync(RegistrarParticipanteDto dto, CancellationToken cancelacion)
     {
-        var resultado = new ResultadoValidacion();
+        var r = new ResultadoValidacion();
 
         // Normaliza teléfono antes de validar para que el dominio reciba la
         // forma canónica (solo dígitos).
         dto.DatosContacto ??= new DatosContactoDto();
         dto.DatosContacto.Telefono = NormalizarTelefono(dto.DatosContacto.Telefono);
 
-        ValidarTipoUsuarioWeb(dto, resultado);
-        ValidarNombreUsuarioFormato(dto, resultado);
-        ValidarCorreoFormato(dto, resultado);
-        ValidarContrasena(dto, resultado);
-        ValidarNombre(dto, resultado);
-        ValidarApellido(dto, resultado);
-        ValidarTelefonoFormato(dto, resultado);
-        ValidarDireccion(dto, resultado);
-        ValidarFechaNacimiento(dto, resultado);
-        ValidarSexo(dto, resultado);
-        // CodigoOperador y CodigoAdministrador los genera el backend
-        // (IGeneradorCodigoUsuario): el validador ya no los exige.
+        ValidarAliasFormato(dto, r);
+        ValidarNombreUsuarioFormato(dto, r);
+        ValidarCorreoFormato(dto, r);
+        ValidarContrasena(dto, r);
+        ValidarNombre(dto, r);
+        ValidarApellido(dto, r);
+        ValidarTelefonoFormato(dto, r);
+        ValidarDireccion(dto, r);
+        ValidarFechaNacimiento(dto, r);
+        ValidarSexo(dto, r);
 
-        await ValidarDuplicadosAsync(dto, resultado, cancelacion);
+        await ValidarDuplicadosAsync(dto, r, cancelacion);
 
-        resultado.LanzarSiHayErrores();
+        r.LanzarSiHayErrores();
     }
 
     private static string? NormalizarTelefono(string? telefono)
@@ -69,16 +74,28 @@ public sealed class ValidadorCrearUsuario : IValidador<CrearUsuarioDto>
         return limpio.Length == 0 ? null : limpio;
     }
 
-    private static void ValidarTipoUsuarioWeb(CrearUsuarioDto dto, ResultadoValidacion r)
+    private static void ValidarAliasFormato(RegistrarParticipanteDto dto, ResultadoValidacion r)
     {
-        // El endpoint de panel administrador permite solo Administrador y Operador.
-        // Participante se registra desde la app móvil (HU03).
-        if (dto.TipoUsuario != RolUsuario.Administrador && dto.TipoUsuario != RolUsuario.Operador)
-            r.Agregar(MensajesValidacionUsuario.CampoTipoUsuario,
-                MensajesValidacionUsuario.TipoUsuarioInvalidoWeb);
+        if (string.IsNullOrWhiteSpace(dto.Alias))
+        {
+            r.Agregar(MensajesValidacionUsuario.CampoAlias,
+                MensajesValidacionUsuario.AliasObligatorio);
+            return;
+        }
+
+        var valor = dto.Alias.Trim();
+        if (valor.Length < 3 || valor.Length > 30)
+        {
+            r.Agregar(MensajesValidacionUsuario.CampoAlias,
+                MensajesValidacionUsuario.AliasLongitud);
+            return;
+        }
+        if (!RegexAlias.IsMatch(valor))
+            r.Agregar(MensajesValidacionUsuario.CampoAlias,
+                MensajesValidacionUsuario.AliasFormato);
     }
 
-    private static void ValidarNombreUsuarioFormato(CrearUsuarioDto dto, ResultadoValidacion r)
+    private static void ValidarNombreUsuarioFormato(RegistrarParticipanteDto dto, ResultadoValidacion r)
     {
         if (string.IsNullOrWhiteSpace(dto.NombreUsuario))
         {
@@ -91,7 +108,7 @@ public sealed class ValidadorCrearUsuario : IValidador<CrearUsuarioDto>
                 MensajesValidacionUsuario.NombreUsuarioFormato);
     }
 
-    private static void ValidarCorreoFormato(CrearUsuarioDto dto, ResultadoValidacion r)
+    private static void ValidarCorreoFormato(RegistrarParticipanteDto dto, ResultadoValidacion r)
     {
         if (string.IsNullOrWhiteSpace(dto.Correo))
         {
@@ -104,7 +121,7 @@ public sealed class ValidadorCrearUsuario : IValidador<CrearUsuarioDto>
                 MensajesValidacionUsuario.CorreoFormato);
     }
 
-    private static void ValidarContrasena(CrearUsuarioDto dto, ResultadoValidacion r)
+    private static void ValidarContrasena(RegistrarParticipanteDto dto, ResultadoValidacion r)
     {
         if (string.IsNullOrWhiteSpace(dto.Contrasena))
         {
@@ -124,7 +141,7 @@ public sealed class ValidadorCrearUsuario : IValidador<CrearUsuarioDto>
                 MensajesValidacionUsuario.ContrasenaSinEspecial);
     }
 
-    private static void ValidarNombre(CrearUsuarioDto dto, ResultadoValidacion r)
+    private static void ValidarNombre(RegistrarParticipanteDto dto, ResultadoValidacion r)
     {
         if (string.IsNullOrWhiteSpace(dto.Nombre))
         {
@@ -141,7 +158,7 @@ public sealed class ValidadorCrearUsuario : IValidador<CrearUsuarioDto>
                 MensajesValidacionUsuario.NombreSoloLetras);
     }
 
-    private static void ValidarApellido(CrearUsuarioDto dto, ResultadoValidacion r)
+    private static void ValidarApellido(RegistrarParticipanteDto dto, ResultadoValidacion r)
     {
         if (string.IsNullOrWhiteSpace(dto.Apellido))
         {
@@ -158,7 +175,7 @@ public sealed class ValidadorCrearUsuario : IValidador<CrearUsuarioDto>
                 MensajesValidacionUsuario.ApellidoSoloLetras);
     }
 
-    private static void ValidarTelefonoFormato(CrearUsuarioDto dto, ResultadoValidacion r)
+    private static void ValidarTelefonoFormato(RegistrarParticipanteDto dto, ResultadoValidacion r)
     {
         var telefono = dto.DatosContacto?.Telefono;
         if (string.IsNullOrWhiteSpace(telefono))
@@ -181,7 +198,7 @@ public sealed class ValidadorCrearUsuario : IValidador<CrearUsuarioDto>
                 MensajesValidacionUsuario.TelefonoCodigoInvalido);
     }
 
-    private static void ValidarDireccion(CrearUsuarioDto dto, ResultadoValidacion r)
+    private static void ValidarDireccion(RegistrarParticipanteDto dto, ResultadoValidacion r)
     {
         var direccion = dto.DatosContacto?.Direccion?.Trim();
         if (string.IsNullOrEmpty(direccion))
@@ -195,7 +212,7 @@ public sealed class ValidadorCrearUsuario : IValidador<CrearUsuarioDto>
                 MensajesValidacionUsuario.DireccionLongitud);
     }
 
-    private void ValidarFechaNacimiento(CrearUsuarioDto dto, ResultadoValidacion r)
+    private void ValidarFechaNacimiento(RegistrarParticipanteDto dto, ResultadoValidacion r)
     {
         if (dto.FechaNacimiento == default)
         {
@@ -228,23 +245,30 @@ public sealed class ValidadorCrearUsuario : IValidador<CrearUsuarioDto>
         return edad;
     }
 
-    private static void ValidarSexo(CrearUsuarioDto dto, ResultadoValidacion r)
+    private static void ValidarSexo(RegistrarParticipanteDto dto, ResultadoValidacion r)
     {
         if (string.IsNullOrWhiteSpace(dto.Sexo)) return; // opcional → DtoMapeador resuelve Indefinido.
-        var permitidos = new[] { "Masculino", "Femenino", "Otro", "Indefinido" };
-        if (!permitidos.Contains(dto.Sexo, StringComparer.OrdinalIgnoreCase))
+        if (!SexosPermitidos.Contains(dto.Sexo, StringComparer.OrdinalIgnoreCase))
             r.Agregar(MensajesValidacionUsuario.CampoSexo,
                 MensajesValidacionUsuario.SexoInvalido);
     }
 
     private async Task ValidarDuplicadosAsync(
-        CrearUsuarioDto dto, ResultadoValidacion r, CancellationToken cancelacion)
+        RegistrarParticipanteDto dto, ResultadoValidacion r, CancellationToken cancelacion)
     {
         // Solo consultar duplicados si el valor tiene formato aceptable;
         // si ya hay error de formato, evitamos golpear la base.
+        var revisaAlias = !r.Errores.Any(e => e.Campo == MensajesValidacionUsuario.CampoAlias);
         var revisaUsuario = !r.Errores.Any(e => e.Campo == MensajesValidacionUsuario.CampoNombreUsuario);
         var revisaCorreo = !r.Errores.Any(e => e.Campo == MensajesValidacionUsuario.CampoCorreo);
         var revisaTelefono = !r.Errores.Any(e => e.Campo == MensajesValidacionUsuario.CampoTelefono);
+
+        if (revisaAlias &&
+            await _repositorio.ExisteAliasAsync(dto.Alias, cancelacion))
+        {
+            r.Agregar(MensajesValidacionUsuario.CampoAlias,
+                MensajesValidacionUsuario.AliasDuplicado);
+        }
 
         if (revisaUsuario &&
             await _repositorio.ExisteNombreUsuarioAsync(dto.NombreUsuario, cancelacion))

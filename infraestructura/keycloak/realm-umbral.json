@@ -16,7 +16,10 @@
         "name": "Administrador",
         "description": "Administrador de la plataforma UMBRAL"
       },
-      { "name": "Operador", "description": "Operador de sesiones UMBRAL" },
+      {
+        "name": "Operador",
+        "description": "Operador de sesiones UMBRAL"
+      },
       {
         "name": "Participante",
         "description": "Participante de sesiones UMBRAL"
@@ -76,57 +79,6 @@
         }
       ],
       "realmRoles": ["Administrador"]
-    },
-    {
-      "id": "kc-operador-001",
-      "username": "operador01",
-      "email": "operador01@umbral.com",
-      "firstName": "Carlos",
-      "lastName": "Perez",
-      "enabled": true,
-      "emailVerified": true,
-      "credentials": [
-        {
-          "type": "password",
-          "value": "Temporal123*",
-          "temporary": false
-        }
-      ],
-      "realmRoles": ["Operador"]
-    },
-    {
-      "id": "kc-participante-001",
-      "username": "participante01",
-      "email": "participante01@umbral.com",
-      "firstName": "Maria",
-      "lastName": "Gomez",
-      "enabled": true,
-      "emailVerified": true,
-      "credentials": [
-        {
-          "type": "password",
-          "value": "Temporal123*",
-          "temporary": false
-        }
-      ],
-      "realmRoles": ["Participante"]
-    },
-    {
-      "id": "kc-inactivo-001",
-      "username": "participante_inactivo01",
-      "email": "participante.inactivo01@umbral.com",
-      "firstName": "Pedro",
-      "lastName": "Inactivo",
-      "enabled": false,
-      "emailVerified": true,
-      "credentials": [
-        {
-          "type": "password",
-          "value": "Temporal123*",
-          "temporary": false
-        }
-      ],
-      "realmRoles": ["Participante"]
     }
   ]
 }

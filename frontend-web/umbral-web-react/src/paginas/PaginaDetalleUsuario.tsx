@@ -4,7 +4,6 @@ import { LayoutPanel } from '../componentes/LayoutPanel'
 import { VistaPerfilUsuario } from '../componentes/VistaPerfilUsuario'
 import { Alerta } from '../componentes/Alerta'
 import { Boton } from '../componentes/Boton'
-import { obtenerDetalleUsuario } from '../autenticacion/clienteApi'
 import { usarAutenticacion } from '../autenticacion/ProveedorAutenticacion'
 import type { UsuarioDetalle } from '../autenticacion/tipos'
 
@@ -12,18 +11,17 @@ import type { UsuarioDetalle } from '../autenticacion/tipos'
 // - Administrador: detalle de Participantes (HU07), Operadores y Administradores (HU08).
 // - Operador: detalle restringido a Participantes (validación final en backend).
 //
-// La función de carga (obtenerUsuario) es inyectable para que HU07 y HU08
+// La función de carga (obtenerUsuario) es obligatoria para que HU07 y HU08
 // usen sus endpoints específicos sin duplicar la vista.
 
 interface Props {
   // Restringe a nivel de UI qué roles puede consultar el usuario actual.
   rolesPermitidosVista?: Array<'Participante' | 'Operador' | 'Administrador'>
-  // Fuente de datos del detalle. Por defecto se usa el endpoint genérico de HU07.
-  obtenerUsuario?: (id: string, token: string) => Promise<UsuarioDetalle>
+  // Fuente de datos del detalle. Cada ruta inyecta el endpoint específico.
+  obtenerUsuario: (id: string, token: string) => Promise<UsuarioDetalle>
 }
 
 export function PaginaDetalleUsuario({ rolesPermitidosVista, obtenerUsuario }: Props) {
-  const cargarDetalle = obtenerUsuario ?? obtenerDetalleUsuario
   const { id } = useParams<{ id: string }>()
   const { token } = usarAutenticacion()
   const navegar = useNavigate()
@@ -47,7 +45,7 @@ export function PaginaDetalleUsuario({ rolesPermitidosVista, obtenerUsuario }: P
       setEstado('cargando')
       setMensajeError(null)
       try {
-        const detalle = await cargarDetalle(id, token)
+        const detalle = await obtenerUsuario(id, token)
         if (cancelado) return
         if (rolesPermitidosVista && !rolesPermitidosVista.includes(detalle.rol)) {
           setEstado('denegado')
@@ -64,7 +62,7 @@ export function PaginaDetalleUsuario({ rolesPermitidosVista, obtenerUsuario }: P
     }
     cargar()
     return () => { cancelado = true }
-  }, [token, id, rolesPermitidosVista, cargarDetalle])
+  }, [token, id, rolesPermitidosVista, obtenerUsuario])
 
   return (
     <LayoutPanel titulo="Detalle de usuario" descripcion="Perfil completo del usuario seleccionado.">

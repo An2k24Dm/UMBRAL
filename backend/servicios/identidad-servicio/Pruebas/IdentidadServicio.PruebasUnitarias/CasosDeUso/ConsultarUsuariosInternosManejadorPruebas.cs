@@ -2,20 +2,20 @@ using FluentAssertions;
 using IdentidadServicio.Aplicacion.CasosDeUso.Consultas;
 using IdentidadServicio.Aplicacion.CasosDeUso.Manejadores;
 using IdentidadServicio.Aplicacion.Puertos;
-using IdentidadServicio.Commons.Dtos;
+using IdentidadServicio.Dominio.Entidades;
 using IdentidadServicio.Dominio.Enums;
+using IdentidadServicio.PruebasUnitarias.Mapeadores.Perfil;
 using Moq;
 
 namespace IdentidadServicio.PruebasUnitarias.CasosDeUso;
 
 // Pruebas unitarias del manejador de la consulta paginada de cuentas internas
-// (HU08). El manejador es un orquestador delgado: traduce los parámetros
-// recibidos al puerto y devuelve el resultado paginado tal cual viene del
-// repositorio. Por eso casi todas las pruebas se enfocan en:
-//   1) cómo se traducen los parámetros antes de llegar al puerto,
-//   2) qué hace el manejador con el resultado del puerto,
-//   3) que la exclusión de Participantes ocurre vía el método específico del
-//      puerto y no por uno genérico que pudiera devolverlos.
+// (HU08). El manejador:
+//   1) normaliza los parámetros (pagina, tamaño fijo, rol, orden),
+//   2) pide al repositorio entidades de dominio (Operador / Administrador),
+//   3) arma el ResultadoPaginadoDto<UsuarioInternoListadoDto>.
+// La exclusión de Participantes recae en el puerto, pero el manejador también
+// descarta defensivamente cualquier entidad no soportada.
 public class ConsultarUsuariosInternosManejadorPruebas
 {
     // Tamaño de página fijado por HU08.
@@ -26,7 +26,8 @@ public class ConsultarUsuariosInternosManejadorPruebas
     private ConsultarUsuariosInternosManejador CrearManejador() => new(_repositorio.Object);
 
     private void ConfigurarRepositorio(
-        ResultadoPaginadoDto<UsuarioInternoListadoDto> resultado)
+        IReadOnlyList<Usuario> usuarios,
+        int total)
     {
         _repositorio
             .Setup(r => r.ConsultarUsuariosInternosAsync(
@@ -35,55 +36,16 @@ public class ConsultarUsuariosInternosManejadorPruebas
                 It.IsAny<RolUsuario?>(),
                 It.IsAny<string?>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(resultado);
+            .ReturnsAsync(usuarios);
+        _repositorio
+            .Setup(r => r.ContarUsuariosInternosAsync(
+                It.IsAny<RolUsuario?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(total);
     }
 
-    private static ResultadoPaginadoDto<UsuarioInternoListadoDto> ResultadoVacio(
-        int pagina = 1, int tamanio = TamanioPaginaHu08) =>
-        new()
-        {
-            Elementos = Array.Empty<UsuarioInternoListadoDto>(),
-            Pagina = pagina,
-            TamanioPagina = tamanio,
-            Total = 0
-        };
-
-    // -----------------------------------------------------------------
-    // Construcción de filas de ejemplo (sin DateTime.Now / DateTime.UtcNow).
-    // -----------------------------------------------------------------
-    private static UsuarioInternoListadoDto FilaOperador(
-        string nombreUsuario = "operador01",
-        string codigoOperador = "OP-001",
-        string estado = "Activo")
-        => new()
-        {
-            Id = Guid.NewGuid(),
-            Rol = nameof(RolUsuario.Operador),
-            NombreUsuario = nombreUsuario,
-            Nombre = "Olivia",
-            Apellido = "Operadora",
-            Estado = estado,
-            Sexo = nameof(SexoPersona.Femenino),
-            CodigoOperador = codigoOperador,
-            CodigoAdministrador = null
-        };
-
-    private static UsuarioInternoListadoDto FilaAdministrador(
-        string nombreUsuario = "administrador01",
-        string codigoAdministrador = "AD-001",
-        string estado = "Activo")
-        => new()
-        {
-            Id = Guid.NewGuid(),
-            Rol = nameof(RolUsuario.Administrador),
-            NombreUsuario = nombreUsuario,
-            Nombre = "Ada",
-            Apellido = "Admin",
-            Estado = estado,
-            Sexo = nameof(SexoPersona.Femenino),
-            CodigoOperador = null,
-            CodigoAdministrador = codigoAdministrador
-        };
+    private void ConfigurarRepositorioVacio() =>
+        ConfigurarRepositorio(Array.Empty<Usuario>(), 0);
 
     // =================================================================
     // Caso 1 — rol = Todos: devuelve Operadores y Administradores,
@@ -92,19 +54,13 @@ public class ConsultarUsuariosInternosManejadorPruebas
     [Fact]
     public async Task Caso1_FiltroTodos_DevuelveOperadoresYAdministradoresPaginados()
     {
-        var elementos = new[]
+        var usuarios = new Usuario[]
         {
-            FilaOperador("operador01", "OP-001"),
-            FilaAdministrador("administrador01", "AD-001"),
-            FilaOperador("operador02", "OP-002")
+            UsuariosDePrueba.NuevoOperador("operador01", codigoOperador: "OP-001"),
+            UsuariosDePrueba.NuevoAdministrador("administrador01", codigoAdministrador: "AD-001"),
+            UsuariosDePrueba.NuevoOperador("operador02", codigoOperador: "OP-002")
         };
-        ConfigurarRepositorio(new ResultadoPaginadoDto<UsuarioInternoListadoDto>
-        {
-            Elementos = elementos,
-            Pagina = 1,
-            TamanioPagina = TamanioPaginaHu08,
-            Total = 3
-        });
+        ConfigurarRepositorio(usuarios, total: 3);
 
         var resultado = await CrearManejador()
             .Handle(new ConsultarUsuariosInternosConsulta(1, TamanioPaginaHu08, "Todos", null),
@@ -130,6 +86,9 @@ public class ConsultarUsuariosInternosManejadorPruebas
             (RolUsuario?)null,
             null,
             It.IsAny<CancellationToken>()), Times.Once);
+        _repositorio.Verify(r => r.ContarUsuariosInternosAsync(
+            (RolUsuario?)null,
+            It.IsAny<CancellationToken>()), Times.Once);
     }
 
     // =================================================================
@@ -139,18 +98,12 @@ public class ConsultarUsuariosInternosManejadorPruebas
     [Fact]
     public async Task Caso2_FiltroOperador_PropagaElFiltroYDevuelveFilasConCodigoOperador()
     {
-        var elementos = new[]
+        var usuarios = new Usuario[]
         {
-            FilaOperador("operador01", "OP-001"),
-            FilaOperador("operador02", "OP-002")
+            UsuariosDePrueba.NuevoOperador("operador01", codigoOperador: "OP-001"),
+            UsuariosDePrueba.NuevoOperador("operador02", codigoOperador: "OP-002")
         };
-        ConfigurarRepositorio(new ResultadoPaginadoDto<UsuarioInternoListadoDto>
-        {
-            Elementos = elementos,
-            Pagina = 1,
-            TamanioPagina = TamanioPaginaHu08,
-            Total = 2
-        });
+        ConfigurarRepositorio(usuarios, total: 2);
 
         var resultado = await CrearManejador()
             .Handle(new ConsultarUsuariosInternosConsulta(1, TamanioPaginaHu08, "Operador", null),
@@ -158,7 +111,7 @@ public class ConsultarUsuariosInternosManejadorPruebas
 
         resultado.Elementos.Should().OnlyContain(e => e.Rol == nameof(RolUsuario.Operador));
         resultado.Elementos.Should().OnlyContain(e => !string.IsNullOrEmpty(e.CodigoOperador));
-        // En filas de Operador, el código de administrador no es el código principal.
+        // En filas de Operador, el código de administrador queda en null.
         resultado.Elementos.Should().OnlyContain(e => string.IsNullOrEmpty(e.CodigoAdministrador));
 
         _repositorio.Verify(r => r.ConsultarUsuariosInternosAsync(
@@ -166,6 +119,9 @@ public class ConsultarUsuariosInternosManejadorPruebas
             It.IsAny<int>(),
             RolUsuario.Operador,
             It.IsAny<string?>(),
+            It.IsAny<CancellationToken>()), Times.Once);
+        _repositorio.Verify(r => r.ContarUsuariosInternosAsync(
+            RolUsuario.Operador,
             It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -175,18 +131,12 @@ public class ConsultarUsuariosInternosManejadorPruebas
     [Fact]
     public async Task Caso3_FiltroAdministrador_PropagaElFiltroYDevuelveFilasConCodigoAdministrador()
     {
-        var elementos = new[]
+        var usuarios = new Usuario[]
         {
-            FilaAdministrador("administrador01", "AD-001"),
-            FilaAdministrador("administrador02", "AD-002")
+            UsuariosDePrueba.NuevoAdministrador("administrador01", codigoAdministrador: "AD-001"),
+            UsuariosDePrueba.NuevoAdministrador("administrador02", codigoAdministrador: "AD-002")
         };
-        ConfigurarRepositorio(new ResultadoPaginadoDto<UsuarioInternoListadoDto>
-        {
-            Elementos = elementos,
-            Pagina = 1,
-            TamanioPagina = TamanioPaginaHu08,
-            Total = 2
-        });
+        ConfigurarRepositorio(usuarios, total: 2);
 
         var resultado = await CrearManejador()
             .Handle(new ConsultarUsuariosInternosConsulta(1, TamanioPaginaHu08, "Administrador", null),
@@ -194,7 +144,7 @@ public class ConsultarUsuariosInternosManejadorPruebas
 
         resultado.Elementos.Should().OnlyContain(e => e.Rol == nameof(RolUsuario.Administrador));
         resultado.Elementos.Should().OnlyContain(e => !string.IsNullOrEmpty(e.CodigoAdministrador));
-        // En filas de Administrador, el código de operador no es el código principal.
+        // En filas de Administrador, el código de operador queda en null.
         resultado.Elementos.Should().OnlyContain(e => string.IsNullOrEmpty(e.CodigoOperador));
 
         _repositorio.Verify(r => r.ConsultarUsuariosInternosAsync(
@@ -202,6 +152,9 @@ public class ConsultarUsuariosInternosManejadorPruebas
             It.IsAny<int>(),
             RolUsuario.Administrador,
             It.IsAny<string?>(),
+            It.IsAny<CancellationToken>()), Times.Once);
+        _repositorio.Verify(r => r.ContarUsuariosInternosAsync(
+            RolUsuario.Administrador,
             It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -211,7 +164,7 @@ public class ConsultarUsuariosInternosManejadorPruebas
     [Fact]
     public async Task Caso4_OrdenAsc_SePropagaAlRepositorio()
     {
-        ConfigurarRepositorio(ResultadoVacio());
+        ConfigurarRepositorioVacio();
 
         await CrearManejador()
             .Handle(new ConsultarUsuariosInternosConsulta(1, TamanioPaginaHu08, "Todos", "asc"),
@@ -231,7 +184,7 @@ public class ConsultarUsuariosInternosManejadorPruebas
     [Fact]
     public async Task Caso5_OrdenDesc_SePropagaAlRepositorio()
     {
-        ConfigurarRepositorio(ResultadoVacio());
+        ConfigurarRepositorioVacio();
 
         await CrearManejador()
             .Handle(new ConsultarUsuariosInternosConsulta(1, TamanioPaginaHu08, "Todos", "desc"),
@@ -257,7 +210,7 @@ public class ConsultarUsuariosInternosManejadorPruebas
     public async Task Caso5b_NormalizaOrdenAntesDeLlamarAlRepositorio(
         string? entrada, string? esperado)
     {
-        ConfigurarRepositorio(ResultadoVacio());
+        ConfigurarRepositorioVacio();
 
         await CrearManejador()
             .Handle(new ConsultarUsuariosInternosConsulta(1, TamanioPaginaHu08, "Todos", entrada),
@@ -277,7 +230,7 @@ public class ConsultarUsuariosInternosManejadorPruebas
     [Fact]
     public async Task Caso6_SinResultados_DevuelveListaVaciaYTotalCero()
     {
-        ConfigurarRepositorio(ResultadoVacio());
+        ConfigurarRepositorioVacio();
 
         var accion = async () => await CrearManejador()
             .Handle(new ConsultarUsuariosInternosConsulta(1, TamanioPaginaHu08, "Todos", null),
@@ -297,7 +250,7 @@ public class ConsultarUsuariosInternosManejadorPruebas
     [Fact]
     public async Task Caso7_PropagaPaginaTamanioRolYOrdenAlRepositorio()
     {
-        ConfigurarRepositorio(ResultadoVacio(pagina: 2));
+        ConfigurarRepositorioVacio();
 
         await CrearManejador()
             .Handle(new ConsultarUsuariosInternosConsulta(2, TamanioPaginaHu08, "Operador", "asc"),
@@ -309,7 +262,91 @@ public class ConsultarUsuariosInternosManejadorPruebas
             RolUsuario.Operador,
             "asc",
             It.IsAny<CancellationToken>()), Times.Once);
+        _repositorio.Verify(r => r.ContarUsuariosInternosAsync(
+            RolUsuario.Operador,
+            It.IsAny<CancellationToken>()), Times.Once);
         _repositorio.VerifyNoOtherCalls();
+    }
+
+    // =================================================================
+    // El total devuelto al cliente proviene de ContarUsuariosInternosAsync,
+    // independientemente de cuántos elementos traiga la página actual.
+    // =================================================================
+    [Fact]
+    public async Task Total_VieneDeContarUsuariosInternosAsync()
+    {
+        var usuarios = new Usuario[]
+        {
+            UsuariosDePrueba.NuevoOperador("operador01", codigoOperador: "OP-001")
+        };
+        ConfigurarRepositorio(usuarios, total: 27);
+
+        var resultado = await CrearManejador()
+            .Handle(new ConsultarUsuariosInternosConsulta(1, TamanioPaginaHu08, "Todos", null),
+                    CancellationToken.None);
+
+        resultado.Total.Should().Be(27);
+        resultado.Elementos.Should().HaveCount(1);
+    }
+
+    // =================================================================
+    // El mapeo de Operador produce CodigoOperador y CodigoAdministrador = null,
+    // y el de Administrador produce el caso simétrico.
+    // =================================================================
+    [Fact]
+    public async Task MapeoOperadorYAdministrador_ProduceCodigosCorrectos()
+    {
+        var operador = UsuariosDePrueba.NuevoOperador(
+            nombreUsuario: "operador01", codigoOperador: "OP-007");
+        var administrador = UsuariosDePrueba.NuevoAdministrador(
+            nombreUsuario: "administrador01", codigoAdministrador: "AD-007");
+        ConfigurarRepositorio(new Usuario[] { operador, administrador }, total: 2);
+
+        var resultado = await CrearManejador()
+            .Handle(new ConsultarUsuariosInternosConsulta(1, TamanioPaginaHu08, "Todos", null),
+                    CancellationToken.None);
+
+        var filaOperador = resultado.Elementos.Single(e => e.Id == operador.Id);
+        filaOperador.Rol.Should().Be(nameof(RolUsuario.Operador));
+        filaOperador.CodigoOperador.Should().Be("OP-007");
+        filaOperador.CodigoAdministrador.Should().BeNull();
+        filaOperador.NombreUsuario.Should().Be("operador01");
+        filaOperador.Nombre.Should().Be("Olivia");
+        filaOperador.Apellido.Should().Be("Operadora");
+        filaOperador.Estado.Should().Be("Activo");
+        filaOperador.Sexo.Should().Be("Femenino");
+
+        var filaAdmin = resultado.Elementos.Single(e => e.Id == administrador.Id);
+        filaAdmin.Rol.Should().Be(nameof(RolUsuario.Administrador));
+        filaAdmin.CodigoAdministrador.Should().Be("AD-007");
+        filaAdmin.CodigoOperador.Should().BeNull();
+        filaAdmin.NombreUsuario.Should().Be("administrador01");
+        filaAdmin.Nombre.Should().Be("Ada");
+        filaAdmin.Apellido.Should().Be("Admin");
+        filaAdmin.Estado.Should().Be("Activo");
+        filaAdmin.Sexo.Should().Be("Femenino");
+    }
+
+    // =================================================================
+    // Si el repositorio devolviera defensivamente un Participante, el
+    // manejador lo descarta sin romper el resto del listado.
+    // =================================================================
+    [Fact]
+    public async Task Mapeo_DescartaParticipantesDefensivamente()
+    {
+        var operador = UsuariosDePrueba.NuevoOperador("operador01", codigoOperador: "OP-001");
+        var participante = UsuariosDePrueba.NuevoParticipante("participante01");
+        ConfigurarRepositorio(new Usuario[] { operador, participante }, total: 2);
+
+        var resultado = await CrearManejador()
+            .Handle(new ConsultarUsuariosInternosConsulta(1, TamanioPaginaHu08, "Todos", null),
+                    CancellationToken.None);
+
+        resultado.Elementos.Should().HaveCount(1);
+        resultado.Elementos.Should().OnlyContain(e => e.Rol == nameof(RolUsuario.Operador));
+        resultado.Elementos.Should().NotContain(e => e.Rol == nameof(RolUsuario.Participante));
+        // El total proviene del puerto, no se recalcula a partir del filtrado defensivo.
+        resultado.Total.Should().Be(2);
     }
 
     // =================================================================
@@ -323,7 +360,7 @@ public class ConsultarUsuariosInternosManejadorPruebas
     [InlineData(100)]
     public async Task TamanioPagina_SiempreSeFijaA10(int tamanioCliente)
     {
-        ConfigurarRepositorio(ResultadoVacio());
+        ConfigurarRepositorioVacio();
 
         await CrearManejador()
             .Handle(new ConsultarUsuariosInternosConsulta(1, tamanioCliente, "Todos", null),
@@ -344,7 +381,7 @@ public class ConsultarUsuariosInternosManejadorPruebas
     [InlineData(-99)]
     public async Task PaginaInvalida_SeNormalizaA1(int paginaCliente)
     {
-        ConfigurarRepositorio(ResultadoVacio());
+        ConfigurarRepositorioVacio();
 
         await CrearManejador()
             .Handle(new ConsultarUsuariosInternosConsulta(paginaCliente, TamanioPaginaHu08, "Todos", null),
@@ -362,13 +399,9 @@ public class ConsultarUsuariosInternosManejadorPruebas
     [Fact]
     public async Task Pagina2_SeRespetaAlConsultarElRepositorio()
     {
-        ConfigurarRepositorio(new ResultadoPaginadoDto<UsuarioInternoListadoDto>
-        {
-            Elementos = new[] { FilaOperador("operador11") },
-            Pagina = 2,
-            TamanioPagina = TamanioPaginaHu08,
-            Total = 11
-        });
+        ConfigurarRepositorio(
+            new Usuario[] { UsuariosDePrueba.NuevoOperador("operador11", codigoOperador: "OP-011") },
+            total: 11);
 
         var resultado = await CrearManejador()
             .Handle(new ConsultarUsuariosInternosConsulta(2, TamanioPaginaHu08, "Todos", null),
@@ -392,7 +425,7 @@ public class ConsultarUsuariosInternosManejadorPruebas
     [Fact]
     public async Task NoConsultaPuertosGenericosQuePodrianTraerParticipantes()
     {
-        ConfigurarRepositorio(ResultadoVacio());
+        ConfigurarRepositorioVacio();
 
         await CrearManejador()
             .Handle(new ConsultarUsuariosInternosConsulta(1, TamanioPaginaHu08, "Todos", null),
@@ -403,6 +436,10 @@ public class ConsultarUsuariosInternosManejadorPruebas
             Times.Never);
         _repositorio.Verify(
             r => r.ObtenerPorNombreUsuarioAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        _repositorio.Verify(
+            r => r.ConsultarParticipantesAsync(
+                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()),
             Times.Never);
     }
 
@@ -415,7 +452,7 @@ public class ConsultarUsuariosInternosManejadorPruebas
     [InlineData("desconocido")]
     public async Task FiltroNoReconocido_SeTrataComoTodos(string filtro)
     {
-        ConfigurarRepositorio(ResultadoVacio());
+        ConfigurarRepositorioVacio();
 
         await CrearManejador()
             .Handle(new ConsultarUsuariosInternosConsulta(1, TamanioPaginaHu08, filtro, null),
@@ -426,6 +463,9 @@ public class ConsultarUsuariosInternosManejadorPruebas
             It.IsAny<int>(),
             (RolUsuario?)null,
             It.IsAny<string?>(),
+            It.IsAny<CancellationToken>()), Times.Once);
+        _repositorio.Verify(r => r.ContarUsuariosInternosAsync(
+            (RolUsuario?)null,
             It.IsAny<CancellationToken>()), Times.Once);
     }
 }

@@ -22,7 +22,7 @@ public class CrearUsuarioManejadorPruebas
     private readonly Mock<IRepositorioIdentidad> _repositorio = new();
     private readonly Mock<IProveedorIdentidad> _proveedor = new();
     private readonly Mock<IProveedorFechaHora> _reloj = new();
-    private readonly Mock<IValidadorCrearUsuario> _validador = new();
+    private readonly Mock<IValidador<CrearUsuarioDto>> _validador = new();
     private readonly Mock<IGeneradorCodigoUsuario> _generador = new();
     private static readonly DateTime Ahora = new(2026, 5, 17, 0, 0, 0, DateTimeKind.Utc);
 
@@ -61,8 +61,7 @@ public class CrearUsuarioManejadorPruebas
         Nombre = "Ana", Apellido = "Apellido",
         Sexo = "Femenino",
         FechaNacimiento = new DateTime(1990, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-        DatosContacto = new DatosContactoDto { Direccion = "Calle 1", Telefono = "04143710260" },
-        Alias = "ana123"
+        DatosContacto = new DatosContactoDto { Direccion = "Calle 1", Telefono = "04143710260" }
     };
 
     private void ConfigurarKeycloak(string idKc) =>
@@ -133,21 +132,9 @@ public class CrearUsuarioManejadorPruebas
             "kc-adm-x", It.IsAny<CancellationToken>()), Times.Once);
     }
 
-    [Fact]
-    public async Task FlujoParticipante_NoDevuelveCodigo()
-    {
-        ConfigurarKeycloak("kc-par-x");
-
-        var resultado = await CrearManejador().Handle(
-            new CrearUsuarioComando(Dto(RolUsuario.Participante)), CancellationToken.None);
-
-        resultado.Rol.Should().Be("Participante");
-        resultado.Codigo.Should().BeNull();
-        _generador.Verify(g => g.GenerarCodigoOperadorAsync(It.IsAny<CancellationToken>()),
-            Times.Never);
-        _generador.Verify(g => g.GenerarCodigoAdministradorAsync(It.IsAny<CancellationToken>()),
-            Times.Never);
-    }
+    // (HU02 ya no crea Participante: el validador lo rechaza y CrearUsuarioDto
+    // no tiene Alias. La cobertura del flujo de creación de Participante vive
+    // ahora en RegistrarParticipanteManejadorPruebas — HU03.)
 
     [Fact]
     public async Task ValidadorFalla_NoLlamaKeycloakNiGenerador()
@@ -211,6 +198,52 @@ public class CrearUsuarioManejadorPruebas
             new CrearUsuarioComando(Dto(RolUsuario.Operador)), CancellationToken.None);
 
         _reloj.Verify(r => r.ObtenerFechaHoraUtc(), Times.AtLeastOnce);
+    }
+
+    [Fact]
+    public async Task FlujoOperador_NormalizaFechaNacimientoAUtcSinHora()
+    {
+        // El cliente puede enviar FechaNacimiento con DateTimeKind.Unspecified
+        // (p. ej. al deserializar "1990-01-15"). El manejador la debe convertir
+        // a UTC manteniendo solo la fecha, para que Npgsql pueda persistirla en
+        // una columna timestamptz sin lanzar.
+        ConfigurarKeycloak("kc-op-utc");
+        Operador? capturado = null;
+        _repositorio
+            .Setup(r => r.GuardarOperadorAsync(It.IsAny<Operador>(), It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<Operador, string, CancellationToken>((o, _, _) => capturado = o)
+            .Returns(Task.CompletedTask);
+
+        var dto = Dto(RolUsuario.Operador);
+        dto.FechaNacimiento = new DateTime(1990, 1, 15, 13, 45, 0, DateTimeKind.Unspecified);
+
+        await CrearManejador().Handle(new CrearUsuarioComando(dto), CancellationToken.None);
+
+        capturado!.FechaNacimiento.Kind.Should().Be(DateTimeKind.Utc);
+        capturado.FechaNacimiento.Should().Be(
+            new DateTime(1990, 1, 15, 0, 0, 0, DateTimeKind.Utc));
+    }
+
+    [Fact]
+    public async Task FlujoAdministrador_NormalizaFechaNacimientoAUtcSinHora()
+    {
+        ConfigurarKeycloak("kc-adm-utc");
+        Administrador? capturado = null;
+        _repositorio
+            .Setup(r => r.GuardarAdministradorAsync(It.IsAny<Administrador>(), It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<Administrador, string, CancellationToken>((a, _, _) => capturado = a)
+            .Returns(Task.CompletedTask);
+
+        var dto = Dto(RolUsuario.Administrador);
+        dto.FechaNacimiento = new DateTime(1985, 6, 3, 23, 59, 59, DateTimeKind.Unspecified);
+
+        await CrearManejador().Handle(new CrearUsuarioComando(dto), CancellationToken.None);
+
+        capturado!.FechaNacimiento.Kind.Should().Be(DateTimeKind.Utc);
+        capturado.FechaNacimiento.Should().Be(
+            new DateTime(1985, 6, 3, 0, 0, 0, DateTimeKind.Utc));
     }
 
     [Fact]

@@ -1,4 +1,3 @@
-using IdentidadServicio.Commons.Dtos;
 using IdentidadServicio.Dominio.Entidades;
 using IdentidadServicio.Dominio.Enums;
 
@@ -11,6 +10,9 @@ public interface IRepositorioIdentidad
     Task<bool> ExisteNombreUsuarioAsync(string nombreUsuario, CancellationToken cancelacion);
     Task<bool> ExisteCorreoAsync(string correo, CancellationToken cancelacion);
     Task<bool> ExisteTelefonoAsync(string telefono, CancellationToken cancelacion);
+    // HU03 — el alias del Participante es único. Se consulta antes de crear
+    // en Keycloak para evitar tener que compensar por duplicados de alias.
+    Task<bool> ExisteAliasAsync(string alias, CancellationToken cancelacion);
 
     // Devuelven el último código existente (mayor sufijo numérico) o null si
     // todavía no hay ninguno. Lo usa el GeneradorCodigoUsuario para calcular
@@ -39,11 +41,20 @@ public interface IRepositorioIdentidad
     // HU08 — consulta paginada de cuentas internas (Operador / Administrador).
     // El filtro de rol es null para "Todos". El orden por estado puede ser
     // "asc", "desc" o null (sin orden explícito; se ordena por nombre).
-    Task<ResultadoPaginadoDto<UsuarioInternoListadoDto>> ConsultarUsuariosInternosAsync(
+    // Devuelve entidades de dominio concretas (Operador / Administrador); el
+    // armado del DTO de listado corresponde al manejador del caso de uso.
+    Task<IReadOnlyList<Usuario>> ConsultarUsuariosInternosAsync(
         int pagina,
         int tamanioPagina,
         RolUsuario? rolFiltro,
         string? ordenEstado,
+        CancellationToken cancelacion);
+
+    // HU08 — total de cuentas internas para la paginación. Respeta el mismo
+    // filtro de rol que ConsultarUsuariosInternosAsync y nunca cuenta
+    // Participantes.
+    Task<int> ContarUsuariosInternosAsync(
+        RolUsuario? rolFiltro,
         CancellationToken cancelacion);
 
     // HU08 — detalle de un usuario interno por id. Devuelve null cuando no

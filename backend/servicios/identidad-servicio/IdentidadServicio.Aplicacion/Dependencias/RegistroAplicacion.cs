@@ -4,6 +4,7 @@ using IdentidadServicio.Aplicacion.Fabricas;
 using IdentidadServicio.Aplicacion.Generadores;
 using IdentidadServicio.Aplicacion.Mapeadores.Perfil;
 using IdentidadServicio.Aplicacion.Validaciones;
+using IdentidadServicio.Commons.Dtos;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace IdentidadServicio.Aplicacion.Dependencias;
@@ -30,8 +31,12 @@ public static class RegistroAplicacion
         servicios.AddScoped<IEstrategiaMapeoPerfilUsuario, EstrategiaMapeoPerfilParticipante>();
         servicios.AddScoped<FabricaEstrategiaMapeoPerfilUsuario>();
 
-        // Validador reutilizable de caso de uso (HU02).
-        servicios.AddScoped<IValidadorCrearUsuario, ValidadorCrearUsuario>();
+        // Validadores reutilizables expuestos como IValidador<TDatos>. Cada
+        // caso de uso recibe la especialización con tipado fuerte del DTO.
+        // HU02 — registro de Operador/Administrador desde el panel web.
+        servicios.AddScoped<IValidador<CrearUsuarioDto>, ValidadorCrearUsuario>();
+        // HU03 — registro público de Participante desde la app móvil.
+        servicios.AddScoped<IValidador<RegistrarParticipanteDto>, ValidadorRegistrarParticipante>();
 
         // Generador de códigos correlativos (HU02): OP-### / AD-###.
         servicios.AddScoped<IGeneradorCodigoUsuario, GeneradorCodigoUsuario>();
