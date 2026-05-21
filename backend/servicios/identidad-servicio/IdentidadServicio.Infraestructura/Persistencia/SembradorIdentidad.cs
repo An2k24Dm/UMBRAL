@@ -7,14 +7,8 @@ namespace IdentidadServicio.Infraestructura.Persistencia;
 public static class SembradorIdentidad
 {
     private static readonly Guid IdAdmin = Guid.Parse("11111111-1111-1111-1111-111111111111");
-    private static readonly Guid IdOperador = Guid.Parse("22222222-2222-2222-2222-222222222222");
-    private static readonly Guid IdParticipanteActivo = Guid.Parse("33333333-3333-3333-3333-333333333333");
-    private static readonly Guid IdParticipanteInactivo = Guid.Parse("44444444-4444-4444-4444-444444444444");
 
     private const string IdKeycloakAdmin = "kc-administrador-001";
-    private const string IdKeycloakOperador = "kc-operador-001";
-    private const string IdKeycloakParticipanteActivo = "kc-participante-001";
-    private const string IdKeycloakParticipanteInactivo = "kc-inactivo-001";
 
     public static async Task SembrarAsync(
         ContextoIdentidad contexto,
@@ -25,9 +19,6 @@ public static class SembradorIdentidad
 
         var ahora = reloj.ObtenerFechaHoraUtc();
         var nacimientoAdmin = new DateTime(1995, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-        var nacimientoOperador = new DateTime(1998, 3, 10, 0, 0, 0, DateTimeKind.Utc);
-        var nacimientoParticipante = new DateTime(2000, 5, 20, 0, 0, 0, DateTimeKind.Utc);
-        var nacimientoInactivo = new DateTime(2001, 8, 15, 0, 0, 0, DateTimeKind.Utc);
 
         await SembrarAdministradorAsync(
             contexto,
@@ -40,50 +31,6 @@ public static class SembradorIdentidad
             SexoPersona.Masculino,
             nacimientoAdmin,
             "AD-001",
-            ahora,
-            cancelacion);
-
-        await SembrarOperadorAsync(
-            contexto,
-            IdOperador,
-            "operador01",
-            IdKeycloakOperador,
-            "Carlos",
-            "Perez",
-            "operador01@umbral.com",
-            SexoPersona.Masculino,
-            nacimientoOperador,
-            "OP-001",
-            ahora,
-            cancelacion);
-
-        await SembrarParticipanteAsync(
-            contexto,
-            IdParticipanteActivo,
-            "participante01",
-            IdKeycloakParticipanteActivo,
-            "Maria",
-            "Gomez",
-            "participante01@umbral.com",
-            SexoPersona.Femenino,
-            nacimientoParticipante,
-            "participante01",
-            EstadoUsuario.Activo,
-            ahora,
-            cancelacion);
-
-        await SembrarParticipanteAsync(
-            contexto,
-            IdParticipanteInactivo,
-            "participante_inactivo01",
-            IdKeycloakParticipanteInactivo,
-            "Pedro",
-            "Inactivo",
-            "participante.inactivo01@umbral.com",
-            SexoPersona.Masculino,
-            nacimientoInactivo,
-            "participante_inactivo01",
-            EstadoUsuario.Inactivo,
             ahora,
             cancelacion);
 
@@ -140,107 +87,6 @@ public static class SembradorIdentidad
         }
     }
 
-    private static async Task SembrarOperadorAsync(
-        ContextoIdentidad contexto,
-        Guid usuarioId,
-        string nombreUsuario,
-        string idKeycloak,
-        string nombre,
-        string apellido,
-        string correo,
-        SexoPersona sexo,
-        DateTime fechaNacimiento,
-        string codigoOperador,
-        DateTime ahora,
-        CancellationToken cancelacion)
-    {
-        var usuario = await ObtenerOCrearUsuarioAsync(
-            contexto,
-            usuarioId,
-            nombreUsuario,
-            idKeycloak,
-            RolUsuario.Operador,
-            EstadoUsuario.Activo,
-            ahora,
-            cancelacion);
-
-        var persona = await ObtenerOCrearPersonaAsync(
-            contexto,
-            usuario.Id,
-            nombre,
-            apellido,
-            correo,
-            sexo,
-            fechaNacimiento,
-            ahora,
-            cancelacion);
-
-        var existeOperador = await contexto.Operadores
-            .AnyAsync(o => o.PersonaId == persona.Id, cancelacion);
-
-        if (!existeOperador)
-        {
-            contexto.Operadores.Add(new OperadorModelo
-            {
-                Id = Guid.NewGuid(),
-                PersonaId = persona.Id,
-                CodigoOperador = codigoOperador,
-                FechaRegistro = ahora
-            });
-        }
-    }
-
-    private static async Task SembrarParticipanteAsync(
-        ContextoIdentidad contexto,
-        Guid usuarioId,
-        string nombreUsuario,
-        string idKeycloak,
-        string nombre,
-        string apellido,
-        string correo,
-        SexoPersona sexo,
-        DateTime fechaNacimiento,
-        string alias,
-        EstadoUsuario estado,
-        DateTime ahora,
-        CancellationToken cancelacion)
-    {
-        var usuario = await ObtenerOCrearUsuarioAsync(
-            contexto,
-            usuarioId,
-            nombreUsuario,
-            idKeycloak,
-            RolUsuario.Participante,
-            estado,
-            ahora,
-            cancelacion);
-
-        var persona = await ObtenerOCrearPersonaAsync(
-            contexto,
-            usuario.Id,
-            nombre,
-            apellido,
-            correo,
-            sexo,
-            fechaNacimiento,
-            ahora,
-            cancelacion);
-
-        var existeParticipante = await contexto.Participantes
-            .AnyAsync(p => p.PersonaId == persona.Id, cancelacion);
-
-        if (!existeParticipante)
-        {
-            contexto.Participantes.Add(new ParticipanteModelo
-            {
-                Id = Guid.NewGuid(),
-                PersonaId = persona.Id,
-                Alias = alias,
-                FechaRegistro = ahora
-            });
-        }
-    }
-
     private static async Task<UsuarioModelo> ObtenerOCrearUsuarioAsync(
         ContextoIdentidad contexto,
         Guid id,
@@ -288,8 +134,8 @@ public static class SembradorIdentidad
         DateTime ahora,
         CancellationToken cancelacion)
     {
-        // Dirección y teléfono ahora son obligatorios en DatosContacto (HU02);
-        // la reconstrucción del dominio fallaría si quedaran nulos.
+        // Dirección y teléfono son necesarios para reconstruir DatosContacto
+        // desde persistencia hacia el dominio.
         var (direccion, telefono) = ObtenerContactoSembrado(usuarioId);
 
         var persona = await contexto.Personas
@@ -328,10 +174,9 @@ public static class SembradorIdentidad
 
     private static (string Direccion, string Telefono) ObtenerContactoSembrado(Guid usuarioId)
     {
-        if (usuarioId == IdAdmin)               return ("Av. Bolívar, Caracas", "04141000001");
-        if (usuarioId == IdOperador)            return ("Av. Libertador, Caracas", "04141000002");
-        if (usuarioId == IdParticipanteActivo)  return ("Av. Urdaneta, Caracas", "04141000003");
-        if (usuarioId == IdParticipanteInactivo) return ("Av. Sucre, Caracas", "04141000004");
+        if (usuarioId == IdAdmin)
+            return ("Av. Bolívar, Caracas", "04141000001");
+
         return ("Caracas, Venezuela", "04141000099");
     }
 

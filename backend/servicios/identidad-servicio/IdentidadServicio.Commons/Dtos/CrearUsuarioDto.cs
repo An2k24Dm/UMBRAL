@@ -2,11 +2,11 @@ using IdentidadServicio.Dominio.Enums;
 
 namespace IdentidadServicio.Commons.Dtos;
 
-// DTO único para crear cualquier tipo de usuario.
-// El frontend envía NombreUsuario y Correo separados:
-//   - NombreUsuario  → username de Keycloak  (p. ej. "operador01")
-//   - Correo         → email de Keycloak    (p. ej. "operador@umbral.com")
-// El TipoUsuario selecciona la estrategia (Strategy + Factory).
+// HU02 — creación administrativa de Administrador u Operador desde el panel
+// web. El TipoUsuario selecciona la estrategia (Administrador / Operador). El
+// registro público de Participante (HU03) usa su propio RegistrarParticipanteDto
+// y no pasa por este DTO; por eso aquí no aparece Alias.
+//
 // Para evitar duplicar conceptos, el tipo se reutiliza desde el dominio
 // (RolUsuario). Se conserva el nombre de propiedad "TipoUsuario" porque el
 // frontend envía esa clave en el JSON.
@@ -29,8 +29,4 @@ public sealed class CrearUsuarioDto
     public DateTime FechaNacimiento { get; set; }
 
     public DatosContactoDto DatosContacto { get; set; } = new();
-
-    // Alias se conserva para el registro futuro de Participante desde la app
-    // móvil (HU03). No se usa en el flujo de registro web.
-    public string? Alias { get; set; }
 }

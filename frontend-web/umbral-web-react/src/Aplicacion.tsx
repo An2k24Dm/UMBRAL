@@ -3,13 +3,14 @@ import { PaginaInicioSesion } from './paginas/PaginaInicioSesion'
 import { PaginaAdministrador } from './paginas/PaginaAdministrador'
 import { PaginaRegistrarUsuario } from './paginas/PaginaRegistrarUsuario'
 import { PaginaOperador } from './paginas/PaginaOperador'
-import { PaginaParticipante } from './paginas/PaginaParticipante'
 import { PaginaPerfilUsuarioAutenticado } from './paginas/PaginaPerfilUsuarioAutenticado'
 import { PaginaListaParticipantes } from './paginas/PaginaListaParticipantes'
-import { PaginaDetalleParticipante } from './paginas/PaginaDetalleParticipante'
 import { PaginaListaUsuariosInternos } from './paginas/PaginaListaUsuariosInternos'
 import { PaginaDetalleUsuario } from './paginas/PaginaDetalleUsuario'
-import { obtenerDetalleUsuarioInterno } from './autenticacion/clienteApi'
+import {
+  obtenerDetalleParticipante,
+  obtenerDetalleUsuarioInterno
+} from './autenticacion/clienteApi'
 import { RutaProtegida } from './autenticacion/RutaProtegida'
 
 export function Aplicacion() {
@@ -51,11 +52,16 @@ export function Aplicacion() {
           </RutaProtegida>
         }
       />
+      {/* HU07 — detalle de un Participante: usa el endpoint
+          /api/usuarios/participantes/{id}. */}
       <Route
         path="/administrador/usuarios/participantes/:id"
         element={
           <RutaProtegida rolesPermitidos={['Administrador']}>
-            <PaginaDetalleParticipante />
+            <PaginaDetalleUsuario
+              rolesPermitidosVista={['Participante']}
+              obtenerUsuario={obtenerDetalleParticipante}
+            />
           </RutaProtegida>
         }
       />
@@ -77,14 +83,6 @@ export function Aplicacion() {
               rolesPermitidosVista={['Operador', 'Administrador']}
               obtenerUsuario={obtenerDetalleUsuarioInterno}
             />
-          </RutaProtegida>
-        }
-      />
-      <Route
-        path="/administrador/usuarios/:id"
-        element={
-          <RutaProtegida rolesPermitidos={['Administrador']}>
-            <PaginaDetalleUsuario rolesPermitidosVista={['Participante', 'Operador', 'Administrador']} />
           </RutaProtegida>
         }
       />
@@ -114,11 +112,15 @@ export function Aplicacion() {
           </RutaProtegida>
         }
       />
+      {/* HU07 — detalle de un Participante consultado por el Operador. */}
       <Route
         path="/operador/usuarios/participantes/:id"
         element={
           <RutaProtegida rolesPermitidos={['Operador']}>
-            <PaginaDetalleParticipante />
+            <PaginaDetalleUsuario
+              rolesPermitidosVista={['Participante']}
+              obtenerUsuario={obtenerDetalleParticipante}
+            />
           </RutaProtegida>
         }
       />
@@ -127,16 +129,6 @@ export function Aplicacion() {
       <Route
         path="/operador/sesiones"
         element={<Navigate to="/operador" replace />}
-      />
-
-      {/* ----- Participante (sin panel web; se mantiene la lógica actual) ----- */}
-      <Route
-        path="/participante/sesiones"
-        element={
-          <RutaProtegida rolesPermitidos={['Participante']}>
-            <PaginaParticipante />
-          </RutaProtegida>
-        }
       />
 
       <Route path="*" element={<Navigate to="/iniciar-sesion" replace />} />

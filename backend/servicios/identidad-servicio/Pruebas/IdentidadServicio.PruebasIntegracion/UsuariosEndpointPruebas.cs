@@ -261,7 +261,6 @@ public class UsuariosEndpointPruebas : IClassFixture<FabricaApiPruebas>
 
         var dto = DtoOperador();
         dto.TipoUsuario = RolUsuario.Participante;
-        dto.Alias = "alias01";
 
         var respuesta = await _cliente.SendAsync(Solicitud(dto, "Administrador"));
         respuesta.StatusCode.Should().Be(HttpStatusCode.BadRequest);

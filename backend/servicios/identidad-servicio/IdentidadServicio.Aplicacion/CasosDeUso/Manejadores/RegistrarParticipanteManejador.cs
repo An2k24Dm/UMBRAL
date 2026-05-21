@@ -4,28 +4,33 @@ using IdentidadServicio.Aplicacion.Fabricas;
 using IdentidadServicio.Aplicacion.Puertos;
 using IdentidadServicio.Aplicacion.Validaciones;
 using IdentidadServicio.Commons.Dtos;
+using IdentidadServicio.Dominio.Enums;
 using MediatR;
 using Microsoft.Extensions.Logging;
 
 namespace IdentidadServicio.Aplicacion.CasosDeUso.Manejadores;
 
-public sealed class CrearUsuarioManejador
-    : IRequestHandler<CrearUsuarioComando, CrearUsuarioRespuestaDto>
+// HU03 — registro público de Participante desde la app móvil. Reutiliza el
+// Strategy/Factory ya existentes (EstrategiaCrearParticipante) para no
+// duplicar la creación del agregado de dominio, pero mantiene su propio
+// validador y comando para que las reglas no se entremezclen con HU02.
+public sealed class RegistrarParticipanteManejador
+    : IRequestHandler<RegistrarParticipanteComando, CrearUsuarioRespuestaDto>
 {
     private readonly IRepositorioIdentidad _repositorio;
     private readonly IProveedorIdentidad _proveedor;
     private readonly IProveedorFechaHora _reloj;
     private readonly FabricaEstrategiaCreacionUsuario _fabrica;
-    private readonly IValidador<CrearUsuarioDto> _validador;
-    private readonly ILogger<CrearUsuarioManejador> _registro;
+    private readonly IValidador<RegistrarParticipanteDto> _validador;
+    private readonly ILogger<RegistrarParticipanteManejador> _registro;
 
-    public CrearUsuarioManejador(
+    public RegistrarParticipanteManejador(
         IRepositorioIdentidad repositorio,
         IProveedorIdentidad proveedor,
         IProveedorFechaHora reloj,
         FabricaEstrategiaCreacionUsuario fabrica,
-        IValidador<CrearUsuarioDto> validador,
-        ILogger<CrearUsuarioManejador> registro)
+        IValidador<RegistrarParticipanteDto> validador,
+        ILogger<RegistrarParticipanteManejador> registro)
     {
         _repositorio = repositorio;
         _proveedor = proveedor;
@@ -36,23 +41,21 @@ public sealed class CrearUsuarioManejador
     }
 
     public async Task<CrearUsuarioRespuestaDto> Handle(
-        CrearUsuarioComando comando, CancellationToken cancelacion)
+        RegistrarParticipanteComando comando, CancellationToken cancelacion)
     {
         var dto = comando.Datos;
 
-        // 1) Validación reutilizable (campos + duplicados + reglas por rol).
-        //    El validador normaliza el teléfono (sin espacios ni guiones) y, si
-        //    hay errores, lanza ExcepcionValidacion → middleware → HTTP 400.
+        // 1) Validación específica de HU03 (campos + duplicados, incluido alias).
         await _validador.ValidarAsync(dto, cancelacion);
 
-        // 2) Estrategia para el TipoUsuario (Administrador, Operador o Participante).
-        var estrategia = _fabrica.Obtener(dto.TipoUsuario);
+        // 2) Estrategia fija: HU03 siempre registra Participante. El backend nunca
+        //    permite que el cliente decida el rol por esta vía.
+        var estrategia = _fabrica.Obtener(RolUsuario.Participante);
 
         // 3) Fecha vía IProveedorFechaHora.
         var fechaRegistro = _reloj.ObtenerFechaHoraUtc();
 
-        // 4) Crear en Keycloak (username, correo, nombre y apellido separados;
-        //    temporary = false).
+        // 4) Crear en Keycloak con los datos canónicos.
         var datosIdentidad = new DatosCreacionUsuarioIdentidad(
             NombreUsuario: dto.NombreUsuario.Trim(),
             Correo: dto.Correo.Trim().ToLowerInvariant(),
@@ -68,30 +71,29 @@ public sealed class CrearUsuarioManejador
                 idKeycloak, estrategia.ObtenerRol().ToString(), cancelacion);
 
             // 5) Mapeo a DatosCreacionUsuario (modelo interno de aplicación)
-            //    para que las estrategias no dependan de CrearUsuarioDto. HU02
-            //    nunca lleva Alias: ese campo es exclusivo de HU03.
+            //    para reutilizar la estrategia sin acoplar a un DTO de
+            //    transporte. TipoUsuario lo forzamos a Participante: el dato
+            //    no proviene del cliente.
             var datosCreacion = new DatosCreacionUsuario
             {
-                TipoUsuario = dto.TipoUsuario,
+                TipoUsuario = RolUsuario.Participante,
+                Alias = dto.Alias.Trim(),
                 NombreUsuario = dto.NombreUsuario,
                 Correo = dto.Correo,
                 Nombre = dto.Nombre,
                 Apellido = dto.Apellido,
                 Sexo = dto.Sexo,
                 FechaNacimiento = DatosCreacionUsuario.NormalizarFechaNacimiento(dto.FechaNacimiento),
-                DatosContacto = dto.DatosContacto,
-                Alias = null
+                DatosContacto = dto.DatosContacto
             };
 
             var usuario = await estrategia.CrearUsuarioDominioAsync(
                 datosCreacion, fechaRegistro, cancelacion);
             await estrategia.GuardarAsync(usuario, idKeycloak, _repositorio, cancelacion);
 
-            var codigo = ObtenerCodigo(usuario);
-
             _registro.LogInformation(
-                "Usuario {NombreUsuario} ({Correo}) creado con rol {Rol} y código {Codigo}.",
-                usuario.NombreUsuario.Valor, usuario.Correo.Valor, usuario.Rol, codigo);
+                "Participante {NombreUsuario} ({Correo}) registrado desde la app móvil.",
+                usuario.NombreUsuario.Valor, usuario.Correo.Valor);
 
             return new CrearUsuarioRespuestaDto
             {
@@ -100,10 +102,8 @@ public sealed class CrearUsuarioManejador
                 Correo = usuario.Correo.Valor,
                 Rol = usuario.Rol.ToString(),
                 Estado = usuario.Estado.ToString(),
-                Codigo = codigo,
-                Mensaje = codigo is null
-                    ? $"{usuario.Rol} registrado correctamente."
-                    : $"{usuario.Rol} registrado correctamente. Código generado: {codigo}"
+                Codigo = null,
+                Mensaje = "Participante registrado correctamente."
             };
         }
         catch
@@ -112,13 +112,6 @@ public sealed class CrearUsuarioManejador
             throw;
         }
     }
-
-    private static string? ObtenerCodigo(Dominio.Entidades.Usuario usuario) => usuario switch
-    {
-        Dominio.Entidades.Operador o => o.CodigoOperador,
-        Dominio.Entidades.Administrador a => a.CodigoAdministrador,
-        _ => null
-    };
 
     private async Task CompensarKeycloakAsync(string idKeycloak)
     {

@@ -7,8 +7,6 @@ using Microsoft.EntityFrameworkCore;
 
 var constructor = WebApplication.CreateBuilder(args);
 
-// Acepta enums como string en JSON (p. ej. "TipoUsuario": "Operador",
-// "Sexo": "Masculino"). Sin esto el frontend debería enviar el valor numérico.
 constructor.Services.AddControllers().AddJsonOptions(opciones =>
 {
     opciones.JsonSerializerOptions.Converters

@@ -1,5 +1,4 @@
 using IdentidadServicio.Aplicacion.Mapeadores;
-using IdentidadServicio.Commons.Dtos;
 using IdentidadServicio.Dominio.Enums;
 using IdentidadServicio.Dominio.ObjetosDeValor;
 
@@ -7,18 +6,21 @@ namespace IdentidadServicio.Aplicacion.Estrategias;
 
 internal static class BaseEstrategia
 {
+    // Parsea el modelo interno de aplicación (DatosCreacionUsuario) en los
+    // objetos de valor del dominio. Mantiene un único punto donde se aplica
+    // la conversión, evitando que cada estrategia repita el código.
     public static (NombreUsuario Nombre, Correo Correo, NombrePersona Persona,
                    DatosContacto Contacto, SexoPersona Sexo)
-        ParsearDatosBasicos(CrearUsuarioDto dto)
+        ParsearDatosBasicos(DatosCreacionUsuario datos)
     {
         return (
-            NombreUsuario.Crear(dto.NombreUsuario),
-            Correo.Crear(dto.Correo),
-            NombrePersona.Crear(dto.Nombre, dto.Apellido),
+            NombreUsuario.Crear(datos.NombreUsuario),
+            Correo.Crear(datos.Correo),
+            NombrePersona.Crear(datos.Nombre, datos.Apellido),
             DatosContacto.Crear(
-                dto.DatosContacto?.Direccion ?? string.Empty,
-                dto.DatosContacto?.Telefono ?? string.Empty),
-            DtoMapeador.ParsearSexo(dto.Sexo)
+                datos.DatosContacto?.Direccion ?? string.Empty,
+                datos.DatosContacto?.Telefono ?? string.Empty),
+            DtoMapeador.ParsearSexo(datos.Sexo)
         );
     }
 }

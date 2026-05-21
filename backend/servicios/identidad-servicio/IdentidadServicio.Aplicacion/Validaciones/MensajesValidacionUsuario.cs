@@ -17,6 +17,8 @@ public static class MensajesValidacionUsuario
     public const string CampoFechaNacimiento = "fechaNacimiento";
     public const string CampoSexo = "sexo";
     public const string CampoTipoUsuario = "tipoUsuario";
+    // Alias del Participante (HU03 — registro público desde la app móvil).
+    public const string CampoAlias = "alias";
     // Codigos OP-### y AD-### los genera el backend; no son campos del DTO,
     // pero conservamos los nombres por si una versión futura los expone como
     // errores específicos (p. ej. choque de duplicado por carrera).
@@ -74,4 +76,10 @@ public static class MensajesValidacionUsuario
     // Tipo de usuario
     public const string TipoUsuarioInvalidoWeb = "El rol seleccionado no es válido para registro web.";
 
+    // Alias (HU03)
+    public const string AliasObligatorio = "El alias es obligatorio.";
+    public const string AliasLongitud = "El alias debe tener entre 3 y 30 caracteres.";
+    public const string AliasFormato =
+        "El alias solo puede contener letras, números, punto o guion bajo.";
+    public const string AliasDuplicado = "El alias ya está registrado.";
 }

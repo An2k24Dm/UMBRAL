@@ -1,5 +1,4 @@
 using IdentidadServicio.Aplicacion.Puertos;
-using IdentidadServicio.Commons.Dtos;
 using IdentidadServicio.Dominio.Entidades;
 using IdentidadServicio.Dominio.Enums;
 using IdentidadServicio.Dominio.Excepciones;
@@ -13,12 +12,16 @@ public sealed class EstrategiaCrearParticipante : IEstrategiaCreacionUsuario
     public RolUsuario ObtenerRol() => RolUsuario.Participante;
 
     public Task<Usuario> CrearUsuarioDominioAsync(
-        CrearUsuarioDto dto, DateTime fechaRegistro, CancellationToken cancelacion)
+        DatosCreacionUsuario datos, DateTime fechaRegistro, CancellationToken cancelacion)
     {
-        if (string.IsNullOrWhiteSpace(dto.Alias))
+        // Alias vive en DatosCreacionUsuario y solo aplica para Participante.
+        // El validador de HU03 ya garantiza no nulo/no vacío; la verificación
+        // aquí actúa como red de seguridad si alguien construye DatosCreacionUsuario
+        // por otra vía sin pasar por el validador.
+        if (string.IsNullOrWhiteSpace(datos.Alias))
             throw new DatosUsuarioInvalidosExcepcion("El alias del participante es obligatorio.");
 
-        var (nombre, correo, persona, contacto, sexo) = BaseEstrategia.ParsearDatosBasicos(dto);
+        var (nombre, correo, persona, contacto, sexo) = BaseEstrategia.ParsearDatosBasicos(datos);
 
         Usuario participante = Participante.Crear(
             nombreUsuario: nombre,
@@ -26,8 +29,8 @@ public sealed class EstrategiaCrearParticipante : IEstrategiaCreacionUsuario
             nombrePersona: persona,
             datosContacto: contacto,
             sexo: sexo,
-            fechaNacimiento: dto.FechaNacimiento,
-            alias: dto.Alias!,
+            fechaNacimiento: datos.FechaNacimiento,
+            alias: datos.Alias!,
             fechaRegistro: fechaRegistro);
 
         return Task.FromResult(participante);

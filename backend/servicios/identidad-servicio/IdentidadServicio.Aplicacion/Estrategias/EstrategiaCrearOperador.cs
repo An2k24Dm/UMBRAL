@@ -1,6 +1,5 @@
 using IdentidadServicio.Aplicacion.Generadores;
 using IdentidadServicio.Aplicacion.Puertos;
-using IdentidadServicio.Commons.Dtos;
 using IdentidadServicio.Dominio.Entidades;
 using IdentidadServicio.Dominio.Enums;
 
@@ -20,9 +19,9 @@ public sealed class EstrategiaCrearOperador : IEstrategiaCreacionUsuario
     public RolUsuario ObtenerRol() => RolUsuario.Operador;
 
     public async Task<Usuario> CrearUsuarioDominioAsync(
-        CrearUsuarioDto dto, DateTime fechaRegistro, CancellationToken cancelacion)
+        DatosCreacionUsuario datos, DateTime fechaRegistro, CancellationToken cancelacion)
     {
-        var (nombre, correo, persona, contacto, sexo) = BaseEstrategia.ParsearDatosBasicos(dto);
+        var (nombre, correo, persona, contacto, sexo) = BaseEstrategia.ParsearDatosBasicos(datos);
         var codigoOperador = await _generador.GenerarCodigoOperadorAsync(cancelacion);
 
         return Operador.Crear(
@@ -31,7 +30,7 @@ public sealed class EstrategiaCrearOperador : IEstrategiaCreacionUsuario
             nombrePersona: persona,
             datosContacto: contacto,
             sexo: sexo,
-            fechaNacimiento: dto.FechaNacimiento,
+            fechaNacimiento: datos.FechaNacimiento,
             codigoOperador: codigoOperador,
             fechaRegistro: fechaRegistro);
     }
