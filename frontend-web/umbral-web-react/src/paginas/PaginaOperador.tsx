@@ -32,18 +32,6 @@ export function PaginaOperador() {
           />
         </div>
       </section>
-
-      <section className="seccion">
-        <div className="seccion-cabecera">
-          <div>
-            <h2>Módulos próximos</h2>
-            <p>Funcionalidades planificadas para iteraciones posteriores.</p>
-          </div>
-        </div>
-        <div className="rejilla-tarjetas">
-          <TarjetaResumen titulo="Sesiones" descripcion="Operación de sesiones en vivo." insignia="Próximamente" deshabilitado />
-        </div>
-      </section>
     </LayoutPanel>
   )
 }
