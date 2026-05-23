@@ -51,6 +51,31 @@ export interface ErrorCampo {
   mensaje: string;
 }
 
+// HU04 — el backend devuelve { codigo, mensaje } en errores del login.
+// Se transporta el código para que la pantalla muestre mensajes específicos
+// (credenciales incorrectas, acceso no permitido en móvil, cuenta desactivada).
+export type CodigoErrorInicioSesion =
+  | "DATOS_INVALIDOS"
+  | "ACCESO_NO_PERMITIDO"
+  | "CUENTA_DESACTIVADA"
+  | "ROL_NO_VALIDO"
+  | "ERROR_INTERNO"
+  | "DESCONOCIDO";
+
+export class ErrorInicioSesion extends Error {
+  codigo: CodigoErrorInicioSesion;
+  estadoHttp: number;
+  constructor(
+    mensaje: string,
+    codigo: CodigoErrorInicioSesion,
+    estadoHttp: number,
+  ) {
+    super(mensaje);
+    this.codigo = codigo;
+    this.estadoHttp = estadoHttp;
+  }
+}
+
 // Excepción que transporta los errores por campo del backend para que la
 // pantalla pueda renderizarlos junto a cada input.
 export class ErrorValidacionRegistro extends Error {
@@ -72,11 +97,120 @@ export async function iniciarSesionApi(
   });
 
   if (!respuesta.ok) {
-    const cuerpo = await respuesta.json().catch(() => null);
-    throw new Error(cuerpo?.mensaje ?? "No fue posible iniciar sesión.");
+    const cuerpo = (await respuesta.json().catch(() => null)) as {
+      codigo?: string;
+      mensaje?: string;
+    } | null;
+    const codigo = (cuerpo?.codigo as CodigoErrorInicioSesion | undefined) ??
+      "DESCONOCIDO";
+    throw new ErrorInicioSesion(
+      cuerpo?.mensaje ?? "No fue posible iniciar sesión.",
+      codigo,
+      respuesta.status,
+    );
   }
 
   return (await respuesta.json()) as ResultadoInicioSesion;
+}
+
+// HU04 — Perfil del Participante autenticado.
+// El backend expone GET /api/autenticacion/perfil-actual, que toma el id del
+// usuario desde el token. La app móvil nunca debe pedir perfiles por id ni
+// permitir consultar perfiles de otros Participantes.
+export interface DatosContactoPerfil {
+  direccion?: string | null;
+  telefono?: string | null;
+}
+
+export interface PerfilParticipante {
+  id: string;
+  nombreUsuario: string;
+  correo: string;
+  rol: "Participante";
+  estado: string;
+  nombre: string;
+  apellido: string;
+  datosContacto: DatosContactoPerfil;
+  sexo: string;
+  fechaNacimiento: string;
+  fechaRegistro: string;
+  alias: string;
+}
+
+export type CodigoErrorConsultaPerfil =
+  | "NO_AUTORIZADO"
+  | "ACCESO_NO_PERMITIDO"
+  | "ERROR_INTERNO"
+  | "DESCONOCIDO";
+
+export class ErrorConsultaPerfil extends Error {
+  codigo: CodigoErrorConsultaPerfil;
+  estadoHttp: number;
+  constructor(
+    mensaje: string,
+    codigo: CodigoErrorConsultaPerfil,
+    estadoHttp: number,
+  ) {
+    super(mensaje);
+    this.codigo = codigo;
+    this.estadoHttp = estadoHttp;
+  }
+}
+
+export async function obtenerPerfilActualApi(
+  tokenAcceso: string,
+): Promise<PerfilParticipante> {
+  const respuesta = await fetch(
+    `${URL_API}/api/autenticacion/perfil-actual`,
+    {
+      method: "GET",
+      headers: obtenerEncabezadosAutenticados(tokenAcceso),
+    },
+  );
+
+  if (!respuesta.ok) {
+    const cuerpo = (await respuesta.json().catch(() => null)) as {
+      codigo?: string;
+      mensaje?: string;
+    } | null;
+
+    if (respuesta.status === 401) {
+      throw new ErrorConsultaPerfil(
+        "Tu sesión expiró. Inicia sesión nuevamente.",
+        "NO_AUTORIZADO",
+        401,
+      );
+    }
+    if (respuesta.status === 403) {
+      throw new ErrorConsultaPerfil(
+        cuerpo?.mensaje ?? "No tienes permisos para consultar este perfil.",
+        "ACCESO_NO_PERMITIDO",
+        403,
+      );
+    }
+
+    const codigo = (cuerpo?.codigo as CodigoErrorConsultaPerfil | undefined) ??
+      "DESCONOCIDO";
+    throw new ErrorConsultaPerfil(
+      cuerpo?.mensaje ?? "No fue posible consultar tu perfil.",
+      codigo,
+      respuesta.status,
+    );
+  }
+
+  return (await respuesta.json()) as PerfilParticipante;
+}
+
+// HU04 — helper para futuras peticiones autenticadas desde la app móvil.
+// También lo usa obtenerPerfilActualApi para no duplicar la construcción
+// del encabezado Authorization.
+export function obtenerEncabezadosAutenticados(
+  token: string,
+): Record<string, string> {
+  return {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${token}`,
+  };
 }
 
 // HU03 — registro público de Participante desde la app móvil. No envía token:

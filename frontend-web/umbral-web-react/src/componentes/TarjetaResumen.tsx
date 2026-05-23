@@ -33,7 +33,7 @@ export function TarjetaResumen({
           {textoAccion}
         </Link>
       ) : (
-        <span className="tarjeta-resumen-pendiente">{deshabilitado ? 'Próximamente' : 'No disponible'}</span>
+        <span className="tarjeta-resumen-pendiente">No disponible</span>
       )}
     </article>
   )
