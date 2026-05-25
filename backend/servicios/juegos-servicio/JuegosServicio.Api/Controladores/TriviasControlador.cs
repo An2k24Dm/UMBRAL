@@ -81,6 +81,40 @@ public sealed class TriviasControlador : ControllerBase
             new { id = preguntaId });
     }
 
+    // HU17 — Modificar una pregunta de una trivia en borrador.
+    [HttpPut("{triviaId:guid}/preguntas/{preguntaId:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> ModificarPregunta(
+        Guid triviaId,
+        Guid preguntaId,
+        [FromBody] ModificarPreguntaDto dto,
+        CancellationToken cancelacion)
+    {
+        await _mediador.Send(new ModificarPreguntaComando(triviaId, preguntaId, dto), cancelacion);
+        return NoContent();
+    }
+
+    // HU17 — Eliminar una pregunta de una trivia en borrador.
+    [HttpDelete("{triviaId:guid}/preguntas/{preguntaId:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> EliminarPregunta(
+        Guid triviaId,
+        Guid preguntaId,
+        CancellationToken cancelacion)
+    {
+        await _mediador.Send(new EliminarPreguntaComando(triviaId, preguntaId), cancelacion);
+        return NoContent();
+    }
+
     private Guid ObtenerCreadorId()
     {
         var sub = User.FindFirstValue(ClaimTypes.NameIdentifier)

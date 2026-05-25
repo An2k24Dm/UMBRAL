@@ -48,6 +48,42 @@ public sealed class RepositorioJuegos : IRepositorioJuegos
         await _contexto.SaveChangesAsync(cancelacion);
     }
 
+    public async Task ModificarPreguntaAsync(Guid triviaId, Pregunta pregunta, CancellationToken cancelacion)
+    {
+        // Eliminar opciones anteriores y reemplazar con las nuevas.
+        var opcionesAnteriores = await _contexto.Opciones
+            .Where(o => o.PreguntaId == pregunta.Id)
+            .ToListAsync(cancelacion);
+
+        _contexto.Opciones.RemoveRange(opcionesAnteriores);
+
+        var nuevasOpciones = pregunta.Opciones.Select(JuegosMapeador.AModelo).ToList();
+        _contexto.Opciones.AddRange(nuevasOpciones);
+
+        var modeloPregunta = await _contexto.Preguntas
+            .FirstOrDefaultAsync(p => p.Id == pregunta.Id, cancelacion);
+
+        if (modeloPregunta is not null)
+        {
+            modeloPregunta.Enunciado = pregunta.Enunciado;
+            modeloPregunta.PuntajeAsignado = pregunta.PuntajeAsignado;
+        }
+
+        await _contexto.SaveChangesAsync(cancelacion);
+    }
+
+    public async Task EliminarPreguntaAsync(Guid triviaId, Guid preguntaId, CancellationToken cancelacion)
+    {
+        var modelo = await _contexto.Preguntas
+            .FirstOrDefaultAsync(p => p.Id == preguntaId && p.TriviaId == triviaId, cancelacion);
+
+        if (modelo is not null)
+        {
+            _contexto.Preguntas.Remove(modelo);
+            await _contexto.SaveChangesAsync(cancelacion);
+        }
+    }
+
     public async Task<TriviaDetalleDto?> ObtenerDetalleTriviaAsync(
         Guid triviaId, CancellationToken cancelacion)
     {
