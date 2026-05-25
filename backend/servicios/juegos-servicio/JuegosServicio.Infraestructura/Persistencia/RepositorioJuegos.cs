@@ -41,6 +41,13 @@ public sealed class RepositorioJuegos : IRepositorioJuegos
         return modelo is null ? null : JuegosMapeador.ADominio(modelo);
     }
 
+    public async Task AgregarPreguntaAsync(Guid triviaId, Pregunta pregunta, CancellationToken cancelacion)
+    {
+        var modelo = JuegosMapeador.AModelo(pregunta);
+        _contexto.Preguntas.Add(modelo);
+        await _contexto.SaveChangesAsync(cancelacion);
+    }
+
     public async Task<TriviaDetalleDto?> ObtenerDetalleTriviaAsync(
         Guid triviaId, CancellationToken cancelacion)
     {

@@ -61,6 +61,26 @@ public sealed class TriviasControlador : ControllerBase
         return Ok(resultado);
     }
 
+    // HU16 — Agregar pregunta a una trivia en borrador.
+    [HttpPost("{triviaId:guid}/preguntas")]
+    [ProducesResponseType(StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> AgregarPregunta(
+        Guid triviaId,
+        [FromBody] AgregarPreguntaDto dto,
+        CancellationToken cancelacion)
+    {
+        var preguntaId = await _mediador.Send(
+            new AgregarPreguntaComando(triviaId, dto), cancelacion);
+        return Created(
+            $"/api/juegos/trivias/{triviaId}/preguntas/{preguntaId}",
+            new { id = preguntaId });
+    }
+
     private Guid ObtenerCreadorId()
     {
         var sub = User.FindFirstValue(ClaimTypes.NameIdentifier)
