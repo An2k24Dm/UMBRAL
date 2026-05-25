@@ -14,15 +14,21 @@ using Moq;
 
 namespace IdentidadServicio.PruebasUnitarias.Manejadores;
 
-// El manejador orquesta validador → fábrica/estrategia (incluye generador) →
-// Keycloak → repositorio. Las reglas de validación están en
-// ValidadorCrearUsuarioPruebas y la generación en GeneradorCodigoUsuarioPruebas.
+// HU02 — el manejador depende ahora de puertos segregados:
+//  * IRepositorioUnicidadUsuario (duplicados)
+//  * IRepositorioOperadores      (alta de Operador)
+//  * IRepositorioAdministradores (alta de Administrador)
+//  * IUnidadTrabajoIdentidad     (SaveChanges)
+// Las pruebas mockean cada interfaz por separado.
 public class CrearUsuarioManejadorPruebas
 {
-    private readonly Mock<IRepositorioIdentidad> _repositorio = new();
+    private readonly Mock<IRepositorioUnicidadUsuario> _unicidad = new();
+    private readonly Mock<IRepositorioOperadores> _repoOperadores = new();
+    private readonly Mock<IRepositorioAdministradores> _repoAdministradores = new();
+    private readonly Mock<IUnidadTrabajoIdentidad> _unidad = new();
     private readonly Mock<IProveedorIdentidad> _proveedor = new();
     private readonly Mock<IProveedorFechaHora> _reloj = new();
-    private readonly Mock<IValidador<CrearUsuarioDto>> _validador = new();
+    private readonly Mock<IValidador<CrearUsuarioComando>> _validador = new();
     private readonly Mock<IGeneradorCodigoUsuario> _generador = new();
     private static readonly DateTime Ahora = new(2026, 5, 17, 0, 0, 0, DateTimeKind.Utc);
 
@@ -30,12 +36,14 @@ public class CrearUsuarioManejadorPruebas
     {
         _reloj.Setup(r => r.ObtenerFechaHoraUtc()).Returns(Ahora);
         _validador
-            .Setup(v => v.ValidarAsync(It.IsAny<CrearUsuarioDto>(), It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
+            .Setup(v => v.Validar(It.IsAny<CrearUsuarioComando>()))
+            .Returns(ResultadoValidacion.Exitoso());
         _generador.Setup(g => g.GenerarCodigoOperadorAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync("OP-001");
         _generador.Setup(g => g.GenerarCodigoAdministradorAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync("AD-001");
+        _unidad.Setup(u => u.GuardarCambiosAsync(It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
     }
 
     private CrearUsuarioManejador CrearManejador()
@@ -48,8 +56,15 @@ public class CrearUsuarioManejadorPruebas
         });
 
         return new CrearUsuarioManejador(
-            _repositorio.Object, _proveedor.Object, _reloj.Object, fabrica,
-            _validador.Object, NullLogger<CrearUsuarioManejador>.Instance);
+            _unicidad.Object,
+            _repoOperadores.Object,
+            _repoAdministradores.Object,
+            _unidad.Object,
+            _proveedor.Object,
+            _reloj.Object,
+            fabrica,
+            _validador.Object,
+            NullLogger<CrearUsuarioManejador>.Instance);
     }
 
     private static CrearUsuarioDto Dto(RolUsuario tipo) => new()
@@ -85,9 +100,10 @@ public class CrearUsuarioManejadorPruebas
 
         _generador.Verify(g => g.GenerarCodigoOperadorAsync(It.IsAny<CancellationToken>()),
             Times.Once);
-        _repositorio.Verify(r => r.GuardarOperadorAsync(
+        _repoOperadores.Verify(r => r.AgregarAsync(
             It.Is<Operador>(o => o.CodigoOperador == "OP-042"),
             "kc-op-x", It.IsAny<CancellationToken>()), Times.Once);
+        _unidad.Verify(u => u.GuardarCambiosAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -127,22 +143,19 @@ public class CrearUsuarioManejadorPruebas
 
         _generador.Verify(g => g.GenerarCodigoAdministradorAsync(It.IsAny<CancellationToken>()),
             Times.Once);
-        _repositorio.Verify(r => r.GuardarAdministradorAsync(
+        _repoAdministradores.Verify(r => r.AgregarAsync(
             It.Is<Administrador>(a => a.CodigoAdministrador == "AD-007"),
             "kc-adm-x", It.IsAny<CancellationToken>()), Times.Once);
     }
 
-    // (HU02 ya no crea Participante: el validador lo rechaza y CrearUsuarioDto
-    // no tiene Alias. La cobertura del flujo de creación de Participante vive
-    // ahora en RegistrarParticipanteManejadorPruebas — HU03.)
-
     [Fact]
     public async Task ValidadorFalla_NoLlamaKeycloakNiGenerador()
     {
+        var resultadoConErrores = ResultadoValidacion.Exitoso();
+        resultadoConErrores.Agregar("nombreUsuario", "duplicado");
         _validador
-            .Setup(v => v.ValidarAsync(It.IsAny<CrearUsuarioDto>(), It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new ExcepcionValidacion("Existen errores de validación.",
-                new[] { new ErrorValidacion("nombreUsuario", "duplicado") }));
+            .Setup(v => v.Validar(It.IsAny<CrearUsuarioComando>()))
+            .Returns(resultadoConErrores);
 
         Func<Task> accion = async () => await CrearManejador().Handle(
             new CrearUsuarioComando(Dto(RolUsuario.Operador)), CancellationToken.None);
@@ -156,11 +169,30 @@ public class CrearUsuarioManejadorPruebas
     }
 
     [Fact]
+    public async Task DuplicadoEnRepositorio_LanzaExcepcionValidacion_AntesDeKeycloak()
+    {
+        // HU02 — los duplicados ahora se consultan vía IRepositorioUnicidadUsuario.
+        _unicidad.Setup(r => r.ExisteCorreoAsync(It.IsAny<string>(),
+            It.IsAny<CancellationToken>())).ReturnsAsync(true);
+
+        Func<Task> accion = async () => await CrearManejador().Handle(
+            new CrearUsuarioComando(Dto(RolUsuario.Operador)), CancellationToken.None);
+
+        var excepcion = await accion.Should().ThrowAsync<ExcepcionValidacion>();
+        excepcion.Which.Errores.Should().Contain(e =>
+            e.Campo == MensajesValidacionUsuario.CampoCorreo);
+        _proveedor.Verify(p => p.CrearUsuarioAsync(
+            It.IsAny<DatosCreacionUsuarioIdentidad>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+        _generador.Verify(g => g.GenerarCodigoOperadorAsync(It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
     public async Task FalloEnRepositorio_CompensaEliminandoEnKeycloak()
     {
         ConfigurarKeycloak("kc-op-x");
-        _repositorio.Setup(r => r.GuardarOperadorAsync(
-            It.IsAny<Operador>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+        _unidad.Setup(u => u.GuardarCambiosAsync(It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("DB caída"));
 
         Func<Task> accion = async () => await CrearManejador().Handle(
@@ -176,8 +208,8 @@ public class CrearUsuarioManejadorPruebas
     {
         ConfigurarKeycloak("kc-op-act");
         Operador? capturado = null;
-        _repositorio
-            .Setup(r => r.GuardarOperadorAsync(It.IsAny<Operador>(), It.IsAny<string>(),
+        _repoOperadores
+            .Setup(r => r.AgregarAsync(It.IsAny<Operador>(), It.IsAny<string>(),
                 It.IsAny<CancellationToken>()))
             .Callback<Operador, string, CancellationToken>((o, _, _) => capturado = o)
             .Returns(Task.CompletedTask);
@@ -203,14 +235,10 @@ public class CrearUsuarioManejadorPruebas
     [Fact]
     public async Task FlujoOperador_NormalizaFechaNacimientoAUtcSinHora()
     {
-        // El cliente puede enviar FechaNacimiento con DateTimeKind.Unspecified
-        // (p. ej. al deserializar "1990-01-15"). El manejador la debe convertir
-        // a UTC manteniendo solo la fecha, para que Npgsql pueda persistirla en
-        // una columna timestamptz sin lanzar.
         ConfigurarKeycloak("kc-op-utc");
         Operador? capturado = null;
-        _repositorio
-            .Setup(r => r.GuardarOperadorAsync(It.IsAny<Operador>(), It.IsAny<string>(),
+        _repoOperadores
+            .Setup(r => r.AgregarAsync(It.IsAny<Operador>(), It.IsAny<string>(),
                 It.IsAny<CancellationToken>()))
             .Callback<Operador, string, CancellationToken>((o, _, _) => capturado = o)
             .Returns(Task.CompletedTask);
@@ -230,8 +258,8 @@ public class CrearUsuarioManejadorPruebas
     {
         ConfigurarKeycloak("kc-adm-utc");
         Administrador? capturado = null;
-        _repositorio
-            .Setup(r => r.GuardarAdministradorAsync(It.IsAny<Administrador>(), It.IsAny<string>(),
+        _repoAdministradores
+            .Setup(r => r.AgregarAsync(It.IsAny<Administrador>(), It.IsAny<string>(),
                 It.IsAny<CancellationToken>()))
             .Callback<Administrador, string, CancellationToken>((a, _, _) => capturado = a)
             .Returns(Task.CompletedTask);
@@ -249,9 +277,6 @@ public class CrearUsuarioManejadorPruebas
     [Fact]
     public async Task DtoSinCodigos_NoFalla()
     {
-        // El DTO ya no tiene CodigoOperador/CodigoAdministrador: el backend
-        // genera siempre el código. Confirma que el flujo funciona aun cuando el
-        // frontend no envía esos campos (ahora son inexistentes en el DTO).
         ConfigurarKeycloak("kc-op-x");
 
         var resultado = await CrearManejador().Handle(

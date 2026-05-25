@@ -74,7 +74,9 @@ export function Aplicacion() {
         }
       />
       {/* HU08 — detalle de Operadores y Administradores: usa el endpoint
-          /api/usuarios/internos/{id} que excluye Participantes. */}
+          /api/usuarios/internos/{id} que excluye Participantes.
+          HU09 — habilitamos modo edición sólo para Operadores. La pantalla
+          ignora la edición si el detalle resulta ser Administrador. */}
       <Route
         path="/administrador/usuarios/internos/:id"
         element={
@@ -82,6 +84,7 @@ export function Aplicacion() {
             <PaginaDetalleUsuario
               rolesPermitidosVista={['Operador', 'Administrador']}
               obtenerUsuario={obtenerDetalleUsuarioInterno}
+              permiteEditarOperador
             />
           </RutaProtegida>
         }

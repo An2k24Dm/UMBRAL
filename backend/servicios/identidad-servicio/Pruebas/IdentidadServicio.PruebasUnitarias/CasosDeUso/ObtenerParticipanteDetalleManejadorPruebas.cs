@@ -17,7 +17,7 @@ namespace IdentidadServicio.PruebasUnitarias.CasosDeUso;
 // contrato simulándolo con Moq.
 public class ObtenerParticipanteDetalleManejadorPruebas
 {
-    private readonly Mock<IRepositorioIdentidad> _repositorio = new();
+    private readonly Mock<IRepositorioParticipantes> _repositorio = new();
 
     private static FabricaEstrategiaMapeoPerfilUsuario CrearFabricaMapeo() =>
         new(new IEstrategiaMapeoPerfilUsuario[]
@@ -33,7 +33,7 @@ public class ObtenerParticipanteDetalleManejadorPruebas
     private void ConfigurarRepositorio(Guid id, Participante? participante)
     {
         _repositorio
-            .Setup(r => r.ObtenerParticipantePorIdAsync(id, It.IsAny<CancellationToken>()))
+            .Setup(r => r.ObtenerPorIdAsync(id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(participante);
     }
 
@@ -132,7 +132,7 @@ public class ObtenerParticipanteDetalleManejadorPruebas
             .Handle(new ObtenerParticipanteDetalleConsulta(participante.Id), CancellationToken.None);
 
         _repositorio.Verify(
-            r => r.ObtenerParticipantePorIdAsync(participante.Id, It.IsAny<CancellationToken>()),
+            r => r.ObtenerPorIdAsync(participante.Id, It.IsAny<CancellationToken>()),
             Times.Once);
     }
 }

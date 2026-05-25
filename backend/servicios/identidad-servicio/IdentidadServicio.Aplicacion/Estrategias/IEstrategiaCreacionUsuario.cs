@@ -1,4 +1,3 @@
-using IdentidadServicio.Aplicacion.Puertos;
 using IdentidadServicio.Dominio.Entidades;
 using IdentidadServicio.Dominio.Enums;
 
@@ -11,7 +10,11 @@ namespace IdentidadServicio.Aplicacion.Estrategias;
 //     modelo interno DatosCreacionUsuario para que las estrategias no dependan
 //     de los DTOs de transporte. Es async porque Operador/Administrador llaman
 //     al GeneradorCodigoUsuario.
-//   - GuardarAsync: delega en el método específico del repositorio.
+//
+// La persistencia NO vive en la estrategia: el manejador decide qué
+// repositorio específico usar mediante pattern matching sobre el agregado
+// devuelto. Esto desacopla el Strategy de creación del puerto de persistencia
+// y respeta el principio de segregación de interfaces.
 public interface IEstrategiaCreacionUsuario
 {
     bool PuedeCrear(RolUsuario rol);
@@ -19,10 +22,5 @@ public interface IEstrategiaCreacionUsuario
     Task<Usuario> CrearUsuarioDominioAsync(
         DatosCreacionUsuario datos,
         DateTime fechaRegistro,
-        CancellationToken cancelacion);
-    Task GuardarAsync(
-        Usuario usuario,
-        string idKeycloak,
-        IRepositorioIdentidad repositorio,
         CancellationToken cancelacion);
 }

@@ -10,21 +10,21 @@ namespace IdentidadServicio.Aplicacion.CasosDeUso.Manejadores;
 public sealed class ObtenerPerfilActualManejador
     : IRequestHandler<ObtenerPerfilActualConsulta, PerfilUsuarioDto>
 {
-    private readonly IRepositorioIdentidad _repositorio;
+    private readonly IRepositorioUsuariosLectura _repositorioLectura;
     private readonly FabricaEstrategiaMapeoPerfilUsuario _fabricaMapeo;
 
     public ObtenerPerfilActualManejador(
-        IRepositorioIdentidad repositorio,
+        IRepositorioUsuariosLectura repositorioLectura,
         FabricaEstrategiaMapeoPerfilUsuario fabricaMapeo)
     {
-        _repositorio = repositorio;
+        _repositorioLectura = repositorioLectura;
         _fabricaMapeo = fabricaMapeo;
     }
 
     public async Task<PerfilUsuarioDto> Handle(
         ObtenerPerfilActualConsulta consulta, CancellationToken cancelacion)
     {
-        var usuario = await _repositorio.ObtenerPorIdKeycloakAsync(consulta.IdKeycloak, cancelacion)
+        var usuario = await _repositorioLectura.ObtenerPorIdKeycloakAsync(consulta.IdKeycloak, cancelacion)
                       ?? throw new DatosUsuarioInvalidosExcepcion("Usuario no registrado.");
 
         // La fábrica devuelve la instancia derivada apropiada

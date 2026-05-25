@@ -7,12 +7,10 @@ using IdentidadServicio.PruebasUnitarias.Mapeadores.Perfil;
 namespace IdentidadServicio.PruebasUnitarias.CasosDeUso;
 
 // HU07: pruebas del manejador de consulta paginada de Participantes.
-// Toda la exclusión de Operadores/Administradores ocurre dentro del
-// repositorio: el manejador confía en lo que recibe y exige al puerto
-// los parámetros normalizados (pagina, tamanioPagina, ordenEstado).
+// Tras el refactor el manejador depende solo de IRepositorioParticipantes.
 public class ConsultarParticipantesManejadorPruebas
 {
-    private readonly Mock<IRepositorioIdentidad> _repositorio = new();
+    private readonly Mock<IRepositorioParticipantes> _repositorio = new();
 
     private ConsultarParticipantesManejador CrearManejador() => new(_repositorio.Object);
 
@@ -24,11 +22,11 @@ public class ConsultarParticipantesManejadorPruebas
         string? ordenEsperado)
     {
         _repositorio
-            .Setup(r => r.ConsultarParticipantesAsync(
+            .Setup(r => r.ConsultarAsync(
                 paginaEsperada, tamanioEsperado, ordenEsperado, It.IsAny<CancellationToken>()))
             .ReturnsAsync(participantes);
         _repositorio
-            .Setup(r => r.ContarParticipantesAsync(It.IsAny<CancellationToken>()))
+            .Setup(r => r.ContarAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(total);
     }
 
@@ -64,7 +62,7 @@ public class ConsultarParticipantesManejadorPruebas
 
         resultado.Pagina.Should().Be(1);
         resultado.TamanioPagina.Should().Be(10);
-        _repositorio.Verify(r => r.ConsultarParticipantesAsync(
+        _repositorio.Verify(r => r.ConsultarAsync(
             1, 10, null, It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -77,7 +75,7 @@ public class ConsultarParticipantesManejadorPruebas
         await CrearManejador()
             .Handle(new ConsultarParticipantesConsulta(2, 10, null), CancellationToken.None);
 
-        _repositorio.Verify(r => r.ConsultarParticipantesAsync(
+        _repositorio.Verify(r => r.ConsultarAsync(
             2, 10, null, It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -93,7 +91,7 @@ public class ConsultarParticipantesManejadorPruebas
         await CrearManejador()
             .Handle(new ConsultarParticipantesConsulta(1, 10, entrada), CancellationToken.None);
 
-        _repositorio.Verify(r => r.ConsultarParticipantesAsync(
+        _repositorio.Verify(r => r.ConsultarAsync(
             1, 10, "asc", It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -106,7 +104,7 @@ public class ConsultarParticipantesManejadorPruebas
         await CrearManejador()
             .Handle(new ConsultarParticipantesConsulta(1, 10, "desc"), CancellationToken.None);
 
-        _repositorio.Verify(r => r.ConsultarParticipantesAsync(
+        _repositorio.Verify(r => r.ConsultarAsync(
             1, 10, "desc", It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -119,7 +117,7 @@ public class ConsultarParticipantesManejadorPruebas
         await CrearManejador()
             .Handle(new ConsultarParticipantesConsulta(1, 10, "cualquier-cosa"), CancellationToken.None);
 
-        _repositorio.Verify(r => r.ConsultarParticipantesAsync(
+        _repositorio.Verify(r => r.ConsultarAsync(
             1, 10, null, It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -163,23 +161,20 @@ public class ConsultarParticipantesManejadorPruebas
     [Fact]
     public async Task Handle_NoConsultaOperadoresNiAdministradores()
     {
-        // La garantía es que el manejador SOLO llama a ConsultarParticipantesAsync,
-        // que por contrato del puerto filtra por rol Participante.
+        // El manejador depende SOLO de IRepositorioParticipantes — al estar
+        // tipado por la interfaz específica, ni siquiera podría tocar
+        // operadores o administradores. La prueba confirma que solo se llama
+        // a ConsultarAsync / ContarAsync.
         ConfigurarRepositorio(Array.Empty<Participante>(), total: 0,
             paginaEsperada: 1, tamanioEsperado: 10, ordenEsperado: null);
 
         await CrearManejador()
             .Handle(new ConsultarParticipantesConsulta(1, 10, null), CancellationToken.None);
 
-        _repositorio.Verify(r => r.ConsultarParticipantesAsync(
+        _repositorio.Verify(r => r.ConsultarAsync(
             It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()),
             Times.Once);
-        // Verifica explícitamente que no se consultan otros agregados.
-        _repositorio.Verify(r => r.ObtenerPorIdKeycloakAsync(
-            It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
-        _repositorio.Verify(r => r.ObtenerPorNombreUsuarioAsync(
-            It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
-        _repositorio.Verify(r => r.ObtenerParticipantePorIdAsync(
+        _repositorio.Verify(r => r.ObtenerPorIdAsync(
             It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 }

@@ -9,11 +9,11 @@ namespace IdentidadServicio.Aplicacion.CasosDeUso.Manejadores;
 public sealed class ObtenerUsuarioInternoDetalleManejador
     : IRequestHandler<ObtenerUsuarioInternoDetalleConsulta, PerfilUsuarioDto?>
 {
-    private readonly IRepositorioIdentidad _repositorio;
+    private readonly IRepositorioUsuariosLectura _repositorio;
     private readonly FabricaEstrategiaMapeoPerfilUsuario _fabricaMapeo;
 
     public ObtenerUsuarioInternoDetalleManejador(
-        IRepositorioIdentidad repositorio,
+        IRepositorioUsuariosLectura repositorio,
         FabricaEstrategiaMapeoPerfilUsuario fabricaMapeo)
     {
         _repositorio = repositorio;

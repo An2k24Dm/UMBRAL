@@ -1,5 +1,4 @@
 using IdentidadServicio.Aplicacion.Generadores;
-using IdentidadServicio.Aplicacion.Puertos;
 using IdentidadServicio.Dominio.Entidades;
 using IdentidadServicio.Dominio.Enums;
 
@@ -35,11 +34,4 @@ public sealed class EstrategiaCrearAdministrador : IEstrategiaCreacionUsuario
             fechaRegistro: fechaRegistro);
     }
 
-    public Task GuardarAsync(
-        Usuario usuario, string idKeycloak,
-        IRepositorioIdentidad repositorio, CancellationToken cancelacion)
-    {
-        return repositorio.GuardarAdministradorAsync(
-            (Administrador)usuario, idKeycloak, cancelacion);
-    }
 }
