@@ -689,3 +689,230 @@ a { color: inherit; }
   font-weight: 600;
 }
 .boton-enlace:hover { background: var(--color-acento-fuerte); }
+
+/* ========================================================================
+   Trivias — HU15/HU16/HU17
+   ======================================================================== */
+
+/* ---------- Formulario crear trivia ---------- */
+.formulario-trivia {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 680px;
+}
+.acciones-formulario-trivia {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+/* ---------- Lista de trivias (PaginaListaTrivias) ---------- */
+.lista-trivias {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 8px;
+}
+.trivia-card {
+  background: var(--color-superficie);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+  padding: 18px 20px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.trivia-card:hover {
+  border-color: var(--color-acento);
+  background: var(--color-superficie-2);
+}
+.trivia-card-cabecera {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+.trivia-card-nombre {
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--color-texto);
+}
+.trivia-card-meta {
+  font-size: 0.82rem;
+  color: var(--color-texto-debil);
+}
+.trivia-card-desc {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--color-texto-tenue);
+  line-height: 1.4;
+}
+
+/* ---------- Lista de preguntas (PaginaGestionPreguntas) ---------- */
+.lista-preguntas {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 12px;
+}
+.pregunta-card {
+  background: var(--color-superficie);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+  padding: 18px 20px;
+}
+.pregunta-card-cabecera {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.pregunta-card-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.pregunta-numero {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--color-texto-tenue);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.pregunta-puntaje {
+  font-size: 0.82rem;
+  background: var(--color-superficie-2);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-pequeno);
+  padding: 2px 8px;
+  color: var(--color-acento);
+}
+.pregunta-card-acciones {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.texto-confirmacion {
+  font-size: 0.84rem;
+  color: var(--color-aviso);
+}
+.pregunta-enunciado {
+  margin: 0 0 12px;
+  font-size: 0.95rem;
+  color: var(--color-texto);
+  line-height: 1.5;
+}
+.pregunta-opciones {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pregunta-opcion {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.87rem;
+  color: var(--color-texto-tenue);
+  background: var(--color-fondo-elevado);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-pequeno);
+  padding: 6px 10px;
+}
+.pregunta-opcion-correcta {
+  border-color: var(--color-exito);
+  background: var(--color-exito-suave);
+  color: var(--color-texto);
+}
+.opcion-check-icono {
+  font-size: 0.8rem;
+  color: var(--color-exito);
+  font-weight: 700;
+}
+
+/* ---------- Formulario de pregunta (PaginaGestionPreguntas) ---------- */
+.formulario-pregunta-panel {
+  background: var(--color-superficie-2);
+  border: 1px solid var(--color-borde-fuerte);
+  border-radius: var(--radio);
+  padding: 20px 24px;
+  margin-bottom: 20px;
+}
+.formulario-pregunta-titulo {
+  margin: 0 0 16px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-texto);
+}
+
+/* ---------- Editor de opciones ---------- */
+.campo-etiqueta {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-texto-tenue);
+  margin-bottom: 6px;
+}
+.opciones-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+.opcion-editor-fila {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.opcion-check {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--color-acento);
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.opcion-texto {
+  flex: 1;
+  background: var(--color-fondo-elevado);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-pequeno);
+  color: var(--color-texto);
+  padding: 7px 10px;
+  font-size: 0.9rem;
+  transition: border-color 0.15s;
+}
+.opcion-texto:focus {
+  outline: none;
+  border-color: var(--color-acento);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+.opcion-quitar {
+  background: transparent;
+  border: 1px solid var(--color-borde-fuerte);
+  border-radius: var(--radio-pequeno);
+  color: var(--color-error);
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 0.75rem;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+.opcion-quitar:hover:not(:disabled) { background: var(--color-error-suave); }
+.opcion-quitar:disabled { opacity: 0.35; cursor: not-allowed; }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 820px) {
+  .pregunta-card-cabecera { flex-direction: column; align-items: flex-start; }
+  .pregunta-card-acciones { width: 100%; }
+  .formulario-trivia { max-width: 100%; }
+}

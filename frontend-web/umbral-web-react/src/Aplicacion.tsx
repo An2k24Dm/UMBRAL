@@ -7,6 +7,9 @@ import { PaginaPerfilUsuarioAutenticado } from './paginas/PaginaPerfilUsuarioAut
 import { PaginaListaParticipantes } from './paginas/PaginaListaParticipantes'
 import { PaginaListaUsuariosInternos } from './paginas/PaginaListaUsuariosInternos'
 import { PaginaDetalleUsuario } from './paginas/PaginaDetalleUsuario'
+import { PaginaListaTrivias } from './paginas/PaginaListaTrivias'
+import { PaginaCrearTrivia } from './paginas/PaginaCrearTrivia'
+import { PaginaGestionPreguntas } from './paginas/PaginaGestionPreguntas'
 import {
   obtenerDetalleParticipante,
   obtenerDetalleUsuarioInterno
@@ -121,6 +124,33 @@ export function Aplicacion() {
               rolesPermitidosVista={['Participante']}
               obtenerUsuario={obtenerDetalleParticipante}
             />
+          </RutaProtegida>
+        }
+      />
+      {/* HU15 — Listar trivias en borrador. */}
+      <Route
+        path="/operador/trivias"
+        element={
+          <RutaProtegida rolesPermitidos={['Operador']}>
+            <PaginaListaTrivias />
+          </RutaProtegida>
+        }
+      />
+      {/* HU15 — Crear trivia. */}
+      <Route
+        path="/operador/trivias/crear"
+        element={
+          <RutaProtegida rolesPermitidos={['Operador']}>
+            <PaginaCrearTrivia />
+          </RutaProtegida>
+        }
+      />
+      {/* HU16/HU17 — Gestionar preguntas de una trivia. */}
+      <Route
+        path="/operador/trivias/:triviaId/preguntas"
+        element={
+          <RutaProtegida rolesPermitidos={['Operador']}>
+            <PaginaGestionPreguntas />
           </RutaProtegida>
         }
       />
