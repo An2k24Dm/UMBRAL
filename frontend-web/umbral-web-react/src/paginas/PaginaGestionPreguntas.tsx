@@ -9,6 +9,8 @@ import {
   agregarPregunta,
   modificarPregunta,
   eliminarPregunta,
+  activarTrivia,
+  modificarTrivia,
   type TriviaDetalleDto,
   type PreguntaDetalleDto,
   type OpcionInput
@@ -92,6 +94,14 @@ export function PaginaGestionPreguntas() {
 
   const [confirmandoEliminacion, setConfirmandoEliminacion] = useState<string | null>(null)
   const [eliminando, setEliminando] = useState(false)
+
+  const [activando, setActivando] = useState(false)
+  const [errorActivacion, setErrorActivacion] = useState<string | null>(null)
+
+  const [mostrarFormTrivia, setMostrarFormTrivia] = useState(false)
+  const [formTrivia, setFormTrivia] = useState({ nombre: '', descripcion: '', tiempoLimitePorPregunta: '' })
+  const [enviandoTrivia, setEnviandoTrivia] = useState(false)
+  const [errorFormTrivia, setErrorFormTrivia] = useState<string | null>(null)
 
   // ---------------------------------------------------------------------------
   // Carga inicial
@@ -263,6 +273,63 @@ export function PaginaGestionPreguntas() {
   }
 
   // ---------------------------------------------------------------------------
+  // Activar trivia (HU18)
+  // ---------------------------------------------------------------------------
+  async function manejarActivar() {
+    if (!token || !triviaId) return
+    setActivando(true)
+    setErrorActivacion(null)
+    try {
+      await activarTrivia(triviaId, token)
+      const datos = await obtenerDetalleTrivia(triviaId, token)
+      setTrivia(datos)
+    } catch (err) {
+      setErrorActivacion(err instanceof Error ? err.message : 'No fue posible activar la trivia.')
+    } finally {
+      setActivando(false)
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Modificar datos de trivia (HU19)
+  // ---------------------------------------------------------------------------
+  function abrirFormTrivia() {
+    if (!trivia) return
+    setFormTrivia({
+      nombre: trivia.nombre,
+      descripcion: trivia.descripcion,
+      tiempoLimitePorPregunta: String(trivia.tiempoLimitePorPregunta)
+    })
+    setErrorFormTrivia(null)
+    setMostrarFormTrivia(true)
+  }
+
+  async function manejarGuardarTrivia(e: React.FormEvent) {
+    e.preventDefault()
+    if (!token || !triviaId) return
+    const tiempo = Number(formTrivia.tiempoLimitePorPregunta)
+    if (!formTrivia.nombre.trim()) { setErrorFormTrivia('El nombre es obligatorio.'); return }
+    if (!formTrivia.descripcion.trim()) { setErrorFormTrivia('La descripción es obligatoria.'); return }
+    if (isNaN(tiempo) || tiempo <= 0) { setErrorFormTrivia('El tiempo debe ser mayor a 0.'); return }
+    setEnviandoTrivia(true)
+    setErrorFormTrivia(null)
+    try {
+      await modificarTrivia(triviaId, {
+        nuevoNombre: formTrivia.nombre.trim(),
+        nuevaDescripcion: formTrivia.descripcion.trim(),
+        nuevoTiempoLimitePorPregunta: tiempo
+      }, token)
+      const datos = await obtenerDetalleTrivia(triviaId, token)
+      setTrivia(datos)
+      setMostrarFormTrivia(false)
+    } catch (err) {
+      setErrorFormTrivia(err instanceof Error ? err.message : 'No fue posible guardar los cambios.')
+    } finally {
+      setEnviandoTrivia(false)
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
   if (estadoCarga === 'cargando') {
@@ -295,12 +362,25 @@ export function PaginaGestionPreguntas() {
           <div>
             <h2>Preguntas de la trivia</h2>
             <p>{trivia.descripcion} · {trivia.tiempoLimitePorPregunta}s por pregunta</p>
+            <span className={`estado-badge estado-badge-${trivia.estado.toLowerCase()}`}>
+              {trivia.estado}
+            </span>
           </div>
           <div className="cabecera-pagina-acciones">
             <Boton variante="volver" onClick={() => navegar('/operador/trivias')}>
               Volver
             </Boton>
-            {modoForm === 'oculto' && (
+            {modoForm === 'oculto' && !mostrarFormTrivia && (
+              <Boton variante="fantasma" onClick={abrirFormTrivia}>
+                Modificar datos
+              </Boton>
+            )}
+            {trivia.estado === 'Borrador' && modoForm === 'oculto' && !mostrarFormTrivia && (
+              <Boton variante="secundario" onClick={manejarActivar} disabled={activando}>
+                {activando ? 'Activando…' : 'Activar trivia'}
+              </Boton>
+            )}
+            {modoForm === 'oculto' && !mostrarFormTrivia && (
               <Boton variante="primario" onClick={abrirFormAgregar}>
                 + Agregar pregunta
               </Boton>
@@ -308,7 +388,56 @@ export function PaginaGestionPreguntas() {
           </div>
         </div>
 
+        {errorActivacion && <Alerta tono="error">{errorActivacion}</Alerta>}
         {errorCarga && <Alerta tono="error">{errorCarga}</Alerta>}
+
+        {/* Formulario modificar datos trivia (HU19) */}
+        {mostrarFormTrivia && (
+          <div className="formulario-pregunta-panel">
+            <h3 className="formulario-pregunta-titulo">Modificar datos de la trivia</h3>
+            {errorFormTrivia && <Alerta tono="error">{errorFormTrivia}</Alerta>}
+            <form onSubmit={manejarGuardarTrivia} noValidate>
+              <CampoFormulario etiqueta="Nombre" htmlFor="trivia-nombre">
+                <input
+                  id="trivia-nombre"
+                  type="text"
+                  maxLength={200}
+                  value={formTrivia.nombre}
+                  onChange={(e) => setFormTrivia((p) => ({ ...p, nombre: e.target.value }))}
+                  disabled={enviandoTrivia}
+                />
+              </CampoFormulario>
+              <CampoFormulario etiqueta="Descripción" htmlFor="trivia-descripcion">
+                <textarea
+                  id="trivia-descripcion"
+                  rows={2}
+                  maxLength={1000}
+                  value={formTrivia.descripcion}
+                  onChange={(e) => setFormTrivia((p) => ({ ...p, descripcion: e.target.value }))}
+                  disabled={enviandoTrivia}
+                />
+              </CampoFormulario>
+              <CampoFormulario etiqueta="Tiempo límite por pregunta (segundos)" htmlFor="trivia-tiempo">
+                <input
+                  id="trivia-tiempo"
+                  type="number"
+                  min={1}
+                  value={formTrivia.tiempoLimitePorPregunta}
+                  onChange={(e) => setFormTrivia((p) => ({ ...p, tiempoLimitePorPregunta: e.target.value }))}
+                  disabled={enviandoTrivia}
+                />
+              </CampoFormulario>
+              <div className="acciones-formulario-trivia">
+                <Boton variante="volver" type="button" onClick={() => setMostrarFormTrivia(false)} disabled={enviandoTrivia}>
+                  Cancelar
+                </Boton>
+                <Boton variante="primario" type="submit" disabled={enviandoTrivia}>
+                  {enviandoTrivia ? 'Guardando…' : 'Guardar cambios'}
+                </Boton>
+              </div>
+            </form>
+          </div>
+        )}
 
         {/* Formulario agregar / editar */}
         {modoForm !== 'oculto' && (

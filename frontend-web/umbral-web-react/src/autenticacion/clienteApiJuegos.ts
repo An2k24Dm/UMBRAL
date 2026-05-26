@@ -12,7 +12,13 @@ const ENDPOINTS = {
   modificarPregunta: (triviaId: string, preguntaId: string) =>
     `/api/juegos/trivias/${encodeURIComponent(triviaId)}/preguntas/${encodeURIComponent(preguntaId)}`,
   eliminarPregunta: (triviaId: string, preguntaId: string) =>
-    `/api/juegos/trivias/${encodeURIComponent(triviaId)}/preguntas/${encodeURIComponent(preguntaId)}`
+    `/api/juegos/trivias/${encodeURIComponent(triviaId)}/preguntas/${encodeURIComponent(preguntaId)}`,
+  // HU18
+  activarTrivia: (triviaId: string) =>
+    `/api/juegos/trivias/${encodeURIComponent(triviaId)}/activar`,
+  // HU19
+  modificarTrivia: (triviaId: string) =>
+    `/api/juegos/trivias/${encodeURIComponent(triviaId)}`
 }
 
 function auth(token: string) {
@@ -80,6 +86,12 @@ export interface DatosAgregarPregunta {
 export interface DatosModificarPregunta {
   nuevoEnunciado: string
   nuevasOpciones: OpcionInput[]
+}
+
+export interface DatosModificarTrivia {
+  nuevoNombre: string
+  nuevaDescripcion: string
+  nuevoTiempoLimitePorPregunta: number
 }
 
 // ---------------------------------------------------------------------------
@@ -174,6 +186,42 @@ export async function modificarPregunta(
   if (respuesta.status === 401) throw new Error('Debe iniciar sesión.')
   if (respuesta.status === 403) throw new Error('No tiene permisos.')
   if (respuesta.status === 404) throw new Error('Pregunta no encontrada.')
+  if (!respuesta.ok) throw new Error(await leerError(respuesta))
+}
+
+// ---------------------------------------------------------------------------
+// HU19 — Modificar datos de trivia
+// ---------------------------------------------------------------------------
+export async function modificarTrivia(
+  triviaId: string,
+  datos: DatosModificarTrivia,
+  token: string
+): Promise<void> {
+  const respuesta = await fetch(`${URL_API}${ENDPOINTS.modificarTrivia(triviaId)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...auth(token) },
+    body: JSON.stringify(datos)
+  })
+  if (respuesta.status === 401) throw new Error('Debe iniciar sesión.')
+  if (respuesta.status === 403) throw new Error('No tiene permisos.')
+  if (respuesta.status === 404) throw new Error('Trivia no encontrada.')
+  if (!respuesta.ok) throw new Error(await leerError(respuesta))
+}
+
+// ---------------------------------------------------------------------------
+// HU18 — Activar trivia
+// ---------------------------------------------------------------------------
+export async function activarTrivia(
+  triviaId: string,
+  token: string
+): Promise<void> {
+  const respuesta = await fetch(`${URL_API}${ENDPOINTS.activarTrivia(triviaId)}`, {
+    method: 'PATCH',
+    headers: auth(token)
+  })
+  if (respuesta.status === 401) throw new Error('Debe iniciar sesión.')
+  if (respuesta.status === 403) throw new Error('No tiene permisos.')
+  if (respuesta.status === 404) throw new Error('Trivia no encontrada.')
   if (!respuesta.ok) throw new Error(await leerError(respuesta))
 }
 
