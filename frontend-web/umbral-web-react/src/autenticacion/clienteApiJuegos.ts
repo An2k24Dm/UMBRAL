@@ -30,7 +30,10 @@ const ENDPOINTS = {
   detalleBusqueda: (busquedaId: string) =>
     `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}`,
   agregarEtapa: (busquedaId: string) =>
-    `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}/etapas`
+    `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}/etapas`,
+  // HU23
+  agregarMision: (busquedaId: string, etapaId: string) =>
+    `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}/etapas/${encodeURIComponent(etapaId)}/misiones`
 }
 
 function auth(token: string) {
@@ -159,6 +162,15 @@ export interface DatosAgregarEtapa {
   descripcion: string
 }
 
+export type TipoMision = 0 | 1 | 2
+
+export interface DatosAgregarMision {
+  titulo: string
+  descripcion: string
+  tipo: TipoMision
+  pistaClave: string
+}
+
 // ---------------------------------------------------------------------------
 // HU15 — Crear trivia
 // ---------------------------------------------------------------------------
@@ -252,6 +264,28 @@ export async function modificarPregunta(
   if (respuesta.status === 403) throw new Error('No tiene permisos.')
   if (respuesta.status === 404) throw new Error('Pregunta no encontrada.')
   if (!respuesta.ok) throw new Error(await leerError(respuesta))
+}
+
+// ---------------------------------------------------------------------------
+// HU23 — Agregar misión a una etapa
+// ---------------------------------------------------------------------------
+export async function agregarMision(
+  busquedaId: string,
+  etapaId: string,
+  datos: DatosAgregarMision,
+  token: string
+): Promise<string> {
+  const respuesta = await fetch(`${URL_API}${ENDPOINTS.agregarMision(busquedaId, etapaId)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...auth(token) },
+    body: JSON.stringify(datos)
+  })
+  if (respuesta.status === 401) throw new Error('Debe iniciar sesión.')
+  if (respuesta.status === 403) throw new Error('No tiene permisos.')
+  if (respuesta.status === 404) throw new Error('Etapa no encontrada.')
+  if (!respuesta.ok) throw new Error(await leerError(respuesta))
+  const cuerpo = (await respuesta.json()) as { id: string }
+  return cuerpo.id
 }
 
 // ---------------------------------------------------------------------------
