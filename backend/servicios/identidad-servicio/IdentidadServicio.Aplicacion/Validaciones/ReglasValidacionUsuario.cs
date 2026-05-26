@@ -3,15 +3,6 @@ using IdentidadServicio.Aplicacion.Puertos;
 
 namespace IdentidadServicio.Aplicacion.Validaciones;
 
-// Implementación única de las reglas comunes de validación de usuario.
-//
-// Los Regex y umbrales de longitud reflejan las reglas vigentes del proyecto:
-// son las mismas que antes estaban duplicadas en ValidadorCrearUsuario,
-// ValidadorRegistrarParticipante y ValidadorModificarOperador. Tras este
-// refactor cada validador específico delega aquí.
-//
-// La validación de FechaNacimiento depende del reloj de la aplicación para
-// calcular la edad — por eso se inyecta IProveedorFechaHora.
 public sealed class ReglasValidacionUsuario : IReglasValidacionUsuario
 {
     private static readonly Regex RegexNombreUsuario =
@@ -25,6 +16,9 @@ public sealed class ReglasValidacionUsuario : IReglasValidacionUsuario
 
     private static readonly Regex RegexSoloLetras =
         new(@"^[A-Za-zÁÉÍÓÚáéíóúÑñÜü\s]+$", RegexOptions.Compiled);
+
+    private static readonly Regex RegexAlias =
+        new(@"^[a-zA-Z0-9_]{6,15}$", RegexOptions.Compiled);
 
     private const string CaracteresEspeciales = "!@#$%^&*_-.?";
 
@@ -191,6 +185,32 @@ public sealed class ReglasValidacionUsuario : IReglasValidacionUsuario
         if (!SexosPermitidos.Contains(sexo, StringComparer.OrdinalIgnoreCase))
             resultado.Agregar(MensajesValidacionUsuario.CampoSexo,
                 MensajesValidacionUsuario.SexoInvalido);
+    }
+
+    public void ValidarAlias(string? alias, ResultadoValidacion resultado)
+    {
+        if (string.IsNullOrWhiteSpace(alias))
+        {
+            resultado.Agregar(MensajesValidacionUsuario.CampoAlias,
+                MensajesValidacionUsuario.AliasObligatorio);
+            return;
+        }
+
+        var valor = alias.Trim();
+
+        // Longitud primero — el mensaje específico ayuda al cliente.
+        if (valor.Length < 6 || valor.Length > 15)
+        {
+            resultado.Agregar(MensajesValidacionUsuario.CampoAlias,
+                MensajesValidacionUsuario.AliasLongitud);
+            return;
+        }
+
+        // Si la longitud es válida pero contiene caracteres no permitidos,
+        // reportamos el error de formato (no de longitud) para no confundir.
+        if (!RegexAlias.IsMatch(valor))
+            resultado.Agregar(MensajesValidacionUsuario.CampoAlias,
+                MensajesValidacionUsuario.AliasFormato);
     }
 
     public string? NormalizarTelefono(string? telefono)

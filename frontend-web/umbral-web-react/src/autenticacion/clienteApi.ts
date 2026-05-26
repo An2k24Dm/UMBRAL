@@ -275,6 +275,10 @@ export interface ModificarOperadorPayload {
     direccion?: string
     telefono?: string
   }
+  // HU09 — cambio administrativo de contraseña. Ambos campos viajan
+  // únicamente si el Administrador escribió valores en el formulario.
+  nuevaContrasena?: string
+  confirmacionContrasena?: string
 }
 
 export interface ModificarOperadorRespuesta {

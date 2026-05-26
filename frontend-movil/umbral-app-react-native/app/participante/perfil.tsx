@@ -160,8 +160,16 @@ function ContenidoPerfil() {
         />
       </Seccion>
 
-      <TouchableOpacity style={estilos.botonPrimario} onPress={volverAlMenu}>
-        <Text style={estilos.botonPrimarioTexto}>Volver al menú</Text>
+      {/* HU10 — atajo a la pantalla de edición del propio perfil. */}
+      <TouchableOpacity
+        style={estilos.botonPrimario}
+        onPress={() => enrutador.push('/participante/editar-perfil')}
+      >
+        <Text style={estilos.botonPrimarioTexto}>Editar perfil</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity style={estilos.botonSecundario} onPress={volverAlMenu}>
+        <Text style={estilos.botonSecundarioTexto}>Volver al menú</Text>
       </TouchableOpacity>
     </ScrollView>
   )

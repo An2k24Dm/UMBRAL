@@ -24,6 +24,10 @@ public static class MensajesValidacionUsuario
     // errores específicos (p. ej. choque de duplicado por carrera).
     public const string CampoCodigoOperador = "codigoOperador";
     public const string CampoCodigoAdministrador = "codigoAdministrador";
+    // HU09 — cambio administrativo de contraseña desde el panel del
+    // Administrador. El DTO de edición expone los dos campos por separado.
+    public const string CampoNuevaContrasena = "nuevaContrasena";
+    public const string CampoConfirmacionContrasena = "confirmacionContrasena";
 
     // Nombre de usuario
     public const string NombreUsuarioObligatorio = "El nombre de usuario es obligatorio.";
@@ -41,6 +45,9 @@ public static class MensajesValidacionUsuario
     public const string ContrasenaLongitud = "La contraseña debe tener entre 5 y 10 caracteres.";
     public const string ContrasenaSinNumero = "La contraseña debe contener al menos un número.";
     public const string ContrasenaSinEspecial = "La contraseña debe contener al menos un carácter especial.";
+    // HU09 — confirmación de la nueva contraseña.
+    public const string ContrasenasNoCoinciden =
+        "La nueva contraseña y la confirmación no coinciden.";
 
     // Nombre
     public const string NombreObligatorio = "El nombre es obligatorio.";
@@ -76,10 +83,10 @@ public static class MensajesValidacionUsuario
     // Tipo de usuario
     public const string TipoUsuarioInvalidoWeb = "El rol seleccionado no es válido para registro web.";
 
-    // Alias (HU03)
+    // Alias del Participante
     public const string AliasObligatorio = "El alias es obligatorio.";
-    public const string AliasLongitud = "El alias debe tener entre 3 y 30 caracteres.";
+    public const string AliasLongitud = "El alias debe tener entre 6 y 15 caracteres.";
     public const string AliasFormato =
-        "El alias solo puede contener letras, números, punto o guion bajo.";
+        "El alias solo puede contener letras, números y guion bajo.";
     public const string AliasDuplicado = "El alias ya está registrado.";
 }

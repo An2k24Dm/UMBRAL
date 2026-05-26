@@ -32,35 +32,10 @@ public sealed class ValidadorModificarOperador
     protected override void ValidarSolicitud(
         ModificarOperadorComando comando, ResultadoValidacion resultado)
     {
-        var dto = comando.Datos;
-
-        // Si llegó DatosContacto con teléfono, normalizamos a la forma canónica.
-        if (dto.DatosContacto is not null)
-            dto.DatosContacto.Telefono = _reglas.NormalizarTelefono(dto.DatosContacto.Telefono);
-
-        // Solo validamos cada campo si el cliente lo envió.
-        if (dto.NombreUsuario is not null)
-            _reglas.ValidarNombreUsuario(dto.NombreUsuario, resultado);
-
-        if (dto.Correo is not null)
-            _reglas.ValidarCorreo(dto.Correo, resultado);
-
-        if (dto.Nombre is not null)
-            _reglas.ValidarNombre(dto.Nombre, resultado);
-
-        if (dto.Apellido is not null)
-            _reglas.ValidarApellido(dto.Apellido, resultado);
-
-        if (dto.Sexo is not null)
-            _reglas.ValidarSexo(dto.Sexo, resultado);
-
-        if (dto.FechaNacimiento is not null)
-            _reglas.ValidarFechaNacimiento(dto.FechaNacimiento, resultado);
-
-        if (dto.DatosContacto?.Telefono is not null)
-            _reglas.ValidarTelefono(dto.DatosContacto.Telefono, resultado);
-
-        if (dto.DatosContacto?.Direccion is not null)
-            _reglas.ValidarDireccion(dto.DatosContacto.Direccion, resultado);
+        // Delegamos en el helper común — las reglas de edición parcial del
+        // perfil son idénticas a las de HU10. Aquí no hay nada específico
+        // del Operador.
+        ValidadorReglasModificacionPerfilUsuario.Validar(
+            comando.Datos, _reglas, resultado);
     }
 }

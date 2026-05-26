@@ -9,20 +9,18 @@ namespace IdentidadServicio.Aplicacion.Puertos;
 // usuario actual puede mantener su valor sin que cuente como colisión.
 public interface IRepositorioUnicidadUsuario
 {
-    // Alta (HU02 / HU03): el usuario aún no existe; cualquier coincidencia es
-    // duplicado.
     Task<bool> ExisteNombreUsuarioAsync(string nombreUsuario, CancellationToken cancelacion);
     Task<bool> ExisteCorreoAsync(string correo, CancellationToken cancelacion);
     Task<bool> ExisteTelefonoAsync(string telefono, CancellationToken cancelacion);
 
     // HU03 — alias del Participante. Único a nivel de base.
     Task<bool> ExisteAliasAsync(string alias, CancellationToken cancelacion);
-
-    // Edición (HU09): se excluye el id del usuario que se está actualizando.
     Task<bool> ExisteNombreUsuarioEnOtroUsuarioAsync(
         string nombreUsuario, Guid idActual, CancellationToken cancelacion);
     Task<bool> ExisteCorreoEnOtroUsuarioAsync(
         string correo, Guid idActual, CancellationToken cancelacion);
     Task<bool> ExisteTelefonoEnOtroUsuarioAsync(
         string telefono, Guid idActual, CancellationToken cancelacion);
+    Task<bool> ExisteAliasEnOtroUsuarioAsync(
+        string alias, Guid idActual, CancellationToken cancelacion);
 }

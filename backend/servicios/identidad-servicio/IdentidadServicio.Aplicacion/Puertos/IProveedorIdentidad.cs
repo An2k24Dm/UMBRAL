@@ -24,6 +24,20 @@ public interface IProveedorIdentidad
         string idKeycloak,
         DatosActualizacionUsuarioIdentidad datos,
         CancellationToken cancelacion);
+
+    // HU09 — cambio de contraseña administrativo desde el panel del
+    // Administrador. La contraseña NUNCA se persiste en PostgreSQL ni se
+    // devuelve en ningún DTO: viaja directamente al endpoint
+    // reset-password de Keycloak.
+    //
+    // `temporal` controla si Keycloak debe pedir al usuario que la cambie en
+    // el próximo login (true) o aceptarla como definitiva (false). El caso de
+    // uso de HU09 utiliza temporal=false.
+    Task CambiarContrasenaAsync(
+        string idKeycloak,
+        string nuevaContrasena,
+        bool temporal,
+        CancellationToken cancelacion);
 }
 
 // Datos mínimos que necesita el proveedor de identidad (Keycloak) para crear

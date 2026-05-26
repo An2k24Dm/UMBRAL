@@ -19,4 +19,15 @@ public interface IRepositorioParticipantes
     // HU07 — detalle por id. Devuelve null si el id no existe o no es
     // Participante.
     Task<Participante?> ObtenerPorIdAsync(Guid id, CancellationToken cancelacion);
+
+    // HU10 — el Participante autenticado edita su propio perfil. El backend
+    // identifica al usuario por el sub del token (IdKeycloak)
+    Task<Participante?> ObtenerPorIdKeycloakAsync(
+        string idKeycloak, CancellationToken cancelacion);
+
+    // HU10 — edición parcial. Aplica los campos editables al modelo EF (sin
+    // SaveChanges; la confirmación va por IUnidadTrabajoIdentidad). Devuelve
+    // el IdKeycloak del Participante para que el manejador sincronice
+    // Keycloak posteriormente.
+    Task<string> ActualizarAsync(Participante participante, CancellationToken cancelacion);
 }

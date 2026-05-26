@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using IdentidadServicio.Aplicacion.Puertos;
 using Microsoft.Extensions.Logging;
@@ -47,6 +48,7 @@ public sealed class OpcionesKeycloak
     public string UrlAdminUsuario(string id) => $"{UrlBase}/admin/realms/{Realm}/users/{id}";
     public string UrlAdminRol(string nombre) => $"{UrlBase}/admin/realms/{Realm}/roles/{nombre}";
     public string UrlAdminAsignarRol(string id) => $"{UrlBase}/admin/realms/{Realm}/users/{id}/role-mappings/realm";
+    public string UrlAdminCambiarContrasena(string id) => $"{UrlBase}/admin/realms/{Realm}/users/{id}/reset-password";
 }
 
 public sealed class KeycloakProveedorIdentidad : IProveedorIdentidad
@@ -156,10 +158,16 @@ public sealed class KeycloakProveedorIdentidad : IProveedorIdentidad
         respAsig.EnsureSuccessStatusCode();
     }
 
-    // HU09 — actualización parcial en Keycloak vía PUT
-    // /admin/realms/{realm}/users/{id}. Sólo se envían los campos no nulos
-    // del payload para no sobrescribir el resto. Si el payload no tiene
-    // cambios, no se hace ninguna llamada HTTP.
+    // HU09 — actualización parcial en Keycloak vía
+    // /admin/realms/{realm}/users/{id}.
+    //
+    // En lugar de enviar solamente los campos cambiados por PUT, hacemos
+    // primero un GET del UserRepresentation actual, mutamos en memoria solo
+    // los campos provistos en `datos` (username / email / firstName /
+    // lastName) y volvemos a enviar el representation completo por PUT. Esto
+    // evita que el PUT pueda interpretar como "borrar" los campos que no
+    // viajan en el cuerpo cuando se cambia la política del servidor o se
+    // utilizan extensiones de Keycloak.
     public async Task ActualizarUsuarioAsync(
         string idKeycloak,
         DatosActualizacionUsuarioIdentidad datos,
@@ -169,15 +177,86 @@ public sealed class KeycloakProveedorIdentidad : IProveedorIdentidad
 
         var tokenAdmin = await ObtenerTokenAdminAsync(cancelacion);
 
-        var cuerpo = new Dictionary<string, object>();
-        if (datos.NombreUsuario is not null) cuerpo["username"] = datos.NombreUsuario;
-        if (datos.Correo is not null) cuerpo["email"] = datos.Correo;
-        if (datos.Nombre is not null) cuerpo["firstName"] = datos.Nombre;
-        if (datos.Apellido is not null) cuerpo["lastName"] = datos.Apellido;
-
-        using var solicitud = new HttpRequestMessage(HttpMethod.Put, _opciones.UrlAdminUsuario(idKeycloak))
+        // 1) Traer el UserRepresentation actual.
+        using var solGet = new HttpRequestMessage(HttpMethod.Get, _opciones.UrlAdminUsuario(idKeycloak));
+        solGet.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokenAdmin);
+        using var respGet = await _cliente.SendAsync(solGet, cancelacion);
+        if (!respGet.IsSuccessStatusCode)
         {
-            Content = JsonContent.Create(cuerpo)
+            var detalle = await respGet.Content.ReadAsStringAsync(cancelacion);
+            _registro.LogError(
+                "Keycloak rechazó la lectura del usuario {Id}. {Estado} {Cuerpo}",
+                idKeycloak, respGet.StatusCode, detalle);
+            respGet.EnsureSuccessStatusCode();
+        }
+
+        var json = await respGet.Content.ReadAsStringAsync(cancelacion);
+        if (JsonNode.Parse(json) is not JsonObject representacion)
+        {
+            _registro.LogError(
+                "Keycloak devolvió un cuerpo inesperado para el usuario {Id}: {Cuerpo}",
+                idKeycloak, json);
+            throw new InvalidOperationException(
+                $"Keycloak devolvió un cuerpo inesperado para el usuario {idKeycloak}.");
+        }
+
+        // 2) Mutar solo los campos que el caso de uso pidió cambiar.
+        if (datos.NombreUsuario is not null) representacion["username"] = datos.NombreUsuario;
+        if (datos.Correo is not null) representacion["email"] = datos.Correo;
+        if (datos.Nombre is not null) representacion["firstName"] = datos.Nombre;
+        if (datos.Apellido is not null) representacion["lastName"] = datos.Apellido;
+
+        // 3) Enviar el representation completo de vuelta.
+        using var solPut = new HttpRequestMessage(HttpMethod.Put, _opciones.UrlAdminUsuario(idKeycloak))
+        {
+            Content = new StringContent(representacion.ToJsonString(), Encoding.UTF8, "application/json")
+        };
+        solPut.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokenAdmin);
+
+        using var respPut = await _cliente.SendAsync(solPut, cancelacion);
+        if (!respPut.IsSuccessStatusCode)
+        {
+            var detalle = await respPut.Content.ReadAsStringAsync(cancelacion);
+            _registro.LogError(
+                "Keycloak rechazó la actualización del usuario {Id}. {Estado} {Cuerpo}",
+                idKeycloak, respPut.StatusCode, detalle);
+            respPut.EnsureSuccessStatusCode();
+        }
+    }
+
+    // HU09 — cambio de contraseña administrativo. Envía el endpoint estándar
+    // de Keycloak Admin REST API:
+    //   PUT /admin/realms/{realm}/users/{user-id}/reset-password
+    //   { "type": "password", "value": "...", "temporary": false }
+    //
+    // Importante:
+    //  * La contraseña jamás se loguea. Solo se registran el IdKeycloak, el
+    //    código HTTP devuelto y el cuerpo del error si Keycloak rechaza.
+    //  * El método NO toca PostgreSQL: la contraseña no vive en UMBRAL.
+    public async Task CambiarContrasenaAsync(
+        string idKeycloak,
+        string nuevaContrasena,
+        bool temporal,
+        CancellationToken cancelacion)
+    {
+        if (string.IsNullOrWhiteSpace(idKeycloak))
+            throw new ArgumentException(
+                "IdKeycloak es obligatorio.", nameof(idKeycloak));
+        if (string.IsNullOrEmpty(nuevaContrasena))
+            throw new ArgumentException(
+                "La nueva contraseña es obligatoria.", nameof(nuevaContrasena));
+
+        var tokenAdmin = await ObtenerTokenAdminAsync(cancelacion);
+
+        using var solicitud = new HttpRequestMessage(
+            HttpMethod.Put, _opciones.UrlAdminCambiarContrasena(idKeycloak))
+        {
+            Content = JsonContent.Create(new
+            {
+                type = "password",
+                value = nuevaContrasena,
+                temporary = temporal
+            })
         };
         solicitud.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokenAdmin);
 
@@ -185,7 +264,9 @@ public sealed class KeycloakProveedorIdentidad : IProveedorIdentidad
         if (!respuesta.IsSuccessStatusCode)
         {
             var detalle = await respuesta.Content.ReadAsStringAsync(cancelacion);
-            _registro.LogError("Keycloak rechazó actualización de {Id}. {Estado} {Cuerpo}",
+            // Nunca se loguea la contraseña: solo id, status y cuerpo.
+            _registro.LogError(
+                "Keycloak rechazó el cambio de contraseña del usuario {Id}. {Estado} {Cuerpo}",
                 idKeycloak, respuesta.StatusCode, detalle);
             respuesta.EnsureSuccessStatusCode();
         }

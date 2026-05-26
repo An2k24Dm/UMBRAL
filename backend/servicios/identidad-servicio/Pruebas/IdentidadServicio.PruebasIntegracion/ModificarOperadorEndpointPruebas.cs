@@ -187,4 +187,95 @@ public class ModificarOperadorEndpointPruebas : IClassFixture<FabricaApiPruebas>
         resp!.HuboCambios.Should().BeFalse();
         resp.CamposActualizados.Should().BeEmpty();
     }
+
+    // HU09 — cambio administrativo de contraseña. La contraseña viaja a
+    // Keycloak (reset-password), nunca al cuerpo de la respuesta ni a BD.
+    [Fact]
+    public async Task Patch_SoloContrasena_LlamaResetPasswordYNoExponeContrasena()
+    {
+        const string contrasena = "Z9!secreta";
+        var cuerpo = new
+        {
+            nuevaContrasena = contrasena,
+            confirmacionContrasena = contrasena
+        };
+        var respuesta = await _cliente.SendAsync(
+            Patch(FabricaApiPruebas.IdOperadorSembrado, cuerpo, "Administrador"));
+
+        respuesta.StatusCode.Should().Be(HttpStatusCode.OK);
+        var json = await respuesta.Content.ReadAsStringAsync();
+        json.Should().NotContain(contrasena);
+
+        _fabrica.MockProveedor.Verify(p => p.CambiarContrasenaAsync(
+            "kc-op-hu09",
+            contrasena,
+            false,
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Patch_ContrasenaNoCoincide_Retorna400()
+    {
+        var cuerpo = new
+        {
+            nuevaContrasena = "Abc1*",
+            confirmacionContrasena = "Otro2*"
+        };
+        var respuesta = await _cliente.SendAsync(
+            Patch(FabricaApiPruebas.IdOperadorSembrado, cuerpo, "Administrador"));
+
+        respuesta.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var json = await respuesta.Content.ReadAsStringAsync();
+        json.Should().Contain("confirmacionContrasena");
+    }
+
+    // HU09 — si Keycloak falla, la base de datos NO debe quedar modificada.
+    // Para que la prueba sea independiente del orden de ejecución se restaura
+    // el nombre conocido al inicio y se compara contra ese valor tras forzar
+    // el fallo del proveedor de identidad.
+    [Fact]
+    public async Task Patch_KeycloakFalla_NoModificaBaseDatos()
+    {
+        // Normalizamos el nombre actual a un valor conocido.
+        const string nombreConocido = "OliviaBase";
+        await _cliente.SendAsync(Patch(
+            FabricaApiPruebas.IdOperadorSembrado,
+            new { nombre = nombreConocido },
+            "Administrador"));
+
+        // Configuramos el proveedor para que rechace la actualización en Keycloak.
+        _fabrica.MockProveedor
+            .Setup(p => p.ActualizarUsuarioAsync(
+                It.IsAny<string>(),
+                It.IsAny<DatosActualizacionUsuarioIdentidad>(),
+                It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("Keycloak rechazó la actualización"));
+
+        try
+        {
+            var respuesta = await _cliente.SendAsync(Patch(
+                FabricaApiPruebas.IdOperadorSembrado,
+                new { nombre = "NoDeberiaPersistir" },
+                "Administrador"));
+
+            // El error se propaga al middleware → 500 ERROR_INTERNO.
+            respuesta.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
+
+            // El nombre en base sigue siendo el conocido: no se persistió el cambio.
+            var solicitudDetalle = new HttpRequestMessage(
+                HttpMethod.Get,
+                $"/api/usuarios/internos/{FabricaApiPruebas.IdOperadorSembrado}");
+            solicitudDetalle.Headers.Add(AuthHandlerPruebas.CabeceraRol, "Administrador");
+            var detalle = await _cliente.SendAsync(solicitudDetalle);
+            detalle.StatusCode.Should().Be(HttpStatusCode.OK);
+            var json = await detalle.Content.ReadAsStringAsync();
+            json.Should().Contain(nombreConocido);
+            json.Should().NotContain("NoDeberiaPersistir");
+        }
+        finally
+        {
+            // Restablecer el mock para no contaminar otras pruebas que comparten la fábrica.
+            _fabrica.MockProveedor.Reset();
+        }
+    }
 }

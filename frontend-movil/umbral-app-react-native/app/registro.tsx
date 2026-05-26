@@ -96,7 +96,14 @@ export default function PantallaRegistro() {
   // fuente de verdad) y devuelve errores por campo si algo se cuela.
   const validarLocalmente = (): Record<string, string> => {
     const errs: Record<string, string> = {}
-    if (!formulario.alias.trim()) errs.alias = 'El alias es obligatorio.'
+    const aliasTrim = formulario.alias.trim()
+    if (!aliasTrim) {
+      errs.alias = 'El alias es obligatorio.'
+    } else if (aliasTrim.length < 6 || aliasTrim.length > 15) {
+      errs.alias = 'El alias debe tener entre 6 y 15 caracteres.'
+    } else if (!/^[a-zA-Z0-9_]{6,15}$/.test(aliasTrim)) {
+      errs.alias = 'El alias solo puede contener letras, números y guion bajo.'
+    }
     if (!formulario.nombreUsuario.trim())
       errs.nombreUsuario = 'El nombre de usuario es obligatorio.'
     if (!formulario.correo.trim()) errs.correo = 'El correo es obligatorio.'
@@ -184,7 +191,7 @@ export default function PantallaRegistro() {
         </Text>
 
         <Campo
-          etiqueta="Alias"
+          etiqueta="Alias (6-15 letras, números y guion bajo)"
           valor={formulario.alias}
           onCambio={(v) => actualizar('alias', v)}
           error={obtenerError('alias')}

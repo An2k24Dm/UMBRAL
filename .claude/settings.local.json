@@ -9,7 +9,9 @@
       "Bash(echo \"EXIT_CODE=$?\")",
       "Bash(echo \"EXIT=$?\")",
       "Bash(cmd /c \"dir /B C:\\\\Users\\\\asusr\\\\Documents\\\\GitHub\\\\UMBRAL\")",
-      "Bash(cat \"/c/Users/asusr/AppData/Local/Temp/claude/C--Users-asusr-Documents-GitHub-UMBRAL/b5f5e173-e56e-4cf3-8857-25cb072bd92f/tasks/biddrl4qh.output\" | tail -50)"
+      "Bash(cat \"/c/Users/asusr/AppData/Local/Temp/claude/C--Users-asusr-Documents-GitHub-UMBRAL/b5f5e173-e56e-4cf3-8857-25cb072bd92f/tasks/biddrl4qh.output\" | tail -50)",
+      "Bash(cd \"/c/Users/asusr/Documents/GitHub/UMBRAL/frontend-movil/umbral-app-react-native\" && cat package.json | head -25 && echo \"---\" && cat tsconfig.json | head -20)",
+      "Bash(npx --no-install tsc --noEmit)"
     ]
   }
 }

@@ -51,4 +51,11 @@ public sealed class Participante : Usuario
             fechaNacimiento: fechaNacimiento,
             alias: alias);
     }
+
+    public void ActualizarAlias(string nuevoAlias)
+    {
+        if (string.IsNullOrWhiteSpace(nuevoAlias))
+            throw new DatosUsuarioInvalidosExcepcion("El alias del participante es obligatorio.");
+        Alias = nuevoAlias.Trim();
+    }
 }

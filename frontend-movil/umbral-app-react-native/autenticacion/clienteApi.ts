@@ -262,3 +262,71 @@ export async function registrarParticipanteApi(
 
   return (await respuesta.json()) as RespuestaCrearUsuario;
 }
+
+// HU10 — edición del propio perfil del Participante desde la app móvil.
+//
+// El backend identifica al Participante autenticado por el sub del token;
+// la app NUNCA envía un id de Participante. La contraseña, si se envía,
+// viaja sólo a Keycloak — no se guarda ni se devuelve en la respuesta.
+export interface ModificarPerfilParticipantePayload {
+  // HU10 — alias del Participante. Solo se incluye si cambió.
+  alias?: string;
+  nombreUsuario?: string;
+  correo?: string;
+  nombre?: string;
+  apellido?: string;
+  sexo?: string;
+  fechaNacimiento?: string;
+  datosContacto?: {
+    direccion?: string;
+    telefono?: string;
+  };
+  nuevaContrasena?: string;
+  confirmacionContrasena?: string;
+}
+
+export interface RespuestaModificarParticipante {
+  huboCambios: boolean;
+  camposActualizados: string[];
+  mensaje: string;
+  participante: PerfilParticipante;
+}
+
+export async function modificarPerfilParticipanteApi(
+  tokenAcceso: string,
+  cambios: ModificarPerfilParticipantePayload,
+): Promise<RespuestaModificarParticipante> {
+  const respuesta = await fetch(
+    `${URL_API}/api/usuarios/participantes/perfil`,
+    {
+      method: "PATCH",
+      headers: obtenerEncabezadosAutenticados(tokenAcceso),
+      body: JSON.stringify(cambios),
+    },
+  );
+
+  if (!respuesta.ok) {
+    const cuerpo = (await respuesta.json().catch(() => null)) as {
+      mensaje?: string;
+      errores?: ErrorCampo[];
+    } | null;
+    if (cuerpo?.errores && cuerpo.errores.length > 0) {
+      throw new ErrorValidacionRegistro(
+        cuerpo.mensaje ??
+          "No fue posible guardar los cambios. Revise los campos marcados.",
+        cuerpo.errores,
+      );
+    }
+    if (respuesta.status === 401) {
+      throw new Error("Tu sesión expiró. Inicia sesión nuevamente.");
+    }
+    if (respuesta.status === 403) {
+      throw new Error("No tienes permisos para modificar este perfil.");
+    }
+    throw new Error(
+      cuerpo?.mensaje ?? "No fue posible guardar los cambios del perfil.",
+    );
+  }
+
+  return (await respuesta.json()) as RespuestaModificarParticipante;
+}

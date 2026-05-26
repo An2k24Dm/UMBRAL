@@ -66,8 +66,71 @@ public class ValidadorRegistrarParticipantePruebas
     [Fact]
     public void Falla_Si_AliasFormatoInvalido()
     {
-        var dto = DtoValido(); dto.Alias = "alias con espacios";
+        // 7 caracteres, longitud válida, pero contiene espacio: cae solo por
+        // formato (la longitud no se reporta porque el validador retorna
+        // tras detectar el error de longitud si lo hubiera).
+        var dto = DtoValido(); dto.Alias = "ab cdef";
         TieneError(Validar(dto), "alias", MensajesValidacionUsuario.AliasFormato).Should().BeTrue();
+    }
+
+    // ============================================================
+    // Reglas de alias (6-15 chars / solo [a-zA-Z0-9_]).
+    // ============================================================
+
+    [Fact]
+    public void Falla_Si_AliasMayorA15Caracteres()
+    {
+        var dto = DtoValido(); dto.Alias = "abcdefghijklmnop"; // 16
+        TieneError(Validar(dto), "alias", MensajesValidacionUsuario.AliasLongitud).Should().BeTrue();
+    }
+
+    [Fact]
+    public void Falla_Si_AliasContienePunto()
+    {
+        var dto = DtoValido(); dto.Alias = "sombra.01";
+        TieneError(Validar(dto), "alias", MensajesValidacionUsuario.AliasFormato).Should().BeTrue();
+    }
+
+    [Fact]
+    public void Falla_Si_AliasContieneGuionMedio()
+    {
+        var dto = DtoValido(); dto.Alias = "sombra-01";
+        TieneError(Validar(dto), "alias", MensajesValidacionUsuario.AliasFormato).Should().BeTrue();
+    }
+
+    [Fact]
+    public void Falla_Si_AliasContieneEspacios()
+    {
+        var dto = DtoValido(); dto.Alias = "sombra 01";
+        TieneError(Validar(dto), "alias", MensajesValidacionUsuario.AliasFormato).Should().BeTrue();
+    }
+
+    [Fact]
+    public void Falla_Si_AliasContieneCaracteresEspeciales()
+    {
+        var dto = DtoValido(); dto.Alias = "sombr@01";
+        TieneError(Validar(dto), "alias", MensajesValidacionUsuario.AliasFormato).Should().BeTrue();
+    }
+
+    [Fact]
+    public void Acepta_AliasSoloLetras()
+    {
+        var dto = DtoValido(); dto.Alias = "sombrita";
+        Validar(dto).Should().NotContain(e => e.Campo == "alias");
+    }
+
+    [Fact]
+    public void Acepta_AliasSoloNumeros()
+    {
+        var dto = DtoValido(); dto.Alias = "123456";
+        Validar(dto).Should().NotContain(e => e.Campo == "alias");
+    }
+
+    [Fact]
+    public void Acepta_AliasConGuionBajo()
+    {
+        var dto = DtoValido(); dto.Alias = "sombra_01";
+        Validar(dto).Should().NotContain(e => e.Campo == "alias");
     }
 
     // ---------- Reglas comunes delegadas ----------

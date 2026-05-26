@@ -4,6 +4,7 @@ using IdentidadServicio.Aplicacion.Estrategias;
 using IdentidadServicio.Aplicacion.Fabricas;
 using IdentidadServicio.Aplicacion.Generadores;
 using IdentidadServicio.Aplicacion.Mapeadores.Perfil;
+using IdentidadServicio.Aplicacion.Servicios.Usuarios;
 using IdentidadServicio.Aplicacion.Validaciones;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -45,6 +46,22 @@ public static class RegistroAplicacion
         servicios.AddScoped<IValidador<RegistrarParticipanteComando>, ValidadorRegistrarParticipante>();
         // HU09 — edición parcial de Operador desde el panel web.
         servicios.AddScoped<IValidador<ModificarOperadorComando>, ValidadorModificarOperador>();
+        // HU09 — validador asíncrono de unicidad (duplicados que excluyen al
+        // propio Operador). Vive separado porque requiere repositorio.
+        servicios.AddScoped<
+            IValidadorAsincrono<ModificarOperadorComando>,
+            ValidadorUnicidadModificarOperador>();
+        // HU10 — edición del propio perfil del Participante desde la app móvil.
+        servicios.AddScoped<
+            IValidador<ModificarParticipanteComando>,
+            ValidadorModificarParticipante>();
+        servicios.AddScoped<
+            IValidadorAsincrono<ModificarParticipanteComando>,
+            ValidadorUnicidadModificarParticipante>();
+        // Servicio puro de aplicación que detecta y aplica los cambios
+        // reales sobre el agregado Usuario (sin EF, sin Keycloak). Reusado
+        // por HU09 (Operador) y HU10 (Participante).
+        servicios.AddSingleton<AplicadorCambiosUsuario>();
 
         // Generador de códigos correlativos (HU02): OP-### / AD-###.
         servicios.AddScoped<IGeneradorCodigoUsuario, GeneradorCodigoUsuario>();

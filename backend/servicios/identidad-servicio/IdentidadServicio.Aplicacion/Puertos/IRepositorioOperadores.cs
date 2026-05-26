@@ -32,4 +32,11 @@ public interface IRepositorioOperadores
     // Generador HU02 — devuelve el último código OP-### (orden alfabético
     // descendente, equivalente a numérico hasta 999). Null si no hay ninguno.
     Task<string?> ObtenerUltimoCodigoAsync(CancellationToken cancelacion);
+
+    // HU09 + cambio de contraseña — recupera SOLO el IdKeycloak del Operador
+    // sin preparar cambios en el contexto EF. El manejador lo usa cuando la
+    // edición consiste únicamente en cambiar la contraseña (no hay nada que
+    // persistir en PostgreSQL pero sí hay que llamar a Keycloak). Devuelve
+    // null si el id no existe o no corresponde a un Operador.
+    Task<string?> ObtenerIdKeycloakAsync(Guid idOperador, CancellationToken cancelacion);
 }
