@@ -25,6 +25,12 @@ export function PaginaOperador() {
             textoAccion="Gestionar trivias"
           />
           <TarjetaResumen
+            titulo="Búsquedas del tesoro"
+            descripcion="Crear y gestionar búsquedas del tesoro: agregar etapas y misiones."
+            destino="/operador/busquedas"
+            textoAccion="Gestionar búsquedas"
+          />
+          <TarjetaResumen
             titulo="Participantes"
             descripcion="Consultar las cuentas de Participantes registrados."
             destino="/operador/usuarios/participantes"
