@@ -13,6 +13,7 @@ import { PaginaGestionPreguntas } from './paginas/PaginaGestionPreguntas'
 import { PaginaListaTriviasActivas } from './paginas/PaginaListaTriviasActivas'
 import { PaginaListaBusquedas } from './paginas/PaginaListaBusquedas'
 import { PaginaCrearBusqueda } from './paginas/PaginaCrearBusqueda'
+import { PaginaGestionEtapas } from './paginas/PaginaGestionEtapas'
 import {
   obtenerDetalleParticipante,
   obtenerDetalleUsuarioInterno
@@ -184,6 +185,15 @@ export function Aplicacion() {
         element={
           <RutaProtegida rolesPermitidos={['Operador']}>
             <PaginaCrearBusqueda />
+          </RutaProtegida>
+        }
+      />
+      {/* HU22 — Gestionar etapas de una búsqueda del tesoro. */}
+      <Route
+        path="/operador/busquedas/:busquedaId/etapas"
+        element={
+          <RutaProtegida rolesPermitidos={['Operador']}>
+            <PaginaGestionEtapas />
           </RutaProtegida>
         }
       />

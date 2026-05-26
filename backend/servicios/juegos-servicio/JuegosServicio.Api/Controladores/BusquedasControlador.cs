@@ -54,6 +54,20 @@ public sealed class BusquedasControlador : ControllerBase
             new { id = etapaId });
     }
 
+    // HU22 — Obtener detalle de una búsqueda del tesoro con sus etapas y misiones.
+    [HttpGet("{busquedaId:guid}")]
+    [ProducesResponseType(typeof(BusquedaTesoroDetalleDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ObtenerDetalleBusqueda(
+        Guid busquedaId, CancellationToken cancelacion)
+    {
+        var resultado = await _mediador.Send(
+            new ObtenerDetalleBusquedaConsulta(busquedaId), cancelacion);
+        return resultado is null ? NotFound() : Ok(resultado);
+    }
+
     // HU21 — Listar búsquedas del tesoro en borrador del operador autenticado.
     [HttpGet("borrador")]
     [ProducesResponseType(typeof(List<BusquedaTesoroResumenDto>), StatusCodes.Status200OK)]

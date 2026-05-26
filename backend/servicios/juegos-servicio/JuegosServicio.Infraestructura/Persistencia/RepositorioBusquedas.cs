@@ -3,6 +3,7 @@ using JuegosServicio.Commons.Dtos;
 using JuegosServicio.Dominio.Entidades;
 using JuegosServicio.Dominio.Enums;
 using Microsoft.EntityFrameworkCore;
+using JuegosServicio.Infraestructura.Persistencia.Modelos;
 
 namespace JuegosServicio.Infraestructura.Persistencia;
 
@@ -66,5 +67,41 @@ public sealed class RepositorioBusquedas : IRepositorioBusquedas
         var modelo = BusquedasMapeador.AModelo(etapa);
         _contexto.Etapas.Add(modelo);
         await _contexto.SaveChangesAsync(cancelacion);
+    }
+
+    public async Task<BusquedaTesoroDetalleDto?> ObtenerDetalleBusquedaAsync(
+        Guid busquedaId, CancellationToken cancelacion)
+    {
+        var modelo = await _contexto.BusquedasTesoro
+            .Include(b => b.Etapas.OrderBy(e => e.Orden))
+                .ThenInclude(e => e.Misiones)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(b => b.Id == busquedaId, cancelacion);
+
+        if (modelo is null) return null;
+
+        return new BusquedaTesoroDetalleDto
+        {
+            Id = modelo.Id,
+            Nombre = modelo.Nombre,
+            Descripcion = modelo.Descripcion,
+            Estado = ((EstadoBusqueda)modelo.Estado).ToString(),
+            FechaCreacion = modelo.FechaCreacion,
+            Etapas = modelo.Etapas.Select(e => new EtapaDetalleDto
+            {
+                Id = e.Id,
+                Titulo = e.Titulo,
+                Descripcion = e.Descripcion,
+                Orden = e.Orden,
+                Misiones = e.Misiones.Select(m => new MisionDetalleDto
+                {
+                    Id = m.Id,
+                    Titulo = m.Titulo,
+                    Descripcion = m.Descripcion,
+                    Tipo = ((TipoMision)m.Tipo).ToString(),
+                    PistaClave = m.PistaClave
+                }).ToList()
+            }).ToList()
+        };
     }
 }

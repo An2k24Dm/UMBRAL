@@ -25,7 +25,12 @@ const ENDPOINTS = {
   listarActivas: '/api/juegos/trivias/activas',
   // HU21
   crearBusqueda:       '/api/juegos/busquedas',
-  listarBusquedasBorrador: '/api/juegos/busquedas/borrador'
+  listarBusquedasBorrador: '/api/juegos/busquedas/borrador',
+  // HU22
+  detalleBusqueda: (busquedaId: string) =>
+    `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}`,
+  agregarEtapa: (busquedaId: string) =>
+    `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}/etapas`
 }
 
 function auth(token: string) {
@@ -124,6 +129,36 @@ export interface DatosCrearBusquedaTesoro {
   descripcion: string
 }
 
+export interface MisionDetalleDto {
+  id: string
+  titulo: string
+  descripcion: string
+  tipo: string
+  pistaClave: string
+}
+
+export interface EtapaDetalleDto {
+  id: string
+  titulo: string
+  descripcion: string
+  orden: number
+  misiones: MisionDetalleDto[]
+}
+
+export interface BusquedaTesoroDetalleDto {
+  id: string
+  nombre: string
+  descripcion: string
+  estado: string
+  fechaCreacion: string
+  etapas: EtapaDetalleDto[]
+}
+
+export interface DatosAgregarEtapa {
+  titulo: string
+  descripcion: string
+}
+
 // ---------------------------------------------------------------------------
 // HU15 — Crear trivia
 // ---------------------------------------------------------------------------
@@ -217,6 +252,44 @@ export async function modificarPregunta(
   if (respuesta.status === 403) throw new Error('No tiene permisos.')
   if (respuesta.status === 404) throw new Error('Pregunta no encontrada.')
   if (!respuesta.ok) throw new Error(await leerError(respuesta))
+}
+
+// ---------------------------------------------------------------------------
+// HU22 — Obtener detalle de búsqueda del tesoro
+// ---------------------------------------------------------------------------
+export async function obtenerDetalleBusqueda(
+  busquedaId: string,
+  token: string
+): Promise<BusquedaTesoroDetalleDto> {
+  const respuesta = await fetch(`${URL_API}${ENDPOINTS.detalleBusqueda(busquedaId)}`, {
+    headers: auth(token)
+  })
+  if (respuesta.status === 401) throw new Error('Debe iniciar sesión.')
+  if (respuesta.status === 403) throw new Error('No tiene permisos.')
+  if (respuesta.status === 404) throw new Error('Búsqueda del tesoro no encontrada.')
+  if (!respuesta.ok) throw new Error(await leerError(respuesta))
+  return (await respuesta.json()) as BusquedaTesoroDetalleDto
+}
+
+// ---------------------------------------------------------------------------
+// HU22 — Agregar etapa a búsqueda del tesoro
+// ---------------------------------------------------------------------------
+export async function agregarEtapa(
+  busquedaId: string,
+  datos: DatosAgregarEtapa,
+  token: string
+): Promise<string> {
+  const respuesta = await fetch(`${URL_API}${ENDPOINTS.agregarEtapa(busquedaId)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...auth(token) },
+    body: JSON.stringify(datos)
+  })
+  if (respuesta.status === 401) throw new Error('Debe iniciar sesión.')
+  if (respuesta.status === 403) throw new Error('No tiene permisos.')
+  if (respuesta.status === 404) throw new Error('Búsqueda del tesoro no encontrada.')
+  if (!respuesta.ok) throw new Error(await leerError(respuesta))
+  const cuerpo = (await respuesta.json()) as { id: string }
+  return cuerpo.id
 }
 
 // ---------------------------------------------------------------------------
