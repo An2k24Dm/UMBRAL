@@ -9,6 +9,7 @@ import {
   agregarPregunta,
   modificarPregunta,
   eliminarPregunta,
+  activarTrivia,
   type TriviaDetalleDto,
   type PreguntaDetalleDto,
   type OpcionInput
@@ -92,6 +93,9 @@ export function PaginaGestionPreguntas() {
 
   const [confirmandoEliminacion, setConfirmandoEliminacion] = useState<string | null>(null)
   const [eliminando, setEliminando] = useState(false)
+
+  const [activando, setActivando] = useState(false)
+  const [errorActivacion, setErrorActivacion] = useState<string | null>(null)
 
   // ---------------------------------------------------------------------------
   // Carga inicial
@@ -263,6 +267,24 @@ export function PaginaGestionPreguntas() {
   }
 
   // ---------------------------------------------------------------------------
+  // Activar trivia (HU18)
+  // ---------------------------------------------------------------------------
+  async function manejarActivar() {
+    if (!token || !triviaId) return
+    setActivando(true)
+    setErrorActivacion(null)
+    try {
+      await activarTrivia(triviaId, token)
+      const datos = await obtenerDetalleTrivia(triviaId, token)
+      setTrivia(datos)
+    } catch (err) {
+      setErrorActivacion(err instanceof Error ? err.message : 'No fue posible activar la trivia.')
+    } finally {
+      setActivando(false)
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
   if (estadoCarga === 'cargando') {
@@ -295,11 +317,19 @@ export function PaginaGestionPreguntas() {
           <div>
             <h2>Preguntas de la trivia</h2>
             <p>{trivia.descripcion} · {trivia.tiempoLimitePorPregunta}s por pregunta</p>
+            <span className={`estado-badge estado-badge-${trivia.estado.toLowerCase()}`}>
+              {trivia.estado}
+            </span>
           </div>
           <div className="cabecera-pagina-acciones">
             <Boton variante="volver" onClick={() => navegar('/operador/trivias')}>
               Volver
             </Boton>
+            {trivia.estado === 'Borrador' && modoForm === 'oculto' && (
+              <Boton variante="secundario" onClick={manejarActivar} disabled={activando}>
+                {activando ? 'Activando…' : 'Activar trivia'}
+              </Boton>
+            )}
             {modoForm === 'oculto' && (
               <Boton variante="primario" onClick={abrirFormAgregar}>
                 + Agregar pregunta
@@ -308,6 +338,7 @@ export function PaginaGestionPreguntas() {
           </div>
         </div>
 
+        {errorActivacion && <Alerta tono="error">{errorActivacion}</Alerta>}
         {errorCarga && <Alerta tono="error">{errorCarga}</Alerta>}
 
         {/* Formulario agregar / editar */}
