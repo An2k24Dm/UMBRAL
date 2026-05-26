@@ -4,6 +4,7 @@ using IdentidadServicio.Aplicacion.Fabricas;
 using IdentidadServicio.Aplicacion.Puertos;
 using IdentidadServicio.Aplicacion.Validaciones;
 using IdentidadServicio.Commons.Dtos;
+using IdentidadServicio.Dominio.Entidades;
 using IdentidadServicio.Dominio.Enums;
 using MediatR;
 using Microsoft.Extensions.Logging;
@@ -11,28 +12,33 @@ using Microsoft.Extensions.Logging;
 namespace IdentidadServicio.Aplicacion.CasosDeUso.Manejadores;
 
 // HU03 — registro público de Participante desde la app móvil. Reutiliza el
-// Strategy/Factory ya existentes (EstrategiaCrearParticipante) para no
-// duplicar la creación del agregado de dominio, pero mantiene su propio
-// validador y comando para que las reglas no se entremezclen con HU02.
+// Strategy/Factory de creación, pero solo necesita el repositorio de
+// Participantes y la unidad de trabajo: ya no depende de una fachada gigante.
 public sealed class RegistrarParticipanteManejador
     : IRequestHandler<RegistrarParticipanteComando, CrearUsuarioRespuestaDto>
 {
-    private readonly IRepositorioIdentidad _repositorio;
+    private readonly IRepositorioUnicidadUsuario _unicidad;
+    private readonly IRepositorioParticipantes _repositorioParticipantes;
+    private readonly IUnidadTrabajoIdentidad _unidadTrabajo;
     private readonly IProveedorIdentidad _proveedor;
     private readonly IProveedorFechaHora _reloj;
     private readonly FabricaEstrategiaCreacionUsuario _fabrica;
-    private readonly IValidador<RegistrarParticipanteDto> _validador;
+    private readonly IValidador<RegistrarParticipanteComando> _validador;
     private readonly ILogger<RegistrarParticipanteManejador> _registro;
 
     public RegistrarParticipanteManejador(
-        IRepositorioIdentidad repositorio,
+        IRepositorioUnicidadUsuario unicidad,
+        IRepositorioParticipantes repositorioParticipantes,
+        IUnidadTrabajoIdentidad unidadTrabajo,
         IProveedorIdentidad proveedor,
         IProveedorFechaHora reloj,
         FabricaEstrategiaCreacionUsuario fabrica,
-        IValidador<RegistrarParticipanteDto> validador,
+        IValidador<RegistrarParticipanteComando> validador,
         ILogger<RegistrarParticipanteManejador> registro)
     {
-        _repositorio = repositorio;
+        _unicidad = unicidad;
+        _repositorioParticipantes = repositorioParticipantes;
+        _unidadTrabajo = unidadTrabajo;
         _proveedor = proveedor;
         _reloj = reloj;
         _fabrica = fabrica;
@@ -45,17 +51,12 @@ public sealed class RegistrarParticipanteManejador
     {
         var dto = comando.Datos;
 
-        // 1) Validación específica de HU03 (campos + duplicados, incluido alias).
-        await _validador.ValidarAsync(dto, cancelacion);
+        _validador.Validar(comando).LanzarSiHayErrores();
+        await ValidarDuplicadosAsync(dto, cancelacion);
 
-        // 2) Estrategia fija: HU03 siempre registra Participante. El backend nunca
-        //    permite que el cliente decida el rol por esta vía.
         var estrategia = _fabrica.Obtener(RolUsuario.Participante);
-
-        // 3) Fecha vía IProveedorFechaHora.
         var fechaRegistro = _reloj.ObtenerFechaHoraUtc();
 
-        // 4) Crear en Keycloak con los datos canónicos.
         var datosIdentidad = new DatosCreacionUsuarioIdentidad(
             NombreUsuario: dto.NombreUsuario.Trim(),
             Correo: dto.Correo.Trim().ToLowerInvariant(),
@@ -70,10 +71,6 @@ public sealed class RegistrarParticipanteManejador
             await _proveedor.AsignarRolAsync(
                 idKeycloak, estrategia.ObtenerRol().ToString(), cancelacion);
 
-            // 5) Mapeo a DatosCreacionUsuario (modelo interno de aplicación)
-            //    para reutilizar la estrategia sin acoplar a un DTO de
-            //    transporte. TipoUsuario lo forzamos a Participante: el dato
-            //    no proviene del cliente.
             var datosCreacion = new DatosCreacionUsuario
             {
                 TipoUsuario = RolUsuario.Participante,
@@ -89,7 +86,12 @@ public sealed class RegistrarParticipanteManejador
 
             var usuario = await estrategia.CrearUsuarioDominioAsync(
                 datosCreacion, fechaRegistro, cancelacion);
-            await estrategia.GuardarAsync(usuario, idKeycloak, _repositorio, cancelacion);
+
+            // La estrategia siempre devuelve Participante en HU03; aseguramos
+            // explícitamente el tipo antes de delegar al repositorio.
+            var participante = (Participante)usuario;
+            await _repositorioParticipantes.AgregarAsync(participante, idKeycloak, cancelacion);
+            await _unidadTrabajo.GuardarCambiosAsync(cancelacion);
 
             _registro.LogInformation(
                 "Participante {NombreUsuario} ({Correo}) registrado desde la app móvil.",
@@ -111,6 +113,32 @@ public sealed class RegistrarParticipanteManejador
             await CompensarKeycloakAsync(idKeycloak);
             throw;
         }
+    }
+
+    // HU03 — duplicados específicos del registro público (incluye alias).
+    private async Task ValidarDuplicadosAsync(
+        RegistrarParticipanteDto dto, CancellationToken cancelacion)
+    {
+        var resultado = ResultadoValidacion.Exitoso();
+
+        if (await _unicidad.ExisteAliasAsync(dto.Alias, cancelacion))
+            resultado.Agregar(MensajesValidacionUsuario.CampoAlias,
+                MensajesValidacionUsuario.AliasDuplicado);
+
+        if (await _unicidad.ExisteNombreUsuarioAsync(dto.NombreUsuario, cancelacion))
+            resultado.Agregar(MensajesValidacionUsuario.CampoNombreUsuario,
+                MensajesValidacionUsuario.NombreUsuarioDuplicado);
+
+        if (await _unicidad.ExisteCorreoAsync(dto.Correo, cancelacion))
+            resultado.Agregar(MensajesValidacionUsuario.CampoCorreo,
+                MensajesValidacionUsuario.CorreoDuplicado);
+
+        if (!string.IsNullOrWhiteSpace(dto.DatosContacto?.Telefono) &&
+            await _unicidad.ExisteTelefonoAsync(dto.DatosContacto!.Telefono!, cancelacion))
+            resultado.Agregar(MensajesValidacionUsuario.CampoTelefono,
+                MensajesValidacionUsuario.TelefonoDuplicado);
+
+        resultado.LanzarSiHayErrores();
     }
 
     private async Task CompensarKeycloakAsync(string idKeycloak)

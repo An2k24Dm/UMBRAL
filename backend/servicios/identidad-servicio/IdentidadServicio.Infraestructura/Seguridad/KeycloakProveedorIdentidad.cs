@@ -156,6 +156,41 @@ public sealed class KeycloakProveedorIdentidad : IProveedorIdentidad
         respAsig.EnsureSuccessStatusCode();
     }
 
+    // HU09 — actualización parcial en Keycloak vía PUT
+    // /admin/realms/{realm}/users/{id}. Sólo se envían los campos no nulos
+    // del payload para no sobrescribir el resto. Si el payload no tiene
+    // cambios, no se hace ninguna llamada HTTP.
+    public async Task ActualizarUsuarioAsync(
+        string idKeycloak,
+        DatosActualizacionUsuarioIdentidad datos,
+        CancellationToken cancelacion)
+    {
+        if (!datos.TieneCambios) return;
+
+        var tokenAdmin = await ObtenerTokenAdminAsync(cancelacion);
+
+        var cuerpo = new Dictionary<string, object>();
+        if (datos.NombreUsuario is not null) cuerpo["username"] = datos.NombreUsuario;
+        if (datos.Correo is not null) cuerpo["email"] = datos.Correo;
+        if (datos.Nombre is not null) cuerpo["firstName"] = datos.Nombre;
+        if (datos.Apellido is not null) cuerpo["lastName"] = datos.Apellido;
+
+        using var solicitud = new HttpRequestMessage(HttpMethod.Put, _opciones.UrlAdminUsuario(idKeycloak))
+        {
+            Content = JsonContent.Create(cuerpo)
+        };
+        solicitud.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokenAdmin);
+
+        using var respuesta = await _cliente.SendAsync(solicitud, cancelacion);
+        if (!respuesta.IsSuccessStatusCode)
+        {
+            var detalle = await respuesta.Content.ReadAsStringAsync(cancelacion);
+            _registro.LogError("Keycloak rechazó actualización de {Id}. {Estado} {Cuerpo}",
+                idKeycloak, respuesta.StatusCode, detalle);
+            respuesta.EnsureSuccessStatusCode();
+        }
+    }
+
     public async Task EliminarUsuarioAsync(string idKeycloak, CancellationToken cancelacion)
     {
         var tokenAdmin = await ObtenerTokenAdminAsync(cancelacion);

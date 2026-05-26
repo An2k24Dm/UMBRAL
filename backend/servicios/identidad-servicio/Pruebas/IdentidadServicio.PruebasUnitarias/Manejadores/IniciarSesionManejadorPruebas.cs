@@ -16,7 +16,7 @@ namespace IdentidadServicio.PruebasUnitarias.Manejadores;
 public class IniciarSesionManejadorPruebas
 {
     private readonly Mock<IProveedorIdentidad> _proveedor = new();
-    private readonly Mock<IRepositorioIdentidad> _repositorio = new();
+    private readonly Mock<IRepositorioUsuariosLectura> _repositorio = new();
 
     private IniciarSesionManejador CrearManejador() => new(
         _proveedor.Object, _repositorio.Object,

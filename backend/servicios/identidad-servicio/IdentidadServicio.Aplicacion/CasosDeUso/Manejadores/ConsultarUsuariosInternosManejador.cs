@@ -20,9 +20,9 @@ public sealed class ConsultarUsuariosInternosManejador
     // el cliente, se normaliza para mantener la regla del caso de uso.
     private const int TamanioPaginaPorDefecto = 10;
 
-    private readonly IRepositorioIdentidad _repositorio;
+    private readonly IRepositorioUsuariosLectura _repositorio;
 
-    public ConsultarUsuariosInternosManejador(IRepositorioIdentidad repositorio)
+    public ConsultarUsuariosInternosManejador(IRepositorioUsuariosLectura repositorio)
     {
         _repositorio = repositorio;
     }

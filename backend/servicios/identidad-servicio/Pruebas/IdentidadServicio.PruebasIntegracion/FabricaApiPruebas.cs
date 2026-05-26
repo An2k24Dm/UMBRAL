@@ -49,11 +49,17 @@ public sealed class FabricaApiPruebas : WebApplicationFactory<Program>
         });
     }
 
+    // HU09 — id del Operador sembrado, expuesto para que las pruebas de
+    // integración puedan apuntar al endpoint PATCH /api/usuarios/operadores/{id}
+    // sin tener que crearlo previamente.
+    public static readonly Guid IdOperadorSembrado = Guid.Parse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
+
     private static void Sembrar(ContextoIdentidad contexto)
     {
         var idAdmin = Guid.NewGuid();
         var idParticipanteActivo = Guid.NewGuid();
         var idInactivo = Guid.NewGuid();
+        var idOperador = IdOperadorSembrado;
         var ahora = new DateTime(2026, 5, 17, 0, 0, 0, DateTimeKind.Utc);
         var nac = new DateTime(1990, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
@@ -72,6 +78,11 @@ public sealed class FabricaApiPruebas : WebApplicationFactory<Program>
             {
                 Id = idInactivo, NombreUsuario = "inactivo01", IdKeycloak = "kc-inactivo",
                 Rol = (int)RolUsuario.Participante, Estado = (int)EstadoUsuario.Inactivo, FechaRegistro = ahora
+            },
+            new UsuarioModelo
+            {
+                Id = idOperador, NombreUsuario = "op_hu09", IdKeycloak = "kc-op-hu09",
+                Rol = (int)RolUsuario.Operador, Estado = (int)EstadoUsuario.Activo, FechaRegistro = ahora
             });
 
         // Teléfonos únicos sembrados: HU02 añade índice único sobre persona.telefono.
@@ -97,12 +108,24 @@ public sealed class FabricaApiPruebas : WebApplicationFactory<Program>
             Direccion = "Av. Urdaneta, Caracas", Telefono = "04120000003",
             Sexo = (int)SexoPersona.Masculino, FechaNacimiento = nac, FechaRegistro = ahora
         };
-        contexto.Personas.AddRange(pAdmin, pParActivo, pInactivo);
+        var pOperador = new PersonaModelo
+        {
+            Id = Guid.NewGuid(), UsuarioId = idOperador,
+            Nombre = "Olivia", Apellido = "Operadora", Correo = "olivia@umbral.com",
+            Direccion = "Av. Sucre, Caracas", Telefono = "04120000010",
+            Sexo = (int)SexoPersona.Femenino, FechaNacimiento = nac, FechaRegistro = ahora
+        };
+        contexto.Personas.AddRange(pAdmin, pParActivo, pInactivo, pOperador);
 
         contexto.Administradores.Add(new AdministradorModelo
         {
             Id = Guid.NewGuid(), PersonaId = pAdmin.Id,
             CodigoAdministrador = "AD-001", FechaRegistro = ahora
+        });
+        contexto.Operadores.Add(new OperadorModelo
+        {
+            Id = Guid.NewGuid(), PersonaId = pOperador.Id,
+            CodigoOperador = "OP-HU09", FechaRegistro = ahora
         });
         contexto.Participantes.AddRange(
             new ParticipanteModelo
