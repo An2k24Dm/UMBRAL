@@ -11,6 +11,9 @@ public sealed class ContextoJuegos : DbContext
     public DbSet<PreguntaModelo> Preguntas => Set<PreguntaModelo>();
     public DbSet<OpcionModelo> Opciones => Set<OpcionModelo>();
     public DbSet<EventoSalidaModelo> EventosSalida => Set<EventoSalidaModelo>();
+    public DbSet<BusquedaTesoroModelo> BusquedasTesoro => Set<BusquedaTesoroModelo>();
+    public DbSet<EtapaModelo> Etapas => Set<EtapaModelo>();
+    public DbSet<MisionModelo> Misiones => Set<MisionModelo>();
 
     protected override void OnModelCreating(ModelBuilder constructor)
     {
@@ -74,6 +77,56 @@ public sealed class ContextoJuegos : DbContext
             e.Property(x => x.Datos).HasColumnName("datos").IsRequired();
             e.Property(x => x.FechaCreacion).HasColumnName("fecha_creacion").IsRequired();
             e.Property(x => x.Procesado).HasColumnName("procesado").IsRequired();
+        });
+
+        // ---------- BusquedaTesoro ----------
+        constructor.Entity<BusquedaTesoroModelo>(e =>
+        {
+            e.ToTable("BusquedaTesoro");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.Nombre).HasColumnName("nombre").HasMaxLength(200).IsRequired();
+            e.Property(x => x.Descripcion).HasColumnName("descripcion").HasMaxLength(1000).IsRequired();
+            e.Property(x => x.CreadorId).HasColumnName("creador_id").IsRequired();
+            e.Property(x => x.Estado).HasColumnName("estado").IsRequired();
+            e.Property(x => x.FechaCreacion).HasColumnName("fecha_creacion").IsRequired();
+
+            e.HasIndex(x => x.Nombre).IsUnique();
+
+            e.HasMany(x => x.Etapas)
+                .WithOne(et => et.BusquedaTesoro)
+                .HasForeignKey(et => et.BusquedaId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ---------- Etapa ----------
+        constructor.Entity<EtapaModelo>(e =>
+        {
+            e.ToTable("Etapa");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.BusquedaId).HasColumnName("busqueda_id").IsRequired();
+            e.Property(x => x.Titulo).HasColumnName("titulo").HasMaxLength(200).IsRequired();
+            e.Property(x => x.Descripcion).HasColumnName("descripcion").HasMaxLength(1000).IsRequired();
+            e.Property(x => x.Orden).HasColumnName("orden").IsRequired();
+
+            e.HasMany(x => x.Misiones)
+                .WithOne(m => m.Etapa)
+                .HasForeignKey(m => m.EtapaId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ---------- Mision ----------
+        constructor.Entity<MisionModelo>(e =>
+        {
+            e.ToTable("Mision");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.EtapaId).HasColumnName("etapa_id").IsRequired();
+            e.Property(x => x.Titulo).HasColumnName("titulo").HasMaxLength(200).IsRequired();
+            e.Property(x => x.Descripcion).HasColumnName("descripcion").HasMaxLength(1000).IsRequired();
+            e.Property(x => x.Tipo).HasColumnName("tipo").IsRequired();
+            e.Property(x => x.PistaClave).HasColumnName("pista_clave").IsRequired();
         });
     }
 }

@@ -23,6 +23,7 @@ public static class RegistroInfraestructura
             }));
 
         servicios.AddScoped<IRepositorioJuegos, RepositorioJuegos>();
+        servicios.AddScoped<IRepositorioBusquedas, RepositorioBusquedas>();
         servicios.AddSingleton<IProveedorFechaHora, ProveedorFechaHoraSistema>();
 
         return servicios;
