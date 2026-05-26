@@ -10,6 +10,9 @@ import { PaginaDetalleUsuario } from './paginas/PaginaDetalleUsuario'
 import { PaginaListaTrivias } from './paginas/PaginaListaTrivias'
 import { PaginaCrearTrivia } from './paginas/PaginaCrearTrivia'
 import { PaginaGestionPreguntas } from './paginas/PaginaGestionPreguntas'
+import { PaginaListaTriviasActivas } from './paginas/PaginaListaTriviasActivas'
+import { PaginaListaBusquedas } from './paginas/PaginaListaBusquedas'
+import { PaginaCrearBusqueda } from './paginas/PaginaCrearBusqueda'
 import {
   obtenerDetalleParticipante,
   obtenerDetalleUsuarioInterno
@@ -148,6 +151,15 @@ export function Aplicacion() {
           </RutaProtegida>
         }
       />
+      {/* HU20 — Listar trivias activas. */}
+      <Route
+        path="/operador/trivias/activas"
+        element={
+          <RutaProtegida rolesPermitidos={['Operador']}>
+            <PaginaListaTriviasActivas />
+          </RutaProtegida>
+        }
+      />
       {/* HU16/HU17 — Gestionar preguntas de una trivia. */}
       <Route
         path="/operador/trivias/:triviaId/preguntas"
@@ -157,6 +169,25 @@ export function Aplicacion() {
           </RutaProtegida>
         }
       />
+      {/* HU21 — Listar búsquedas del tesoro en borrador. */}
+      <Route
+        path="/operador/busquedas"
+        element={
+          <RutaProtegida rolesPermitidos={['Operador']}>
+            <PaginaListaBusquedas />
+          </RutaProtegida>
+        }
+      />
+      {/* HU21 — Crear búsqueda del tesoro. */}
+      <Route
+        path="/operador/busquedas/crear"
+        element={
+          <RutaProtegida rolesPermitidos={['Operador']}>
+            <PaginaCrearBusqueda />
+          </RutaProtegida>
+        }
+      />
+
       {/* Compatibilidad con el destino anterior usado por la respuesta de inicio
           de sesión (rutaRedireccion = /operador/sesiones). Redirige al dashboard. */}
       <Route

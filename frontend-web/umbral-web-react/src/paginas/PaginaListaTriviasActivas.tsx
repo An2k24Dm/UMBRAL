@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { LayoutPanel } from '../componentes/LayoutPanel'
 import { Alerta } from '../componentes/Alerta'
 import { Boton } from '../componentes/Boton'
-import { obtenerTriviasEnBorrador, type TriviaResumenDto } from '../autenticacion/clienteApiJuegos'
+import { obtenerTriviasActivas, type TriviaActivaResumenDto } from '../autenticacion/clienteApiJuegos'
 import { usarAutenticacion } from '../autenticacion/ProveedorAutenticacion'
 
 function formatearFecha(iso: string): string {
@@ -14,13 +14,13 @@ function formatearFecha(iso: string): string {
   })
 }
 
-export function PaginaListaTrivias() {
+export function PaginaListaTriviasActivas() {
   const { token } = usarAutenticacion()
   const navegar = useNavigate()
 
   const [estado, setEstado] = useState<'cargando' | 'error' | 'vacio' | 'listo'>('cargando')
   const [mensajeError, setMensajeError] = useState<string | null>(null)
-  const [trivias, setTrivias] = useState<TriviaResumenDto[]>([])
+  const [trivias, setTrivias] = useState<TriviaActivaResumenDto[]>([])
 
   useEffect(() => {
     let cancelado = false
@@ -29,13 +29,13 @@ export function PaginaListaTrivias() {
       setEstado('cargando')
       setMensajeError(null)
       try {
-        const lista = await obtenerTriviasEnBorrador(token)
+        const lista = await obtenerTriviasActivas(token)
         if (cancelado) return
         setTrivias(lista)
         setEstado(lista.length === 0 ? 'vacio' : 'listo')
       } catch (e) {
         if (cancelado) return
-        setMensajeError(e instanceof Error ? e.message : 'No fue posible cargar las trivias.')
+        setMensajeError(e instanceof Error ? e.message : 'No fue posible cargar las trivias activas.')
         setEstado('error')
       }
     }
@@ -45,21 +45,18 @@ export function PaginaListaTrivias() {
 
   return (
     <LayoutPanel
-      titulo="Mis trivias"
-      descripcion="Trivias en estado Borrador que usted ha creado."
+      titulo="Trivias activas"
+      descripcion="Trivias en estado Activa disponibles para los participantes."
     >
       <section className="seccion">
         <div className="seccion-cabecera">
           <div>
-            <h2>Trivias en borrador</h2>
-            <p>Haga clic en una trivia para gestionar sus preguntas.</p>
+            <h2>Trivias activas</h2>
+            <p>Estas trivias están disponibles para que los participantes las jueguen.</p>
           </div>
           <div className="cabecera-pagina-acciones">
-            <Boton variante="secundario" onClick={() => navegar('/operador/trivias/activas')}>
-              Ver activas
-            </Boton>
-            <Boton variante="primario" onClick={() => navegar('/operador/trivias/crear')}>
-              + Crear trivia
+            <Boton variante="volver" onClick={() => navegar('/operador/trivias')}>
+              Volver a mis trivias
             </Boton>
           </div>
         </div>
@@ -69,24 +66,17 @@ export function PaginaListaTrivias() {
         )}
 
         {estado === 'cargando' && (
-          <p className="tabla-estado-mensaje">Cargando trivias…</p>
+          <p className="tabla-estado-mensaje">Cargando trivias activas…</p>
         )}
 
         {estado === 'vacio' && (
-          <p className="tabla-estado-mensaje">No tiene trivias en borrador. Cree una para comenzar.</p>
+          <p className="tabla-estado-mensaje">No hay trivias activas en este momento.</p>
         )}
 
         {estado === 'listo' && (
           <div className="lista-trivias">
             {trivias.map((t) => (
-              <div
-                key={t.id}
-                className="trivia-card"
-                role="button"
-                tabIndex={0}
-                onClick={() => navegar(`/operador/trivias/${t.id}/preguntas`)}
-                onKeyDown={(e) => e.key === 'Enter' && navegar(`/operador/trivias/${t.id}/preguntas`)}
-              >
+              <div key={t.id} className="trivia-card">
                 <div className="trivia-card-cabecera">
                   <span className="trivia-card-nombre">{t.nombre}</span>
                   <span className="trivia-card-meta">
