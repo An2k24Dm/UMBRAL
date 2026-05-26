@@ -108,4 +108,94 @@ public class ValidadorModificarOperadorPruebas
         var resultado = CrearValidador().Validar(Comando(dto));
         resultado.Errores.Should().Contain(e => e.Campo == "sexo");
     }
+
+    // ============================================================
+    // HU09 — Sección Seguridad: cambio administrativo de contraseña.
+    // ============================================================
+
+    [Fact]
+    public void Contrasena_AmbosCamposNulos_NoSeValida()
+    {
+        // No se rellenó ni nueva contraseña ni confirmación: la edición
+        // sigue su flujo normal y el validador no debe reportar errores
+        // relacionados con contraseña.
+        var dto = new ModificarOperadorSolicitudDto { Nombre = "Olivia" };
+        var resultado = CrearValidador().Validar(Comando(dto));
+        resultado.Errores.Should().NotContain(e =>
+            e.Campo == MensajesValidacionUsuario.CampoContrasena ||
+            e.Campo == MensajesValidacionUsuario.CampoConfirmacionContrasena);
+    }
+
+    [Fact]
+    public void Contrasena_NuevaVacia_Rechaza()
+    {
+        // Si se envía la confirmación pero la nueva contraseña viene vacía,
+        // ValidarContrasena reporta obligatoriedad.
+        var dto = new ModificarOperadorSolicitudDto
+        {
+            NuevaContrasena = "",
+            ConfirmacionContrasena = "Abc1*"
+        };
+        var resultado = CrearValidador().Validar(Comando(dto));
+        resultado.Errores.Should().Contain(e =>
+            e.Campo == MensajesValidacionUsuario.CampoContrasena &&
+            e.Mensaje == MensajesValidacionUsuario.ContrasenaObligatoria);
+    }
+
+    [Fact]
+    public void Contrasena_NoCumpleReglasComunes_Rechaza()
+    {
+        // "Abcd" cumple longitud mínima (4 < 5), sin dígito, sin especial.
+        var dto = new ModificarOperadorSolicitudDto
+        {
+            NuevaContrasena = "Abcd",
+            ConfirmacionContrasena = "Abcd"
+        };
+        var resultado = CrearValidador().Validar(Comando(dto));
+        resultado.Errores.Should().Contain(e =>
+            e.Campo == MensajesValidacionUsuario.CampoContrasena);
+    }
+
+    [Fact]
+    public void Contrasena_NoCoincide_Rechaza()
+    {
+        var dto = new ModificarOperadorSolicitudDto
+        {
+            NuevaContrasena = "Abc1*",
+            ConfirmacionContrasena = "Otro2*"
+        };
+        var resultado = CrearValidador().Validar(Comando(dto));
+        resultado.Errores.Should().Contain(e =>
+            e.Campo == MensajesValidacionUsuario.CampoConfirmacionContrasena &&
+            e.Mensaje == MensajesValidacionUsuario.ContrasenasNoCoinciden);
+    }
+
+    [Fact]
+    public void Contrasena_ValidaYCoincide_NoReportaError()
+    {
+        var dto = new ModificarOperadorSolicitudDto
+        {
+            NuevaContrasena = "Abc1*",
+            ConfirmacionContrasena = "Abc1*"
+        };
+        var resultado = CrearValidador().Validar(Comando(dto));
+        resultado.EsValido.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Contrasena_SoloConfirmacionLlenada_Rechaza()
+    {
+        // Si llega solo confirmación, la nueva queda null/vacía y no
+        // coincidirá con la confirmación. Se reportan ambos errores.
+        var dto = new ModificarOperadorSolicitudDto
+        {
+            NuevaContrasena = null,
+            ConfirmacionContrasena = "Abc1*"
+        };
+        var resultado = CrearValidador().Validar(Comando(dto));
+        resultado.Errores.Should().Contain(e =>
+            e.Campo == MensajesValidacionUsuario.CampoContrasena);
+        resultado.Errores.Should().Contain(e =>
+            e.Campo == MensajesValidacionUsuario.CampoConfirmacionContrasena);
+    }
 }

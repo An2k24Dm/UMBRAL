@@ -142,6 +142,55 @@ public sealed class UsuariosControlador : ControllerBase
         return Ok((object)perfil);
     }
 
+    // HU10 — edición del propio perfil del Participante desde la app móvil.
+    // La política exige rol Participante; un Administrador u Operador no puede
+    // pedir editar perfiles de Participante por esta vía (recibe 403). El
+    // backend identifica al Participante por el sub del token (claim
+    // NameIdentifier) — el cliente no envía id, así un Participante no puede
+    // intentar editar a otra cuenta.
+    [HttpPatch("participantes/perfil")]
+    [Authorize(Policy = "PoliticaParticipante")]
+    [ProducesResponseType(typeof(ModificarParticipanteRespuestaDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ModificarParticipante(
+        [FromBody] ModificarParticipanteSolicitudDto dto,
+        CancellationToken cancelacion)
+    {
+        // Sub del token (Keycloak lo expone como NameIdentifier tras la
+        // configuración estándar de JwtBearer; en pruebas de integración el
+        // handler dummy lo emite con el mismo tipo de claim).
+        var idKeycloak = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+                         ?? User.FindFirst("sub")?.Value;
+
+        if (string.IsNullOrWhiteSpace(idKeycloak))
+        {
+            return Unauthorized(new
+            {
+                codigo = "TOKEN_SIN_SUJETO",
+                mensaje = "El token no contiene el identificador del usuario."
+            });
+        }
+
+        try
+        {
+            var resultado = await _mediador.Send(
+                new ModificarParticipanteComando(idKeycloak, dto), cancelacion);
+            return Ok(resultado);
+        }
+        catch (DatosUsuarioInvalidosExcepcion ex)
+            when (ex.Message.Contains("No existe un Participante", StringComparison.OrdinalIgnoreCase))
+        {
+            return NotFound(new
+            {
+                codigo = "PARTICIPANTE_NO_ENCONTRADO",
+                mensaje = "El participante asociado al usuario autenticado no existe."
+            });
+        }
+    }
+
     // HU09 — edición parcial del perfil de un Operador desde el panel web.
     // Sólo Administrador puede ejecutar la acción (Operador y Participante
     // quedan fuera por la política; el anónimo recibe 401). El controlador no

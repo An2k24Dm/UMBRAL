@@ -13,6 +13,10 @@ public sealed class AuthHandlerPruebas : AuthenticationHandler<AuthenticationSch
 {
     public const string Esquema = "PruebasAuth";
     public const string CabeceraRol = "X-Rol-Prueba";
+    // HU10 — permite que la prueba de integración fije el sub (IdKeycloak)
+    // emitido por el token. Si no se envía, se usa "tester" como antes para
+    // preservar el comportamiento de las pruebas previas a HU10.
+    public const string CabeceraIdKeycloak = "X-IdKeycloak-Prueba";
 
     public AuthHandlerPruebas(
         IOptionsMonitor<AuthenticationSchemeOptions> options,
@@ -31,10 +35,13 @@ public sealed class AuthHandlerPruebas : AuthenticationHandler<AuthenticationSch
         }
 
         var rol = rolHeader.ToString();
+        var idKeycloak = Request.Headers.TryGetValue(CabeceraIdKeycloak, out var subHeader)
+            ? subHeader.ToString()
+            : "tester";
         var claims = new[]
         {
-            new Claim(ClaimTypes.NameIdentifier, "tester"),
-            new Claim(ClaimTypes.Name, "tester"),
+            new Claim(ClaimTypes.NameIdentifier, idKeycloak),
+            new Claim(ClaimTypes.Name, idKeycloak),
             new Claim(ClaimTypes.Role, rol),
             new Claim("roles", rol)
         };

@@ -54,6 +54,12 @@ public sealed class FabricaApiPruebas : WebApplicationFactory<Program>
     // sin tener que crearlo previamente.
     public static readonly Guid IdOperadorSembrado = Guid.Parse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
 
+    // HU10 — IdKeycloak del Participante activo sembrado, usado por las
+    // pruebas de integración del endpoint PATCH /api/usuarios/participantes/perfil.
+    // El AuthHandlerPruebas emite este sub como NameIdentifier vía la
+    // cabecera X-IdKeycloak-Prueba.
+    public const string IdKeycloakParticipanteSembrado = "kc-par-activo";
+
     private static void Sembrar(ContextoIdentidad contexto)
     {
         var idAdmin = Guid.NewGuid();

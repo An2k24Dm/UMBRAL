@@ -86,16 +86,74 @@ public sealed class RepositorioParticipantes : IRepositorioParticipantes
     {
         var usuario = await _contexto.Usuarios.AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == id, cancelacion);
-        if (usuario is null || usuario.Rol != (int)RolUsuario.Participante) return null;
+        return await ReconstruirSiEsParticipanteAsync(usuario, cancelacion);
+    }
 
+    // HU10 — el Participante autenticado edita su propio perfil. Se entra
+    // por el sub de Keycloak, no por un id externo.
+    public async Task<Participante?> ObtenerPorIdKeycloakAsync(
+        string idKeycloak, CancellationToken cancelacion)
+    {
+        if (string.IsNullOrWhiteSpace(idKeycloak)) return null;
+        var usuario = await _contexto.Usuarios.AsNoTracking()
+            .FirstOrDefaultAsync(u => u.IdKeycloak == idKeycloak, cancelacion);
+        return await ReconstruirSiEsParticipanteAsync(usuario, cancelacion);
+    }
+
+    // HU10 — aplica los cambios editables sobre el modelo EF sin guardar.
+    // La unidad de trabajo es la que ejecuta SaveChanges. Estado, Rol,
+    // FechaRegistro e IdKeycloak no se reescriben.
+    public async Task<string> ActualizarAsync(Participante participante, CancellationToken cancelacion)
+    {
+        var usuario = await _contexto.Usuarios
+            .FirstOrDefaultAsync(u => u.Id == participante.Id, cancelacion)
+            ?? throw new InvalidOperationException(
+                $"El usuario {participante.Id} no existe en base de datos.");
+
+        if (usuario.Rol != (int)RolUsuario.Participante)
+            throw new InvalidOperationException(
+                "Sólo se puede actualizar mediante este método a usuarios con rol Participante.");
+
+        var persona = await _contexto.Personas
+            .FirstOrDefaultAsync(p => p.UsuarioId == usuario.Id, cancelacion)
+            ?? throw new InvalidOperationException(
+                $"El usuario {participante.Id} no tiene fila Persona asociada.");
+
+        usuario.NombreUsuario = participante.NombreUsuario.Valor;
+
+        persona.Nombre = participante.NombrePersona.Nombre;
+        persona.Apellido = participante.NombrePersona.Apellido;
+        persona.Correo = participante.Correo.Valor;
+        persona.Direccion = participante.DatosContacto.Direccion;
+        persona.Telefono = participante.DatosContacto.Telefono;
+        persona.Sexo = (int)participante.Sexo;
+        persona.FechaNacimiento = participante.FechaNacimiento;
+
+        // HU10 — alias del Participante vive en la tabla Participante. Se
+        // localiza por PersonaId; FechaRegistro NO se reescribe.
+        var participanteModelo = await _contexto.Participantes
+            .FirstOrDefaultAsync(p => p.PersonaId == persona.Id, cancelacion)
+            ?? throw new InvalidOperationException(
+                $"El Participante {participante.Id} no tiene fila Participante asociada.");
+        participanteModelo.Alias = participante.Alias;
+
+        return usuario.IdKeycloak;
+    }
+
+    // Helper compartido para ObtenerPorId* — chequea rol y reconstruye el
+    // agregado completo. Vive aquí porque la lógica es específica de
+    // Participante (no usa el reconstructor genérico para evitar otra
+    // consulta innecesaria por rol distinto).
+    private async Task<Participante?> ReconstruirSiEsParticipanteAsync(
+        UsuarioModelo? usuario, CancellationToken cancelacion)
+    {
+        if (usuario is null || usuario.Rol != (int)RolUsuario.Participante) return null;
         var persona = await _contexto.Personas.AsNoTracking()
             .FirstOrDefaultAsync(p => p.UsuarioId == usuario.Id, cancelacion);
         if (persona is null) return null;
-
         var participante = await _contexto.Participantes.AsNoTracking()
             .FirstOrDefaultAsync(p => p.PersonaId == persona.Id, cancelacion);
         if (participante is null) return null;
-
         return _mapeador.AParticipante(usuario, persona, participante);
     }
 }

@@ -69,4 +69,19 @@ public sealed class RepositorioUnicidadUsuario : IRepositorioUnicidadUsuario
         return await _contexto.Personas.AsNoTracking()
             .AnyAsync(p => p.Telefono == normalizado && p.UsuarioId != idActual, cancelacion);
     }
+
+    public async Task<bool> ExisteAliasEnOtroUsuarioAsync(
+        string alias, Guid idActual, CancellationToken cancelacion)
+    {
+        var normalizado = alias.Trim();
+        if (normalizado.Length == 0) return false;
+
+        var consulta =
+            from p in _contexto.Participantes.AsNoTracking()
+            join per in _contexto.Personas.AsNoTracking() on p.PersonaId equals per.Id
+            where p.Alias == normalizado && per.UsuarioId != idActual
+            select p.Id;
+
+        return await consulta.AnyAsync(cancelacion);
+    }
 }

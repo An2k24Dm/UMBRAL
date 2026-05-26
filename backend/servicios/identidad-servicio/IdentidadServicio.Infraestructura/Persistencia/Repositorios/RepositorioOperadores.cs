@@ -74,6 +74,18 @@ public sealed class RepositorioOperadores : IRepositorioOperadores
         return usuario.IdKeycloak;
     }
 
+    // Devuelve el IdKeycloak del Operador (sin tocar el tracker EF). Lo usa
+    // el manejador de edición cuando solo cambia la contraseña: necesita el
+    // sub de Keycloak pero no quiere preparar cambios sobre Persona/Usuario.
+    public async Task<string?> ObtenerIdKeycloakAsync(
+        Guid idOperador, CancellationToken cancelacion)
+    {
+        return await _contexto.Usuarios.AsNoTracking()
+            .Where(u => u.Id == idOperador && u.Rol == (int)RolUsuario.Operador)
+            .Select(u => u.IdKeycloak)
+            .FirstOrDefaultAsync(cancelacion);
+    }
+
     // Códigos con formato OP-### zero-padded a 3 dígitos: el orden
     // descendente alfabético coincide con el numérico hasta 999.
     public async Task<string?> ObtenerUltimoCodigoAsync(CancellationToken cancelacion)

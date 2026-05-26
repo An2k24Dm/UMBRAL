@@ -26,8 +26,6 @@ public interface IReglasValidacionUsuario
     void ValidarContrasena(string? contrasena, ResultadoValidacion resultado);
     void ValidarDireccion(string? direccion, ResultadoValidacion resultado);
     void ValidarSexo(string? sexo, ResultadoValidacion resultado);
-
-    // Utilitario expuesto para que los validadores normalicen el teléfono
-    // antes de validarlo (y que el handler reciba el valor canónico).
+    void ValidarAlias(string? alias, ResultadoValidacion resultado);
     string? NormalizarTelefono(string? telefono);
 }
