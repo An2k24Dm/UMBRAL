@@ -1,5 +1,6 @@
 using IdentidadServicio.Aplicacion.Puertos;
 using IdentidadServicio.Infraestructura.Persistencia;
+using IdentidadServicio.Infraestructura.Persistencia.Repositorios;
 using IdentidadServicio.Infraestructura.Seguridad;
 using IdentidadServicio.Infraestructura.Tiempo;
 using Microsoft.EntityFrameworkCore;
@@ -24,7 +25,16 @@ public static class RegistroInfraestructura
                 p.EnableRetryOnFailure(5, TimeSpan.FromSeconds(10), null);
             }));
 
-        servicios.AddScoped<IRepositorioIdentidad, RepositorioIdentidad>();
+        // Repositorios segregados por responsabilidad (ISP). Cada uno comparte
+        // ContextoIdentidad (Scoped), de modo que los Add/Update se acumulan
+        // en el mismo DbContext y la UnidadTrabajo los confirma de un golpe.
+        servicios.AddScoped<IRepositorioUsuariosLectura, RepositorioUsuariosLectura>();
+        servicios.AddScoped<IRepositorioOperadores, RepositorioOperadores>();
+        servicios.AddScoped<IRepositorioParticipantes, RepositorioParticipantes>();
+        servicios.AddScoped<IRepositorioAdministradores, RepositorioAdministradores>();
+        servicios.AddScoped<IRepositorioUnicidadUsuario, RepositorioUnicidadUsuario>();
+        servicios.AddScoped<IUnidadTrabajoIdentidad, UnidadTrabajoIdentidad>();
+
         servicios.AddSingleton<IProveedorFechaHora, ProveedorFechaHoraSistema>();
 
         servicios.Configure<OpcionesKeycloak>(configuracion.GetSection(OpcionesKeycloak.Seccion));

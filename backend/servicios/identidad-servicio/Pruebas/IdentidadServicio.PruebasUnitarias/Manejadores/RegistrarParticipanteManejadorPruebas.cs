@@ -20,10 +20,12 @@ namespace IdentidadServicio.PruebasUnitarias.Manejadores;
 // agregado de dominio.
 public class RegistrarParticipanteManejadorPruebas
 {
-    private readonly Mock<IRepositorioIdentidad> _repositorio = new();
+    private readonly Mock<IRepositorioUnicidadUsuario> _unicidad = new();
+    private readonly Mock<IRepositorioParticipantes> _repositorio = new();
+    private readonly Mock<IUnidadTrabajoIdentidad> _unidad = new();
     private readonly Mock<IProveedorIdentidad> _proveedor = new();
     private readonly Mock<IProveedorFechaHora> _reloj = new();
-    private readonly Mock<IValidador<RegistrarParticipanteDto>> _validador = new();
+    private readonly Mock<IValidador<RegistrarParticipanteComando>> _validador = new();
     private readonly Mock<IGeneradorCodigoUsuario> _generador = new();
     private static readonly DateTime Ahora = new(2026, 5, 17, 0, 0, 0, DateTimeKind.Utc);
 
@@ -31,8 +33,9 @@ public class RegistrarParticipanteManejadorPruebas
     {
         _reloj.Setup(r => r.ObtenerFechaHoraUtc()).Returns(Ahora);
         _validador
-            .Setup(v => v.ValidarAsync(It.IsAny<RegistrarParticipanteDto>(),
-                It.IsAny<CancellationToken>()))
+            .Setup(v => v.Validar(It.IsAny<RegistrarParticipanteComando>()))
+            .Returns(ResultadoValidacion.Exitoso());
+        _unidad.Setup(u => u.GuardarCambiosAsync(It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
     }
 
@@ -46,8 +49,14 @@ public class RegistrarParticipanteManejadorPruebas
         });
 
         return new RegistrarParticipanteManejador(
-            _repositorio.Object, _proveedor.Object, _reloj.Object, fabrica,
-            _validador.Object, NullLogger<RegistrarParticipanteManejador>.Instance);
+            _unicidad.Object,
+            _repositorio.Object,
+            _unidad.Object,
+            _proveedor.Object,
+            _reloj.Object,
+            fabrica,
+            _validador.Object,
+            NullLogger<RegistrarParticipanteManejador>.Instance);
     }
 
     private static RegistrarParticipanteDto Dto() => new()
@@ -130,7 +139,7 @@ public class RegistrarParticipanteManejadorPruebas
         Participante? capturado = null;
         string? idKeycloakCapturado = null;
         _repositorio
-            .Setup(r => r.GuardarParticipanteAsync(
+            .Setup(r => r.AgregarAsync(
                 It.IsAny<Participante>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .Callback<Participante, string, CancellationToken>((p, id, _) =>
             {
@@ -166,11 +175,13 @@ public class RegistrarParticipanteManejadorPruebas
     [Fact]
     public async Task ValidadorFalla_NoLlamaKeycloakNiRepositorio()
     {
+        // Tras el refactor el validador devuelve ResultadoValidacion; el
+        // manejador es quien lanza vía LanzarSiHayErrores().
+        var resultadoConErrores = ResultadoValidacion.Exitoso();
+        resultadoConErrores.Agregar("alias", "duplicado");
         _validador
-            .Setup(v => v.ValidarAsync(It.IsAny<RegistrarParticipanteDto>(),
-                It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new ExcepcionValidacion("Existen errores de validación.",
-                new[] { new ErrorValidacion("alias", "duplicado") }));
+            .Setup(v => v.Validar(It.IsAny<RegistrarParticipanteComando>()))
+            .Returns(resultadoConErrores);
 
         Func<Task> accion = async () => await CrearManejador().Handle(
             new RegistrarParticipanteComando(Dto()), CancellationToken.None);
@@ -179,17 +190,40 @@ public class RegistrarParticipanteManejadorPruebas
         _proveedor.Verify(p => p.CrearUsuarioAsync(
             It.IsAny<DatosCreacionUsuarioIdentidad>(),
             It.IsAny<CancellationToken>()), Times.Never);
-        _repositorio.Verify(r => r.GuardarParticipanteAsync(
+        _repositorio.Verify(r => r.AgregarAsync(
             It.IsAny<Participante>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
             Times.Never);
+    }
+
+    [Fact]
+    public async Task DuplicadoEnRepositorio_LanzaExcepcionValidacion()
+    {
+        // HU03 — la detección de duplicados vive en el manejador y depende del
+        // puerto segregado IRepositorioUnicidadUsuario. Si el repositorio
+        // reporta alias existente, el manejador lanza ExcepcionValidacion
+        // antes de tocar Keycloak.
+        _unicidad.Setup(r => r.ExisteAliasAsync(It.IsAny<string>(),
+            It.IsAny<CancellationToken>())).ReturnsAsync(true);
+
+        Func<Task> accion = async () => await CrearManejador().Handle(
+            new RegistrarParticipanteComando(Dto()), CancellationToken.None);
+
+        var excepcion = await accion.Should().ThrowAsync<ExcepcionValidacion>();
+        excepcion.Which.Errores.Should().Contain(e =>
+            e.Campo == MensajesValidacionUsuario.CampoAlias);
+        _proveedor.Verify(p => p.CrearUsuarioAsync(
+            It.IsAny<DatosCreacionUsuarioIdentidad>(),
+            It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
     public async Task FalloEnRepositorio_CompensaEliminandoEnKeycloak()
     {
         ConfigurarKeycloak("kc-par-fail");
-        _repositorio.Setup(r => r.GuardarParticipanteAsync(
-            It.IsAny<Participante>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+        // Tras el refactor, el repositorio sólo deja Adds en el contexto; la
+        // confirmación atómica ocurre en la unidad de trabajo. Por eso el
+        // fallo de persistencia se simula sobre GuardarCambiosAsync.
+        _unidad.Setup(u => u.GuardarCambiosAsync(It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("DB caída"));
 
         Func<Task> accion = async () => await CrearManejador().Handle(
@@ -214,7 +248,7 @@ public class RegistrarParticipanteManejadorPruebas
         await accion.Should().ThrowAsync<InvalidOperationException>();
         _proveedor.Verify(p => p.EliminarUsuarioAsync("kc-par-rol", It.IsAny<CancellationToken>()),
             Times.Once);
-        _repositorio.Verify(r => r.GuardarParticipanteAsync(
+        _repositorio.Verify(r => r.AgregarAsync(
             It.IsAny<Participante>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
             Times.Never);
     }
@@ -236,7 +270,7 @@ public class RegistrarParticipanteManejadorPruebas
         ConfigurarKeycloak("kc-par-x");
         Participante? capturado = null;
         _repositorio
-            .Setup(r => r.GuardarParticipanteAsync(It.IsAny<Participante>(), It.IsAny<string>(),
+            .Setup(r => r.AgregarAsync(It.IsAny<Participante>(), It.IsAny<string>(),
                 It.IsAny<CancellationToken>()))
             .Callback<Participante, string, CancellationToken>((p, _, _) => capturado = p)
             .Returns(Task.CompletedTask);
@@ -259,7 +293,7 @@ public class RegistrarParticipanteManejadorPruebas
         ConfigurarKeycloak("kc-par-utc");
         Participante? capturado = null;
         _repositorio
-            .Setup(r => r.GuardarParticipanteAsync(It.IsAny<Participante>(), It.IsAny<string>(),
+            .Setup(r => r.AgregarAsync(It.IsAny<Participante>(), It.IsAny<string>(),
                 It.IsAny<CancellationToken>()))
             .Callback<Participante, string, CancellationToken>((p, _, _) => capturado = p)
             .Returns(Task.CompletedTask);
@@ -282,7 +316,7 @@ public class RegistrarParticipanteManejadorPruebas
         ConfigurarKeycloak("kc-par-dia");
         Participante? capturado = null;
         _repositorio
-            .Setup(r => r.GuardarParticipanteAsync(It.IsAny<Participante>(), It.IsAny<string>(),
+            .Setup(r => r.AgregarAsync(It.IsAny<Participante>(), It.IsAny<string>(),
                 It.IsAny<CancellationToken>()))
             .Callback<Participante, string, CancellationToken>((p, _, _) => capturado = p)
             .Returns(Task.CompletedTask);

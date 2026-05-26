@@ -21,7 +21,7 @@ public class ConsultarUsuariosInternosManejadorPruebas
     // Tamaño de página fijado por HU08.
     private const int TamanioPaginaHu08 = 10;
 
-    private readonly Mock<IRepositorioIdentidad> _repositorio = new();
+    private readonly Mock<IRepositorioUsuariosLectura> _repositorio = new();
 
     private ConsultarUsuariosInternosManejador CrearManejador() => new(_repositorio.Object);
 
@@ -437,10 +437,9 @@ public class ConsultarUsuariosInternosManejadorPruebas
         _repositorio.Verify(
             r => r.ObtenerPorNombreUsuarioAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()),
             Times.Never);
-        _repositorio.Verify(
-            r => r.ConsultarParticipantesAsync(
-                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()),
-            Times.Never);
+        // El puerto IRepositorioUsuariosLectura no expone Participantes; tras
+        // el refactor del repositorio esa responsabilidad vive en
+        // IRepositorioParticipantes, no inyectado en este manejador.
     }
 
     // Filtros desconocidos (p. ej. "Participante" o cualquier otro valor
