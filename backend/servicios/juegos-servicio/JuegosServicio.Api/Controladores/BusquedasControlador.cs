@@ -35,6 +35,26 @@ public sealed class BusquedasControlador : ControllerBase
         return Created($"/api/juegos/busquedas/{busquedaId}", new { id = busquedaId });
     }
 
+    // HU23 — Agregar misión a una etapa de la búsqueda del tesoro.
+    [HttpPost("{busquedaId:guid}/etapas/{etapaId:guid}/misiones")]
+    [ProducesResponseType(StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> AgregarMision(
+        Guid busquedaId,
+        Guid etapaId,
+        [FromBody] AgregarMisionDto dto,
+        CancellationToken cancelacion)
+    {
+        var misionId = await _mediador.Send(new AgregarMisionComando(busquedaId, etapaId, dto), cancelacion);
+        return Created(
+            $"/api/juegos/busquedas/{busquedaId}/etapas/{etapaId}/misiones/{misionId}",
+            new { id = misionId });
+    }
+
     // HU22 — Agregar etapa a una búsqueda del tesoro.
     [HttpPost("{busquedaId:guid}/etapas")]
     [ProducesResponseType(StatusCodes.Status201Created)]

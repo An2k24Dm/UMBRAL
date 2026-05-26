@@ -59,6 +59,22 @@ public sealed class BusquedaTesoro
         return etapa;
     }
 
+    public Mision AgregarMisionAEtapa(
+        Guid etapaId,
+        string titulo,
+        string descripcion,
+        TipoMision tipo,
+        string pistaClave)
+    {
+        if (Estado == EstadoBusqueda.Archivada)
+            throw new ExcepcionDominio("No se pueden agregar misiones a una búsqueda archivada.");
+
+        var etapa = _etapas.FirstOrDefault(e => e.Id == etapaId)
+            ?? throw new ExcepcionNoEncontrado($"No se encontró la etapa con ID '{etapaId}'.");
+
+        return etapa.AgregarMision(titulo, descripcion, tipo, pistaClave);
+    }
+
     public void LimpiarEventos() => _eventos.Clear();
 
     public static BusquedaTesoro Reconstituir(
