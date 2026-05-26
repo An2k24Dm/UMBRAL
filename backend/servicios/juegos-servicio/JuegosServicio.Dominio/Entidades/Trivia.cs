@@ -88,6 +88,43 @@ public sealed class Trivia
         _preguntas.Remove(pregunta);
     }
 
+    public void Activar()
+    {
+        if (Estado != EstadoTrivia.Borrador && Estado != EstadoTrivia.Archivada)
+            throw new ExcepcionDominio("Solo se puede activar una trivia que esté en estado Borrador o Archivada.");
+        if (_preguntas.Count == 0)
+            throw new ExcepcionDominio("La trivia debe tener al menos una pregunta para poder activarse.");
+
+        Estado = EstadoTrivia.Activa;
+        _eventos.Add(new TriviaActivadaEvento(Id, Nombre, _preguntas.Count));
+    }
+
+    public void ModificarDatos(string nuevoNombre, string nuevaDescripcion, int nuevoTiempo)
+    {
+        if (Estado == EstadoTrivia.Archivada)
+            throw new ExcepcionDominio("No se puede modificar una trivia archivada.");
+        if (string.IsNullOrWhiteSpace(nuevoNombre))
+            throw new ExcepcionDominio("El nombre de la trivia es obligatorio.");
+        if (string.IsNullOrWhiteSpace(nuevaDescripcion))
+            throw new ExcepcionDominio("La descripción de la trivia es obligatoria.");
+        if (nuevoTiempo <= 0)
+            throw new ExcepcionDominio("El tiempo límite por pregunta debe ser mayor a cero.");
+
+        Nombre = nuevoNombre.Trim();
+        Descripcion = nuevaDescripcion.Trim();
+        TiempoLimitePorPregunta = nuevoTiempo;
+        _eventos.Add(new TriviaModificadaEvento(Id, Nombre, TiempoLimitePorPregunta));
+    }
+
+    public void Desactivar()
+    {
+        if (Estado == EstadoTrivia.Archivada)
+            throw new ExcepcionDominio("La trivia ya está archivada.");
+
+        Estado = EstadoTrivia.Archivada;
+        _eventos.Add(new TriviaArchivadaEvento(Id));
+    }
+
     public void LimpiarEventos() => _eventos.Clear();
 
     public static Trivia Reconstituir(

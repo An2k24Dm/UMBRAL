@@ -61,6 +61,62 @@ public sealed class TriviasControlador : ControllerBase
         return Ok(resultado);
     }
 
+    // HU18 — Activar trivia (Borrador → Activa).
+    [HttpPatch("{triviaId:guid}/activar")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> ActivarTrivia(Guid triviaId, CancellationToken cancelacion)
+    {
+        var operadorId = ObtenerCreadorId();
+        await _mediador.Send(new ActivarTriviaComando(triviaId, operadorId), cancelacion);
+        return NoContent();
+    }
+
+    // HU19 — Modificar datos generales de una trivia.
+    [HttpPut("{triviaId:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> ModificarTrivia(
+        Guid triviaId,
+        [FromBody] ModificarTriviaDto dto,
+        CancellationToken cancelacion)
+    {
+        await _mediador.Send(new ModificarTriviaComando(triviaId, dto), cancelacion);
+        return NoContent();
+    }
+
+    // HU20 — Archivar trivia (soft delete).
+    [HttpDelete("{triviaId:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> DesactivarTrivia(Guid triviaId, CancellationToken cancelacion)
+    {
+        var operadorId = ObtenerCreadorId();
+        await _mediador.Send(new DesactivarTriviaComando(triviaId, operadorId), cancelacion);
+        return NoContent();
+    }
+
+    // HU20 — Listar trivias activas (para selección en sesiones de juego).
+    [HttpGet("activas")]
+    [ProducesResponseType(typeof(List<TriviaResumenDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> ObtenerTriviasActivas(CancellationToken cancelacion)
+    {
+        var resultado = await _mediador.Send(new ObtenerTriviasActivasConsulta(), cancelacion);
+        return Ok(resultado);
+    }
+
     // HU16 — Agregar pregunta a una trivia en borrador.
     [HttpPost("{triviaId:guid}/preguntas")]
     [ProducesResponseType(StatusCodes.Status201Created)]

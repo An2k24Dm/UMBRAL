@@ -10,6 +10,7 @@ public sealed class ContextoJuegos : DbContext
     public DbSet<TriviaModelo> Trivias => Set<TriviaModelo>();
     public DbSet<PreguntaModelo> Preguntas => Set<PreguntaModelo>();
     public DbSet<OpcionModelo> Opciones => Set<OpcionModelo>();
+    public DbSet<EventoSalidaModelo> EventosSalida => Set<EventoSalidaModelo>();
 
     protected override void OnModelCreating(ModelBuilder constructor)
     {
@@ -61,6 +62,18 @@ public sealed class ContextoJuegos : DbContext
             e.Property(x => x.PreguntaId).HasColumnName("pregunta_id").IsRequired();
             e.Property(x => x.Texto).HasColumnName("texto").HasMaxLength(300).IsRequired();
             e.Property(x => x.EsCorrecta).HasColumnName("es_correcta").IsRequired();
+        });
+
+        // ---------- EventoSalida (Outbox) ----------
+        constructor.Entity<EventoSalidaModelo>(e =>
+        {
+            e.ToTable("EventoSalida");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.Tipo).HasColumnName("tipo").HasMaxLength(100).IsRequired();
+            e.Property(x => x.Datos).HasColumnName("datos").IsRequired();
+            e.Property(x => x.FechaCreacion).HasColumnName("fecha_creacion").IsRequired();
+            e.Property(x => x.Procesado).HasColumnName("procesado").IsRequired();
         });
     }
 }

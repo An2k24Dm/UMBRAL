@@ -1,3 +1,4 @@
+using System.Text.Json;
 using JuegosServicio.Aplicacion.Puertos;
 using JuegosServicio.Commons.Dtos;
 using JuegosServicio.Dominio.Entidades;
@@ -118,6 +119,75 @@ public sealed class RepositorioJuegos : IRepositorioJuegos
         };
     }
 
+    public async Task ActivarTriviaAsync(Trivia trivia, CancellationToken cancelacion)
+    {
+        var modelo = await _contexto.Trivias.FirstOrDefaultAsync(t => t.Id == trivia.Id, cancelacion);
+        if (modelo is null) return;
+
+        modelo.Estado = (int)EstadoTrivia.Activa;
+
+        _contexto.EventosSalida.Add(new EventoSalidaModelo
+        {
+            Id = Guid.NewGuid(),
+            Tipo = "TriviaActivada",
+            Datos = JsonSerializer.Serialize(new
+            {
+                TriviaId = trivia.Id,
+                trivia.Nombre,
+                CantidadPreguntas = trivia.Preguntas.Count
+            }),
+            FechaCreacion = DateTime.UtcNow,
+            Procesado = false
+        });
+
+        await _contexto.SaveChangesAsync(cancelacion);
+    }
+
+    public async Task ModificarDatosTriviaAsync(Trivia trivia, CancellationToken cancelacion)
+    {
+        var modelo = await _contexto.Trivias.FirstOrDefaultAsync(t => t.Id == trivia.Id, cancelacion);
+        if (modelo is null) return;
+
+        modelo.Nombre = trivia.Nombre;
+        modelo.Descripcion = trivia.Descripcion;
+        modelo.TiempoLimitePorPregunta = trivia.TiempoLimitePorPregunta;
+
+        _contexto.EventosSalida.Add(new EventoSalidaModelo
+        {
+            Id = Guid.NewGuid(),
+            Tipo = "TriviaModificada",
+            Datos = JsonSerializer.Serialize(new
+            {
+                TriviaId = trivia.Id,
+                trivia.Nombre,
+                trivia.TiempoLimitePorPregunta
+            }),
+            FechaCreacion = DateTime.UtcNow,
+            Procesado = false
+        });
+
+        await _contexto.SaveChangesAsync(cancelacion);
+    }
+
+    public async Task ArchivarTriviaAsync(Trivia trivia, CancellationToken cancelacion)
+    {
+        var modelo = await _contexto.Trivias.FirstOrDefaultAsync(t => t.Id == trivia.Id, cancelacion);
+        if (modelo is null) return;
+
+        modelo.Estado = (int)EstadoTrivia.Archivada;
+
+        _contexto.EventosSalida.Add(new EventoSalidaModelo
+        {
+            Id = Guid.NewGuid(),
+            Tipo = "TriviaArchivada",
+            Datos = JsonSerializer.Serialize(new { TriviaId = trivia.Id }),
+            FechaCreacion = DateTime.UtcNow,
+            Procesado = false
+        });
+
+        await _contexto.SaveChangesAsync(cancelacion);
+    }
+
     // Consulta optimizada: proyección directa a DTO sin cargar el modelo de dominio.
     public async Task<List<TriviaResumenDto>> ObtenerTriviasEnBorradorAsync(
         Guid creadorId, CancellationToken cancelacion)
@@ -135,6 +205,27 @@ public sealed class RepositorioJuegos : IRepositorioJuegos
                 Descripcion = t.Descripcion,
                 TiempoLimitePorPregunta = t.TiempoLimitePorPregunta,
                 Estado = nameof(EstadoTrivia.Borrador),
+                TotalPreguntas = t.Preguntas.Count,
+                FechaCreacion = t.FechaCreacion
+            })
+            .ToListAsync(cancelacion);
+    }
+
+    public async Task<List<TriviaResumenDto>> ObtenerTriviasActivasAsync(CancellationToken cancelacion)
+    {
+        var estadoActiva = (int)EstadoTrivia.Activa;
+
+        return await _contexto.Trivias
+            .AsNoTracking()
+            .Where(t => t.Estado == estadoActiva)
+            .OrderBy(t => t.Nombre)
+            .Select(t => new TriviaResumenDto
+            {
+                Id = t.Id,
+                Nombre = t.Nombre,
+                Descripcion = t.Descripcion,
+                TiempoLimitePorPregunta = t.TiempoLimitePorPregunta,
+                Estado = nameof(EstadoTrivia.Activa),
                 TotalPreguntas = t.Preguntas.Count,
                 FechaCreacion = t.FechaCreacion
             })
