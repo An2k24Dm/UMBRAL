@@ -22,7 +22,10 @@ const ENDPOINTS = {
   // HU20
   archivarTrivia: (triviaId: string) =>
     `/api/juegos/trivias/${encodeURIComponent(triviaId)}`,
-  listarActivas: '/api/juegos/trivias/activas'
+  listarActivas: '/api/juegos/trivias/activas',
+  // HU21
+  crearBusqueda:       '/api/juegos/busquedas',
+  listarBusquedasBorrador: '/api/juegos/busquedas/borrador'
 }
 
 function auth(token: string) {
@@ -105,6 +108,20 @@ export interface TriviaActivaResumenDto {
   tiempoLimitePorPregunta: number
   totalPreguntas: number
   fechaCreacion: string
+}
+
+export interface BusquedaTesoroResumenDto {
+  id: string
+  nombre: string
+  descripcion: string
+  estado: string
+  totalEtapas: number
+  fechaCreacion: string
+}
+
+export interface DatosCrearBusquedaTesoro {
+  nombre: string
+  descripcion: string
 }
 
 // ---------------------------------------------------------------------------
@@ -200,6 +217,40 @@ export async function modificarPregunta(
   if (respuesta.status === 403) throw new Error('No tiene permisos.')
   if (respuesta.status === 404) throw new Error('Pregunta no encontrada.')
   if (!respuesta.ok) throw new Error(await leerError(respuesta))
+}
+
+// ---------------------------------------------------------------------------
+// HU21 — Crear búsqueda del tesoro
+// ---------------------------------------------------------------------------
+export async function crearBusquedaTesoro(
+  datos: DatosCrearBusquedaTesoro,
+  token: string
+): Promise<string> {
+  const respuesta = await fetch(`${URL_API}${ENDPOINTS.crearBusqueda}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...auth(token) },
+    body: JSON.stringify(datos)
+  })
+  if (respuesta.status === 401) throw new Error('Debe iniciar sesión.')
+  if (respuesta.status === 403) throw new Error('No tiene permisos para crear búsquedas del tesoro.')
+  if (!respuesta.ok) throw new Error(await leerError(respuesta))
+  const cuerpo = (await respuesta.json()) as { id: string }
+  return cuerpo.id
+}
+
+// ---------------------------------------------------------------------------
+// HU21 — Listar búsquedas en borrador
+// ---------------------------------------------------------------------------
+export async function obtenerBusquedasEnBorrador(
+  token: string
+): Promise<BusquedaTesoroResumenDto[]> {
+  const respuesta = await fetch(`${URL_API}${ENDPOINTS.listarBusquedasBorrador}`, {
+    headers: auth(token)
+  })
+  if (respuesta.status === 401) throw new Error('Debe iniciar sesión.')
+  if (respuesta.status === 403) throw new Error('No tiene permisos.')
+  if (!respuesta.ok) throw new Error(await leerError(respuesta))
+  return (await respuesta.json()) as BusquedaTesoroResumenDto[]
 }
 
 // ---------------------------------------------------------------------------
