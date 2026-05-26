@@ -18,7 +18,11 @@ const ENDPOINTS = {
     `/api/juegos/trivias/${encodeURIComponent(triviaId)}/activar`,
   // HU19
   modificarTrivia: (triviaId: string) =>
-    `/api/juegos/trivias/${encodeURIComponent(triviaId)}`
+    `/api/juegos/trivias/${encodeURIComponent(triviaId)}`,
+  // HU20
+  archivarTrivia: (triviaId: string) =>
+    `/api/juegos/trivias/${encodeURIComponent(triviaId)}`,
+  listarActivas: '/api/juegos/trivias/activas'
 }
 
 function auth(token: string) {
@@ -92,6 +96,15 @@ export interface DatosModificarTrivia {
   nuevoNombre: string
   nuevaDescripcion: string
   nuevoTiempoLimitePorPregunta: number
+}
+
+export interface TriviaActivaResumenDto {
+  id: string
+  nombre: string
+  descripcion: string
+  tiempoLimitePorPregunta: number
+  totalPreguntas: number
+  fechaCreacion: string
 }
 
 // ---------------------------------------------------------------------------
@@ -187,6 +200,38 @@ export async function modificarPregunta(
   if (respuesta.status === 403) throw new Error('No tiene permisos.')
   if (respuesta.status === 404) throw new Error('Pregunta no encontrada.')
   if (!respuesta.ok) throw new Error(await leerError(respuesta))
+}
+
+// ---------------------------------------------------------------------------
+// HU20 — Archivar trivia
+// ---------------------------------------------------------------------------
+export async function archivarTrivia(
+  triviaId: string,
+  token: string
+): Promise<void> {
+  const respuesta = await fetch(`${URL_API}${ENDPOINTS.archivarTrivia(triviaId)}`, {
+    method: 'DELETE',
+    headers: auth(token)
+  })
+  if (respuesta.status === 401) throw new Error('Debe iniciar sesión.')
+  if (respuesta.status === 403) throw new Error('No tiene permisos.')
+  if (respuesta.status === 404) throw new Error('Trivia no encontrada.')
+  if (!respuesta.ok) throw new Error(await leerError(respuesta))
+}
+
+// ---------------------------------------------------------------------------
+// HU20 — Listar trivias activas
+// ---------------------------------------------------------------------------
+export async function obtenerTriviasActivas(
+  token: string
+): Promise<TriviaActivaResumenDto[]> {
+  const respuesta = await fetch(`${URL_API}${ENDPOINTS.listarActivas}`, {
+    headers: auth(token)
+  })
+  if (respuesta.status === 401) throw new Error('Debe iniciar sesión.')
+  if (respuesta.status === 403) throw new Error('No tiene permisos.')
+  if (!respuesta.ok) throw new Error(await leerError(respuesta))
+  return (await respuesta.json()) as TriviaActivaResumenDto[]
 }
 
 // ---------------------------------------------------------------------------
