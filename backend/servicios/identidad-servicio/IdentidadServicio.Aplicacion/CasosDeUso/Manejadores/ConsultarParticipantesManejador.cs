@@ -14,9 +14,9 @@ public sealed class ConsultarParticipantesManejador
 {
     private const int TamanioPaginaFijo = 10;
 
-    private readonly IRepositorioIdentidad _repositorio;
+    private readonly IRepositorioParticipantes _repositorio;
 
-    public ConsultarParticipantesManejador(IRepositorioIdentidad repositorio)
+    public ConsultarParticipantesManejador(IRepositorioParticipantes repositorio)
     {
         _repositorio = repositorio;
     }
@@ -28,9 +28,9 @@ public sealed class ConsultarParticipantesManejador
         var tamanio = consulta.TamanioPagina <= 0 ? TamanioPaginaFijo : consulta.TamanioPagina;
         var orden = NormalizarOrden(consulta.OrdenEstado);
 
-        var participantes = await _repositorio.ConsultarParticipantesAsync(
+        var participantes = await _repositorio.ConsultarAsync(
             pagina, tamanio, orden, cancelacion);
-        var total = await _repositorio.ContarParticipantesAsync(cancelacion);
+        var total = await _repositorio.ContarAsync(cancelacion);
 
         var elementos = participantes
             .Select(p => new ParticipanteListadoDto

@@ -141,4 +141,38 @@ public sealed class UsuariosControlador : ControllerBase
 
         return Ok((object)perfil);
     }
+
+    // HU09 — edición parcial del perfil de un Operador desde el panel web.
+    // Sólo Administrador puede ejecutar la acción (Operador y Participante
+    // quedan fuera por la política; el anónimo recibe 401). El controlador no
+    // contiene lógica de negocio: delega validación, búsqueda, actualización
+    // y sincronización con Keycloak al manejador del comando.
+    [HttpPatch("operadores/{id:guid}")]
+    [Authorize(Policy = "PoliticaAdministrador")]
+    [ProducesResponseType(typeof(ModificarOperadorRespuestaDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ModificarOperador(
+        Guid id,
+        [FromBody] ModificarOperadorSolicitudDto dto,
+        CancellationToken cancelacion)
+    {
+        try
+        {
+            var resultado = await _mediador.Send(
+                new ModificarOperadorComando(id, dto), cancelacion);
+            return Ok(resultado);
+        }
+        catch (DatosUsuarioInvalidosExcepcion ex)
+            when (ex.Message.Contains("No existe un Operador", StringComparison.OrdinalIgnoreCase))
+        {
+            return NotFound(new
+            {
+                codigo = "OPERADOR_NO_ENCONTRADO",
+                mensaje = "El operador solicitado no existe."
+            });
+        }
+    }
 }

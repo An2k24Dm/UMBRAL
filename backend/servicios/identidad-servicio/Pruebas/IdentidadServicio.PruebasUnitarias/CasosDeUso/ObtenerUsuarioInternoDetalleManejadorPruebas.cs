@@ -21,7 +21,7 @@ namespace IdentidadServicio.PruebasUnitarias.CasosDeUso;
 // en el controlador, fuera del alcance de estas pruebas unitarias).
 public class ObtenerUsuarioInternoDetalleManejadorPruebas
 {
-    private readonly Mock<IRepositorioIdentidad> _repositorio = new();
+    private readonly Mock<IRepositorioUsuariosLectura> _repositorio = new();
 
     private static FabricaEstrategiaMapeoPerfilUsuario CrearFabricaMapeo() =>
         new(new IEstrategiaMapeoPerfilUsuario[]

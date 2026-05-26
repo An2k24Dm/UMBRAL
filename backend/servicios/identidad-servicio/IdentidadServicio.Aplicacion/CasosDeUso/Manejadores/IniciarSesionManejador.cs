@@ -14,16 +14,16 @@ public sealed class IniciarSesionManejador
     : IRequestHandler<IniciarSesionComando, ResultadoInicioSesionDto>
 {
     private readonly IProveedorIdentidad _proveedor;
-    private readonly IRepositorioIdentidad _repositorio;
+    private readonly IRepositorioUsuariosLectura _repositorioLectura;
     private readonly ILogger<IniciarSesionManejador> _registro;
 
     public IniciarSesionManejador(
         IProveedorIdentidad proveedor,
-        IRepositorioIdentidad repositorio,
+        IRepositorioUsuariosLectura repositorioLectura,
         ILogger<IniciarSesionManejador> registro)
     {
         _proveedor = proveedor;
-        _repositorio = repositorio;
+        _repositorioLectura = repositorioLectura;
         _registro = registro;
     }
 
@@ -44,7 +44,7 @@ public sealed class IniciarSesionManejador
                             ?? throw new DatosUsuarioInvalidosExcepcion("Credenciales inválidas.");
 
         // 2) Buscar el usuario interno por IdKeycloak.
-        var usuario = await _repositorio.ObtenerPorIdKeycloakAsync(autenticacion.IdKeycloak, cancelacion)
+        var usuario = await _repositorioLectura.ObtenerPorIdKeycloakAsync(autenticacion.IdKeycloak, cancelacion)
                       ?? throw new DatosUsuarioInvalidosExcepcion("El usuario no está registrado en UMBRAL.");
 
         // 3) Reglas de dominio (cuenta desactivada / rol inválido).
