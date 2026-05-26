@@ -10,6 +10,7 @@ import { PaginaDetalleUsuario } from './paginas/PaginaDetalleUsuario'
 import { PaginaListaTrivias } from './paginas/PaginaListaTrivias'
 import { PaginaCrearTrivia } from './paginas/PaginaCrearTrivia'
 import { PaginaGestionPreguntas } from './paginas/PaginaGestionPreguntas'
+import { PaginaListaTriviasActivas } from './paginas/PaginaListaTriviasActivas'
 import {
   obtenerDetalleParticipante,
   obtenerDetalleUsuarioInterno
@@ -145,6 +146,15 @@ export function Aplicacion() {
         element={
           <RutaProtegida rolesPermitidos={['Operador']}>
             <PaginaCrearTrivia />
+          </RutaProtegida>
+        }
+      />
+      {/* HU20 — Listar trivias activas. */}
+      <Route
+        path="/operador/trivias/activas"
+        element={
+          <RutaProtegida rolesPermitidos={['Operador']}>
+            <PaginaListaTriviasActivas />
           </RutaProtegida>
         }
       />
