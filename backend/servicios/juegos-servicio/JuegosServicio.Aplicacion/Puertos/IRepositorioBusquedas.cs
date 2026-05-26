@@ -9,4 +9,5 @@ public interface IRepositorioBusquedas
     Task CrearBusquedaTesoroAsync(BusquedaTesoro busqueda, CancellationToken cancelacion);
     Task<BusquedaTesoro?> ObtenerBusquedaPorIdAsync(Guid busquedaId, CancellationToken cancelacion);
     Task<List<BusquedaTesoroResumenDto>> ObtenerBusquedasEnBorradorAsync(Guid creadorId, CancellationToken cancelacion);
+    Task AgregarEtapaAsync(Guid busquedaId, Etapa etapa, CancellationToken cancelacion);
 }

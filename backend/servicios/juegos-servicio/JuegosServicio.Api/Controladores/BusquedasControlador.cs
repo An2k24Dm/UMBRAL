@@ -35,6 +35,25 @@ public sealed class BusquedasControlador : ControllerBase
         return Created($"/api/juegos/busquedas/{busquedaId}", new { id = busquedaId });
     }
 
+    // HU22 — Agregar etapa a una búsqueda del tesoro.
+    [HttpPost("{busquedaId:guid}/etapas")]
+    [ProducesResponseType(StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> AgregarEtapa(
+        Guid busquedaId,
+        [FromBody] AgregarEtapaDto dto,
+        CancellationToken cancelacion)
+    {
+        var etapaId = await _mediador.Send(new AgregarEtapaComando(busquedaId, dto), cancelacion);
+        return Created(
+            $"/api/juegos/busquedas/{busquedaId}/etapas/{etapaId}",
+            new { id = etapaId });
+    }
+
     // HU21 — Listar búsquedas del tesoro en borrador del operador autenticado.
     [HttpGet("borrador")]
     [ProducesResponseType(typeof(List<BusquedaTesoroResumenDto>), StatusCodes.Status200OK)]
