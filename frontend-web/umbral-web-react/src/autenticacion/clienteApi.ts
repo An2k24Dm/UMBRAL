@@ -33,7 +33,10 @@ const ENDPOINTS = {
   listarUsuariosInternos: '/api/usuarios/internos',
   // HU08 — detalle de un usuario interno (Operador / Administrador).
   detalleUsuarioInterno: (id: string) =>
-    `/api/usuarios/internos/${encodeURIComponent(id)}`
+    `/api/usuarios/internos/${encodeURIComponent(id)}`,
+  // HU09 — modificación parcial de un Operador (sólo Administrador).
+  modificarOperador: (id: string) =>
+    `/api/usuarios/operadores/${encodeURIComponent(id)}`
 }
 
 // ---------------------------------------------------------------------------
@@ -252,4 +255,65 @@ export async function obtenerDetalleUsuarioInterno(
     `${URL_API}${ENDPOINTS.detalleUsuarioInterno(id)}`,
     token
   )
+}
+
+// ---------------------------------------------------------------------------
+// HU09 — modificación parcial del Operador
+// ---------------------------------------------------------------------------
+//
+// El payload sólo lleva los campos que efectivamente cambiaron en el formulario
+// — los demás se omiten para que el backend no los sobrescriba. Estado,
+// FechaRegistro y Rol no son editables y NUNCA se envían.
+export interface ModificarOperadorPayload {
+  nombreUsuario?: string
+  correo?: string
+  nombre?: string
+  apellido?: string
+  sexo?: string
+  fechaNacimiento?: string
+  datosContacto?: {
+    direccion?: string
+    telefono?: string
+  }
+}
+
+export interface ModificarOperadorRespuesta {
+  huboCambios: boolean
+  camposActualizados: string[]
+  mensaje: string
+  operador: UsuarioDetalle
+}
+
+export async function modificarOperador(
+  id: string,
+  cambios: ModificarOperadorPayload,
+  token: string
+): Promise<ModificarOperadorRespuesta> {
+  const respuesta = await fetch(`${URL_API}${ENDPOINTS.modificarOperador(id)}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      ...autorizacion(token)
+    },
+    body: JSON.stringify(cambios)
+  })
+
+  if (respuesta.status === 401) throw new Error('Debe iniciar sesión como administrador.')
+  if (respuesta.status === 403) throw new Error('No tiene permisos para modificar operadores.')
+  if (respuesta.status === 404) throw new Error('El operador solicitado no existe.')
+
+  if (!respuesta.ok) {
+    const cuerpoError = (await respuesta.json().catch(() => null)) as
+      | { mensaje?: string; errores?: ErrorCampo[] }
+      | null
+    if (cuerpoError?.errores && cuerpoError.errores.length > 0) {
+      throw new ErrorValidacionRegistro(
+        cuerpoError.mensaje ?? 'No fue posible modificar el operador. Revise los campos marcados.',
+        cuerpoError.errores
+      )
+    }
+    throw new Error(cuerpoError?.mensaje ?? 'No fue posible modificar el operador.')
+  }
+
+  return (await respuesta.json()) as ModificarOperadorRespuesta
 }

@@ -14,13 +14,13 @@ public class ParticipanteListadoDtoPruebas
 {
     private static ParticipanteListadoDto MapearViaManejador(Participante participante)
     {
-        var repositorio = new Mock<IRepositorioIdentidad>();
+        var repositorio = new Mock<IRepositorioParticipantes>();
         repositorio
-            .Setup(r => r.ConsultarParticipantesAsync(
+            .Setup(r => r.ConsultarAsync(
                 It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new[] { participante });
         repositorio
-            .Setup(r => r.ContarParticipantesAsync(It.IsAny<CancellationToken>()))
+            .Setup(r => r.ContarAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(1);
 
         var manejador = new ConsultarParticipantesManejador(repositorio.Object);

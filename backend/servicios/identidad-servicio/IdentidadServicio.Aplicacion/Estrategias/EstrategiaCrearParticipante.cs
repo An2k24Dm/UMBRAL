@@ -1,4 +1,3 @@
-using IdentidadServicio.Aplicacion.Puertos;
 using IdentidadServicio.Dominio.Entidades;
 using IdentidadServicio.Dominio.Enums;
 using IdentidadServicio.Dominio.Excepciones;
@@ -36,11 +35,4 @@ public sealed class EstrategiaCrearParticipante : IEstrategiaCreacionUsuario
         return Task.FromResult(participante);
     }
 
-    public Task GuardarAsync(
-        Usuario usuario, string idKeycloak,
-        IRepositorioIdentidad repositorio, CancellationToken cancelacion)
-    {
-        return repositorio.GuardarParticipanteAsync(
-            (Participante)usuario, idKeycloak, cancelacion);
-    }
 }

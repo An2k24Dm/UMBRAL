@@ -3,6 +3,10 @@ using IdentidadServicio.Aplicacion.Puertos;
 
 namespace IdentidadServicio.Aplicacion.Generadores;
 
+// Tras el refactor del repositorio el generador ya no depende de la fachada
+// IRepositorioIdentidad: cada código vive en su repositorio específico
+// (IRepositorioOperadores / IRepositorioAdministradores). Esto deja explícito
+// qué dependencias necesita el generador.
 public sealed class GeneradorCodigoUsuario : IGeneradorCodigoUsuario
 {
     private const string PrefijoOperador = "OP-";
@@ -13,22 +17,26 @@ public sealed class GeneradorCodigoUsuario : IGeneradorCodigoUsuario
     private static readonly Regex PatronAdministrador =
         new(@"^AD-(\d+)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
-    private readonly IRepositorioIdentidad _repositorio;
+    private readonly IRepositorioOperadores _repositorioOperadores;
+    private readonly IRepositorioAdministradores _repositorioAdministradores;
 
-    public GeneradorCodigoUsuario(IRepositorioIdentidad repositorio)
+    public GeneradorCodigoUsuario(
+        IRepositorioOperadores repositorioOperadores,
+        IRepositorioAdministradores repositorioAdministradores)
     {
-        _repositorio = repositorio;
+        _repositorioOperadores = repositorioOperadores;
+        _repositorioAdministradores = repositorioAdministradores;
     }
 
     public async Task<string> GenerarCodigoOperadorAsync(CancellationToken cancelacion)
     {
-        var ultimo = await _repositorio.ObtenerUltimoCodigoOperadorAsync(cancelacion);
+        var ultimo = await _repositorioOperadores.ObtenerUltimoCodigoAsync(cancelacion);
         return Formatear(PrefijoOperador, SiguienteNumero(ultimo, PatronOperador));
     }
 
     public async Task<string> GenerarCodigoAdministradorAsync(CancellationToken cancelacion)
     {
-        var ultimo = await _repositorio.ObtenerUltimoCodigoAdministradorAsync(cancelacion);
+        var ultimo = await _repositorioAdministradores.ObtenerUltimoCodigoAsync(cancelacion);
         return Formatear(PrefijoAdministrador, SiguienteNumero(ultimo, PatronAdministrador));
     }
 

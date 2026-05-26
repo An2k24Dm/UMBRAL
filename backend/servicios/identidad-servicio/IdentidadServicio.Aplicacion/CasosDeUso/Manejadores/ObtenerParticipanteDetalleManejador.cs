@@ -15,11 +15,11 @@ namespace IdentidadServicio.Aplicacion.CasosDeUso.Manejadores;
 public sealed class ObtenerParticipanteDetalleManejador
     : IRequestHandler<ObtenerParticipanteDetalleConsulta, PerfilParticipanteDto>
 {
-    private readonly IRepositorioIdentidad _repositorio;
+    private readonly IRepositorioParticipantes _repositorio;
     private readonly FabricaEstrategiaMapeoPerfilUsuario _fabricaMapeo;
 
     public ObtenerParticipanteDetalleManejador(
-        IRepositorioIdentidad repositorio,
+        IRepositorioParticipantes repositorio,
         FabricaEstrategiaMapeoPerfilUsuario fabricaMapeo)
     {
         _repositorio = repositorio;
@@ -29,7 +29,7 @@ public sealed class ObtenerParticipanteDetalleManejador
     public async Task<PerfilParticipanteDto> Handle(
         ObtenerParticipanteDetalleConsulta consulta, CancellationToken cancelacion)
     {
-        var participante = await _repositorio.ObtenerParticipantePorIdAsync(consulta.Id, cancelacion)
+        var participante = await _repositorio.ObtenerPorIdAsync(consulta.Id, cancelacion)
                            ?? throw new DatosUsuarioInvalidosExcepcion("Participante no encontrado.");
 
         return (PerfilParticipanteDto)_fabricaMapeo.Mapear(participante);

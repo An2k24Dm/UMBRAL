@@ -76,4 +76,50 @@ public abstract class Usuario
 
     public void Desactivar() => Estado = EstadoUsuario.Inactivo;
     public void Activar() => Estado = EstadoUsuario.Activo;
+
+    // HU09 — métodos de actualización parcial. Cada método valida (a través de
+    // los objetos de valor existentes) y reemplaza únicamente el campo recibido.
+    // Estado, Rol, FechaRegistro y Id no se modifican en esta HU: por eso no
+    // hay setters públicos para ellos.
+    public void ActualizarNombreUsuario(NombreUsuario nuevoNombreUsuario)
+    {
+        if (nuevoNombreUsuario is null)
+            throw new DatosUsuarioInvalidosExcepcion("El nombre de usuario es obligatorio.");
+        NombreUsuario = nuevoNombreUsuario;
+    }
+
+    public void ActualizarCorreo(Correo nuevoCorreo)
+    {
+        if (nuevoCorreo is null)
+            throw new DatosUsuarioInvalidosExcepcion("El correo es obligatorio.");
+        Correo = nuevoCorreo;
+    }
+
+    public void ActualizarNombrePersona(NombrePersona nuevoNombrePersona)
+    {
+        if (nuevoNombrePersona is null)
+            throw new DatosUsuarioInvalidosExcepcion("Los datos de persona son obligatorios.");
+        NombrePersona = nuevoNombrePersona;
+    }
+
+    public void ActualizarDatosContacto(DatosContacto nuevosDatosContacto)
+    {
+        if (nuevosDatosContacto is null)
+            throw new DatosUsuarioInvalidosExcepcion("Los datos de contacto son obligatorios.");
+        DatosContacto = nuevosDatosContacto;
+    }
+
+    public void ActualizarSexo(SexoPersona nuevoSexo)
+    {
+        if (!Enum.IsDefined(typeof(SexoPersona), nuevoSexo))
+            throw new DatosUsuarioInvalidosExcepcion("El sexo no es válido.");
+        Sexo = nuevoSexo;
+    }
+
+    public void ActualizarFechaNacimiento(DateTime nuevaFechaNacimiento)
+    {
+        if (nuevaFechaNacimiento == default || nuevaFechaNacimiento > FechaRegistro)
+            throw new DatosUsuarioInvalidosExcepcion("La fecha de nacimiento no es válida.");
+        FechaNacimiento = nuevaFechaNacimiento;
+    }
 }

@@ -1,4 +1,5 @@
 using FluentAssertions;
+using IdentidadServicio.Aplicacion.CasosDeUso.Comandos;
 using IdentidadServicio.Aplicacion.Puertos;
 using IdentidadServicio.Aplicacion.Validaciones;
 using IdentidadServicio.Commons.Dtos;
@@ -7,16 +8,24 @@ using Moq;
 
 namespace IdentidadServicio.PruebasUnitarias.Validaciones;
 
+// HU02 — pruebas del validador de creación de Operador/Administrador después
+// del refactor. El validador ahora:
+//  * opera sobre CrearUsuarioComando,
+//  * es sincrónico (devuelve ResultadoValidacion en lugar de lanzar),
+//  * delega las reglas comunes en IReglasValidacionUsuario (instanciamos la
+//    implementación real para garantizar que las reglas comunes funcionan).
+//
+// Las pruebas de duplicados (correo / nombreUsuario / teléfono) NO viven más
+// aquí porque dependen del repositorio: están en CrearUsuarioManejadorPruebas.
 public class ValidadorCrearUsuarioPruebas
 {
-    private readonly Mock<IRepositorioIdentidad> _repositorio = new();
     private readonly Mock<IProveedorFechaHora> _reloj = new();
     private static readonly DateTime Ahora = new(2026, 5, 17, 0, 0, 0, DateTimeKind.Utc);
 
     private ValidadorCrearUsuario CrearValidador()
     {
         _reloj.Setup(r => r.ObtenerFechaHoraUtc()).Returns(Ahora);
-        return new ValidadorCrearUsuario(_repositorio.Object, _reloj.Object);
+        return new ValidadorCrearUsuario(new ReglasValidacionUsuario(_reloj.Object));
     }
 
     private static CrearUsuarioDto DtoOperadorValido() => new()
@@ -50,18 +59,8 @@ public class ValidadorCrearUsuarioPruebas
         return dto;
     }
 
-    private async Task<List<ErrorValidacion>> ValidarYObtenerErroresAsync(CrearUsuarioDto dto)
-    {
-        try
-        {
-            await CrearValidador().ValidarAsync(dto, CancellationToken.None);
-            return new List<ErrorValidacion>();
-        }
-        catch (ExcepcionValidacion ex)
-        {
-            return ex.Errores.ToList();
-        }
-    }
+    private List<ErrorValidacion> Validar(CrearUsuarioDto dto)
+        => CrearValidador().Validar(new CrearUsuarioComando(dto)).Errores;
 
     private static bool TieneError(List<ErrorValidacion> errores, string campo, string mensaje) =>
         errores.Any(e => e.Campo == campo && e.Mensaje == mensaje);
@@ -69,201 +68,158 @@ public class ValidadorCrearUsuarioPruebas
     // ---------- NombreUsuario ----------
 
     [Fact]
-    public async Task Falla_Si_NombreUsuarioVacio()
+    public void Falla_Si_NombreUsuarioVacio()
     {
         var dto = DtoOperadorValido(); dto.NombreUsuario = "";
-        var errores = await ValidarYObtenerErroresAsync(dto);
-        TieneError(errores, "nombreUsuario", MensajesValidacionUsuario.NombreUsuarioObligatorio)
+        TieneError(Validar(dto), "nombreUsuario", MensajesValidacionUsuario.NombreUsuarioObligatorio)
             .Should().BeTrue();
     }
 
     [Fact]
-    public async Task Falla_Si_NombreUsuarioDuplicado()
+    public void Falla_Si_NombreUsuarioFormatoInvalido()
     {
-        _repositorio.Setup(r => r.ExisteNombreUsuarioAsync(It.IsAny<string>(),
-            It.IsAny<CancellationToken>())).ReturnsAsync(true);
-
-        var errores = await ValidarYObtenerErroresAsync(DtoOperadorValido());
-        TieneError(errores, "nombreUsuario", MensajesValidacionUsuario.NombreUsuarioDuplicado)
+        var dto = DtoOperadorValido(); dto.NombreUsuario = "ab";
+        TieneError(Validar(dto), "nombreUsuario", MensajesValidacionUsuario.NombreUsuarioFormato)
             .Should().BeTrue();
     }
 
     // ---------- Correo ----------
 
     [Fact]
-    public async Task Falla_Si_CorreoVacio()
+    public void Falla_Si_CorreoVacio()
     {
         var dto = DtoOperadorValido(); dto.Correo = "";
-        var errores = await ValidarYObtenerErroresAsync(dto);
-        TieneError(errores, "correo", MensajesValidacionUsuario.CorreoObligatorio).Should().BeTrue();
+        TieneError(Validar(dto), "correo", MensajesValidacionUsuario.CorreoObligatorio).Should().BeTrue();
     }
 
     [Fact]
-    public async Task Falla_Si_CorreoFormatoInvalido()
+    public void Falla_Si_CorreoFormatoInvalido()
     {
         var dto = DtoOperadorValido(); dto.Correo = "no-es-correo";
-        var errores = await ValidarYObtenerErroresAsync(dto);
-        TieneError(errores, "correo", MensajesValidacionUsuario.CorreoFormato).Should().BeTrue();
-    }
-
-    [Fact]
-    public async Task Falla_Si_CorreoDuplicado()
-    {
-        _repositorio.Setup(r => r.ExisteCorreoAsync(It.IsAny<string>(),
-            It.IsAny<CancellationToken>())).ReturnsAsync(true);
-
-        var errores = await ValidarYObtenerErroresAsync(DtoOperadorValido());
-        TieneError(errores, "correo", MensajesValidacionUsuario.CorreoDuplicado).Should().BeTrue();
+        TieneError(Validar(dto), "correo", MensajesValidacionUsuario.CorreoFormato).Should().BeTrue();
     }
 
     // ---------- Contraseña ----------
 
     [Fact]
-    public async Task Falla_Si_ContrasenaVacia()
+    public void Falla_Si_ContrasenaVacia()
     {
         var dto = DtoOperadorValido(); dto.Contrasena = "";
-        var errores = await ValidarYObtenerErroresAsync(dto);
-        TieneError(errores, "contrasena", MensajesValidacionUsuario.ContrasenaObligatoria)
+        TieneError(Validar(dto), "contrasena", MensajesValidacionUsuario.ContrasenaObligatoria)
             .Should().BeTrue();
     }
 
     [Fact]
-    public async Task Falla_Si_ContrasenaCorta()
+    public void Falla_Si_ContrasenaCorta()
     {
         var dto = DtoOperadorValido(); dto.Contrasena = "A1*";
-        var errores = await ValidarYObtenerErroresAsync(dto);
-        TieneError(errores, "contrasena", MensajesValidacionUsuario.ContrasenaLongitud)
+        TieneError(Validar(dto), "contrasena", MensajesValidacionUsuario.ContrasenaLongitud)
             .Should().BeTrue();
     }
 
     [Fact]
-    public async Task Falla_Si_ContrasenaLarga()
+    public void Falla_Si_ContrasenaLarga()
     {
         var dto = DtoOperadorValido(); dto.Contrasena = "Abcdef1234*";
-        var errores = await ValidarYObtenerErroresAsync(dto);
-        TieneError(errores, "contrasena", MensajesValidacionUsuario.ContrasenaLongitud)
+        TieneError(Validar(dto), "contrasena", MensajesValidacionUsuario.ContrasenaLongitud)
             .Should().BeTrue();
     }
 
     [Fact]
-    public async Task Falla_Si_ContrasenaSinNumero()
+    public void Falla_Si_ContrasenaSinNumero()
     {
         var dto = DtoOperadorValido(); dto.Contrasena = "Abcd*";
-        var errores = await ValidarYObtenerErroresAsync(dto);
-        TieneError(errores, "contrasena", MensajesValidacionUsuario.ContrasenaSinNumero)
+        TieneError(Validar(dto), "contrasena", MensajesValidacionUsuario.ContrasenaSinNumero)
             .Should().BeTrue();
     }
 
     [Fact]
-    public async Task Falla_Si_ContrasenaSinEspecial()
+    public void Falla_Si_ContrasenaSinEspecial()
     {
         var dto = DtoOperadorValido(); dto.Contrasena = "Abcd1";
-        var errores = await ValidarYObtenerErroresAsync(dto);
-        TieneError(errores, "contrasena", MensajesValidacionUsuario.ContrasenaSinEspecial)
+        TieneError(Validar(dto), "contrasena", MensajesValidacionUsuario.ContrasenaSinEspecial)
             .Should().BeTrue();
     }
 
-    // ---------- Nombre ----------
+    // ---------- Nombre / Apellido ----------
 
     [Fact]
-    public async Task Falla_Si_NombreVacio()
+    public void Falla_Si_NombreVacio()
     {
         var dto = DtoOperadorValido(); dto.Nombre = "";
-        var errores = await ValidarYObtenerErroresAsync(dto);
-        TieneError(errores, "nombre", MensajesValidacionUsuario.NombreObligatorio).Should().BeTrue();
+        TieneError(Validar(dto), "nombre", MensajesValidacionUsuario.NombreObligatorio).Should().BeTrue();
     }
 
     [Fact]
-    public async Task Falla_Si_NombreConNumeros()
+    public void Falla_Si_NombreConNumeros()
     {
         var dto = DtoOperadorValido(); dto.Nombre = "Ana123";
-        var errores = await ValidarYObtenerErroresAsync(dto);
-        TieneError(errores, "nombre", MensajesValidacionUsuario.NombreSoloLetras).Should().BeTrue();
+        TieneError(Validar(dto), "nombre", MensajesValidacionUsuario.NombreSoloLetras).Should().BeTrue();
     }
 
     [Fact]
-    public async Task Falla_Si_NombreConCaracteresEspeciales()
+    public void Falla_Si_NombreConCaracteresEspeciales()
     {
         var dto = DtoOperadorValido(); dto.Nombre = "Ana@";
-        var errores = await ValidarYObtenerErroresAsync(dto);
-        TieneError(errores, "nombre", MensajesValidacionUsuario.NombreSoloLetras).Should().BeTrue();
+        TieneError(Validar(dto), "nombre", MensajesValidacionUsuario.NombreSoloLetras).Should().BeTrue();
     }
 
-    // ---------- Apellido ----------
-
     [Fact]
-    public async Task Falla_Si_ApellidoVacio()
+    public void Falla_Si_ApellidoVacio()
     {
         var dto = DtoOperadorValido(); dto.Apellido = "";
-        var errores = await ValidarYObtenerErroresAsync(dto);
-        TieneError(errores, "apellido", MensajesValidacionUsuario.ApellidoObligatorio)
+        TieneError(Validar(dto), "apellido", MensajesValidacionUsuario.ApellidoObligatorio)
             .Should().BeTrue();
     }
 
     [Fact]
-    public async Task Falla_Si_ApellidoConNumeros()
+    public void Falla_Si_ApellidoConNumeros()
     {
         var dto = DtoOperadorValido(); dto.Apellido = "Perez1";
-        var errores = await ValidarYObtenerErroresAsync(dto);
-        TieneError(errores, "apellido", MensajesValidacionUsuario.ApellidoSoloLetras)
+        TieneError(Validar(dto), "apellido", MensajesValidacionUsuario.ApellidoSoloLetras)
             .Should().BeTrue();
     }
 
-    // ---------- Teléfono ----------
+    // ---------- Teléfono / Dirección ----------
 
     [Fact]
-    public async Task Falla_Si_TelefonoVacio()
+    public void Falla_Si_TelefonoVacio()
     {
         var dto = DtoOperadorValido();
         dto.DatosContacto = new DatosContactoDto { Telefono = "" };
-        var errores = await ValidarYObtenerErroresAsync(dto);
-        TieneError(errores, "datosContacto.telefono", MensajesValidacionUsuario.TelefonoObligatorio)
+        TieneError(Validar(dto), "datosContacto.telefono", MensajesValidacionUsuario.TelefonoObligatorio)
             .Should().BeTrue();
     }
 
     [Fact]
-    public async Task Falla_Si_TelefonoConLetras()
+    public void Falla_Si_TelefonoConLetras()
     {
         var dto = DtoOperadorValido();
         dto.DatosContacto = new DatosContactoDto { Telefono = "0414abcdefg" };
-        var errores = await ValidarYObtenerErroresAsync(dto);
-        TieneError(errores, "datosContacto.telefono", MensajesValidacionUsuario.TelefonoSoloNumeros)
+        TieneError(Validar(dto), "datosContacto.telefono", MensajesValidacionUsuario.TelefonoSoloNumeros)
             .Should().BeTrue();
     }
 
     [Fact]
-    public async Task Falla_Si_TelefonoCodigoInvalido()
+    public void Falla_Si_TelefonoCodigoInvalido()
     {
         var dto = DtoOperadorValido();
         dto.DatosContacto = new DatosContactoDto { Telefono = "03123710260" };
-        var errores = await ValidarYObtenerErroresAsync(dto);
-        TieneError(errores, "datosContacto.telefono", MensajesValidacionUsuario.TelefonoCodigoInvalido)
+        TieneError(Validar(dto), "datosContacto.telefono", MensajesValidacionUsuario.TelefonoCodigoInvalido)
             .Should().BeTrue();
     }
 
     [Fact]
-    public async Task Falla_Si_TelefonoLongitudInvalida()
+    public void Falla_Si_TelefonoLongitudInvalida()
     {
         var dto = DtoOperadorValido();
         dto.DatosContacto = new DatosContactoDto { Telefono = "04143710" };
-        var errores = await ValidarYObtenerErroresAsync(dto);
-        TieneError(errores, "datosContacto.telefono", MensajesValidacionUsuario.TelefonoLongitud)
+        TieneError(Validar(dto), "datosContacto.telefono", MensajesValidacionUsuario.TelefonoLongitud)
             .Should().BeTrue();
     }
 
     [Fact]
-    public async Task Falla_Si_TelefonoDuplicado()
-    {
-        _repositorio.Setup(r => r.ExisteTelefonoAsync(It.IsAny<string>(),
-            It.IsAny<CancellationToken>())).ReturnsAsync(true);
-
-        var errores = await ValidarYObtenerErroresAsync(DtoOperadorValido());
-        TieneError(errores, "datosContacto.telefono", MensajesValidacionUsuario.TelefonoDuplicado)
-            .Should().BeTrue();
-    }
-
-    [Fact]
-    public async Task Normaliza_Telefono_QuitandoEspaciosYGuiones()
+    public void Normaliza_Telefono_QuitandoEspaciosYGuiones()
     {
         var dto = DtoOperadorValido();
         dto.DatosContacto = new DatosContactoDto
@@ -271,98 +227,87 @@ public class ValidadorCrearUsuarioPruebas
             Direccion = "Av. Bolívar, Caracas",
             Telefono = "0414-371 0260"
         };
-        await CrearValidador().ValidarAsync(dto, CancellationToken.None);
+        CrearValidador().Validar(new CrearUsuarioComando(dto));
         dto.DatosContacto.Telefono.Should().Be("04143710260");
+    }
+
+    [Fact]
+    public void Falla_Si_DireccionVacia()
+    {
+        var dto = DtoOperadorValido();
+        dto.DatosContacto = new DatosContactoDto { Direccion = "", Telefono = "04143710260" };
+        TieneError(Validar(dto), "datosContacto.direccion",
+            MensajesValidacionUsuario.DireccionObligatoria).Should().BeTrue();
+    }
+
+    [Fact]
+    public void Falla_Si_DireccionMuyCorta()
+    {
+        var dto = DtoOperadorValido();
+        dto.DatosContacto = new DatosContactoDto { Direccion = "ABC", Telefono = "04143710260" };
+        TieneError(Validar(dto), "datosContacto.direccion",
+            MensajesValidacionUsuario.DireccionLongitud).Should().BeTrue();
+    }
+
+    [Fact]
+    public void Pasa_DireccionMinima5Caracteres()
+    {
+        var dto = DtoOperadorValido();
+        dto.DatosContacto = new DatosContactoDto { Direccion = "Av. Bolívar", Telefono = "04143710260" };
+        Validar(dto).Any(e => e.Campo == "datosContacto.direccion").Should().BeFalse();
     }
 
     // ---------- Fecha de nacimiento ----------
 
     [Fact]
-    public async Task Falla_Si_FechaNacimientoFutura()
+    public void Falla_Si_FechaNacimientoFutura()
     {
         var dto = DtoOperadorValido();
         dto.FechaNacimiento = Ahora.AddYears(1);
-        var errores = await ValidarYObtenerErroresAsync(dto);
-        TieneError(errores, "fechaNacimiento", MensajesValidacionUsuario.FechaNacimientoFutura)
+        TieneError(Validar(dto), "fechaNacimiento", MensajesValidacionUsuario.FechaNacimientoFutura)
             .Should().BeTrue();
     }
 
     [Fact]
-    public async Task Falla_Si_MenorDe18()
+    public void Falla_Si_MenorDe18()
     {
         var dto = DtoOperadorValido();
         dto.FechaNacimiento = Ahora.AddYears(-17);
-        var errores = await ValidarYObtenerErroresAsync(dto);
-        TieneError(errores, "fechaNacimiento", MensajesValidacionUsuario.EdadMinima)
+        TieneError(Validar(dto), "fechaNacimiento", MensajesValidacionUsuario.EdadMinima)
             .Should().BeTrue();
     }
 
     [Fact]
-    public async Task Falla_Si_MayorDe100()
+    public void Falla_Si_MayorDe100()
     {
         var dto = DtoOperadorValido();
         dto.FechaNacimiento = Ahora.AddYears(-101);
-        var errores = await ValidarYObtenerErroresAsync(dto);
-        TieneError(errores, "fechaNacimiento", MensajesValidacionUsuario.EdadMaxima)
+        TieneError(Validar(dto), "fechaNacimiento", MensajesValidacionUsuario.EdadMaxima)
             .Should().BeTrue();
-    }
-
-    // ---------- Dirección ----------
-
-    [Fact]
-    public async Task Falla_Si_DireccionVacia()
-    {
-        var dto = DtoOperadorValido();
-        dto.DatosContacto = new DatosContactoDto { Direccion = "", Telefono = "04143710260" };
-        var errores = await ValidarYObtenerErroresAsync(dto);
-        TieneError(errores, "datosContacto.direccion",
-            MensajesValidacionUsuario.DireccionObligatoria).Should().BeTrue();
-    }
-
-    [Fact]
-    public async Task Falla_Si_DireccionMuyCorta()
-    {
-        var dto = DtoOperadorValido();
-        dto.DatosContacto = new DatosContactoDto { Direccion = "ABC", Telefono = "04143710260" };
-        var errores = await ValidarYObtenerErroresAsync(dto);
-        TieneError(errores, "datosContacto.direccion",
-            MensajesValidacionUsuario.DireccionLongitud).Should().BeTrue();
-    }
-
-    [Fact]
-    public async Task Pasa_DireccionMinima5Caracteres()
-    {
-        var dto = DtoOperadorValido();
-        dto.DatosContacto = new DatosContactoDto { Direccion = "Av. Bolívar", Telefono = "04143710260" };
-        var errores = await ValidarYObtenerErroresAsync(dto);
-        errores.Any(e => e.Campo == "datosContacto.direccion").Should().BeFalse();
     }
 
     // ---------- TipoUsuario web ----------
 
     [Fact]
-    public async Task Falla_Si_TipoUsuarioParticipante_EnRegistroWeb()
+    public void Falla_Si_TipoUsuarioParticipante_EnRegistroWeb()
     {
         var dto = DtoOperadorValido();
         dto.TipoUsuario = RolUsuario.Participante;
-        var errores = await ValidarYObtenerErroresAsync(dto);
-        TieneError(errores, "tipoUsuario", MensajesValidacionUsuario.TipoUsuarioInvalidoWeb)
+        TieneError(Validar(dto), "tipoUsuario", MensajesValidacionUsuario.TipoUsuarioInvalidoWeb)
             .Should().BeTrue();
     }
 
     // ---------- Casos felices ----------
 
     [Fact]
-    public async Task Pasa_ConDatosValidosDeOperador()
+    public void Pasa_ConDatosValidosDeOperador()
     {
-        var errores = await ValidarYObtenerErroresAsync(DtoOperadorValido());
-        errores.Should().BeEmpty();
+        Validar(DtoOperadorValido()).Should().BeEmpty();
     }
 
     [Fact]
-    public async Task Pasa_ConDatosValidosDeAdministrador()
+    public void Pasa_ConDatosValidosDeAdministrador()
     {
-        var errores = await ValidarYObtenerErroresAsync(DtoAdministradorValido());
-        errores.Should().BeEmpty();
+        Validar(DtoAdministradorValido()).Should().BeEmpty();
     }
 }

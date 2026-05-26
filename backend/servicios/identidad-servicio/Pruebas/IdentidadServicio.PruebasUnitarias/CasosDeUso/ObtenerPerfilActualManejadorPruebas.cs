@@ -14,7 +14,7 @@ namespace IdentidadServicio.PruebasUnitarias.CasosDeUso;
 
 public class ObtenerPerfilActualManejadorPruebas
 {
-    private readonly Mock<IRepositorioIdentidad> _repositorio = new();
+    private readonly Mock<IRepositorioUsuariosLectura> _repositorio = new();
 
     private static FabricaEstrategiaMapeoPerfilUsuario CrearFabricaMapeo() =>
         new(new IEstrategiaMapeoPerfilUsuario[]
