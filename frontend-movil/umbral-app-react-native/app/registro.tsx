@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
 import {
   Alert,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -14,6 +16,7 @@ import {
   ErrorValidacionRegistro,
   type DatosRegistroParticipante
 } from '../autenticacion/clienteApi'
+import { SelectorFechaNacimiento } from '../componentes/SelectorFechaNacimiento'
 import { tema } from '../estilos/tema'
 
 // HU03 — formulario de registro público de Participante desde la app móvil.
@@ -71,7 +74,6 @@ const CAMPO_BACKEND: Record<keyof EstadoFormulario | 'datosContacto.telefono' | 
 }
 
 const REGEX_CORREO = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
-const REGEX_FECHA = /^\d{4}-\d{2}-\d{2}$/
 
 export default function PantallaRegistro() {
   const [formulario, setFormulario] = useState<EstadoFormulario>(FORMULARIO_INICIAL)
@@ -119,8 +121,9 @@ export default function PantallaRegistro() {
     if (!formulario.sexo) errs.sexo = 'Seleccione el sexo.'
     if (!formulario.fechaNacimiento.trim())
       errs.fechaNacimiento = 'La fecha de nacimiento es obligatoria.'
-    else if (!REGEX_FECHA.test(formulario.fechaNacimiento.trim()))
-      errs.fechaNacimiento = 'Formato esperado: YYYY-MM-DD.'
+    // El formato yyyy-MM-dd lo garantiza SelectorFechaNacimiento, no hay
+    // necesidad de re-validar la cadena aquí. El backend repetirá las
+    // reglas de edad como red de seguridad.
     if (!formulario.direccion.trim())
       errs['datosContacto.direccion'] = 'La dirección es obligatoria.'
     if (!formulario.telefono.trim())
@@ -178,6 +181,12 @@ export default function PantallaRegistro() {
   const sexos = useMemo(() => SEXOS_PERMITIDOS, [])
 
   return (
+    // KeyboardAvoidingView garantiza que el teclado no tape los inputs en
+    // los campos inferiores (apellido, dirección, teléfono, contraseñas).
+    <KeyboardAvoidingView
+      style={estilos.contenedor}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
     <ScrollView
       style={estilos.contenedor}
       contentContainerStyle={estilos.contenido}
@@ -265,12 +274,13 @@ export default function PantallaRegistro() {
           <Text style={estilos.errorTexto}>{obtenerError('sexo')}</Text>
         )}
 
-        <Campo
-          etiqueta="Fecha de nacimiento (YYYY-MM-DD)"
+        {/* Selector visual de fecha — no se abre teclado y se descartan
+            valores imposibles. Envía yyyy-MM-dd al estado del formulario. */}
+        <SelectorFechaNacimiento
+          etiqueta="Fecha de nacimiento"
           valor={formulario.fechaNacimiento}
           onCambio={(v) => actualizar('fechaNacimiento', v)}
           error={obtenerError('fechaNacimiento')}
-          autoCapitalize="none"
         />
         <Campo
           etiqueta="Dirección"
@@ -303,6 +313,7 @@ export default function PantallaRegistro() {
         </View>
       </View>
     </ScrollView>
+    </KeyboardAvoidingView>
   )
 }
 

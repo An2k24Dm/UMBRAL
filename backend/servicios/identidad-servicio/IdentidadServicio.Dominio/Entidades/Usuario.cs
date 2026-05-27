@@ -77,10 +77,8 @@ public abstract class Usuario
     public void Desactivar() => Estado = EstadoUsuario.Inactivo;
     public void Activar() => Estado = EstadoUsuario.Activo;
 
-    // HU09 — métodos de actualización parcial. Cada método valida (a través de
-    // los objetos de valor existentes) y reemplaza únicamente el campo recibido.
-    // Estado, Rol, FechaRegistro y Id no se modifican en esta HU: por eso no
-    // hay setters públicos para ellos.
+    public bool PuedeEliminarCuenta() => Estado == EstadoUsuario.Activo;
+
     public void ActualizarNombreUsuario(NombreUsuario nuevoNombreUsuario)
     {
         if (nuevoNombreUsuario is null)

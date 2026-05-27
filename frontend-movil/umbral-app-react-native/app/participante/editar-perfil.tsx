@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -19,6 +21,7 @@ import {
 import { obtenerToken } from '../../autenticacion/almacenamientoSeguro'
 import { useAutenticacion } from '../../autenticacion/ContextoAutenticacion'
 import RutaProtegidaMovil from '../../componentes/RutaProtegidaMovil'
+import { SelectorFechaNacimiento } from '../../componentes/SelectorFechaNacimiento'
 import { tema } from '../../estilos/tema'
 
 // HU10 — pantalla móvil para que el Participante edite su propio perfil.
@@ -225,7 +228,15 @@ function ContenidoEditarPerfil() {
   }
 
   return (
-    <ScrollView style={estilos.contenedor} contentContainerStyle={estilos.contenido}>
+    <KeyboardAvoidingView
+      style={estilos.contenedor}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+    <ScrollView
+      style={estilos.contenedor}
+      contentContainerStyle={estilos.contenido}
+      keyboardShouldPersistTaps="handled"
+    >
       <Text style={estilos.titulo}>Editar perfil</Text>
 
       {errorGeneral && (
@@ -257,8 +268,13 @@ function ContenidoEditarPerfil() {
         onChange={(v) => actualizar('apellido', v)} />
       <Campo etiqueta="Sexo (Masculino / Femenino / Otro / Indefinido)" valor={campos.sexo}
         error={erroresCampo.sexo} onChange={(v) => actualizar('sexo', v)} />
-      <Campo etiqueta="Fecha de nacimiento (YYYY-MM-DD)" valor={campos.fechaNacimiento}
-        error={erroresCampo.fechaNacimiento} onChange={(v) => actualizar('fechaNacimiento', v)} />
+      {/* Selector visual de fecha — evita teclado y fechas imposibles. */}
+      <SelectorFechaNacimiento
+        etiqueta="Fecha de nacimiento"
+        valor={campos.fechaNacimiento}
+        onCambio={(v) => actualizar('fechaNacimiento', v)}
+        error={erroresCampo.fechaNacimiento}
+      />
       <Campo etiqueta="Dirección" valor={campos.direccion} error={erroresCampo.direccion}
         onChange={(v) => actualizar('direccion', v)} />
       <Campo etiqueta="Teléfono" valor={campos.telefono} error={erroresCampo.telefono}
@@ -297,6 +313,7 @@ function ContenidoEditarPerfil() {
         <Text style={estilos.botonSecundarioTexto}>Cancelar</Text>
       </TouchableOpacity>
     </ScrollView>
+    </KeyboardAvoidingView>
   )
 }
 
