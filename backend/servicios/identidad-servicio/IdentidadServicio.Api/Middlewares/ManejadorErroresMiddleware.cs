@@ -32,7 +32,6 @@ public sealed class ManejadorErroresMiddleware
         }
         catch (ExcepcionValidacion ex)
         {
-            // HU02: errores por campo → HTTP 400 con { codigo, mensaje, errores }.
             await EscribirJsonAsync(contexto, HttpStatusCode.BadRequest, new
             {
                 codigo = "VALIDACION",
@@ -43,6 +42,14 @@ public sealed class ManejadorErroresMiddleware
         catch (CuentaDesactivadaExcepcion ex)
         {
             await EscribirCodigoAsync(contexto, HttpStatusCode.Forbidden, "CUENTA_DESACTIVADA", ex.Message);
+        }
+        catch (UsuarioYaInactivoExcepcion ex)
+        {
+            await EscribirCodigoAsync(contexto, HttpStatusCode.BadRequest, "USUARIO_YA_INACTIVO", ex.Message);
+        }
+        catch (UsuarioYaActivoExcepcion ex)
+        {
+            await EscribirCodigoAsync(contexto, HttpStatusCode.BadRequest, "USUARIO_YA_ACTIVO", ex.Message);
         }
         catch (AccesoNoPermitidoExcepcion ex)
         {
