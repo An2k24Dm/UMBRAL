@@ -1,9 +1,5 @@
 namespace IdentidadServicio.Commons.Dtos;
 
-// DTO base con los datos comunes del perfil. Se mantiene como clase abierta
-// para que cada rol pueda derivar y agregar SOLO sus campos particulares
-// (CodigoAdministrador, CodigoOperador, Alias). Esto respeta OCP: incorporar
-// un nuevo rol no obliga a modificar este tipo.
 public class PerfilUsuarioDto
 {
     public Guid Id { get; set; }

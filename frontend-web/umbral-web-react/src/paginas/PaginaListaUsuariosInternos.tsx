@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { LayoutPanel } from '../componentes/LayoutPanel'
 import { TablaUsuarios, type ColumnaTabla } from '../componentes/TablaUsuarios'
 import { Paginacion } from '../componentes/Paginacion'
@@ -34,6 +34,7 @@ function noDisponible(valor: string | null | undefined): string {
 export function PaginaListaUsuariosInternos() {
   const { token } = usarAutenticacion()
   const navegar = useNavigate()
+  const ubicacion = useLocation()
 
   const [pagina, setPagina] = useState(1)
   const [filtroRol, setFiltroRol] = useState<FiltroRolInterno>('Todos')
@@ -42,6 +43,22 @@ export function PaginaListaUsuariosInternos() {
   const [estado, setEstado] = useState<'cargando' | 'error' | 'vacio' | 'listo'>('cargando')
   const [mensajeError, setMensajeError] = useState<string | null>(null)
   const [resultado, setResultado] = useState<ResultadoPaginado<UsuarioListadoInterno> | null>(null)
+
+  // HU13 — la pantalla de detalle pasa { mensajeExito } al redirigir tras
+  // eliminar un Operador. Lo leemos una vez y lo limpiamos para que el
+  // mensaje no reaparezca al refrescar.
+  const estadoUbicacion = ubicacion.state as { mensajeExito?: string } | null
+  const [mensajeExito, setMensajeExito] = useState<string | null>(
+    estadoUbicacion?.mensajeExito ?? null
+  )
+  useEffect(() => {
+    if (estadoUbicacion?.mensajeExito) {
+      navegar(ubicacion.pathname, { replace: true, state: null })
+    }
+    // Sólo se ejecuta una vez por montaje — el estado de location se limpia
+    // y la próxima vez no entra.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     let cancelado = false
@@ -128,6 +145,7 @@ export function PaginaListaUsuariosInternos() {
           </CampoFormulario>
         </div>
 
+        {mensajeExito && <Alerta tono="exito">{mensajeExito}</Alerta>}
         {estado === 'error' && mensajeError && <Alerta tono="error">{mensajeError}</Alerta>}
 
         <TablaUsuarios

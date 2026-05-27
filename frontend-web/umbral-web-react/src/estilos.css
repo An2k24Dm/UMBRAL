@@ -689,3 +689,51 @@ a { color: inherit; }
   font-weight: 600;
 }
 .boton-enlace:hover { background: var(--color-acento-fuerte); }
+
+/* ---------------------------------------------------------------------------
+   HU13 — Modal de confirmación de acción destructiva
+   --------------------------------------------------------------------------- */
+.modal-confirmacion-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 16px;
+}
+.modal-confirmacion-caja {
+  background: var(--color-fondo-elevado);
+  border: 1px solid var(--color-borde-fuerte);
+  border-radius: 12px;
+  max-width: 480px;
+  width: 100%;
+  padding: 24px;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.4);
+}
+.modal-confirmacion-titulo {
+  margin: 0 0 12px;
+  font-size: 1.15rem;
+  color: var(--color-texto);
+}
+.modal-confirmacion-cuerpo {
+  color: var(--color-texto-tenue);
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+.modal-confirmacion-error {
+  background: var(--color-error-suave);
+  border: 1px solid var(--color-error);
+  color: var(--color-texto);
+  border-radius: var(--radio-pequeno);
+  padding: 10px 12px;
+  margin-bottom: 16px;
+  font-size: 0.9rem;
+}
+.modal-confirmacion-acciones {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+

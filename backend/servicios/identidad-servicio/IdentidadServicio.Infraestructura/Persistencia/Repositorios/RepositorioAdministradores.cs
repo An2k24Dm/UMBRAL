@@ -4,7 +4,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace IdentidadServicio.Infraestructura.Persistencia.Repositorios;
 
-// Repositorio específico de Administradores (HU02 alta + generador AD-###).
 public sealed class RepositorioAdministradores : IRepositorioAdministradores
 {
     private readonly ContextoIdentidad _contexto;

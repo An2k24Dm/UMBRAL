@@ -36,6 +36,9 @@ const ENDPOINTS = {
     `/api/usuarios/internos/${encodeURIComponent(id)}`,
   // HU09 — modificación parcial de un Operador (sólo Administrador).
   modificarOperador: (id: string) =>
+    `/api/usuarios/operadores/${encodeURIComponent(id)}`,
+  // HU13 — eliminación permanente de un Operador (sólo Administrador).
+  eliminarOperador: (id: string) =>
     `/api/usuarios/operadores/${encodeURIComponent(id)}`
 }
 
@@ -286,6 +289,47 @@ export interface ModificarOperadorRespuesta {
   camposActualizados: string[]
   mensaje: string
   operador: UsuarioDetalle
+}
+
+// ---------------------------------------------------------------------------
+// HU13 — eliminación permanente de un Operador
+// ---------------------------------------------------------------------------
+//
+// Sólo el Administrador puede invocar este endpoint. El backend:
+//  * 401 si no hay token,
+//  * 403 si el token es de Operador o Participante,
+//  * 404 si el id no corresponde a un Operador (no existe, o es
+//    Administrador / Participante; no se permite eliminar esos roles
+//    por esta vía).
+// La respuesta no contiene datos sensibles: sólo { idOperador, eliminado,
+// mensaje }.
+export interface EliminarOperadorRespuesta {
+  idOperador: string
+  eliminado: boolean
+  mensaje: string
+}
+
+export async function eliminarOperador(
+  id: string,
+  token: string
+): Promise<EliminarOperadorRespuesta> {
+  const respuesta = await fetch(`${URL_API}${ENDPOINTS.eliminarOperador(id)}`, {
+    method: 'DELETE',
+    headers: autorizacion(token)
+  })
+
+  if (respuesta.status === 401) throw new Error('Debe iniciar sesión como administrador.')
+  if (respuesta.status === 403) throw new Error('No tiene permisos para eliminar operadores.')
+  if (respuesta.status === 404) throw new Error('El operador solicitado no existe.')
+
+  if (!respuesta.ok) {
+    const cuerpo = (await respuesta.json().catch(() => null)) as
+      | { mensaje?: string }
+      | null
+    throw new Error(cuerpo?.mensaje ?? 'No fue posible eliminar el operador.')
+  }
+
+  return (await respuesta.json()) as EliminarOperadorRespuesta
 }
 
 export async function modificarOperador(

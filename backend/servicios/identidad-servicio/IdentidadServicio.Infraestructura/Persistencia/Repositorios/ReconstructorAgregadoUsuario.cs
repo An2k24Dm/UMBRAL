@@ -4,10 +4,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace IdentidadServicio.Infraestructura.Persistencia.Repositorios;
 
-// Reconstrucción de agregados Usuario/Operador/Administrador/Participante a
-// partir de los modelos EF Core. Es la única clase de Infraestructura que
-// sabe armar las tres tripletas; los repositorios concretos la usan para no
-// duplicar la lógica de "buscar Persona + tabla específica".
 internal sealed class ReconstructorAgregadoUsuario
 {
     private readonly ContextoIdentidad _contexto;

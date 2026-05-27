@@ -104,9 +104,6 @@ public sealed class KeycloakProveedorIdentidad : IProveedorIdentidad
     {
         var tokenAdmin = await ObtenerTokenAdminAsync(cancelacion);
 
-        // Envía username y email como campos SEPARADOS a Keycloak.
-        // Incluye firstName y lastName para que el panel de Keycloak los muestre.
-        // temporary = false → la contraseña no se marca como temporal.
         using var solicitud = new HttpRequestMessage(HttpMethod.Post, _opciones.UrlAdminUsuarios)
         {
             Content = JsonContent.Create(new
@@ -158,16 +155,6 @@ public sealed class KeycloakProveedorIdentidad : IProveedorIdentidad
         respAsig.EnsureSuccessStatusCode();
     }
 
-    // HU09 — actualización parcial en Keycloak vía
-    // /admin/realms/{realm}/users/{id}.
-    //
-    // En lugar de enviar solamente los campos cambiados por PUT, hacemos
-    // primero un GET del UserRepresentation actual, mutamos en memoria solo
-    // los campos provistos en `datos` (username / email / firstName /
-    // lastName) y volvemos a enviar el representation completo por PUT. Esto
-    // evita que el PUT pueda interpretar como "borrar" los campos que no
-    // viajan en el cuerpo cuando se cambia la política del servidor o se
-    // utilizan extensiones de Keycloak.
     public async Task ActualizarUsuarioAsync(
         string idKeycloak,
         DatosActualizacionUsuarioIdentidad datos,
@@ -224,15 +211,6 @@ public sealed class KeycloakProveedorIdentidad : IProveedorIdentidad
         }
     }
 
-    // HU09 — cambio de contraseña administrativo. Envía el endpoint estándar
-    // de Keycloak Admin REST API:
-    //   PUT /admin/realms/{realm}/users/{user-id}/reset-password
-    //   { "type": "password", "value": "...", "temporary": false }
-    //
-    // Importante:
-    //  * La contraseña jamás se loguea. Solo se registran el IdKeycloak, el
-    //    código HTTP devuelto y el cuerpo del error si Keycloak rechaza.
-    //  * El método NO toca PostgreSQL: la contraseña no vive en UMBRAL.
     public async Task CambiarContrasenaAsync(
         string idKeycloak,
         string nuevaContrasena,

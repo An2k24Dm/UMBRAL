@@ -3,8 +3,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace IdentidadServicio.Infraestructura.Persistencia.Repositorios;
 
-// Implementación de las consultas de unicidad usadas para detectar duplicados.
-// Se mantienen separadas del resto del repositorio para reforzar ISP.
 public sealed class RepositorioUnicidadUsuario : IRepositorioUnicidadUsuario
 {
     private readonly ContextoIdentidad _contexto;
