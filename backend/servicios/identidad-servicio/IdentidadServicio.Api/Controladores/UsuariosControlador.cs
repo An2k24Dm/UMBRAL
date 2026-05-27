@@ -19,9 +19,6 @@ public sealed class UsuariosControlador : ControllerBase
         _mediador = mediador;
     }
 
-    // HU02 — registro de Operador o Administrador desde el panel web. Exige
-    // token de Administrador y el validador rechaza Participante (que sólo
-    // puede registrarse por el endpoint público de HU03 /participantes/registro).
     [HttpPost]
     [Authorize(Policy = "PoliticaAdministrador")]
     [ProducesResponseType(typeof(CrearUsuarioRespuestaDto), StatusCodes.Status201Created)]
@@ -35,9 +32,6 @@ public sealed class UsuariosControlador : ControllerBase
         return Created($"/api/usuarios/{resultado.Id}", resultado);
     }
 
-    // HU03 — registro público de Participante desde la app móvil. Sin token:
-    // el backend asigna RolUsuario.Participante internamente y nunca permite
-    // crear Operador/Administrador por esta vía.
     [HttpPost("participantes/registro")]
     [AllowAnonymous]
     [ProducesResponseType(typeof(CrearUsuarioRespuestaDto), StatusCodes.Status201Created)]
@@ -49,8 +43,6 @@ public sealed class UsuariosControlador : ControllerBase
         return Created($"/api/usuarios/{resultado.Id}", resultado);
     }
 
-    // HU07: listado paginado de Participantes. Protegido para Administrador y
-    // Operador; Participante no puede acceder al panel web.
     [HttpGet("participantes")]
     [Authorize(Policy = "PoliticaAdministradorUOperador")]
     [ProducesResponseType(typeof(ResultadoPaginadoDto<ParticipanteListadoDto>), StatusCodes.Status200OK)]
@@ -68,8 +60,6 @@ public sealed class UsuariosControlador : ControllerBase
         return Ok(resultado);
     }
 
-    // HU07: detalle de un Participante. Si el id no corresponde a un
-    // Participante (no existe o es un usuario interno) se responde 404.
     [HttpGet("participantes/{id:guid}")]
     [Authorize(Policy = "PoliticaAdministradorUOperador")]
     [ProducesResponseType(typeof(PerfilParticipanteDto), StatusCodes.Status200OK)]
@@ -95,8 +85,6 @@ public sealed class UsuariosControlador : ControllerBase
         }
     }
 
-    // HU08 — listado paginado de cuentas internas (Operador / Administrador).
-    // Restringido a Administrador (la política replica la seguridad del frontend).
     [HttpGet("internos")]
     [Authorize(Policy = "PoliticaAdministrador")]
     [ProducesResponseType(typeof(ResultadoPaginadoDto<UsuarioInternoListadoDto>), StatusCodes.Status200OK)]
@@ -115,9 +103,6 @@ public sealed class UsuariosControlador : ControllerBase
         return Ok(resultado);
     }
 
-    // HU08 — detalle de un usuario interno. Se devuelve como object para que
-    // System.Text.Json serialice las propiedades del tipo derivado
-    // (PerfilOperadorDto / PerfilAdministradorDto).
     [HttpGet("internos/{id:guid}")]
     [Authorize(Policy = "PoliticaAdministrador")]
     [ProducesResponseType(StatusCodes.Status200OK)]
@@ -142,12 +127,6 @@ public sealed class UsuariosControlador : ControllerBase
         return Ok((object)perfil);
     }
 
-    // HU10 — edición del propio perfil del Participante desde la app móvil.
-    // La política exige rol Participante; un Administrador u Operador no puede
-    // pedir editar perfiles de Participante por esta vía (recibe 403). El
-    // backend identifica al Participante por el sub del token (claim
-    // NameIdentifier) — el cliente no envía id, así un Participante no puede
-    // intentar editar a otra cuenta.
     [HttpPatch("participantes/perfil")]
     [Authorize(Policy = "PoliticaParticipante")]
     [ProducesResponseType(typeof(ModificarParticipanteRespuestaDto), StatusCodes.Status200OK)]
@@ -159,9 +138,7 @@ public sealed class UsuariosControlador : ControllerBase
         [FromBody] ModificarParticipanteSolicitudDto dto,
         CancellationToken cancelacion)
     {
-        // Sub del token (Keycloak lo expone como NameIdentifier tras la
-        // configuración estándar de JwtBearer; en pruebas de integración el
-        // handler dummy lo emite con el mismo tipo de claim).
+
         var idKeycloak = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
                          ?? User.FindFirst("sub")?.Value;
 
@@ -191,11 +168,43 @@ public sealed class UsuariosControlador : ControllerBase
         }
     }
 
-    // HU09 — edición parcial del perfil de un Operador desde el panel web.
-    // Sólo Administrador puede ejecutar la acción (Operador y Participante
-    // quedan fuera por la política; el anónimo recibe 401). El controlador no
-    // contiene lógica de negocio: delega validación, búsqueda, actualización
-    // y sincronización con Keycloak al manejador del comando.
+    [HttpDelete("participantes/perfil")]
+    [Authorize(Policy = "PoliticaParticipante")]
+    [ProducesResponseType(typeof(EliminarCuentaParticipanteRespuestaDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> EliminarCuentaParticipante(CancellationToken cancelacion)
+    {
+        var idKeycloak = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+                         ?? User.FindFirst("sub")?.Value;
+
+        if (string.IsNullOrWhiteSpace(idKeycloak))
+        {
+            return Unauthorized(new
+            {
+                codigo = "TOKEN_SIN_SUJETO",
+                mensaje = "El token no contiene el identificador del usuario."
+            });
+        }
+
+        try
+        {
+            var resultado = await _mediador.Send(
+                new EliminarCuentaParticipanteComando(idKeycloak), cancelacion);
+            return Ok(resultado);
+        }
+        catch (DatosUsuarioInvalidosExcepcion ex)
+            when (ex.Message.Contains("No existe un Participante", StringComparison.OrdinalIgnoreCase))
+        {
+            return NotFound(new
+            {
+                codigo = "PARTICIPANTE_NO_ENCONTRADO",
+                mensaje = "El participante asociado al usuario autenticado no existe."
+            });
+        }
+    }
+
     [HttpPatch("operadores/{id:guid}")]
     [Authorize(Policy = "PoliticaAdministrador")]
     [ProducesResponseType(typeof(ModificarOperadorRespuestaDto), StatusCodes.Status200OK)]

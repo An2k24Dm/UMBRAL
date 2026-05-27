@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import {
   ActivityIndicator,
+  Modal,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -10,6 +12,8 @@ import {
 import { useRouter } from 'expo-router'
 import {
   ErrorConsultaPerfil,
+  ErrorEliminarCuenta,
+  eliminarCuentaParticipanteApi,
   obtenerPerfilActualApi,
   type PerfilParticipante
 } from '../../autenticacion/clienteApi'
@@ -31,10 +35,20 @@ export default function PantallaPerfilParticipante() {
 
 function ContenidoPerfil() {
   const enrutador = useRouter()
-  const { cerrarSesion } = useAutenticacion()
+  const { cerrarSesion, usuario } = useAutenticacion()
   const [perfil, setPerfil] = useState<PerfilParticipante | null>(null)
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  // HU11 — estado del menú de engranaje, del modal de confirmación de
+  // eliminación de cuenta y de la eliminación en curso. El botón "Eliminar
+  // cuenta" debe desactivarse mientras `eliminandoCuenta` esté en true para
+  // evitar doble click; los errores se muestran dentro del modal sin
+  // cerrar la sesión salvo que el backend confirme la eliminación.
+  const [menuAbierto, setMenuAbierto] = useState(false)
+  const [confirmacionAbierta, setConfirmacionAbierta] = useState(false)
+  const [eliminandoCuenta, setEliminandoCuenta] = useState(false)
+  const [errorEliminar, setErrorEliminar] = useState<string | null>(null)
 
   const cargarPerfil = useCallback(async () => {
     setCargando(true)
@@ -75,6 +89,76 @@ function ContenidoPerfil() {
 
   const volverAlMenu = () => enrutador.replace('/participante/menu')
 
+  // HU11 — apertura/cierre del menú flotante de engranaje. Por seguridad,
+  // el menú sólo aparece para Participantes (el contexto sólo guarda sesiones
+  // de Participante, pero verificamos defensivamente).
+  const esParticipante = usuario?.rol === 'Participante'
+  const abrirMenu = () => setMenuAbierto(true)
+  const cerrarMenu = () => setMenuAbierto(false)
+
+  // HU11 — Cancelar cierra el modal sin llamar al backend; ningún estado
+  // remoto se altera.
+  const cancelarEliminacion = () => {
+    if (eliminandoCuenta) return
+    setConfirmacionAbierta(false)
+    setErrorEliminar(null)
+  }
+
+  // HU11 — confirmación: llama al endpoint DELETE. Si el backend confirma la
+  // eliminación, limpiamos token y sesión local y redirigimos al login. Si
+  // falla, mostramos error claro y mantenemos la sesión salvo que el error
+  // indique que la cuenta ya fue eliminada.
+  const confirmarEliminacion = useCallback(async () => {
+    if (eliminandoCuenta) return
+    setEliminandoCuenta(true)
+    setErrorEliminar(null)
+    try {
+      const token = await obtenerToken()
+      if (!token) {
+        await cerrarSesion()
+        enrutador.replace('/')
+        return
+      }
+      await eliminarCuentaParticipanteApi(token)
+      // Éxito: borrar token local, limpiar estado de sesión, redirigir.
+      await cerrarSesion()
+      setConfirmacionAbierta(false)
+      enrutador.replace('/')
+    } catch (e) {
+      if (e instanceof ErrorEliminarCuenta) {
+        // Si el backend reporta que la cuenta ya no existe (NO_AUTORIZADO o
+        // PARTICIPANTE_NO_ENCONTRADO) la sesión actual ya no es utilizable.
+        if (
+          e.codigo === 'NO_AUTORIZADO' ||
+          e.codigo === 'PARTICIPANTE_NO_ENCONTRADO' ||
+          e.cuentaEliminada
+        ) {
+          await cerrarSesion()
+          setConfirmacionAbierta(false)
+          enrutador.replace('/')
+          return
+        }
+        setErrorEliminar(e.message)
+      } else {
+        setErrorEliminar(
+          e instanceof Error
+            ? e.message
+            : 'No fue posible eliminar la cuenta.'
+        )
+      }
+    } finally {
+      setEliminandoCuenta(false)
+    }
+  }, [cerrarSesion, enrutador, eliminandoCuenta])
+
+  // HU11 — al tocar "Eliminar cuenta" en el menú, cerramos el menú y
+  // abrimos el modal de confirmación.
+  const solicitarEliminacion = () => {
+    setMenuAbierto(false)
+    setErrorEliminar(null)
+    setConfirmacionAbierta(true)
+  }
+
   if (cargando) {
     return (
       <View style={estilos.contenedorEstado}>
@@ -109,8 +193,26 @@ function ContenidoPerfil() {
       style={estilos.contenedor}
       contentContainerStyle={estilos.contenido}
     >
-      <Text style={estilos.titulo}>UMBRAL</Text>
-      <Text style={estilos.subtitulo}>Mi perfil</Text>
+      <View style={estilos.encabezado}>
+        <View style={estilos.encabezadoCentro}>
+          <Text style={estilos.titulo}>UMBRAL</Text>
+          <Text style={estilos.subtitulo}>Mi perfil</Text>
+        </View>
+        {/* HU11 — icono de engranaje. Sólo se muestra al Participante: la
+            app es exclusiva de ese rol, pero defendemos contra cualquier
+            sesión incorrecta. */}
+        {esParticipante && (
+          <TouchableOpacity
+            accessibilityLabel="Abrir menú de cuenta"
+            accessibilityRole="button"
+            onPress={abrirMenu}
+            style={estilos.botonEngranaje}
+            testID="boton-engranaje-perfil"
+          >
+            <Text style={estilos.botonEngranajeTexto}>⚙</Text>
+          </TouchableOpacity>
+        )}
+      </View>
 
       <View style={estilos.tarjetaPrincipal}>
         <Text style={estilos.aliasEtiqueta}>Alias</Text>
@@ -171,6 +273,94 @@ function ContenidoPerfil() {
       <TouchableOpacity style={estilos.botonSecundario} onPress={volverAlMenu}>
         <Text style={estilos.botonSecundarioTexto}>Volver al menú</Text>
       </TouchableOpacity>
+
+      {/* HU11 — menú flotante al tocar el engranaje. Hoy sólo incluye
+          "Eliminar cuenta"; al crecer la app se sumarán más opciones. */}
+      <Modal
+        visible={menuAbierto}
+        transparent
+        animationType="fade"
+        onRequestClose={cerrarMenu}
+      >
+        <Pressable style={estilos.menuOverlay} onPress={cerrarMenu}>
+          <Pressable style={estilos.menuCaja} onPress={() => {}}>
+            <Text style={estilos.menuTitulo}>Cuenta</Text>
+            <TouchableOpacity
+              accessibilityRole="button"
+              onPress={solicitarEliminacion}
+              style={estilos.menuItem}
+              testID="menu-item-eliminar-cuenta"
+            >
+              <Text style={estilos.menuItemTextoPeligro}>Eliminar cuenta</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              accessibilityRole="button"
+              onPress={cerrarMenu}
+              style={estilos.menuItem}
+            >
+              <Text style={estilos.menuItemTexto}>Cancelar</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* HU11 — modal de confirmación de eliminación de cuenta. Texto claro
+          de que la acción es permanente e irreversible. El botón
+          destructivo se desactiva mientras se procesa para evitar doble
+          click. Cancelar no llama al backend. */}
+      <Modal
+        visible={confirmacionAbierta}
+        transparent
+        animationType="fade"
+        onRequestClose={cancelarEliminacion}
+      >
+        <View style={estilos.modalOverlay}>
+          <View style={estilos.modalCaja}>
+            <Text style={estilos.modalTitulo}>Eliminar cuenta</Text>
+            <Text style={estilos.modalTexto}>
+              ¿Estás seguro de que deseas eliminar tu cuenta? Esta acción es
+              permanente e irreversible. Perderás todos tus datos y no podrás
+              recuperar tu cuenta.
+            </Text>
+
+            {errorEliminar && (
+              <View style={estilos.cuadroError}>
+                <Text style={estilos.cuadroErrorTexto}>{errorEliminar}</Text>
+              </View>
+            )}
+
+            <TouchableOpacity
+              accessibilityRole="button"
+              onPress={confirmarEliminacion}
+              disabled={eliminandoCuenta}
+              style={[
+                estilos.botonPeligro,
+                eliminandoCuenta && estilos.botonDeshabilitado
+              ]}
+              testID="boton-confirmar-eliminar-cuenta"
+            >
+              {eliminandoCuenta ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={estilos.botonPeligroTexto}>Eliminar cuenta</Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              accessibilityRole="button"
+              onPress={cancelarEliminacion}
+              disabled={eliminandoCuenta}
+              style={[
+                estilos.botonSecundario,
+                eliminandoCuenta && estilos.botonDeshabilitado
+              ]}
+              testID="boton-cancelar-eliminar-cuenta"
+            >
+              <Text style={estilos.botonSecundarioTexto}>Cancelar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   )
 }
@@ -383,5 +573,109 @@ const estilos = StyleSheet.create({
     color: tema.colores.texto,
     fontWeight: '700',
     fontSize: 14
+  },
+  // HU11 — encabezado con título centrado y botón de engranaje a la derecha.
+  encabezado: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: tema.espacios.lg
+  },
+  encabezadoCentro: { flex: 1, alignItems: 'center' },
+  botonEngranaje: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: tema.colores.bordeTarjeta,
+    backgroundColor: tema.colores.fondoTarjeta,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  botonEngranajeTexto: {
+    color: tema.colores.texto,
+    fontSize: 18,
+    fontWeight: '700'
+  },
+  // HU11 — menú flotante con opciones de cuenta.
+  menuOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end'
+  },
+  menuCaja: {
+    backgroundColor: tema.colores.fondoTarjeta,
+    borderTopLeftRadius: tema.radios.tarjeta,
+    borderTopRightRadius: tema.radios.tarjeta,
+    padding: tema.espacios.lg
+  },
+  menuTitulo: {
+    color: tema.colores.textoTenue,
+    fontSize: 11,
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+    marginBottom: tema.espacios.md
+  },
+  menuItem: {
+    paddingVertical: tema.espacios.md,
+    borderBottomWidth: 1,
+    borderBottomColor: tema.colores.bordeTarjeta
+  },
+  menuItemTexto: {
+    color: tema.colores.texto,
+    fontSize: 15,
+    fontWeight: '600'
+  },
+  menuItemTextoPeligro: {
+    color: tema.colores.error,
+    fontSize: 15,
+    fontWeight: '700'
+  },
+  // HU11 — modal de confirmación de eliminación.
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: tema.espacios.lg
+  },
+  modalCaja: {
+    backgroundColor: tema.colores.fondoTarjeta,
+    borderRadius: tema.radios.tarjeta,
+    borderWidth: 1,
+    borderColor: tema.colores.bordeTarjeta,
+    padding: tema.espacios.lg,
+    width: '100%'
+  },
+  modalTitulo: {
+    color: tema.colores.texto,
+    fontSize: 18,
+    fontWeight: '800',
+    marginBottom: tema.espacios.sm
+  },
+  modalTexto: {
+    color: tema.colores.textoTenue,
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: tema.espacios.md
+  },
+  botonPeligro: {
+    backgroundColor: tema.colores.error,
+    paddingVertical: tema.espacios.md,
+    borderRadius: tema.radios.boton,
+    alignItems: 'center',
+    marginTop: tema.espacios.sm
+  },
+  botonPeligroTexto: {
+    color: '#fff',
+    fontWeight: '800',
+    fontSize: 15,
+    letterSpacing: 1
+  },
+  botonDeshabilitado: {
+    opacity: 0.6
   }
 })

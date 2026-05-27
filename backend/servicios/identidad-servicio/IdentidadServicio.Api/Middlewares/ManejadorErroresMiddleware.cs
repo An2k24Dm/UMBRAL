@@ -1,7 +1,9 @@
 using System.Net;
 using System.Text.Json;
+using IdentidadServicio.Api.Configuraciones;
 using IdentidadServicio.Aplicacion.Validaciones;
 using IdentidadServicio.Dominio.Excepciones;
+using Microsoft.AspNetCore.Http;
 
 namespace IdentidadServicio.Api.Middlewares;
 
@@ -52,12 +54,20 @@ public sealed class ManejadorErroresMiddleware
         }
         catch (DatosUsuarioInvalidosExcepcion ex)
         {
-            // HU01 reutiliza esta excepción para "credenciales inválidas" (401)
-            // y como defensa del dominio para datos inválidos (400).
             var codigo = ex.Message.Contains("Credenciales", StringComparison.OrdinalIgnoreCase)
                 ? HttpStatusCode.Unauthorized
                 : HttpStatusCode.BadRequest;
             await EscribirCodigoAsync(contexto, codigo, "DATOS_INVALIDOS", ex.Message);
+        }
+        catch (JsonException ex)
+        {
+            await EscribirJsonAsync(contexto, HttpStatusCode.BadRequest,
+                RespuestaErrorModelo.ConstruirDesdeJsonException(ex));
+        }
+        catch (BadHttpRequestException ex) when (ex.InnerException is JsonException jsonInner)
+        {
+            await EscribirJsonAsync(contexto, HttpStatusCode.BadRequest,
+                RespuestaErrorModelo.ConstruirDesdeJsonException(jsonInner));
         }
         catch (Exception ex)
         {

@@ -13,6 +13,17 @@ constructor.Services.AddControllers().AddJsonOptions(opciones =>
         .Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
 });
 
+// Traducir errores de model binding (p. ej. "fechaNacimiento": "2000-12-56")
+// al formato estándar del proyecto { codigo, mensaje, errores }. Evita que
+// [ApiController] genere ValidationProblemDetails con texto en inglés y
+// mantiene la coherencia con ExcepcionValidacion.
+constructor.Services.Configure<Microsoft.AspNetCore.Mvc.ApiBehaviorOptions>(opciones =>
+{
+    opciones.InvalidModelStateResponseFactory = contexto =>
+        IdentidadServicio.Api.Configuraciones.RespuestaErrorModelo
+            .ConstruirDesdeModelState(contexto.ModelState);
+});
+
 constructor.Services.AddEndpointsApiExplorer();
 constructor.Services.AddSwaggerGen();
 

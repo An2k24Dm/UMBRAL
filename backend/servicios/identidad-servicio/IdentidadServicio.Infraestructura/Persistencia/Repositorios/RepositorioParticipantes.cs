@@ -140,10 +140,20 @@ public sealed class RepositorioParticipantes : IRepositorioParticipantes
         return usuario.IdKeycloak;
     }
 
-    // Helper compartido para ObtenerPorId* — chequea rol y reconstruye el
-    // agregado completo. Vive aquí porque la lógica es específica de
-    // Participante (no usa el reconstructor genérico para evitar otra
-    // consulta innecesaria por rol distinto).
+    public async Task EliminarAsync(Participante participante, CancellationToken cancelacion)
+    {
+        var usuario = await _contexto.Usuarios
+            .FirstOrDefaultAsync(u => u.Id == participante.Id, cancelacion)
+            ?? throw new InvalidOperationException(
+                $"El usuario {participante.Id} no existe en base de datos.");
+
+        if (usuario.Rol != (int)RolUsuario.Participante)
+            throw new InvalidOperationException(
+                "Sólo se puede eliminar mediante este método a usuarios con rol Participante.");
+
+        _contexto.Usuarios.Remove(usuario);
+    }
+
     private async Task<Participante?> ReconstruirSiEsParticipanteAsync(
         UsuarioModelo? usuario, CancellationToken cancelacion)
     {

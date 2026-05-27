@@ -292,6 +292,104 @@ export interface RespuestaModificarParticipante {
   participante: PerfilParticipante;
 }
 
+// HU11 — eliminación permanente de la cuenta del Participante autenticado.
+//
+// El backend identifica al Participante por el sub del token; la app NUNCA
+// envía un id de Participante. La respuesta no contiene datos personales:
+// sólo { eliminada, mensaje } para que la app muestre el aviso y cierre
+// sesión local.
+export interface RespuestaEliminarCuentaParticipante {
+  eliminada: boolean;
+  mensaje: string;
+}
+
+export type CodigoErrorEliminarCuenta =
+  | "NO_AUTORIZADO"
+  | "ACCESO_NO_PERMITIDO"
+  | "CUENTA_DESACTIVADA"
+  | "PARTICIPANTE_NO_ENCONTRADO"
+  | "ERROR_INTERNO"
+  | "DESCONOCIDO";
+
+export class ErrorEliminarCuenta extends Error {
+  codigo: CodigoErrorEliminarCuenta;
+  estadoHttp: number;
+  // Indica si el backend confirmó que la cuenta fue eliminada (para que la
+  // app sólo cierre sesión automáticamente en ese caso — la HU11 lo exige).
+  cuentaEliminada: boolean;
+  constructor(
+    mensaje: string,
+    codigo: CodigoErrorEliminarCuenta,
+    estadoHttp: number,
+    cuentaEliminada: boolean,
+  ) {
+    super(mensaje);
+    this.codigo = codigo;
+    this.estadoHttp = estadoHttp;
+    this.cuentaEliminada = cuentaEliminada;
+  }
+}
+
+export async function eliminarCuentaParticipanteApi(
+  tokenAcceso: string,
+): Promise<RespuestaEliminarCuentaParticipante> {
+  const respuesta = await fetch(
+    `${URL_API}/api/usuarios/participantes/perfil`,
+    {
+      method: "DELETE",
+      headers: obtenerEncabezadosAutenticados(tokenAcceso),
+    },
+  );
+
+  if (!respuesta.ok) {
+    const cuerpo = (await respuesta.json().catch(() => null)) as {
+      codigo?: string;
+      mensaje?: string;
+    } | null;
+
+    if (respuesta.status === 401) {
+      throw new ErrorEliminarCuenta(
+        cuerpo?.mensaje ?? "Tu sesión expiró. Inicia sesión nuevamente.",
+        "NO_AUTORIZADO",
+        401,
+        false,
+      );
+    }
+    if (respuesta.status === 403) {
+      // 403 puede deberse a rol no Participante o a cuenta desactivada.
+      const codigo: CodigoErrorEliminarCuenta =
+        cuerpo?.codigo === "CUENTA_DESACTIVADA"
+          ? "CUENTA_DESACTIVADA"
+          : "ACCESO_NO_PERMITIDO";
+      throw new ErrorEliminarCuenta(
+        cuerpo?.mensaje ?? "No es posible eliminar la cuenta en este momento.",
+        codigo,
+        403,
+        false,
+      );
+    }
+    if (respuesta.status === 404) {
+      throw new ErrorEliminarCuenta(
+        cuerpo?.mensaje ?? "No se encontró el participante autenticado.",
+        "PARTICIPANTE_NO_ENCONTRADO",
+        404,
+        false,
+      );
+    }
+
+    const codigo = (cuerpo?.codigo as CodigoErrorEliminarCuenta | undefined) ??
+      "DESCONOCIDO";
+    throw new ErrorEliminarCuenta(
+      cuerpo?.mensaje ?? "No fue posible eliminar la cuenta.",
+      codigo,
+      respuesta.status,
+      false,
+    );
+  }
+
+  return (await respuesta.json()) as RespuestaEliminarCuentaParticipante;
+}
+
 export async function modificarPerfilParticipanteApi(
   tokenAcceso: string,
   cambios: ModificarPerfilParticipantePayload,

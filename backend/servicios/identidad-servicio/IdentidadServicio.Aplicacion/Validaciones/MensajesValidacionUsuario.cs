@@ -76,6 +76,12 @@ public static class MensajesValidacionUsuario
     public const string FechaNacimientoFutura = "La fecha de nacimiento no puede ser futura.";
     public const string EdadMinima = "El usuario debe tener al menos 18 años.";
     public const string EdadMaxima = "El usuario no puede tener más de 100 años.";
+    // Reportado cuando el cliente envía un valor que no representa una fecha
+    // real (p. ej. "2000-12-56", "abc"). Se produce antes de que la fecha
+    // llegue a ReglasValidacionUsuario.ValidarFechaNacimiento — el binding
+    // de System.Text.Json no puede deserializar el valor a DateTime.
+    public const string FechaNacimientoFormato =
+        "La fecha de nacimiento no tiene un formato válido.";
 
     // Sexo
     public const string SexoInvalido = "El sexo no es válido.";
