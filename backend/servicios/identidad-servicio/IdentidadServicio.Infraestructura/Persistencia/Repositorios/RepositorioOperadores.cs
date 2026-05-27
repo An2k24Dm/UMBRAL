@@ -5,9 +5,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace IdentidadServicio.Infraestructura.Persistencia.Repositorios;
 
-// Repositorio específico de Operadores (HU02 alta, HU09 edición, generador de
-// códigos OP-###). Las operaciones de escritura no llaman a SaveChangesAsync;
-// la confirmación la hace el manejador vía IUnidadTrabajoIdentidad.
 public sealed class RepositorioOperadores : IRepositorioOperadores
 {
     private readonly ContextoIdentidad _contexto;
@@ -56,8 +53,6 @@ public sealed class RepositorioOperadores : IRepositorioOperadores
             ?? throw new InvalidOperationException(
                 $"El usuario {operador.Id} no tiene fila Persona asociada.");
 
-        // Campos editables únicamente. Estado, Rol, FechaRegistro e
-        // IdKeycloak no se reescriben.
         usuario.NombreUsuario = operador.NombreUsuario.Valor;
 
         persona.Nombre = operador.NombrePersona.Nombre;
@@ -68,15 +63,9 @@ public sealed class RepositorioOperadores : IRepositorioOperadores
         persona.Sexo = (int)operador.Sexo;
         persona.FechaNacimiento = operador.FechaNacimiento;
 
-        // No se llama a SaveChangesAsync aquí: la unidad de trabajo decide
-        // cuándo persistir. Devolvemos el IdKeycloak para que el manejador
-        // pueda sincronizar Keycloak tras GuardarCambiosAsync.
         return usuario.IdKeycloak;
     }
 
-    // Devuelve el IdKeycloak del Operador (sin tocar el tracker EF). Lo usa
-    // el manejador de edición cuando solo cambia la contraseña: necesita el
-    // sub de Keycloak pero no quiere preparar cambios sobre Persona/Usuario.
     public async Task<string?> ObtenerIdKeycloakAsync(
         Guid idOperador, CancellationToken cancelacion)
     {
@@ -86,8 +75,20 @@ public sealed class RepositorioOperadores : IRepositorioOperadores
             .FirstOrDefaultAsync(cancelacion);
     }
 
-    // Códigos con formato OP-### zero-padded a 3 dígitos: el orden
-    // descendente alfabético coincide con el numérico hasta 999.
+    public async Task EliminarAsync(Operador operador, CancellationToken cancelacion)
+    {
+        var usuario = await _contexto.Usuarios
+            .FirstOrDefaultAsync(u => u.Id == operador.Id, cancelacion)
+            ?? throw new InvalidOperationException(
+                $"El usuario {operador.Id} no existe en base de datos.");
+
+        if (usuario.Rol != (int)RolUsuario.Operador)
+            throw new InvalidOperationException(
+                "Sólo se puede eliminar mediante este método a usuarios con rol Operador.");
+
+        _contexto.Usuarios.Remove(usuario);
+    }
+
     public async Task<string?> ObtenerUltimoCodigoAsync(CancellationToken cancelacion)
     {
         return await _contexto.Operadores.AsNoTracking()

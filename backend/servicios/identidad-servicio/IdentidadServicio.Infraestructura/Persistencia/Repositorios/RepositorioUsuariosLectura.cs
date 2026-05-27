@@ -97,7 +97,6 @@ public sealed class RepositorioUsuariosLectura : IRepositorioUsuariosLectura
                     resultado.Add(_mapeador.AOperador(u, persona, o));
                     break;
                 }
-                // Participantes no entran en HU08; la consulta base ya los excluye.
             }
         }
 

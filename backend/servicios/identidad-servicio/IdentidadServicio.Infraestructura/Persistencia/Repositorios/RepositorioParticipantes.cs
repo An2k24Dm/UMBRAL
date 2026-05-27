@@ -5,7 +5,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace IdentidadServicio.Infraestructura.Persistencia.Repositorios;
 
-// Repositorio específico de Participantes (HU03 registro, HU07 listado/detalle).
 public sealed class RepositorioParticipantes : IRepositorioParticipantes
 {
     private readonly ContextoIdentidad _contexto;
@@ -27,9 +26,6 @@ public sealed class RepositorioParticipantes : IRepositorioParticipantes
         return Task.CompletedTask;
     }
 
-    // HU07 — lista paginada de Participantes. Filtra estrictamente por rol y
-    // permite ordenar por estado. Desempate por NombreUsuario para garantizar
-    // paginación estable cuando varias filas comparten estado.
     public async Task<IReadOnlyList<Participante>> ConsultarAsync(
         int pagina, int tamanioPagina, string? ordenEstado, CancellationToken cancelacion)
     {
@@ -89,8 +85,6 @@ public sealed class RepositorioParticipantes : IRepositorioParticipantes
         return await ReconstruirSiEsParticipanteAsync(usuario, cancelacion);
     }
 
-    // HU10 — el Participante autenticado edita su propio perfil. Se entra
-    // por el sub de Keycloak, no por un id externo.
     public async Task<Participante?> ObtenerPorIdKeycloakAsync(
         string idKeycloak, CancellationToken cancelacion)
     {
@@ -100,9 +94,6 @@ public sealed class RepositorioParticipantes : IRepositorioParticipantes
         return await ReconstruirSiEsParticipanteAsync(usuario, cancelacion);
     }
 
-    // HU10 — aplica los cambios editables sobre el modelo EF sin guardar.
-    // La unidad de trabajo es la que ejecuta SaveChanges. Estado, Rol,
-    // FechaRegistro e IdKeycloak no se reescriben.
     public async Task<string> ActualizarAsync(Participante participante, CancellationToken cancelacion)
     {
         var usuario = await _contexto.Usuarios

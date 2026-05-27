@@ -5,7 +5,9 @@ import { VistaPerfilUsuario } from '../componentes/VistaPerfilUsuario'
 import { Alerta } from '../componentes/Alerta'
 import { Boton } from '../componentes/Boton'
 import { FormularioEditarOperador } from '../componentes/FormularioEditarOperador'
+import { ModalConfirmacion } from '../componentes/ModalConfirmacion'
 import { usarAutenticacion } from '../autenticacion/ProveedorAutenticacion'
+import { eliminarOperador } from '../autenticacion/clienteApi'
 import type { UsuarioDetalle } from '../autenticacion/tipos'
 
 // Vista de detalle/perfil completo de un usuario seleccionado desde una lista.
@@ -32,13 +34,21 @@ export function PaginaDetalleUsuario({
   permiteEditarOperador = false
 }: Props) {
   const { id } = useParams<{ id: string }>()
-  const { token } = usarAutenticacion()
+  const { token, usuario: usuarioAutenticado } = usarAutenticacion()
   const navegar = useNavigate()
   const [estado, setEstado] = useState<'cargando' | 'error' | 'denegado' | 'listo'>('cargando')
   const [mensajeError, setMensajeError] = useState<string | null>(null)
   const [usuario, setUsuario] = useState<UsuarioDetalle | null>(null)
   const [modoEdicion, setModoEdicion] = useState(false)
   const [mensajeExito, setMensajeExito] = useState<string | null>(null)
+
+  // HU13 — estado del modal de confirmación de eliminación de Operador.
+  // El botón sólo se ofrece a Administradores autenticados sobre un detalle
+  // de Operador (NO Administrador, NO Participante). El backend repite la
+  // validación: el frontend sólo decide visibilidad.
+  const [modalEliminarAbierto, setModalEliminarAbierto] = useState(false)
+  const [eliminando, setEliminando] = useState(false)
+  const [errorEliminar, setErrorEliminar] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelado = false
@@ -81,6 +91,53 @@ export function PaginaDetalleUsuario({
     permiteEditarOperador &&
     usuario?.rol === 'Operador'
 
+  // HU13 — el botón "Eliminar operador" se muestra cuando:
+  //  * la vista está en modo lectura (no edición),
+  //  * el usuario autenticado es Administrador,
+  //  * el detalle consultado corresponde a un Operador (nunca Administrador
+  //    ni Participante — esos roles no se eliminan por esta vía).
+  // La ruta de Administrador es la única que pasa `permiteEditarOperador`,
+  // así que la reutilizamos como bandera de "estoy en la vista que tiene
+  // sentido para eliminar operadores" (panel de Administrador).
+  const mostrarBotonEliminar =
+    estado === 'listo' &&
+    !modoEdicion &&
+    permiteEditarOperador &&
+    usuario?.rol === 'Operador' &&
+    usuarioAutenticado?.rol === 'Administrador'
+
+  const abrirModalEliminar = () => {
+    setErrorEliminar(null)
+    setModalEliminarAbierto(true)
+  }
+  const cerrarModalEliminar = () => {
+    if (eliminando) return
+    setModalEliminarAbierto(false)
+    setErrorEliminar(null)
+  }
+
+  const confirmarEliminar = async () => {
+    if (!usuario || !token || eliminando) return
+    setEliminando(true)
+    setErrorEliminar(null)
+    try {
+      await eliminarOperador(usuario.id, token)
+      // Éxito: redirigir al listado y forzar refresco (state propagado por
+      // navegación, el listado lo lee si lo necesita).
+      setModalEliminarAbierto(false)
+      navegar('/administrador/usuarios/internos', {
+        replace: true,
+        state: { mensajeExito: 'Operador eliminado permanentemente.' }
+      })
+    } catch (e) {
+      setErrorEliminar(
+        e instanceof Error ? e.message : 'No fue posible eliminar el operador.'
+      )
+    } finally {
+      setEliminando(false)
+    }
+  }
+
   return (
     <LayoutPanel titulo="Detalle de usuario" descripcion="Perfil completo del usuario seleccionado.">
       <div className="cabecera-pagina">
@@ -98,6 +155,17 @@ export function PaginaDetalleUsuario({
           {mostrarBotonEditar && (
             <Boton variante="primario" onClick={() => { setModoEdicion(true); setMensajeExito(null) }}>
               Editar
+            </Boton>
+          )}
+          {/* HU13 — botón destructivo de eliminación. Sólo visible para
+              Administrador sobre un Operador. */}
+          {mostrarBotonEliminar && (
+            <Boton
+              variante="peligro"
+              onClick={abrirModalEliminar}
+              data-testid="boton-eliminar-operador"
+            >
+              Eliminar operador
             </Boton>
           )}
           <Boton variante="volver" onClick={() => navegar(-1)}>← Volver</Boton>
@@ -139,6 +207,25 @@ export function PaginaDetalleUsuario({
           }}
         />
       )}
+
+      {/* HU13 — modal de confirmación de eliminación de Operador. El
+          contenido recuerda al usuario que la acción es permanente. */}
+      <ModalConfirmacion
+        abierto={modalEliminarAbierto}
+        titulo="Eliminar operador"
+        textoConfirmar="Eliminar operador"
+        procesando={eliminando}
+        mensajeError={errorEliminar}
+        onConfirmar={confirmarEliminar}
+        onCancelar={cerrarModalEliminar}
+      >
+        <p>
+          ¿Estás seguro de que deseas eliminar esta cuenta de Operador? Esta
+          acción es <strong>permanente e irreversible</strong>. Se perderán
+          todos los datos asociados y el usuario no podrá acceder nuevamente
+          a la plataforma.
+        </p>
+      </ModalConfirmacion>
     </LayoutPanel>
   )
 }

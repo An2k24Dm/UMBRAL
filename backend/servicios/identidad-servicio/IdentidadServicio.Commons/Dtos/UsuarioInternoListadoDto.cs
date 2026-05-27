@@ -1,8 +1,5 @@
 namespace IdentidadServicio.Commons.Dtos;
 
-// Fila de listado de un usuario interno (Operador o Administrador) para HU08.
-// La columna "Código" del frontend se arma a partir de CodigoOperador o
-// CodigoAdministrador según el rol.
 public sealed class UsuarioInternoListadoDto
 {
     public Guid Id { get; init; }
