@@ -39,7 +39,21 @@ const ENDPOINTS = {
     `/api/usuarios/operadores/${encodeURIComponent(id)}`,
   // HU13 — eliminación permanente de un Operador (sólo Administrador).
   eliminarOperador: (id: string) =>
-    `/api/usuarios/operadores/${encodeURIComponent(id)}`
+    `/api/usuarios/operadores/${encodeURIComponent(id)}`,
+  // HU12 — desactivación temporal de un Operador (sólo Administrador).
+  desactivarOperador: (id: string) =>
+    `/api/usuarios/operadores/${encodeURIComponent(id)}/desactivar`,
+  // HU12 (extensión) — desactivación temporal de un Participante
+  // (Administrador u Operador Activo).
+  desactivarParticipante: (id: string) =>
+    `/api/usuarios/participantes/${encodeURIComponent(id)}/desactivar`,
+  // Reactivación de un Operador previamente desactivado (sólo Administrador).
+  activarOperador: (id: string) =>
+    `/api/usuarios/operadores/${encodeURIComponent(id)}/activar`,
+  // Reactivación de un Participante previamente desactivado (Administrador
+  // u Operador Activo).
+  activarParticipante: (id: string) =>
+    `/api/usuarios/participantes/${encodeURIComponent(id)}/activar`
 }
 
 // ---------------------------------------------------------------------------
@@ -330,6 +344,101 @@ export async function eliminarOperador(
   }
 
   return (await respuesta.json()) as EliminarOperadorRespuesta
+}
+
+// ---------------------------------------------------------------------------
+// HU12 — desactivación temporal de un Operador o Participante
+// ---------------------------------------------------------------------------
+//
+// Misma forma de respuesta para ambos: id del usuario afectado, estado
+// resultante ("Inactivo") y mensaje legible. El backend nunca devuelve
+// datos sensibles.
+export interface CambiarEstadoUsuarioRespuesta {
+  idUsuario: string
+  estado: 'Activo' | 'Inactivo' | string
+  mensaje: string
+}
+
+async function patchSinCuerpo(
+  url: string,
+  token: string,
+  mensajeError: string
+): Promise<CambiarEstadoUsuarioRespuesta> {
+  const respuesta = await fetch(url, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...autorizacion(token) },
+    body: '{}'
+  })
+
+  if (respuesta.status === 401) throw new Error('Debe iniciar sesión.')
+  if (respuesta.status === 403) {
+    const cuerpo = (await respuesta.json().catch(() => null)) as
+      | { codigo?: string; mensaje?: string }
+      | null
+    if (cuerpo?.codigo === 'CUENTA_DESACTIVADA') {
+      throw new Error(
+        'Su cuenta se encuentra desactivada. Inicie sesión nuevamente.'
+      )
+    }
+    throw new Error('No tiene permisos para realizar esta acción.')
+  }
+  if (respuesta.status === 404) throw new Error('El usuario solicitado no existe.')
+
+  if (!respuesta.ok) {
+    const cuerpo = (await respuesta.json().catch(() => null)) as
+      | { codigo?: string; mensaje?: string }
+      | null
+    if (cuerpo?.codigo === 'USUARIO_YA_INACTIVO') {
+      throw new Error('La cuenta ya se encuentra inactiva.')
+    }
+    if (cuerpo?.codigo === 'USUARIO_YA_ACTIVO') {
+      throw new Error('La cuenta ya se encuentra activa.')
+    }
+    throw new Error(cuerpo?.mensaje ?? mensajeError)
+  }
+
+  return (await respuesta.json()) as CambiarEstadoUsuarioRespuesta
+}
+
+export function desactivarOperadorApi(
+  id: string, token: string
+): Promise<CambiarEstadoUsuarioRespuesta> {
+  return patchSinCuerpo(
+    `${URL_API}${ENDPOINTS.desactivarOperador(id)}`,
+    token,
+    'No fue posible desactivar el operador.'
+  )
+}
+
+export function desactivarParticipanteApi(
+  id: string, token: string
+): Promise<CambiarEstadoUsuarioRespuesta> {
+  return patchSinCuerpo(
+    `${URL_API}${ENDPOINTS.desactivarParticipante(id)}`,
+    token,
+    'No fue posible desactivar el participante.'
+  )
+}
+
+// Reactivar — comparten el mismo helper que desactivar, solo cambia la URL.
+export function activarOperadorApi(
+  id: string, token: string
+): Promise<CambiarEstadoUsuarioRespuesta> {
+  return patchSinCuerpo(
+    `${URL_API}${ENDPOINTS.activarOperador(id)}`,
+    token,
+    'No fue posible activar el operador.'
+  )
+}
+
+export function activarParticipanteApi(
+  id: string, token: string
+): Promise<CambiarEstadoUsuarioRespuesta> {
+  return patchSinCuerpo(
+    `${URL_API}${ENDPOINTS.activarParticipante(id)}`,
+    token,
+    'No fue posible activar el participante.'
+  )
 }
 
 export async function modificarOperador(

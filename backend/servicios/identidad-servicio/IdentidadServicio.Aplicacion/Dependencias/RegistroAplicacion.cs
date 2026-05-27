@@ -39,6 +39,7 @@ public static class RegistroAplicacion
             ValidadorUnicidadModificarParticipante>();
         servicios.AddSingleton<AplicadorCambiosUsuario>();
         servicios.AddScoped<IGeneradorCodigoUsuario, GeneradorCodigoUsuario>();
+        servicios.AddScoped<IAutorizadorUsuarioActivo, AutorizadorUsuarioActivo>();
 
         return servicios;
     }

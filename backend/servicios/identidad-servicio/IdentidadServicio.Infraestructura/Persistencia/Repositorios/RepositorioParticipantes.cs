@@ -145,6 +145,18 @@ public sealed class RepositorioParticipantes : IRepositorioParticipantes
         _contexto.Usuarios.Remove(usuario);
     }
 
+    public async Task ActualizarEstadoAsync(Participante participante, CancellationToken cancelacion)
+    {
+        var usuario = await _contexto.Usuarios
+            .FirstOrDefaultAsync(u => u.Id == participante.Id, cancelacion)
+            ?? throw new InvalidOperationException(
+                $"El usuario {participante.Id} no existe en base de datos.");
+        if (usuario.Rol != (int)RolUsuario.Participante)
+            throw new InvalidOperationException(
+                "Sólo se puede cambiar el estado mediante este método a usuarios con rol Participante.");
+        usuario.Estado = (int)participante.Estado;
+    }
+
     private async Task<Participante?> ReconstruirSiEsParticipanteAsync(
         UsuarioModelo? usuario, CancellationToken cancelacion)
     {

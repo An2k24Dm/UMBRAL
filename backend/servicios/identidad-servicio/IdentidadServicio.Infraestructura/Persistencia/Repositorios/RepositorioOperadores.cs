@@ -97,4 +97,16 @@ public sealed class RepositorioOperadores : IRepositorioOperadores
             .Select(o => o.CodigoOperador)
             .FirstOrDefaultAsync(cancelacion);
     }
+
+    public async Task ActualizarEstadoAsync(Operador operador, CancellationToken cancelacion)
+    {
+        var usuario = await _contexto.Usuarios
+            .FirstOrDefaultAsync(u => u.Id == operador.Id, cancelacion)
+            ?? throw new InvalidOperationException(
+                $"El usuario {operador.Id} no existe en base de datos.");
+        if (usuario.Rol != (int)RolUsuario.Operador)
+            throw new InvalidOperationException(
+                "Sólo se puede cambiar el estado mediante este método a usuarios con rol Operador.");
+        usuario.Estado = (int)operador.Estado;
+    }
 }

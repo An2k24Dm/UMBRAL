@@ -168,6 +168,114 @@ public sealed class UsuariosControlador : ControllerBase
         }
     }
 
+    [HttpPatch("operadores/{id:guid}/activar")]
+    [Authorize(Policy = "PoliticaAdministrador")]
+    [ProducesResponseType(typeof(CambiarEstadoUsuarioRespuestaDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ActivarOperador(
+        Guid id, CancellationToken cancelacion)
+    {
+        try
+        {
+            var resultado = await _mediador.Send(
+                new ActivarOperadorComando(id), cancelacion);
+            return Ok(resultado);
+        }
+        catch (DatosUsuarioInvalidosExcepcion ex)
+            when (ex.Message.Contains("No existe un Operador", StringComparison.OrdinalIgnoreCase))
+        {
+            return NotFound(new
+            {
+                codigo = "OPERADOR_NO_ENCONTRADO",
+                mensaje = "El operador solicitado no existe."
+            });
+        }
+    }
+
+    [HttpPatch("participantes/{id:guid}/activar")]
+    [Authorize(Policy = "PoliticaAdministradorUOperador")]
+    [ProducesResponseType(typeof(CambiarEstadoUsuarioRespuestaDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ActivarParticipante(
+        Guid id, CancellationToken cancelacion)
+    {
+        try
+        {
+            var resultado = await _mediador.Send(
+                new ActivarParticipanteComando(id), cancelacion);
+            return Ok(resultado);
+        }
+        catch (DatosUsuarioInvalidosExcepcion ex)
+            when (ex.Message.Contains("No existe un Participante", StringComparison.OrdinalIgnoreCase))
+        {
+            return NotFound(new
+            {
+                codigo = "PARTICIPANTE_NO_ENCONTRADO",
+                mensaje = "El participante solicitado no existe."
+            });
+        }
+    }
+
+    [HttpPatch("operadores/{id:guid}/desactivar")]
+    [Authorize(Policy = "PoliticaAdministrador")]
+    [ProducesResponseType(typeof(CambiarEstadoUsuarioRespuestaDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DesactivarOperador(
+        Guid id, CancellationToken cancelacion)
+    {
+        try
+        {
+            var resultado = await _mediador.Send(
+                new DesactivarOperadorComando(id), cancelacion);
+            return Ok(resultado);
+        }
+        catch (DatosUsuarioInvalidosExcepcion ex)
+            when (ex.Message.Contains("No existe un Operador", StringComparison.OrdinalIgnoreCase))
+        {
+            return NotFound(new
+            {
+                codigo = "OPERADOR_NO_ENCONTRADO",
+                mensaje = "El operador solicitado no existe."
+            });
+        }
+    }
+
+    [HttpPatch("participantes/{id:guid}/desactivar")]
+    [Authorize(Policy = "PoliticaAdministradorUOperador")]
+    [ProducesResponseType(typeof(CambiarEstadoUsuarioRespuestaDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DesactivarParticipante(
+        Guid id, CancellationToken cancelacion)
+    {
+        try
+        {
+            var resultado = await _mediador.Send(
+                new DesactivarParticipanteComando(id), cancelacion);
+            return Ok(resultado);
+        }
+        catch (DatosUsuarioInvalidosExcepcion ex)
+            when (ex.Message.Contains("No existe un Participante", StringComparison.OrdinalIgnoreCase))
+        {
+            return NotFound(new
+            {
+                codigo = "PARTICIPANTE_NO_ENCONTRADO",
+                mensaje = "El participante solicitado no existe."
+            });
+        }
+    }
+
     [HttpDelete("operadores/{id:guid}")]
     [Authorize(Policy = "PoliticaAdministrador")]
     [ProducesResponseType(typeof(EliminarOperadorRespuestaDto), StatusCodes.Status200OK)]
