@@ -190,13 +190,13 @@ public sealed class RepositorioJuegos : IRepositorioJuegos
 
     // Consulta optimizada: proyección directa a DTO sin cargar el modelo de dominio.
     public async Task<List<TriviaResumenDto>> ObtenerTriviasEnBorradorAsync(
-        Guid creadorId, CancellationToken cancelacion)
+        Guid? creadorId, CancellationToken cancelacion)
     {
         var estadoBorrador = (int)EstadoTrivia.Borrador;
 
         return await _contexto.Trivias
             .AsNoTracking()
-            .Where(t => t.CreadorId == creadorId && t.Estado == estadoBorrador)
+            .Where(t => (creadorId == null || t.CreadorId == creadorId) && t.Estado == estadoBorrador)
             .OrderByDescending(t => t.FechaCreacion)
             .Select(t => new TriviaResumenDto
             {

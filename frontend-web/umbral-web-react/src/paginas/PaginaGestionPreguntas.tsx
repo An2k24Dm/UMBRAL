@@ -79,8 +79,9 @@ function validarPregunta(form: FormPregunta): ErroresPregunta {
 // ---------------------------------------------------------------------------
 export function PaginaGestionPreguntas() {
   const { triviaId } = useParams<{ triviaId: string }>()
-  const { token } = usarAutenticacion()
+  const { token, usuario } = usarAutenticacion()
   const navegar = useNavigate()
+  const rutaBase = usuario?.rol === 'Administrador' ? '/administrador/trivias' : '/operador/trivias'
 
   const [trivia, setTrivia] = useState<TriviaDetalleDto | null>(null)
   const [estadoCarga, setEstadoCarga] = useState<'cargando' | 'error' | 'listo'>('cargando')
@@ -343,7 +344,7 @@ export function PaginaGestionPreguntas() {
     setErrorArchivado(null)
     try {
       await archivarTrivia(triviaId, token)
-      navegar('/operador/trivias')
+      navegar(rutaBase)
     } catch (err) {
       setErrorArchivado(err instanceof Error ? err.message : 'No fue posible archivar la trivia.')
       setConfirmandoArchivado(false)
@@ -367,7 +368,7 @@ export function PaginaGestionPreguntas() {
     return (
       <LayoutPanel titulo="Preguntas" descripcion="Error al cargar la trivia.">
         <Alerta tono="error">{errorCarga ?? 'Error desconocido.'}</Alerta>
-        <Boton variante="volver" onClick={() => navegar('/operador/trivias')}>
+        <Boton variante="volver" onClick={() => navegar(rutaBase)}>
           Volver a mis trivias
         </Boton>
       </LayoutPanel>
@@ -390,7 +391,7 @@ export function PaginaGestionPreguntas() {
             </span>
           </div>
           <div className="cabecera-pagina-acciones">
-            <Boton variante="volver" onClick={() => navegar('/operador/trivias')}>
+            <Boton variante="volver" onClick={() => navegar(rutaBase)}>
               Volver
             </Boton>
             {modoForm === 'oculto' && !mostrarFormTrivia && !confirmandoArchivado && (

@@ -15,8 +15,9 @@ function formatearFecha(iso: string): string {
 }
 
 export function PaginaListaTrivias() {
-  const { token } = usarAutenticacion()
+  const { token, usuario } = usarAutenticacion()
   const navegar = useNavigate()
+  const rutaBase = usuario?.rol === 'Administrador' ? '/administrador/trivias' : '/operador/trivias'
 
   const [estado, setEstado] = useState<'cargando' | 'error' | 'vacio' | 'listo'>('cargando')
   const [mensajeError, setMensajeError] = useState<string | null>(null)
@@ -55,10 +56,10 @@ export function PaginaListaTrivias() {
             <p>Haga clic en una trivia para gestionar sus preguntas.</p>
           </div>
           <div className="cabecera-pagina-acciones">
-            <Boton variante="secundario" onClick={() => navegar('/operador/trivias/activas')}>
+            <Boton variante="secundario" onClick={() => navegar(`${rutaBase}/activas`)}>
               Ver activas
             </Boton>
-            <Boton variante="primario" onClick={() => navegar('/operador/trivias/crear')}>
+            <Boton variante="primario" onClick={() => navegar(`${rutaBase}/crear`)}>
               + Crear trivia
             </Boton>
           </div>
@@ -84,8 +85,8 @@ export function PaginaListaTrivias() {
                 className="trivia-card"
                 role="button"
                 tabIndex={0}
-                onClick={() => navegar(`/operador/trivias/${t.id}/preguntas`)}
-                onKeyDown={(e) => e.key === 'Enter' && navegar(`/operador/trivias/${t.id}/preguntas`)}
+                onClick={() => navegar(`${rutaBase}/${t.id}/preguntas`)}
+                onKeyDown={(e) => e.key === 'Enter' && navegar(`${rutaBase}/${t.id}/preguntas`)}
               >
                 <div className="trivia-card-cabecera">
                   <span className="trivia-card-nombre">{t.nombre}</span>

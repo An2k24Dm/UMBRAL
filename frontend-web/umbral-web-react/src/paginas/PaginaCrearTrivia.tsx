@@ -41,8 +41,9 @@ function validar(datos: Datos): Errores {
 }
 
 export function PaginaCrearTrivia() {
-  const { token } = usarAutenticacion()
+  const { token, usuario } = usarAutenticacion()
   const navegar = useNavigate()
+  const rutaBase = usuario?.rol === 'Administrador' ? '/administrador/trivias' : '/operador/trivias'
 
   const [datos, setDatos] = useState<Datos>(ESTADO_INICIAL)
   const [errores, setErrores] = useState<Errores>({})
@@ -74,7 +75,7 @@ export function PaginaCrearTrivia() {
         },
         token
       )
-      navegar(`/operador/trivias/${id}/preguntas`)
+      navegar(`${rutaBase}/${id}/preguntas`)
     } catch (e) {
       setErrorGeneral(e instanceof Error ? e.message : 'No fue posible crear la trivia.')
       setEnviando(false)
@@ -136,7 +137,7 @@ export function PaginaCrearTrivia() {
           </CampoFormulario>
 
           <div className="acciones-formulario-trivia">
-            <Boton variante="volver" type="button" onClick={() => navegar('/operador/trivias')} disabled={enviando}>
+            <Boton variante="volver" type="button" onClick={() => navegar(rutaBase)} disabled={enviando}>
               Cancelar
             </Boton>
             <Boton variante="primario" type="submit" disabled={enviando}>
