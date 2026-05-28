@@ -106,7 +106,15 @@ export function Aplicacion() {
           </RutaProtegida>
         }
       />
-<Route
+      <Route
+        path="/administrador/trivias/activas"
+        element={
+          <RutaProtegida rolesPermitidos={['Administrador']}>
+            <PaginaListaTriviasActivas />
+          </RutaProtegida>
+        }
+      />
+      <Route
         path="/administrador/trivias/crear"
         element={
           <RutaProtegida rolesPermitidos={['Administrador']}>
