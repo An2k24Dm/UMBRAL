@@ -93,6 +93,32 @@ export function Aplicacion() {
         }
       />
 
+      {/* HU15/18/19/20 — Trivias accesibles también por el Administrador. */}
+      <Route
+        path="/administrador/trivias"
+        element={
+          <RutaProtegida rolesPermitidos={['Administrador']}>
+            <PaginaListaTrivias />
+          </RutaProtegida>
+        }
+      />
+<Route
+        path="/administrador/trivias/crear"
+        element={
+          <RutaProtegida rolesPermitidos={['Administrador']}>
+            <PaginaCrearTrivia />
+          </RutaProtegida>
+        }
+      />
+      <Route
+        path="/administrador/trivias/:triviaId/preguntas"
+        element={
+          <RutaProtegida rolesPermitidos={['Administrador']}>
+            <PaginaGestionPreguntas />
+          </RutaProtegida>
+        }
+      />
+
       {/* ----- Operador ----- */}
       <Route
         path="/operador"

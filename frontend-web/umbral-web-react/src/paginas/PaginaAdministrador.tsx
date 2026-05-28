@@ -37,6 +37,12 @@ export function PaginaAdministrador() {
             textoAccion="Ver usuarios internos"
           />
           <TarjetaResumen
+            titulo="Trivias"
+            descripcion="Crear y gestionar trivias: agregar, modificar o eliminar preguntas."
+            destino="/administrador/trivias"
+            textoAccion="Gestionar trivias"
+          />
+          <TarjetaResumen
             titulo="Mi perfil"
             descripcion="Revisar los datos personales asociados a su cuenta."
             destino="/administrador/perfil"

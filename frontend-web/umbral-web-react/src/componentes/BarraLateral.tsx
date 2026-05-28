@@ -20,6 +20,7 @@ function obtenerEnlaces(rol: Rol): EnlaceNavegacion[] {
       { destino: '/administrador/usuarios/registrar', etiqueta: 'Registrar usuario' },
       { destino: '/administrador/usuarios/participantes', etiqueta: 'Participantes' },
       { destino: '/administrador/usuarios/internos', etiqueta: 'Operadores y Administradores' },
+      { destino: '/administrador/trivias', etiqueta: 'Trivias' },
       { destino: '/administrador/perfil', etiqueta: 'Mi perfil' }
     ]
   }
