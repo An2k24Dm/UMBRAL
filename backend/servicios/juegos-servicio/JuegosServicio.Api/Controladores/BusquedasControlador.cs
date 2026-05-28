@@ -108,7 +108,7 @@ public sealed class BusquedasControlador : ControllerBase
 
         if (Guid.TryParse(sub, out var id)) return id;
 
-        if (User.IsInRole("Administrador")) return Guid.Empty;
+        if (User.IsInRole("Administrador")) return Guid.Parse("11111111-1111-1111-1111-111111111111");
 
         throw new UnauthorizedAccessException("No se pudo determinar la identidad del operador.");
     }

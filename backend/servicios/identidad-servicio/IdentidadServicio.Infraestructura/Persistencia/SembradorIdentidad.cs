@@ -8,7 +8,7 @@ public static class SembradorIdentidad
 {
     private static readonly Guid IdAdmin = Guid.Parse("11111111-1111-1111-1111-111111111111");
 
-    private const string IdKeycloakAdmin = "kc-administrador-001";
+    private const string IdKeycloakAdmin = "11111111-1111-1111-1111-111111111111";
 
     public static async Task SembrarAsync(
         ContextoIdentidad contexto,
