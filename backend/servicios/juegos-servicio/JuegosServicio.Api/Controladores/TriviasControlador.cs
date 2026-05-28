@@ -178,6 +178,9 @@ public sealed class TriviasControlador : ControllerBase
 
         if (Guid.TryParse(sub, out var id)) return id;
 
+        // Keycloak puede preservar IDs no-UUID en el sub del admin (ej. "kc-administrador-001").
+        if (User.IsInRole("Administrador")) return Guid.Empty;
+
         throw new UnauthorizedAccessException("No se pudo determinar la identidad del operador.");
     }
 }

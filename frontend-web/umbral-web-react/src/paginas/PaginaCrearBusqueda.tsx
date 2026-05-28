@@ -35,8 +35,9 @@ function validar(datos: Datos): Errores {
 }
 
 export function PaginaCrearBusqueda() {
-  const { token } = usarAutenticacion()
+  const { token, usuario } = usarAutenticacion()
   const navegar = useNavigate()
+  const rutaBase = usuario?.rol === 'Administrador' ? '/administrador/busquedas' : '/operador/busquedas'
 
   const [datos, setDatos] = useState<Datos>(ESTADO_INICIAL)
   const [errores, setErrores] = useState<Errores>({})
@@ -67,7 +68,7 @@ export function PaginaCrearBusqueda() {
         },
         token
       )
-      navegar(`/operador/busquedas/${id}/etapas`)
+      navegar(`${rutaBase}/${id}/etapas`)
     } catch (e) {
       setErrorGeneral(e instanceof Error ? e.message : 'No fue posible crear la búsqueda del tesoro.')
       setEnviando(false)
@@ -112,7 +113,7 @@ export function PaginaCrearBusqueda() {
           </CampoFormulario>
 
           <div className="acciones-formulario-trivia">
-            <Boton variante="volver" type="button" onClick={() => navegar('/operador/busquedas')} disabled={enviando}>
+            <Boton variante="volver" type="button" onClick={() => navegar(rutaBase)} disabled={enviando}>
               Cancelar
             </Boton>
             <Boton variante="primario" type="submit" disabled={enviando}>

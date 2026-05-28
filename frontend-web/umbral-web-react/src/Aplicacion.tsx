@@ -97,6 +97,32 @@ export function Aplicacion() {
         }
       />
 
+      {/* HU21/22/23 — Búsquedas del tesoro accesibles también por el Administrador. */}
+      <Route
+        path="/administrador/busquedas"
+        element={
+          <RutaProtegida rolesPermitidos={['Administrador']}>
+            <PaginaListaBusquedas />
+          </RutaProtegida>
+        }
+      />
+      <Route
+        path="/administrador/busquedas/crear"
+        element={
+          <RutaProtegida rolesPermitidos={['Administrador']}>
+            <PaginaCrearBusqueda />
+          </RutaProtegida>
+        }
+      />
+      <Route
+        path="/administrador/busquedas/:busquedaId/etapas"
+        element={
+          <RutaProtegida rolesPermitidos={['Administrador']}>
+            <PaginaGestionEtapas />
+          </RutaProtegida>
+        }
+      />
+
       {/* HU15/18/19/20 — Trivias accesibles también por el Administrador. */}
       <Route
         path="/administrador/trivias"

@@ -42,13 +42,13 @@ public sealed class RepositorioBusquedas : IRepositorioBusquedas
     }
 
     public async Task<List<BusquedaTesoroResumenDto>> ObtenerBusquedasEnBorradorAsync(
-        Guid creadorId, CancellationToken cancelacion)
+        Guid? creadorId, CancellationToken cancelacion)
     {
         var estadoBorrador = (int)EstadoBusqueda.Borrador;
 
         return await _contexto.BusquedasTesoro
             .AsNoTracking()
-            .Where(b => b.CreadorId == creadorId && b.Estado == estadoBorrador)
+            .Where(b => (creadorId == null || b.CreadorId == creadorId) && b.Estado == estadoBorrador)
             .OrderByDescending(b => b.FechaCreacion)
             .Select(b => new BusquedaTesoroResumenDto
             {

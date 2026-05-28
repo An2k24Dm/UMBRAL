@@ -76,8 +76,9 @@ function validarMision(form: FormMision): ErroresMision {
 // ---------------------------------------------------------------------------
 export function PaginaGestionEtapas() {
   const { busquedaId } = useParams<{ busquedaId: string }>()
-  const { token } = usarAutenticacion()
+  const { token, usuario } = usarAutenticacion()
   const navegar = useNavigate()
+  const rutaBase = usuario?.rol === 'Administrador' ? '/administrador/busquedas' : '/operador/busquedas'
 
   const [busqueda, setBusqueda] = useState<BusquedaTesoroDetalleDto | null>(null)
   const [estadoCarga, setEstadoCarga] = useState<'cargando' | 'error' | 'listo'>('cargando')
@@ -219,7 +220,7 @@ export function PaginaGestionEtapas() {
     return (
       <LayoutPanel titulo="Etapas" descripcion="Error al cargar la búsqueda.">
         <Alerta tono="error">{errorCarga ?? 'Error desconocido.'}</Alerta>
-        <Boton variante="volver" onClick={() => navegar('/operador/busquedas')}>
+        <Boton variante="volver" onClick={() => navegar(rutaBase)}>
           Volver a mis búsquedas
         </Boton>
       </LayoutPanel>
@@ -241,7 +242,7 @@ export function PaginaGestionEtapas() {
             </span>
           </div>
           <div className="cabecera-pagina-acciones">
-            <Boton variante="volver" onClick={() => navegar('/operador/busquedas')}>
+            <Boton variante="volver" onClick={() => navegar(rutaBase)}>
               Volver
             </Boton>
             {!mostrarFormEtapa && !etapaConFormMision && (
