@@ -11,6 +11,7 @@ import {
   eliminarPregunta,
   activarTrivia,
   modificarTrivia,
+  archivarTrivia,
   type TriviaDetalleDto,
   type PreguntaDetalleDto,
   type OpcionInput
@@ -102,6 +103,10 @@ export function PaginaGestionPreguntas() {
   const [formTrivia, setFormTrivia] = useState({ nombre: '', descripcion: '', tiempoLimitePorPregunta: '' })
   const [enviandoTrivia, setEnviandoTrivia] = useState(false)
   const [errorFormTrivia, setErrorFormTrivia] = useState<string | null>(null)
+
+  const [confirmandoArchivado, setConfirmandoArchivado] = useState(false)
+  const [archivando, setArchivando] = useState(false)
+  const [errorArchivado, setErrorArchivado] = useState<string | null>(null)
 
   // ---------------------------------------------------------------------------
   // Carga inicial
@@ -330,6 +335,24 @@ export function PaginaGestionPreguntas() {
   }
 
   // ---------------------------------------------------------------------------
+  // Archivar trivia (HU20)
+  // ---------------------------------------------------------------------------
+  async function manejarArchivar() {
+    if (!token || !triviaId) return
+    setArchivando(true)
+    setErrorArchivado(null)
+    try {
+      await archivarTrivia(triviaId, token)
+      navegar('/operador/trivias')
+    } catch (err) {
+      setErrorArchivado(err instanceof Error ? err.message : 'No fue posible archivar la trivia.')
+      setConfirmandoArchivado(false)
+    } finally {
+      setArchivando(false)
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
   if (estadoCarga === 'cargando') {
@@ -370,17 +393,34 @@ export function PaginaGestionPreguntas() {
             <Boton variante="volver" onClick={() => navegar('/operador/trivias')}>
               Volver
             </Boton>
-            {modoForm === 'oculto' && !mostrarFormTrivia && (
+            {modoForm === 'oculto' && !mostrarFormTrivia && !confirmandoArchivado && (
               <Boton variante="fantasma" onClick={abrirFormTrivia}>
                 Modificar datos
               </Boton>
             )}
-            {trivia.estado === 'Borrador' && modoForm === 'oculto' && !mostrarFormTrivia && (
+            {trivia.estado === 'Borrador' && modoForm === 'oculto' && !mostrarFormTrivia && !confirmandoArchivado && (
               <Boton variante="secundario" onClick={manejarActivar} disabled={activando}>
                 {activando ? 'Activando…' : 'Activar trivia'}
               </Boton>
             )}
-            {modoForm === 'oculto' && !mostrarFormTrivia && (
+            {trivia.estado !== 'Archivada' && modoForm === 'oculto' && !mostrarFormTrivia && (
+              confirmandoArchivado ? (
+                <>
+                  <span className="texto-confirmacion">¿Archivar esta trivia?</span>
+                  <Boton variante="peligro" onClick={manejarArchivar} disabled={archivando}>
+                    {archivando ? 'Archivando…' : 'Sí, archivar'}
+                  </Boton>
+                  <Boton variante="volver" onClick={() => setConfirmandoArchivado(false)} disabled={archivando}>
+                    Cancelar
+                  </Boton>
+                </>
+              ) : (
+                <Boton variante="peligro" onClick={() => setConfirmandoArchivado(true)}>
+                  Archivar trivia
+                </Boton>
+              )
+            )}
+            {modoForm === 'oculto' && !mostrarFormTrivia && !confirmandoArchivado && (
               <Boton variante="primario" onClick={abrirFormAgregar}>
                 + Agregar pregunta
               </Boton>
@@ -389,6 +429,7 @@ export function PaginaGestionPreguntas() {
         </div>
 
         {errorActivacion && <Alerta tono="error">{errorActivacion}</Alerta>}
+        {errorArchivado && <Alerta tono="error">{errorArchivado}</Alerta>}
         {errorCarga && <Alerta tono="error">{errorCarga}</Alerta>}
 
         {/* Formulario modificar datos trivia (HU19) */}

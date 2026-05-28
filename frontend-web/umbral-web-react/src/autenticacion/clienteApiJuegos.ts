@@ -18,7 +18,22 @@ const ENDPOINTS = {
     `/api/juegos/trivias/${encodeURIComponent(triviaId)}/activar`,
   // HU19
   modificarTrivia: (triviaId: string) =>
-    `/api/juegos/trivias/${encodeURIComponent(triviaId)}`
+    `/api/juegos/trivias/${encodeURIComponent(triviaId)}`,
+  // HU20
+  archivarTrivia: (triviaId: string) =>
+    `/api/juegos/trivias/${encodeURIComponent(triviaId)}`,
+  listarActivas: '/api/juegos/trivias/activas',
+  // HU21
+  crearBusqueda:       '/api/juegos/busquedas',
+  listarBusquedasBorrador: '/api/juegos/busquedas/borrador',
+  // HU22
+  detalleBusqueda: (busquedaId: string) =>
+    `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}`,
+  agregarEtapa: (busquedaId: string) =>
+    `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}/etapas`,
+  // HU23
+  agregarMision: (busquedaId: string, etapaId: string) =>
+    `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}/etapas/${encodeURIComponent(etapaId)}/misiones`
 }
 
 function auth(token: string) {
@@ -92,6 +107,68 @@ export interface DatosModificarTrivia {
   nuevoNombre: string
   nuevaDescripcion: string
   nuevoTiempoLimitePorPregunta: number
+}
+
+export interface TriviaActivaResumenDto {
+  id: string
+  nombre: string
+  descripcion: string
+  tiempoLimitePorPregunta: number
+  totalPreguntas: number
+  fechaCreacion: string
+}
+
+export interface BusquedaTesoroResumenDto {
+  id: string
+  nombre: string
+  descripcion: string
+  estado: string
+  totalEtapas: number
+  fechaCreacion: string
+}
+
+export interface DatosCrearBusquedaTesoro {
+  nombre: string
+  descripcion: string
+}
+
+export interface MisionDetalleDto {
+  id: string
+  titulo: string
+  descripcion: string
+  tipo: string
+  pistaClave: string
+}
+
+export interface EtapaDetalleDto {
+  id: string
+  titulo: string
+  descripcion: string
+  orden: number
+  misiones: MisionDetalleDto[]
+}
+
+export interface BusquedaTesoroDetalleDto {
+  id: string
+  nombre: string
+  descripcion: string
+  estado: string
+  fechaCreacion: string
+  etapas: EtapaDetalleDto[]
+}
+
+export interface DatosAgregarEtapa {
+  titulo: string
+  descripcion: string
+}
+
+export type TipoMision = 0 | 1 | 2
+
+export interface DatosAgregarMision {
+  titulo: string
+  descripcion: string
+  tipo: TipoMision
+  pistaClave: string
 }
 
 // ---------------------------------------------------------------------------
@@ -187,6 +264,132 @@ export async function modificarPregunta(
   if (respuesta.status === 403) throw new Error('No tiene permisos.')
   if (respuesta.status === 404) throw new Error('Pregunta no encontrada.')
   if (!respuesta.ok) throw new Error(await leerError(respuesta))
+}
+
+// ---------------------------------------------------------------------------
+// HU23 — Agregar misión a una etapa
+// ---------------------------------------------------------------------------
+export async function agregarMision(
+  busquedaId: string,
+  etapaId: string,
+  datos: DatosAgregarMision,
+  token: string
+): Promise<string> {
+  const respuesta = await fetch(`${URL_API}${ENDPOINTS.agregarMision(busquedaId, etapaId)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...auth(token) },
+    body: JSON.stringify(datos)
+  })
+  if (respuesta.status === 401) throw new Error('Debe iniciar sesión.')
+  if (respuesta.status === 403) throw new Error('No tiene permisos.')
+  if (respuesta.status === 404) throw new Error('Etapa no encontrada.')
+  if (!respuesta.ok) throw new Error(await leerError(respuesta))
+  const cuerpo = (await respuesta.json()) as { id: string }
+  return cuerpo.id
+}
+
+// ---------------------------------------------------------------------------
+// HU22 — Obtener detalle de búsqueda del tesoro
+// ---------------------------------------------------------------------------
+export async function obtenerDetalleBusqueda(
+  busquedaId: string,
+  token: string
+): Promise<BusquedaTesoroDetalleDto> {
+  const respuesta = await fetch(`${URL_API}${ENDPOINTS.detalleBusqueda(busquedaId)}`, {
+    headers: auth(token)
+  })
+  if (respuesta.status === 401) throw new Error('Debe iniciar sesión.')
+  if (respuesta.status === 403) throw new Error('No tiene permisos.')
+  if (respuesta.status === 404) throw new Error('Búsqueda del tesoro no encontrada.')
+  if (!respuesta.ok) throw new Error(await leerError(respuesta))
+  return (await respuesta.json()) as BusquedaTesoroDetalleDto
+}
+
+// ---------------------------------------------------------------------------
+// HU22 — Agregar etapa a búsqueda del tesoro
+// ---------------------------------------------------------------------------
+export async function agregarEtapa(
+  busquedaId: string,
+  datos: DatosAgregarEtapa,
+  token: string
+): Promise<string> {
+  const respuesta = await fetch(`${URL_API}${ENDPOINTS.agregarEtapa(busquedaId)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...auth(token) },
+    body: JSON.stringify(datos)
+  })
+  if (respuesta.status === 401) throw new Error('Debe iniciar sesión.')
+  if (respuesta.status === 403) throw new Error('No tiene permisos.')
+  if (respuesta.status === 404) throw new Error('Búsqueda del tesoro no encontrada.')
+  if (!respuesta.ok) throw new Error(await leerError(respuesta))
+  const cuerpo = (await respuesta.json()) as { id: string }
+  return cuerpo.id
+}
+
+// ---------------------------------------------------------------------------
+// HU21 — Crear búsqueda del tesoro
+// ---------------------------------------------------------------------------
+export async function crearBusquedaTesoro(
+  datos: DatosCrearBusquedaTesoro,
+  token: string
+): Promise<string> {
+  const respuesta = await fetch(`${URL_API}${ENDPOINTS.crearBusqueda}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...auth(token) },
+    body: JSON.stringify(datos)
+  })
+  if (respuesta.status === 401) throw new Error('Debe iniciar sesión.')
+  if (respuesta.status === 403) throw new Error('No tiene permisos para crear búsquedas del tesoro.')
+  if (!respuesta.ok) throw new Error(await leerError(respuesta))
+  const cuerpo = (await respuesta.json()) as { id: string }
+  return cuerpo.id
+}
+
+// ---------------------------------------------------------------------------
+// HU21 — Listar búsquedas en borrador
+// ---------------------------------------------------------------------------
+export async function obtenerBusquedasEnBorrador(
+  token: string
+): Promise<BusquedaTesoroResumenDto[]> {
+  const respuesta = await fetch(`${URL_API}${ENDPOINTS.listarBusquedasBorrador}`, {
+    headers: auth(token)
+  })
+  if (respuesta.status === 401) throw new Error('Debe iniciar sesión.')
+  if (respuesta.status === 403) throw new Error('No tiene permisos.')
+  if (!respuesta.ok) throw new Error(await leerError(respuesta))
+  return (await respuesta.json()) as BusquedaTesoroResumenDto[]
+}
+
+// ---------------------------------------------------------------------------
+// HU20 — Archivar trivia
+// ---------------------------------------------------------------------------
+export async function archivarTrivia(
+  triviaId: string,
+  token: string
+): Promise<void> {
+  const respuesta = await fetch(`${URL_API}${ENDPOINTS.archivarTrivia(triviaId)}`, {
+    method: 'DELETE',
+    headers: auth(token)
+  })
+  if (respuesta.status === 401) throw new Error('Debe iniciar sesión.')
+  if (respuesta.status === 403) throw new Error('No tiene permisos.')
+  if (respuesta.status === 404) throw new Error('Trivia no encontrada.')
+  if (!respuesta.ok) throw new Error(await leerError(respuesta))
+}
+
+// ---------------------------------------------------------------------------
+// HU20 — Listar trivias activas
+// ---------------------------------------------------------------------------
+export async function obtenerTriviasActivas(
+  token: string
+): Promise<TriviaActivaResumenDto[]> {
+  const respuesta = await fetch(`${URL_API}${ENDPOINTS.listarActivas}`, {
+    headers: auth(token)
+  })
+  if (respuesta.status === 401) throw new Error('Debe iniciar sesión.')
+  if (respuesta.status === 403) throw new Error('No tiene permisos.')
+  if (!respuesta.ok) throw new Error(await leerError(respuesta))
+  return (await respuesta.json()) as TriviaActivaResumenDto[]
 }
 
 // ---------------------------------------------------------------------------
