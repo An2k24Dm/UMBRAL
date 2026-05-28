@@ -19,6 +19,12 @@ export function PaginaOperador() {
         </div>
         <div className="rejilla-tarjetas">
           <TarjetaResumen
+            titulo="Trivias"
+            descripcion="Crear y gestionar trivias: agregar, modificar o eliminar preguntas."
+            destino="/operador/trivias"
+            textoAccion="Gestionar trivias"
+          />
+          <TarjetaResumen
             titulo="Participantes"
             descripcion="Consultar las cuentas de Participantes registrados."
             destino="/operador/usuarios/participantes"
