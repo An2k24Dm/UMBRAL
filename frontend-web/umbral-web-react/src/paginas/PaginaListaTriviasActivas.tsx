@@ -15,8 +15,9 @@ function formatearFecha(iso: string): string {
 }
 
 export function PaginaListaTriviasActivas() {
-  const { token } = usarAutenticacion()
+  const { token, usuario } = usarAutenticacion()
   const navegar = useNavigate()
+  const rutaBase = usuario?.rol === 'Administrador' ? '/administrador/trivias' : '/operador/trivias'
 
   const [estado, setEstado] = useState<'cargando' | 'error' | 'vacio' | 'listo'>('cargando')
   const [mensajeError, setMensajeError] = useState<string | null>(null)
@@ -55,7 +56,7 @@ export function PaginaListaTriviasActivas() {
             <p>Estas trivias están disponibles para que los participantes las jueguen.</p>
           </div>
           <div className="cabecera-pagina-acciones">
-            <Boton variante="volver" onClick={() => navegar('/operador/trivias')}>
+            <Boton variante="volver" onClick={() => navegar(rutaBase)}>
               Volver a mis trivias
             </Boton>
           </div>

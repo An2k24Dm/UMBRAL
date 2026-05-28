@@ -48,16 +48,16 @@ public sealed class TriviasControlador : ControllerBase
         return Ok(resultado);
     }
 
-    // HU15 — Listar trivias en borrador del operador autenticado.
+    // HU15 — Listar trivias en borrador. Admin ve todas; Operador ve solo las suyas.
     [HttpGet("borrador")]
     [ProducesResponseType(typeof(List<TriviaResumenDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> ObtenerTriviasEnBorrador(CancellationToken cancelacion)
     {
-        var operadorId = ObtenerCreadorId();
+        Guid? filtroOperador = User.IsInRole("Administrador") ? null : ObtenerCreadorId();
         var resultado = await _mediador.Send(
-            new ObtenerTriviasEnBorradorConsulta(operadorId), cancelacion);
+            new ObtenerTriviasEnBorradorConsulta(filtroOperador), cancelacion);
         return Ok(resultado);
     }
 
