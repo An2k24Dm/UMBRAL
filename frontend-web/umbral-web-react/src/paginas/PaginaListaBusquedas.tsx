@@ -15,8 +15,9 @@ function formatearFecha(iso: string): string {
 }
 
 export function PaginaListaBusquedas() {
-  const { token } = usarAutenticacion()
+  const { token, usuario } = usarAutenticacion()
   const navegar = useNavigate()
+  const rutaBase = usuario?.rol === 'Administrador' ? '/administrador/busquedas' : '/operador/busquedas'
 
   const [estado, setEstado] = useState<'cargando' | 'error' | 'vacio' | 'listo'>('cargando')
   const [mensajeError, setMensajeError] = useState<string | null>(null)
@@ -55,7 +56,7 @@ export function PaginaListaBusquedas() {
             <p>Haga clic en una búsqueda para gestionar sus etapas.</p>
           </div>
           <div className="cabecera-pagina-acciones">
-            <Boton variante="primario" onClick={() => navegar('/operador/busquedas/crear')}>
+            <Boton variante="primario" onClick={() => navegar(`${rutaBase}/crear`)}>
               + Crear búsqueda
             </Boton>
           </div>
@@ -81,8 +82,8 @@ export function PaginaListaBusquedas() {
                 className="trivia-card"
                 role="button"
                 tabIndex={0}
-                onClick={() => navegar(`/operador/busquedas/${b.id}/etapas`)}
-                onKeyDown={(e) => e.key === 'Enter' && navegar(`/operador/busquedas/${b.id}/etapas`)}
+                onClick={() => navegar(`${rutaBase}/${b.id}/etapas`)}
+                onKeyDown={(e) => e.key === 'Enter' && navegar(`${rutaBase}/${b.id}/etapas`)}
               >
                 <div className="trivia-card-cabecera">
                   <span className="trivia-card-nombre">{b.nombre}</span>

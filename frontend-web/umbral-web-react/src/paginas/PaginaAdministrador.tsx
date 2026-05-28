@@ -43,6 +43,12 @@ export function PaginaAdministrador() {
             textoAccion="Gestionar trivias"
           />
           <TarjetaResumen
+            titulo="Búsquedas del tesoro"
+            descripcion="Crear y gestionar búsquedas del tesoro con etapas y misiones."
+            destino="/administrador/busquedas"
+            textoAccion="Gestionar búsquedas"
+          />
+          <TarjetaResumen
             titulo="Mi perfil"
             descripcion="Revisar los datos personales asociados a su cuenta."
             destino="/administrador/perfil"

@@ -21,6 +21,7 @@ function obtenerEnlaces(rol: Rol): EnlaceNavegacion[] {
       { destino: '/administrador/usuarios/participantes', etiqueta: 'Participantes' },
       { destino: '/administrador/usuarios/internos', etiqueta: 'Operadores y Administradores' },
       { destino: '/administrador/trivias', etiqueta: 'Trivias' },
+      { destino: '/administrador/busquedas', etiqueta: 'Búsquedas del tesoro' },
       { destino: '/administrador/perfil', etiqueta: 'Mi perfil' }
     ]
   }
