@@ -10,6 +10,8 @@ import {
   modificarEtapa,
   eliminarEtapa,
   agregarMision,
+  modificarMision,
+  eliminarMision,
   type BusquedaTesoroDetalleDto,
   type TipoMision
 } from '../autenticacion/clienteApiJuegos'
@@ -100,6 +102,14 @@ export function PaginaGestionEtapas() {
   const [errorFormEdicionEtapa, setErrorFormEdicionEtapa] = useState<string | null>(null)
   const [enviandoEdicionEtapa, setEnviandoEdicionEtapa] = useState(false)
   const [eliminandoEtapaId, setEliminandoEtapaId] = useState<string | null>(null)
+
+  // Estado del formulario de misión (editar, indexado por misionId)
+  const [misionEnEdicion, setMisionEnEdicion] = useState<string | null>(null)
+  const [formEdicionMision, setFormEdicionMision] = useState<FormMision>(FORM_MISION_VACIO)
+  const [erroresEdicionMision, setErroresEdicionMision] = useState<ErroresMision>({})
+  const [errorFormEdicionMision, setErrorFormEdicionMision] = useState<string | null>(null)
+  const [enviandoEdicionMision, setEnviandoEdicionMision] = useState(false)
+  const [eliminandoMisionId, setEliminandoMisionId] = useState<string | null>(null)
 
   // Estado del formulario de misión (indexado por etapaId)
   const [etapaConFormMision, setEtapaConFormMision] = useState<string | null>(null)
@@ -231,6 +241,60 @@ export function PaginaGestionEtapas() {
   // ---------------------------------------------------------------------------
   // Misiones
   // ---------------------------------------------------------------------------
+  function abrirEdicionMision(mision: { id: string; titulo: string; descripcion: string; tipo: string; pistaClave: string }) {
+    setMisionEnEdicion(mision.id)
+    const tipoNumero = TIPOS_MISION.find(t => t.etiqueta === mision.tipo)?.valor ?? 0
+    setFormEdicionMision({ titulo: mision.titulo, descripcion: mision.descripcion, tipo: String(tipoNumero), pistaClave: mision.pistaClave })
+    setErroresEdicionMision({})
+    setErrorFormEdicionMision(null)
+    setEtapaConFormMision(null)
+  }
+
+  function cerrarEdicionMision() {
+    setMisionEnEdicion(null)
+    setErroresEdicionMision({})
+    setErrorFormEdicionMision(null)
+  }
+
+  async function manejarEnvioEdicionMision(e: React.FormEvent, etapaId: string, misionId: string) {
+    e.preventDefault()
+    const erroresValidacion = validarMision(formEdicionMision)
+    if (Object.keys(erroresValidacion).length > 0) { setErroresEdicionMision(erroresValidacion); return }
+    if (!token || !busquedaId) return
+
+    setEnviandoEdicionMision(true)
+    setErrorFormEdicionMision(null)
+    try {
+      await modificarMision(busquedaId, etapaId, misionId, {
+        nuevoTitulo: formEdicionMision.titulo.trim(),
+        nuevaDescripcion: formEdicionMision.descripcion.trim(),
+        nuevoTipo: Number(formEdicionMision.tipo) as TipoMision,
+        nuevaPistaClave: formEdicionMision.pistaClave.trim()
+      }, token)
+      const datos = await obtenerDetalleBusqueda(busquedaId, token)
+      setBusqueda(datos)
+      cerrarEdicionMision()
+    } catch (err) {
+      setErrorFormEdicionMision(err instanceof Error ? err.message : 'Ocurrió un error al modificar la misión.')
+    } finally {
+      setEnviandoEdicionMision(false)
+    }
+  }
+
+  async function manejarEliminarMision(etapaId: string, misionId: string) {
+    if (!token || !busquedaId) return
+    setEliminandoMisionId(misionId)
+    try {
+      await eliminarMision(busquedaId, etapaId, misionId, token)
+      const datos = await obtenerDetalleBusqueda(busquedaId, token)
+      setBusqueda(datos)
+    } catch (err) {
+      setErrorCarga(err instanceof Error ? err.message : 'Ocurrió un error al eliminar la misión.')
+    } finally {
+      setEliminandoMisionId(null)
+    }
+  }
+
   function abrirFormMision(etapaId: string) {
     setFormMision(FORM_MISION_VACIO)
     setErroresMision({})
@@ -411,11 +475,59 @@ export function PaginaGestionEtapas() {
                   <ul className="pregunta-opciones">
                     {etapa.misiones.map((mision) => (
                       <li key={mision.id} className="pregunta-opcion">
-                        <strong>{mision.titulo}</strong>
-                        {' '}·{' '}<span>{mision.tipo}</span>
-                        {mision.descripcion && <span> — {mision.descripcion}</span>}
-                        {mision.pistaClave && (
-                          <span className="opcion-check-icono"> 🔑 {mision.pistaClave}</span>
+                        {misionEnEdicion === mision.id ? (
+                          <div className="formulario-pregunta-panel" style={{ marginTop: 8 }}>
+                            <h5 className="formulario-pregunta-titulo">Editar misión</h5>
+                            {errorFormEdicionMision && <Alerta tono="error">{errorFormEdicionMision}</Alerta>}
+                            <form onSubmit={(e) => manejarEnvioEdicionMision(e, etapa.id, mision.id)} noValidate>
+                              <CampoFormulario etiqueta="Título" htmlFor={`editar-mision-titulo-${mision.id}`} error={erroresEdicionMision.titulo}>
+                                <input id={`editar-mision-titulo-${mision.id}`} type="text" maxLength={200}
+                                  value={formEdicionMision.titulo}
+                                  onChange={(e) => { setFormEdicionMision((p) => ({ ...p, titulo: e.target.value })); if (erroresEdicionMision.titulo) setErroresEdicionMision((p) => ({ ...p, titulo: undefined })) }}
+                                  disabled={enviandoEdicionMision} />
+                              </CampoFormulario>
+                              <CampoFormulario etiqueta="Descripción" htmlFor={`editar-mision-desc-${mision.id}`} error={erroresEdicionMision.descripcion}>
+                                <textarea id={`editar-mision-desc-${mision.id}`} rows={2} maxLength={1000}
+                                  value={formEdicionMision.descripcion}
+                                  onChange={(e) => { setFormEdicionMision((p) => ({ ...p, descripcion: e.target.value })); if (erroresEdicionMision.descripcion) setErroresEdicionMision((p) => ({ ...p, descripcion: undefined })) }}
+                                  disabled={enviandoEdicionMision} />
+                              </CampoFormulario>
+                              <CampoFormulario etiqueta="Tipo de misión" htmlFor={`editar-mision-tipo-${mision.id}`}>
+                                <select id={`editar-mision-tipo-${mision.id}`} value={formEdicionMision.tipo}
+                                  onChange={(e) => setFormEdicionMision((p) => ({ ...p, tipo: e.target.value }))}
+                                  disabled={enviandoEdicionMision}>
+                                  {TIPOS_MISION.map((t) => (<option key={t.valor} value={t.valor}>{t.etiqueta}</option>))}
+                                </select>
+                              </CampoFormulario>
+                              <CampoFormulario etiqueta="Pista clave" htmlFor={`editar-mision-pista-${mision.id}`} error={erroresEdicionMision.pistaClave}>
+                                <input id={`editar-mision-pista-${mision.id}`} type="text" maxLength={500}
+                                  value={formEdicionMision.pistaClave}
+                                  onChange={(e) => { setFormEdicionMision((p) => ({ ...p, pistaClave: e.target.value })); if (erroresEdicionMision.pistaClave) setErroresEdicionMision((p) => ({ ...p, pistaClave: undefined })) }}
+                                  disabled={enviandoEdicionMision} />
+                              </CampoFormulario>
+                              <div className="acciones-formulario-trivia">
+                                <Boton variante="volver" type="button" onClick={cerrarEdicionMision} disabled={enviandoEdicionMision}>Cancelar</Boton>
+                                <Boton variante="primario" type="submit" disabled={enviandoEdicionMision}>{enviandoEdicionMision ? 'Guardando…' : 'Guardar cambios'}</Boton>
+                              </div>
+                            </form>
+                          </div>
+                        ) : (
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                            <div>
+                              <strong>{mision.titulo}</strong>
+                              {' '}·{' '}<span>{mision.tipo}</span>
+                              {mision.descripcion && <span> — {mision.descripcion}</span>}
+                              {mision.pistaClave && <span className="opcion-check-icono"> 🔑 {mision.pistaClave}</span>}
+                            </div>
+                            <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                              <Boton variante="secundario" onClick={() => abrirEdicionMision(mision)}>Editar</Boton>
+                              <Boton variante="peligro"
+                                onClick={() => manejarEliminarMision(etapa.id, mision.id)}
+                                disabled={eliminandoMisionId === mision.id}>
+                                {eliminandoMisionId === mision.id ? 'Eliminando…' : 'Eliminar'}
+                              </Boton>
+                            </div>
+                          </div>
                         )}
                       </li>
                     ))}

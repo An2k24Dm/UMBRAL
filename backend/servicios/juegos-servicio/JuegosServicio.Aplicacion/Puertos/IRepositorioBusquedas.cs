@@ -13,5 +13,7 @@ public interface IRepositorioBusquedas
     Task ModificarEtapaAsync(Guid busquedaId, Etapa etapa, CancellationToken cancelacion);
     Task EliminarEtapaAsync(Guid busquedaId, Guid etapaId, CancellationToken cancelacion);
     Task AgregarMisionAsync(Guid etapaId, Mision mision, CancellationToken cancelacion);
+    Task ModificarMisionAsync(Guid etapaId, Mision mision, CancellationToken cancelacion);
+    Task EliminarMisionAsync(Guid etapaId, Guid misionId, CancellationToken cancelacion);
     Task<BusquedaTesoroDetalleDto?> ObtenerDetalleBusquedaAsync(Guid busquedaId, CancellationToken cancelacion);
 }

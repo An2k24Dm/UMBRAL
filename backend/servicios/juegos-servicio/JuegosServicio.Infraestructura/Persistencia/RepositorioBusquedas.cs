@@ -97,6 +97,29 @@ public sealed class RepositorioBusquedas : IRepositorioBusquedas
         await _contexto.SaveChangesAsync(cancelacion);
     }
 
+    public async Task ModificarMisionAsync(Guid etapaId, Mision mision, CancellationToken cancelacion)
+    {
+        var modelo = await _contexto.Misiones
+            .FirstOrDefaultAsync(m => m.Id == mision.Id, cancelacion);
+        if (modelo is null) return;
+
+        modelo.Titulo = mision.Titulo;
+        modelo.Descripcion = mision.Descripcion;
+        modelo.Tipo = (int)mision.Tipo;
+        modelo.PistaClave = mision.PistaClave;
+        await _contexto.SaveChangesAsync(cancelacion);
+    }
+
+    public async Task EliminarMisionAsync(Guid etapaId, Guid misionId, CancellationToken cancelacion)
+    {
+        var modelo = await _contexto.Misiones
+            .FirstOrDefaultAsync(m => m.Id == misionId, cancelacion);
+        if (modelo is null) return;
+
+        _contexto.Misiones.Remove(modelo);
+        await _contexto.SaveChangesAsync(cancelacion);
+    }
+
     public async Task<BusquedaTesoroDetalleDto?> ObtenerDetalleBusquedaAsync(
         Guid busquedaId, CancellationToken cancelacion)
     {

@@ -38,7 +38,12 @@ const ENDPOINTS = {
   modificarEtapa: (busquedaId: string, etapaId: string) =>
     `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}/etapas/${encodeURIComponent(etapaId)}`,
   eliminarEtapa: (busquedaId: string, etapaId: string) =>
-    `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}/etapas/${encodeURIComponent(etapaId)}`
+    `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}/etapas/${encodeURIComponent(etapaId)}`,
+  // HU25
+  modificarMision: (busquedaId: string, etapaId: string, misionId: string) =>
+    `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}/etapas/${encodeURIComponent(etapaId)}/misiones/${encodeURIComponent(misionId)}`,
+  eliminarMision: (busquedaId: string, etapaId: string, misionId: string) =>
+    `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}/etapas/${encodeURIComponent(etapaId)}/misiones/${encodeURIComponent(misionId)}`
 }
 
 function auth(token: string) {
@@ -476,6 +481,56 @@ export async function eliminarEtapa(
   if (respuesta.status === 401) throw new Error('Debe iniciar sesión.')
   if (respuesta.status === 403) throw new Error('No tiene permisos.')
   if (respuesta.status === 404) throw new Error('Etapa no encontrada.')
+  if (!respuesta.ok) throw new Error(await leerError(respuesta))
+}
+
+// ---------------------------------------------------------------------------
+// HU25 — Modificar misión
+// ---------------------------------------------------------------------------
+export interface DatosModificarMision {
+  nuevoTitulo: string
+  nuevaDescripcion: string
+  nuevoTipo: TipoMision
+  nuevaPistaClave: string
+}
+
+export async function modificarMision(
+  busquedaId: string,
+  etapaId: string,
+  misionId: string,
+  datos: DatosModificarMision,
+  token: string
+): Promise<void> {
+  const respuesta = await fetch(
+    `${URL_API}${ENDPOINTS.modificarMision(busquedaId, etapaId, misionId)}`,
+    {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...auth(token) },
+      body: JSON.stringify(datos)
+    }
+  )
+  if (respuesta.status === 401) throw new Error('Debe iniciar sesión.')
+  if (respuesta.status === 403) throw new Error('No tiene permisos.')
+  if (respuesta.status === 404) throw new Error('Misión no encontrada.')
+  if (!respuesta.ok) throw new Error(await leerError(respuesta))
+}
+
+// ---------------------------------------------------------------------------
+// HU25 — Eliminar misión
+// ---------------------------------------------------------------------------
+export async function eliminarMision(
+  busquedaId: string,
+  etapaId: string,
+  misionId: string,
+  token: string
+): Promise<void> {
+  const respuesta = await fetch(
+    `${URL_API}${ENDPOINTS.eliminarMision(busquedaId, etapaId, misionId)}`,
+    { method: 'DELETE', headers: auth(token) }
+  )
+  if (respuesta.status === 401) throw new Error('Debe iniciar sesión.')
+  if (respuesta.status === 403) throw new Error('No tiene permisos.')
+  if (respuesta.status === 404) throw new Error('Misión no encontrada.')
   if (!respuesta.ok) throw new Error(await leerError(respuesta))
 }
 

@@ -47,6 +47,20 @@ public sealed class Etapa
         Descripcion = nuevaDescripcion.Trim();
     }
 
+    internal void ModificarMision(Guid misionId, string nuevoTitulo, string nuevaDescripcion, TipoMision nuevoTipo, string nuevaPistaClave)
+    {
+        var mision = _misiones.FirstOrDefault(m => m.Id == misionId)
+            ?? throw new ExcepcionNoEncontrado($"No se encontró la misión con ID '{misionId}'.");
+        mision.Modificar(nuevoTitulo, nuevaDescripcion, nuevoTipo, nuevaPistaClave);
+    }
+
+    internal void EliminarMision(Guid misionId)
+    {
+        var mision = _misiones.FirstOrDefault(m => m.Id == misionId)
+            ?? throw new ExcepcionNoEncontrado($"No se encontró la misión con ID '{misionId}'.");
+        _misiones.Remove(mision);
+    }
+
     internal Mision AgregarMision(
         string titulo,
         string descripcion,
