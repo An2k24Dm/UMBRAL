@@ -55,9 +55,8 @@ public sealed class TriviasControlador : ControllerBase
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> ObtenerTriviasEnBorrador(CancellationToken cancelacion)
     {
-        Guid? filtroOperador = User.IsInRole("Administrador") ? null : ObtenerCreadorId();
         var resultado = await _mediador.Send(
-            new ObtenerTriviasEnBorradorConsulta(filtroOperador), cancelacion);
+            new ObtenerTriviasEnBorradorConsulta(null), cancelacion);
         return Ok(resultado);
     }
 

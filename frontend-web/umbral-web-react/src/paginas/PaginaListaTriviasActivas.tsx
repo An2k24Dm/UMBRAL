@@ -3,7 +3,11 @@ import { useNavigate } from 'react-router-dom'
 import { LayoutPanel } from '../componentes/LayoutPanel'
 import { Alerta } from '../componentes/Alerta'
 import { Boton } from '../componentes/Boton'
-import { obtenerTriviasActivas, type TriviaActivaResumenDto } from '../autenticacion/clienteApiJuegos'
+import {
+  obtenerTriviasActivas,
+  archivarTrivia,
+  type TriviaActivaResumenDto
+} from '../autenticacion/clienteApiJuegos'
 import { usarAutenticacion } from '../autenticacion/ProveedorAutenticacion'
 
 function formatearFecha(iso: string): string {
@@ -22,27 +26,43 @@ export function PaginaListaTriviasActivas() {
   const [estado, setEstado] = useState<'cargando' | 'error' | 'vacio' | 'listo'>('cargando')
   const [mensajeError, setMensajeError] = useState<string | null>(null)
   const [trivias, setTrivias] = useState<TriviaActivaResumenDto[]>([])
+  const [desactivandoId, setDesactivandoId] = useState<string | null>(null)
+
+  async function cargar(cancelado?: { valor: boolean }) {
+    if (!token) { setEstado('error'); setMensajeError('Debe iniciar sesión.'); return }
+    setEstado('cargando')
+    setMensajeError(null)
+    try {
+      const lista = await obtenerTriviasActivas(token)
+      if (cancelado?.valor) return
+      setTrivias(lista)
+      setEstado(lista.length === 0 ? 'vacio' : 'listo')
+    } catch (e) {
+      if (cancelado?.valor) return
+      setMensajeError(e instanceof Error ? e.message : 'No fue posible cargar las trivias activas.')
+      setEstado('error')
+    }
+  }
 
   useEffect(() => {
-    let cancelado = false
-    async function cargar() {
-      if (!token) { setEstado('error'); setMensajeError('Debe iniciar sesión.'); return }
-      setEstado('cargando')
-      setMensajeError(null)
-      try {
-        const lista = await obtenerTriviasActivas(token)
-        if (cancelado) return
-        setTrivias(lista)
-        setEstado(lista.length === 0 ? 'vacio' : 'listo')
-      } catch (e) {
-        if (cancelado) return
-        setMensajeError(e instanceof Error ? e.message : 'No fue posible cargar las trivias activas.')
-        setEstado('error')
-      }
-    }
-    cargar()
-    return () => { cancelado = true }
+    const ref = { valor: false }
+    cargar(ref)
+    return () => { ref.valor = true }
   }, [token])
+
+  async function manejarDesactivar(triviaId: string) {
+    if (!token) return
+    setDesactivandoId(triviaId)
+    setMensajeError(null)
+    try {
+      await archivarTrivia(triviaId, token)
+      await cargar()
+    } catch (e) {
+      setMensajeError(e instanceof Error ? e.message : 'No fue posible desactivar la trivia.')
+    } finally {
+      setDesactivandoId(null)
+    }
+  }
 
   return (
     <LayoutPanel
@@ -53,7 +73,7 @@ export function PaginaListaTriviasActivas() {
         <div className="seccion-cabecera">
           <div>
             <h2>Trivias activas</h2>
-            <p>Estas trivias están disponibles para que los participantes las jueguen.</p>
+            <p>Haga clic en una trivia para ver su contenido o desactivarla.</p>
           </div>
           <div className="cabecera-pagina-acciones">
             <Boton variante="volver" onClick={() => navegar(rutaBase)}>
@@ -62,9 +82,7 @@ export function PaginaListaTriviasActivas() {
           </div>
         </div>
 
-        {estado === 'error' && mensajeError && (
-          <Alerta tono="error">{mensajeError}</Alerta>
-        )}
+        {mensajeError && <Alerta tono="error">{mensajeError}</Alerta>}
 
         {estado === 'cargando' && (
           <p className="tabla-estado-mensaje">Cargando trivias activas…</p>
@@ -87,6 +105,21 @@ export function PaginaListaTriviasActivas() {
                   </span>
                 </div>
                 <p className="trivia-card-desc">{t.descripcion}</p>
+                <div className="acciones-formulario-trivia" style={{ marginTop: 8 }}>
+                  <Boton
+                    variante="secundario"
+                    onClick={() => navegar(`${rutaBase}/${t.id}/preguntas`)}
+                  >
+                    Ver preguntas
+                  </Boton>
+                  <Boton
+                    variante="peligro"
+                    onClick={() => manejarDesactivar(t.id)}
+                    disabled={desactivandoId === t.id}
+                  >
+                    {desactivandoId === t.id ? 'Desactivando…' : 'Desactivar'}
+                  </Boton>
+                </div>
               </div>
             ))}
           </div>
