@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>SesionesServicio.Commons</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      Commons reutiliza los enums del dominio (TipoJuego, ModoSesion,
+      EstadoSesion) para no duplicar conceptos. Dominio no referencia a
+      Commons, por lo que no hay dependencia circular.
+    -->
+    <ProjectReference Include="..\SesionesServicio.Dominio\SesionesServicio.Dominio.csproj" />
+  </ItemGroup>
+
+</Project>

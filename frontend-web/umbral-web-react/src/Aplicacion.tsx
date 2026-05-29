@@ -15,6 +15,8 @@ import { PaginaListaBusquedas } from './paginas/PaginaListaBusquedas'
 import { PaginaCrearBusqueda } from './paginas/PaginaCrearBusqueda'
 import { PaginaGestionEtapas } from './paginas/PaginaGestionEtapas'
 import { PaginaListaBusquedasActivas } from './paginas/PaginaListaBusquedasActivas'
+import { PaginaSesiones } from './paginas/PaginaSesiones'
+import { PaginaCrearSesion } from './paginas/PaginaCrearSesion'
 import {
   obtenerDetalleParticipante,
   obtenerDetalleUsuarioInterno
@@ -279,11 +281,40 @@ export function Aplicacion() {
         }
       />
 
-      {/* Compatibilidad con el destino anterior usado por la respuesta de inicio
-          de sesión (rutaRedireccion = /operador/sesiones). Redirige al dashboard. */}
+      {/* HU33 — Sesiones en vivo (Administrador). */}
+      <Route
+        path="/administrador/sesiones"
+        element={
+          <RutaProtegida rolesPermitidos={['Administrador']}>
+            <PaginaSesiones />
+          </RutaProtegida>
+        }
+      />
+      <Route
+        path="/administrador/sesiones/crear"
+        element={
+          <RutaProtegida rolesPermitidos={['Administrador']}>
+            <PaginaCrearSesion />
+          </RutaProtegida>
+        }
+      />
+
+      {/* HU33 — Sesiones en vivo (Operador). */}
       <Route
         path="/operador/sesiones"
-        element={<Navigate to="/operador" replace />}
+        element={
+          <RutaProtegida rolesPermitidos={['Operador']}>
+            <PaginaSesiones />
+          </RutaProtegida>
+        }
+      />
+      <Route
+        path="/operador/sesiones/crear"
+        element={
+          <RutaProtegida rolesPermitidos={['Operador']}>
+            <PaginaCrearSesion />
+          </RutaProtegida>
+        }
       />
 
       <Route path="*" element={<Navigate to="/iniciar-sesion" replace />} />
