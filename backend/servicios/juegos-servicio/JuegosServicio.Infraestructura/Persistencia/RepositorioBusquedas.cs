@@ -69,6 +69,27 @@ public sealed class RepositorioBusquedas : IRepositorioBusquedas
         await _contexto.SaveChangesAsync(cancelacion);
     }
 
+    public async Task ModificarEtapaAsync(Guid busquedaId, Etapa etapa, CancellationToken cancelacion)
+    {
+        var modelo = await _contexto.Etapas
+            .FirstOrDefaultAsync(e => e.Id == etapa.Id, cancelacion);
+        if (modelo is null) return;
+
+        modelo.Titulo = etapa.Titulo;
+        modelo.Descripcion = etapa.Descripcion;
+        await _contexto.SaveChangesAsync(cancelacion);
+    }
+
+    public async Task EliminarEtapaAsync(Guid busquedaId, Guid etapaId, CancellationToken cancelacion)
+    {
+        var modelo = await _contexto.Etapas
+            .FirstOrDefaultAsync(e => e.Id == etapaId, cancelacion);
+        if (modelo is null) return;
+
+        _contexto.Etapas.Remove(modelo);
+        await _contexto.SaveChangesAsync(cancelacion);
+    }
+
     public async Task AgregarMisionAsync(Guid etapaId, Mision mision, CancellationToken cancelacion)
     {
         var modelo = BusquedasMapeador.AModelo(mision);

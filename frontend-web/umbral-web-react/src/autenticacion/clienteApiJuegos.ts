@@ -33,7 +33,12 @@ const ENDPOINTS = {
     `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}/etapas`,
   // HU23
   agregarMision: (busquedaId: string, etapaId: string) =>
-    `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}/etapas/${encodeURIComponent(etapaId)}/misiones`
+    `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}/etapas/${encodeURIComponent(etapaId)}/misiones`,
+  // HU24
+  modificarEtapa: (busquedaId: string, etapaId: string) =>
+    `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}/etapas/${encodeURIComponent(etapaId)}`,
+  eliminarEtapa: (busquedaId: string, etapaId: string) =>
+    `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}/etapas/${encodeURIComponent(etapaId)}`
 }
 
 function auth(token: string) {
@@ -425,6 +430,52 @@ export async function activarTrivia(
   if (respuesta.status === 401) throw new Error('Debe iniciar sesión.')
   if (respuesta.status === 403) throw new Error('No tiene permisos.')
   if (respuesta.status === 404) throw new Error('Trivia no encontrada.')
+  if (!respuesta.ok) throw new Error(await leerError(respuesta))
+}
+
+// ---------------------------------------------------------------------------
+// HU24 — Modificar etapa
+// ---------------------------------------------------------------------------
+export interface DatosModificarEtapa {
+  nuevoTitulo: string
+  nuevaDescripcion: string
+}
+
+export async function modificarEtapa(
+  busquedaId: string,
+  etapaId: string,
+  datos: DatosModificarEtapa,
+  token: string
+): Promise<void> {
+  const respuesta = await fetch(
+    `${URL_API}${ENDPOINTS.modificarEtapa(busquedaId, etapaId)}`,
+    {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...auth(token) },
+      body: JSON.stringify(datos)
+    }
+  )
+  if (respuesta.status === 401) throw new Error('Debe iniciar sesión.')
+  if (respuesta.status === 403) throw new Error('No tiene permisos.')
+  if (respuesta.status === 404) throw new Error('Etapa no encontrada.')
+  if (!respuesta.ok) throw new Error(await leerError(respuesta))
+}
+
+// ---------------------------------------------------------------------------
+// HU24 — Eliminar etapa
+// ---------------------------------------------------------------------------
+export async function eliminarEtapa(
+  busquedaId: string,
+  etapaId: string,
+  token: string
+): Promise<void> {
+  const respuesta = await fetch(
+    `${URL_API}${ENDPOINTS.eliminarEtapa(busquedaId, etapaId)}`,
+    { method: 'DELETE', headers: auth(token) }
+  )
+  if (respuesta.status === 401) throw new Error('Debe iniciar sesión.')
+  if (respuesta.status === 403) throw new Error('No tiene permisos.')
+  if (respuesta.status === 404) throw new Error('Etapa no encontrada.')
   if (!respuesta.ok) throw new Error(await leerError(respuesta))
 }
 

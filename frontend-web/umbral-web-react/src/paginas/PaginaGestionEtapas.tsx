@@ -7,6 +7,8 @@ import { CampoFormulario } from '../componentes/CampoFormulario'
 import {
   obtenerDetalleBusqueda,
   agregarEtapa,
+  modificarEtapa,
+  eliminarEtapa,
   agregarMision,
   type BusquedaTesoroDetalleDto,
   type TipoMision
@@ -84,12 +86,20 @@ export function PaginaGestionEtapas() {
   const [estadoCarga, setEstadoCarga] = useState<'cargando' | 'error' | 'listo'>('cargando')
   const [errorCarga, setErrorCarga] = useState<string | null>(null)
 
-  // Estado del formulario de etapa
+  // Estado del formulario de etapa (crear)
   const [mostrarFormEtapa, setMostrarFormEtapa] = useState(false)
   const [formEtapa, setFormEtapa] = useState<FormEtapa>(FORM_ETAPA_VACIO)
   const [erroresEtapa, setErroresEtapa] = useState<ErroresEtapa>({})
   const [errorFormEtapa, setErrorFormEtapa] = useState<string | null>(null)
   const [enviandoEtapa, setEnviandoEtapa] = useState(false)
+
+  // Estado del formulario de etapa (editar)
+  const [etapaEnEdicion, setEtapaEnEdicion] = useState<string | null>(null)
+  const [formEdicionEtapa, setFormEdicionEtapa] = useState<FormEtapa>(FORM_ETAPA_VACIO)
+  const [erroresEdicionEtapa, setErroresEdicionEtapa] = useState<ErroresEtapa>({})
+  const [errorFormEdicionEtapa, setErrorFormEdicionEtapa] = useState<string | null>(null)
+  const [enviandoEdicionEtapa, setEnviandoEdicionEtapa] = useState(false)
+  const [eliminandoEtapaId, setEliminandoEtapaId] = useState<string | null>(null)
 
   // Estado del formulario de misión (indexado por etapaId)
   const [etapaConFormMision, setEtapaConFormMision] = useState<string | null>(null)
@@ -160,6 +170,61 @@ export function PaginaGestionEtapas() {
       setErrorFormEtapa(err instanceof Error ? err.message : 'Ocurrió un error al agregar la etapa.')
     } finally {
       setEnviandoEtapa(false)
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Editar etapa
+  // ---------------------------------------------------------------------------
+  function abrirEdicionEtapa(etapa: { id: string; titulo: string; descripcion: string }) {
+    setEtapaEnEdicion(etapa.id)
+    setFormEdicionEtapa({ titulo: etapa.titulo, descripcion: etapa.descripcion })
+    setErroresEdicionEtapa({})
+    setErrorFormEdicionEtapa(null)
+    setMostrarFormEtapa(false)
+    setEtapaConFormMision(null)
+  }
+
+  function cerrarEdicionEtapa() {
+    setEtapaEnEdicion(null)
+    setErroresEdicionEtapa({})
+    setErrorFormEdicionEtapa(null)
+  }
+
+  async function manejarEnvioEdicionEtapa(e: React.FormEvent, etapaId: string) {
+    e.preventDefault()
+    const erroresValidacion = validarEtapa(formEdicionEtapa)
+    if (Object.keys(erroresValidacion).length > 0) { setErroresEdicionEtapa(erroresValidacion); return }
+    if (!token || !busquedaId) return
+
+    setEnviandoEdicionEtapa(true)
+    setErrorFormEdicionEtapa(null)
+    try {
+      await modificarEtapa(busquedaId, etapaId, {
+        nuevoTitulo: formEdicionEtapa.titulo.trim(),
+        nuevaDescripcion: formEdicionEtapa.descripcion.trim()
+      }, token)
+      const datos = await obtenerDetalleBusqueda(busquedaId, token)
+      setBusqueda(datos)
+      cerrarEdicionEtapa()
+    } catch (err) {
+      setErrorFormEdicionEtapa(err instanceof Error ? err.message : 'Ocurrió un error al modificar la etapa.')
+    } finally {
+      setEnviandoEdicionEtapa(false)
+    }
+  }
+
+  async function manejarEliminarEtapa(etapaId: string) {
+    if (!token || !busquedaId) return
+    setEliminandoEtapaId(etapaId)
+    try {
+      await eliminarEtapa(busquedaId, etapaId, token)
+      const datos = await obtenerDetalleBusqueda(busquedaId, token)
+      setBusqueda(datos)
+    } catch (err) {
+      setErrorCarga(err instanceof Error ? err.message : 'Ocurrió un error al eliminar la etapa.')
+    } finally {
+      setEliminandoEtapaId(null)
     }
   }
 
@@ -318,10 +383,22 @@ export function PaginaGestionEtapas() {
                     </span>
                   </div>
                   <div className="pregunta-card-acciones">
-                    {etapaConFormMision !== etapa.id && !mostrarFormEtapa && (
-                      <Boton variante="secundario" onClick={() => abrirFormMision(etapa.id)}>
-                        + Agregar misión
-                      </Boton>
+                    {etapaConFormMision !== etapa.id && etapaEnEdicion !== etapa.id && !mostrarFormEtapa && (
+                      <>
+                        <Boton variante="secundario" onClick={() => abrirFormMision(etapa.id)}>
+                          + Agregar misión
+                        </Boton>
+                        <Boton variante="secundario" onClick={() => abrirEdicionEtapa(etapa)}>
+                          Editar
+                        </Boton>
+                        <Boton
+                          variante="peligro"
+                          onClick={() => manejarEliminarEtapa(etapa.id)}
+                          disabled={eliminandoEtapaId === etapa.id}
+                        >
+                          {eliminandoEtapaId === etapa.id ? 'Eliminando…' : 'Eliminar'}
+                        </Boton>
+                      </>
                     )}
                   </div>
                 </div>
@@ -343,6 +420,50 @@ export function PaginaGestionEtapas() {
                       </li>
                     ))}
                   </ul>
+                )}
+
+                {/* Formulario editar etapa (inline) */}
+                {etapaEnEdicion === etapa.id && (
+                  <div className="formulario-pregunta-panel" style={{ marginTop: 16 }}>
+                    <h4 className="formulario-pregunta-titulo">Editar etapa</h4>
+                    {errorFormEdicionEtapa && <Alerta tono="error">{errorFormEdicionEtapa}</Alerta>}
+                    <form onSubmit={(e) => manejarEnvioEdicionEtapa(e, etapa.id)} noValidate>
+                      <CampoFormulario etiqueta="Título" htmlFor={`editar-etapa-titulo-${etapa.id}`} error={erroresEdicionEtapa.titulo}>
+                        <input
+                          id={`editar-etapa-titulo-${etapa.id}`}
+                          type="text"
+                          maxLength={200}
+                          value={formEdicionEtapa.titulo}
+                          onChange={(e) => {
+                            setFormEdicionEtapa((p) => ({ ...p, titulo: e.target.value }))
+                            if (erroresEdicionEtapa.titulo) setErroresEdicionEtapa((p) => ({ ...p, titulo: undefined }))
+                          }}
+                          disabled={enviandoEdicionEtapa}
+                        />
+                      </CampoFormulario>
+                      <CampoFormulario etiqueta="Descripción" htmlFor={`editar-etapa-desc-${etapa.id}`} error={erroresEdicionEtapa.descripcion}>
+                        <textarea
+                          id={`editar-etapa-desc-${etapa.id}`}
+                          rows={3}
+                          maxLength={1000}
+                          value={formEdicionEtapa.descripcion}
+                          onChange={(e) => {
+                            setFormEdicionEtapa((p) => ({ ...p, descripcion: e.target.value }))
+                            if (erroresEdicionEtapa.descripcion) setErroresEdicionEtapa((p) => ({ ...p, descripcion: undefined }))
+                          }}
+                          disabled={enviandoEdicionEtapa}
+                        />
+                      </CampoFormulario>
+                      <div className="acciones-formulario-trivia">
+                        <Boton variante="volver" type="button" onClick={cerrarEdicionEtapa} disabled={enviandoEdicionEtapa}>
+                          Cancelar
+                        </Boton>
+                        <Boton variante="primario" type="submit" disabled={enviandoEdicionEtapa}>
+                          {enviandoEdicionEtapa ? 'Guardando…' : 'Guardar cambios'}
+                        </Boton>
+                      </div>
+                    </form>
+                  </div>
                 )}
 
                 {/* Formulario agregar misión (inline por etapa) */}
