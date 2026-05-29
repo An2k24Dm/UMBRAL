@@ -97,6 +97,28 @@ public sealed class BusquedaTesoro
         return etapa.AgregarMision(titulo, descripcion, tipo, pistaClave);
     }
 
+    public void ModificarMision(Guid etapaId, Guid misionId, string nuevoTitulo, string nuevaDescripcion, TipoMision nuevoTipo, string nuevaPistaClave)
+    {
+        if (Estado == EstadoBusqueda.Archivada)
+            throw new ExcepcionDominio("No se pueden modificar misiones de una búsqueda archivada.");
+
+        var etapa = _etapas.FirstOrDefault(e => e.Id == etapaId)
+            ?? throw new ExcepcionNoEncontrado($"No se encontró la etapa con ID '{etapaId}'.");
+
+        etapa.ModificarMision(misionId, nuevoTitulo, nuevaDescripcion, nuevoTipo, nuevaPistaClave);
+    }
+
+    public void EliminarMision(Guid etapaId, Guid misionId)
+    {
+        if (Estado == EstadoBusqueda.Archivada)
+            throw new ExcepcionDominio("No se pueden eliminar misiones de una búsqueda archivada.");
+
+        var etapa = _etapas.FirstOrDefault(e => e.Id == etapaId)
+            ?? throw new ExcepcionNoEncontrado($"No se encontró la etapa con ID '{etapaId}'.");
+
+        etapa.EliminarMision(misionId);
+    }
+
     public void LimpiarEventos() => _eventos.Clear();
 
     public static BusquedaTesoro Reconstituir(

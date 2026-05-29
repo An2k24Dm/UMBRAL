@@ -35,6 +35,42 @@ public sealed class BusquedasControlador : ControllerBase
         return Created($"/api/juegos/busquedas/{busquedaId}", new { id = busquedaId });
     }
 
+    // HU25 — Modificar una misión de una etapa (solo en estado Borrador).
+    [HttpPut("{busquedaId:guid}/etapas/{etapaId:guid}/misiones/{misionId:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> ModificarMision(
+        Guid busquedaId,
+        Guid etapaId,
+        Guid misionId,
+        [FromBody] ModificarMisionDto dto,
+        CancellationToken cancelacion)
+    {
+        await _mediador.Send(new ModificarMisionComando(busquedaId, etapaId, misionId, dto), cancelacion);
+        return NoContent();
+    }
+
+    // HU25 — Eliminar una misión de una etapa (solo en estado Borrador).
+    [HttpDelete("{busquedaId:guid}/etapas/{etapaId:guid}/misiones/{misionId:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> EliminarMision(
+        Guid busquedaId,
+        Guid etapaId,
+        Guid misionId,
+        CancellationToken cancelacion)
+    {
+        await _mediador.Send(new EliminarMisionComando(busquedaId, etapaId, misionId), cancelacion);
+        return NoContent();
+    }
+
     // HU23 — Agregar misión a una etapa de la búsqueda del tesoro.
     [HttpPost("{busquedaId:guid}/etapas/{etapaId:guid}/misiones")]
     [ProducesResponseType(StatusCodes.Status201Created)]

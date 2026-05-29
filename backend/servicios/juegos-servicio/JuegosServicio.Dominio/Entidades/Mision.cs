@@ -39,6 +39,21 @@ public sealed class Mision
         };
     }
 
+    internal void Modificar(string nuevoTitulo, string nuevaDescripcion, TipoMision nuevoTipo, string nuevaPistaClave)
+    {
+        if (string.IsNullOrWhiteSpace(nuevoTitulo))
+            throw new ExcepcionDominio("El título de la misión es obligatorio.");
+        if (string.IsNullOrWhiteSpace(nuevaDescripcion))
+            throw new ExcepcionDominio("La descripción de la misión es obligatoria.");
+        if (string.IsNullOrWhiteSpace(nuevaPistaClave))
+            throw new ExcepcionDominio("La pista clave de la misión es obligatoria.");
+
+        Titulo = nuevoTitulo.Trim();
+        Descripcion = nuevaDescripcion.Trim();
+        Tipo = nuevoTipo;
+        PistaClave = nuevaPistaClave.Trim();
+    }
+
     public static Mision Reconstituir(
         Guid id,
         Guid etapaId,
