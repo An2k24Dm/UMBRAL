@@ -17,11 +17,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\JuegosServicio.Api\JuegosServicio.Api.csproj" />
-    <ProjectReference Include="..\..\JuegosServicio.Aplicacion\JuegosServicio.Aplicacion.csproj" />
-    <ProjectReference Include="..\..\JuegosServicio.Dominio\JuegosServicio.Dominio.csproj" />
-    <ProjectReference Include="..\..\JuegosServicio.Commons\JuegosServicio.Commons.csproj" />
-    <ProjectReference Include="..\..\JuegosServicio.Infraestructura\JuegosServicio.Infraestructura.csproj" />
+    <ProjectReference Include="..\..\..\servicios\juegos-servicio\JuegosServicio.Api\JuegosServicio.Api.csproj" />
+    <ProjectReference Include="..\..\..\servicios\juegos-servicio\JuegosServicio.Aplicacion\JuegosServicio.Aplicacion.csproj" />
+    <ProjectReference Include="..\..\..\servicios\juegos-servicio\JuegosServicio.Dominio\JuegosServicio.Dominio.csproj" />
+    <ProjectReference Include="..\..\..\servicios\juegos-servicio\JuegosServicio.Commons\JuegosServicio.Commons.csproj" />
+    <ProjectReference Include="..\..\..\servicios\juegos-servicio\JuegosServicio.Infraestructura\JuegosServicio.Infraestructura.csproj" />
   </ItemGroup>
 
 </Project>
