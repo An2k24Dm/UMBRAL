@@ -14,6 +14,7 @@ import { PaginaListaTriviasActivas } from './paginas/PaginaListaTriviasActivas'
 import { PaginaListaBusquedas } from './paginas/PaginaListaBusquedas'
 import { PaginaCrearBusqueda } from './paginas/PaginaCrearBusqueda'
 import { PaginaGestionEtapas } from './paginas/PaginaGestionEtapas'
+import { PaginaListaBusquedasActivas } from './paginas/PaginaListaBusquedasActivas'
 import {
   obtenerDetalleParticipante,
   obtenerDetalleUsuarioInterno
@@ -93,6 +94,16 @@ export function Aplicacion() {
               obtenerUsuario={obtenerDetalleUsuarioInterno}
               permiteEditarOperador
             />
+          </RutaProtegida>
+        }
+      />
+
+      {/* HU26 — Búsquedas activas (Admin). */}
+      <Route
+        path="/administrador/busquedas/activas"
+        element={
+          <RutaProtegida rolesPermitidos={['Administrador']}>
+            <PaginaListaBusquedasActivas />
           </RutaProtegida>
         }
       />
@@ -230,6 +241,16 @@ export function Aplicacion() {
           </RutaProtegida>
         }
       />
+      {/* HU26 — Búsquedas activas (Operador). */}
+      <Route
+        path="/operador/busquedas/activas"
+        element={
+          <RutaProtegida rolesPermitidos={['Operador']}>
+            <PaginaListaBusquedasActivas />
+          </RutaProtegida>
+        }
+      />
+
       {/* HU21 — Listar búsquedas del tesoro en borrador. */}
       <Route
         path="/operador/busquedas"
