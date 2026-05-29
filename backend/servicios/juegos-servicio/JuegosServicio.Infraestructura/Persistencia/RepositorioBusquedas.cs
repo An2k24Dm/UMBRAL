@@ -44,18 +44,18 @@ public sealed class RepositorioBusquedas : IRepositorioBusquedas
     public async Task<List<BusquedaTesoroResumenDto>> ObtenerBusquedasEnBorradorAsync(
         Guid? creadorId, CancellationToken cancelacion)
     {
-        var estadoBorrador = (int)EstadoBusqueda.Borrador;
+        var estadoActiva = (int)EstadoBusqueda.Activa;
 
         return await _contexto.BusquedasTesoro
             .AsNoTracking()
-            .Where(b => (creadorId == null || b.CreadorId == creadorId) && b.Estado == estadoBorrador)
+            .Where(b => (creadorId == null || b.CreadorId == creadorId) && b.Estado != estadoActiva)
             .OrderByDescending(b => b.FechaCreacion)
             .Select(b => new BusquedaTesoroResumenDto
             {
                 Id = b.Id,
                 Nombre = b.Nombre,
                 Descripcion = b.Descripcion,
-                Estado = nameof(EstadoBusqueda.Borrador),
+                Estado = ((EstadoBusqueda)b.Estado).ToString(),
                 TotalEtapas = b.Etapas.Count,
                 FechaCreacion = b.FechaCreacion
             })
@@ -138,6 +138,26 @@ public sealed class RepositorioBusquedas : IRepositorioBusquedas
                 busqueda.Nombre,
                 CantidadEtapas = busqueda.Etapas.Count
             }),
+            FechaCreacion = DateTime.UtcNow,
+            Procesado = false
+        });
+
+        await _contexto.SaveChangesAsync(cancelacion);
+    }
+
+    public async Task ArchivarBusquedaTesoroAsync(BusquedaTesoro busqueda, CancellationToken cancelacion)
+    {
+        var modelo = await _contexto.BusquedasTesoro
+            .FirstOrDefaultAsync(b => b.Id == busqueda.Id, cancelacion);
+        if (modelo is null) return;
+
+        modelo.Estado = (int)EstadoBusqueda.Archivada;
+
+        _contexto.EventosSalida.Add(new EventoSalidaModelo
+        {
+            Id = Guid.NewGuid(),
+            Tipo = "BusquedaTesoroArchivada",
+            Datos = System.Text.Json.JsonSerializer.Serialize(new { BusquedaId = busqueda.Id }),
             FechaCreacion = DateTime.UtcNow,
             Procesado = false
         });

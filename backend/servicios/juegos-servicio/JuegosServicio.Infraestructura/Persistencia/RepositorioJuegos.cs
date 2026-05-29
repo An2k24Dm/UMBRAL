@@ -192,11 +192,11 @@ public sealed class RepositorioJuegos : IRepositorioJuegos
     public async Task<List<TriviaResumenDto>> ObtenerTriviasEnBorradorAsync(
         Guid? creadorId, CancellationToken cancelacion)
     {
-        var estadoBorrador = (int)EstadoTrivia.Borrador;
+        var estadoActiva = (int)EstadoTrivia.Activa;
 
         return await _contexto.Trivias
             .AsNoTracking()
-            .Where(t => (creadorId == null || t.CreadorId == creadorId) && t.Estado == estadoBorrador)
+            .Where(t => (creadorId == null || t.CreadorId == creadorId) && t.Estado != estadoActiva)
             .OrderByDescending(t => t.FechaCreacion)
             .Select(t => new TriviaResumenDto
             {
@@ -204,7 +204,7 @@ public sealed class RepositorioJuegos : IRepositorioJuegos
                 Nombre = t.Nombre,
                 Descripcion = t.Descripcion,
                 TiempoLimitePorPregunta = t.TiempoLimitePorPregunta,
-                Estado = nameof(EstadoTrivia.Borrador),
+                Estado = ((EstadoTrivia)t.Estado).ToString(),
                 TotalPreguntas = t.Preguntas.Count,
                 FechaCreacion = t.FechaCreacion
             })

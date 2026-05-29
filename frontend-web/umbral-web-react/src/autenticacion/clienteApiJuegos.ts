@@ -47,6 +47,8 @@ const ENDPOINTS = {
   // HU26
   activarBusqueda: (busquedaId: string) =>
     `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}/activar`,
+  archivarBusqueda: (busquedaId: string) =>
+    `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}`,
   listarBusquedasActivas: '/api/juegos/busquedas/activas'
 }
 
@@ -568,6 +570,23 @@ export async function obtenerBusquedasActivas(
   if (respuesta.status === 403) throw new Error('No tiene permisos.')
   if (!respuesta.ok) throw new Error(await leerError(respuesta))
   return (await respuesta.json()) as BusquedaTesoroResumenDto[]
+}
+
+// ---------------------------------------------------------------------------
+// HU26 — Archivar búsqueda del tesoro
+// ---------------------------------------------------------------------------
+export async function archivarBusqueda(
+  busquedaId: string,
+  token: string
+): Promise<void> {
+  const respuesta = await fetch(
+    `${URL_API}${ENDPOINTS.archivarBusqueda(busquedaId)}`,
+    { method: 'DELETE', headers: auth(token) }
+  )
+  if (respuesta.status === 401) throw new Error('Debe iniciar sesión.')
+  if (respuesta.status === 403) throw new Error('No tiene permisos.')
+  if (respuesta.status === 404) throw new Error('Búsqueda del tesoro no encontrada.')
+  if (!respuesta.ok) throw new Error(await leerError(respuesta))
 }
 
 // ---------------------------------------------------------------------------

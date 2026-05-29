@@ -20,6 +20,20 @@ public sealed class BusquedasControlador : ControllerBase
         _mediador = mediador;
     }
 
+    // HU26 — Archivar búsqueda del tesoro (soft delete).
+    [HttpDelete("{busquedaId:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> ArchivarBusqueda(Guid busquedaId, CancellationToken cancelacion)
+    {
+        var operadorId = ObtenerCreadorId();
+        await _mediador.Send(new ArchivarBusquedaTesoroComando(busquedaId, operadorId), cancelacion);
+        return NoContent();
+    }
+
     // HU26 — Activar búsqueda del tesoro (Borrador → Activa).
     [HttpPatch("{busquedaId:guid}/activar")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -190,9 +204,8 @@ public sealed class BusquedasControlador : ControllerBase
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> ObtenerBusquedasEnBorrador(CancellationToken cancelacion)
     {
-        Guid? filtroCreador = User.IsInRole("Administrador") ? null : ObtenerCreadorId();
         var resultado = await _mediador.Send(
-            new ObtenerBusquedasEnBorradorConsulta(filtroCreador), cancelacion);
+            new ObtenerBusquedasEnBorradorConsulta(null), cancelacion);
         return Ok(resultado);
     }
 

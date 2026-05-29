@@ -61,8 +61,8 @@ public sealed class BusquedaTesoro
 
     public void Activar()
     {
-        if (Estado != EstadoBusqueda.Borrador)
-            throw new ExcepcionDominio("Solo se puede activar una búsqueda del tesoro que esté en estado Borrador.");
+        if (Estado != EstadoBusqueda.Borrador && Estado != EstadoBusqueda.Archivada)
+            throw new ExcepcionDominio("Solo se puede activar una búsqueda del tesoro que esté en estado Borrador o Archivada.");
         if (_etapas.Count == 0)
             throw new ExcepcionDominio("La búsqueda del tesoro debe tener al menos una etapa para poder activarse.");
 
@@ -133,6 +133,15 @@ public sealed class BusquedaTesoro
             ?? throw new ExcepcionNoEncontrado($"No se encontró la etapa con ID '{etapaId}'.");
 
         etapa.EliminarMision(misionId);
+    }
+
+    public void Archivar()
+    {
+        if (Estado == EstadoBusqueda.Archivada)
+            throw new ExcepcionDominio("La búsqueda del tesoro ya está archivada.");
+
+        Estado = EstadoBusqueda.Archivada;
+        _eventos.Add(new BusquedaArchivadaEvento(Id));
     }
 
     public void LimpiarEventos() => _eventos.Clear();
