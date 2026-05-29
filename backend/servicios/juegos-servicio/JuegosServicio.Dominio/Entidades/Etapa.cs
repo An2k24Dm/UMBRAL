@@ -36,6 +36,17 @@ public sealed class Etapa
         };
     }
 
+    internal void Modificar(string nuevoTitulo, string nuevaDescripcion)
+    {
+        if (string.IsNullOrWhiteSpace(nuevoTitulo))
+            throw new ExcepcionDominio("El título de la etapa es obligatorio.");
+        if (string.IsNullOrWhiteSpace(nuevaDescripcion))
+            throw new ExcepcionDominio("La descripción de la etapa es obligatoria.");
+
+        Titulo = nuevoTitulo.Trim();
+        Descripcion = nuevaDescripcion.Trim();
+    }
+
     internal Mision AgregarMision(
         string titulo,
         string descripcion,

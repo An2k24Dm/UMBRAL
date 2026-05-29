@@ -59,6 +59,28 @@ public sealed class BusquedaTesoro
         return etapa;
     }
 
+    public void ModificarEtapa(Guid etapaId, string nuevoTitulo, string nuevaDescripcion)
+    {
+        if (Estado == EstadoBusqueda.Archivada)
+            throw new ExcepcionDominio("No se pueden modificar etapas de una búsqueda archivada.");
+
+        var etapa = _etapas.FirstOrDefault(e => e.Id == etapaId)
+            ?? throw new ExcepcionNoEncontrado($"No se encontró la etapa con ID '{etapaId}'.");
+
+        etapa.Modificar(nuevoTitulo, nuevaDescripcion);
+    }
+
+    public void EliminarEtapa(Guid etapaId)
+    {
+        if (Estado == EstadoBusqueda.Archivada)
+            throw new ExcepcionDominio("No se pueden eliminar etapas de una búsqueda archivada.");
+
+        var etapa = _etapas.FirstOrDefault(e => e.Id == etapaId)
+            ?? throw new ExcepcionNoEncontrado($"No se encontró la etapa con ID '{etapaId}'.");
+
+        _etapas.Remove(etapa);
+    }
+
     public Mision AgregarMisionAEtapa(
         Guid etapaId,
         string titulo,

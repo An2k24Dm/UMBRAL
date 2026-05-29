@@ -74,6 +74,40 @@ public sealed class BusquedasControlador : ControllerBase
             new { id = etapaId });
     }
 
+    // HU24 — Modificar datos de una etapa (solo en estado Borrador).
+    [HttpPut("{busquedaId:guid}/etapas/{etapaId:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> ModificarEtapa(
+        Guid busquedaId,
+        Guid etapaId,
+        [FromBody] ModificarEtapaDto dto,
+        CancellationToken cancelacion)
+    {
+        await _mediador.Send(new ModificarEtapaComando(busquedaId, etapaId, dto), cancelacion);
+        return NoContent();
+    }
+
+    // HU24 — Eliminar una etapa (solo en estado Borrador). Las misiones se borran en cascada.
+    [HttpDelete("{busquedaId:guid}/etapas/{etapaId:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> EliminarEtapa(
+        Guid busquedaId,
+        Guid etapaId,
+        CancellationToken cancelacion)
+    {
+        await _mediador.Send(new EliminarEtapaComando(busquedaId, etapaId), cancelacion);
+        return NoContent();
+    }
+
     // HU22 — Obtener detalle de una búsqueda del tesoro con sus etapas y misiones.
     [HttpGet("{busquedaId:guid}")]
     [ProducesResponseType(typeof(BusquedaTesoroDetalleDto), StatusCodes.Status200OK)]
