@@ -20,6 +20,31 @@ public sealed class BusquedasControlador : ControllerBase
         _mediador = mediador;
     }
 
+    // HU26 — Activar búsqueda del tesoro (Borrador → Activa).
+    [HttpPatch("{busquedaId:guid}/activar")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> ActivarBusqueda(Guid busquedaId, CancellationToken cancelacion)
+    {
+        var operadorId = ObtenerCreadorId();
+        await _mediador.Send(new ActivarBusquedaTesoroComando(busquedaId, operadorId), cancelacion);
+        return NoContent();
+    }
+
+    // HU26 — Listar búsquedas activas (para selección en sesiones de juego).
+    [HttpGet("activas")]
+    [ProducesResponseType(typeof(List<BusquedaTesoroResumenDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> ObtenerBusquedasActivas(CancellationToken cancelacion)
+    {
+        var resultado = await _mediador.Send(new ObtenerBusquedasActivasConsulta(), cancelacion);
+        return Ok(resultado);
+    }
+
     // HU21 — Crear búsqueda del tesoro en estado Borrador.
     [HttpPost]
     [ProducesResponseType(StatusCodes.Status201Created)]

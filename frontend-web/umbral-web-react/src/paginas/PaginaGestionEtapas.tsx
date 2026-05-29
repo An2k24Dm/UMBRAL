@@ -12,6 +12,7 @@ import {
   agregarMision,
   modificarMision,
   eliminarMision,
+  activarBusqueda,
   type BusquedaTesoroDetalleDto,
   type TipoMision
 } from '../autenticacion/clienteApiJuegos'
@@ -102,6 +103,8 @@ export function PaginaGestionEtapas() {
   const [errorFormEdicionEtapa, setErrorFormEdicionEtapa] = useState<string | null>(null)
   const [enviandoEdicionEtapa, setEnviandoEdicionEtapa] = useState(false)
   const [eliminandoEtapaId, setEliminandoEtapaId] = useState<string | null>(null)
+  const [activando, setActivando] = useState(false)
+  const [errorActivacion, setErrorActivacion] = useState<string | null>(null)
 
   // Estado del formulario de misión (editar, indexado por misionId)
   const [misionEnEdicion, setMisionEnEdicion] = useState<string | null>(null)
@@ -186,6 +189,21 @@ export function PaginaGestionEtapas() {
   // ---------------------------------------------------------------------------
   // Editar etapa
   // ---------------------------------------------------------------------------
+  async function manejarActivarBusqueda() {
+    if (!token || !busquedaId) return
+    setActivando(true)
+    setErrorActivacion(null)
+    try {
+      await activarBusqueda(busquedaId, token)
+      const datos = await obtenerDetalleBusqueda(busquedaId, token)
+      setBusqueda(datos)
+    } catch (err) {
+      setErrorActivacion(err instanceof Error ? err.message : 'Ocurrió un error al activar la búsqueda.')
+    } finally {
+      setActivando(false)
+    }
+  }
+
   function abrirEdicionEtapa(etapa: { id: string; titulo: string; descripcion: string }) {
     setEtapaEnEdicion(etapa.id)
     setFormEdicionEtapa({ titulo: etapa.titulo, descripcion: etapa.descripcion })
@@ -374,15 +392,21 @@ export function PaginaGestionEtapas() {
             <Boton variante="volver" onClick={() => navegar(rutaBase)}>
               Volver
             </Boton>
-            {!mostrarFormEtapa && !etapaConFormMision && (
-              <Boton variante="primario" onClick={abrirFormEtapa}>
-                + Agregar etapa
-              </Boton>
+            {!mostrarFormEtapa && !etapaConFormMision && busqueda.estado === 'Borrador' && (
+              <>
+                <Boton variante="primario" onClick={abrirFormEtapa}>
+                  + Agregar etapa
+                </Boton>
+                <Boton variante="primario" onClick={manejarActivarBusqueda} disabled={activando}>
+                  {activando ? 'Activando…' : 'Activar búsqueda'}
+                </Boton>
+              </>
             )}
           </div>
         </div>
 
         {errorCarga && <Alerta tono="error">{errorCarga}</Alerta>}
+        {errorActivacion && <Alerta tono="error">{errorActivacion}</Alerta>}
 
         {/* Formulario agregar etapa */}
         {mostrarFormEtapa && (

@@ -43,7 +43,11 @@ const ENDPOINTS = {
   modificarMision: (busquedaId: string, etapaId: string, misionId: string) =>
     `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}/etapas/${encodeURIComponent(etapaId)}/misiones/${encodeURIComponent(misionId)}`,
   eliminarMision: (busquedaId: string, etapaId: string, misionId: string) =>
-    `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}/etapas/${encodeURIComponent(etapaId)}/misiones/${encodeURIComponent(misionId)}`
+    `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}/etapas/${encodeURIComponent(etapaId)}/misiones/${encodeURIComponent(misionId)}`,
+  // HU26
+  activarBusqueda: (busquedaId: string) =>
+    `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}/activar`,
+  listarBusquedasActivas: '/api/juegos/busquedas/activas'
 }
 
 function auth(token: string) {
@@ -532,6 +536,38 @@ export async function eliminarMision(
   if (respuesta.status === 403) throw new Error('No tiene permisos.')
   if (respuesta.status === 404) throw new Error('Misión no encontrada.')
   if (!respuesta.ok) throw new Error(await leerError(respuesta))
+}
+
+// ---------------------------------------------------------------------------
+// HU26 — Activar búsqueda del tesoro
+// ---------------------------------------------------------------------------
+export async function activarBusqueda(
+  busquedaId: string,
+  token: string
+): Promise<void> {
+  const respuesta = await fetch(
+    `${URL_API}${ENDPOINTS.activarBusqueda(busquedaId)}`,
+    { method: 'PATCH', headers: auth(token) }
+  )
+  if (respuesta.status === 401) throw new Error('Debe iniciar sesión.')
+  if (respuesta.status === 403) throw new Error('No tiene permisos.')
+  if (respuesta.status === 404) throw new Error('Búsqueda del tesoro no encontrada.')
+  if (!respuesta.ok) throw new Error(await leerError(respuesta))
+}
+
+// ---------------------------------------------------------------------------
+// HU26 — Listar búsquedas activas
+// ---------------------------------------------------------------------------
+export async function obtenerBusquedasActivas(
+  token: string
+): Promise<BusquedaTesoroResumenDto[]> {
+  const respuesta = await fetch(`${URL_API}${ENDPOINTS.listarBusquedasActivas}`, {
+    headers: auth(token)
+  })
+  if (respuesta.status === 401) throw new Error('Debe iniciar sesión.')
+  if (respuesta.status === 403) throw new Error('No tiene permisos.')
+  if (!respuesta.ok) throw new Error(await leerError(respuesta))
+  return (await respuesta.json()) as BusquedaTesoroResumenDto[]
 }
 
 // ---------------------------------------------------------------------------

@@ -120,6 +120,51 @@ public sealed class RepositorioBusquedas : IRepositorioBusquedas
         await _contexto.SaveChangesAsync(cancelacion);
     }
 
+    public async Task ActivarBusquedaTesoroAsync(BusquedaTesoro busqueda, CancellationToken cancelacion)
+    {
+        var modelo = await _contexto.BusquedasTesoro
+            .FirstOrDefaultAsync(b => b.Id == busqueda.Id, cancelacion);
+        if (modelo is null) return;
+
+        modelo.Estado = (int)EstadoBusqueda.Activa;
+
+        _contexto.EventosSalida.Add(new EventoSalidaModelo
+        {
+            Id = Guid.NewGuid(),
+            Tipo = "BusquedaTesoroActivada",
+            Datos = System.Text.Json.JsonSerializer.Serialize(new
+            {
+                BusquedaId = busqueda.Id,
+                busqueda.Nombre,
+                CantidadEtapas = busqueda.Etapas.Count
+            }),
+            FechaCreacion = DateTime.UtcNow,
+            Procesado = false
+        });
+
+        await _contexto.SaveChangesAsync(cancelacion);
+    }
+
+    public async Task<List<BusquedaTesoroResumenDto>> ObtenerBusquedasActivasAsync(CancellationToken cancelacion)
+    {
+        var estadoActiva = (int)EstadoBusqueda.Activa;
+
+        return await _contexto.BusquedasTesoro
+            .AsNoTracking()
+            .Where(b => b.Estado == estadoActiva)
+            .OrderBy(b => b.Nombre)
+            .Select(b => new BusquedaTesoroResumenDto
+            {
+                Id = b.Id,
+                Nombre = b.Nombre,
+                Descripcion = b.Descripcion,
+                Estado = nameof(EstadoBusqueda.Activa),
+                TotalEtapas = b.Etapas.Count,
+                FechaCreacion = b.FechaCreacion
+            })
+            .ToListAsync(cancelacion);
+    }
+
     public async Task<BusquedaTesoroDetalleDto?> ObtenerDetalleBusquedaAsync(
         Guid busquedaId, CancellationToken cancelacion)
     {

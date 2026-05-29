@@ -59,6 +59,22 @@ public sealed class BusquedaTesoro
         return etapa;
     }
 
+    public void Activar()
+    {
+        if (Estado != EstadoBusqueda.Borrador)
+            throw new ExcepcionDominio("Solo se puede activar una búsqueda del tesoro que esté en estado Borrador.");
+        if (_etapas.Count == 0)
+            throw new ExcepcionDominio("La búsqueda del tesoro debe tener al menos una etapa para poder activarse.");
+
+        var etapaSinMisiones = _etapas.FirstOrDefault(e => e.Misiones.Count == 0);
+        if (etapaSinMisiones is not null)
+            throw new ExcepcionDominio(
+                $"La etapa '{etapaSinMisiones.Titulo}' no tiene misiones. Cada etapa debe tener al menos una misión.");
+
+        Estado = EstadoBusqueda.Activa;
+        _eventos.Add(new BusquedaActivadaEvento(Id, Nombre, _etapas.Count));
+    }
+
     public void ModificarEtapa(Guid etapaId, string nuevoTitulo, string nuevaDescripcion)
     {
         if (Estado == EstadoBusqueda.Archivada)
