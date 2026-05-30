@@ -49,6 +49,12 @@ export function PaginaAdministrador() {
             textoAccion="Gestionar búsquedas"
           />
           <TarjetaResumen
+            titulo="Sesiones"
+            descripcion="Crear sesiones en vivo a partir de Trivias o Búsquedas activas."
+            destino="/administrador/sesiones"
+            textoAccion="Gestionar sesiones"
+          />
+          <TarjetaResumen
             titulo="Mi perfil"
             descripcion="Revisar los datos personales asociados a su cuenta."
             destino="/administrador/perfil"

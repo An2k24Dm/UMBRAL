@@ -31,6 +31,12 @@ export function PaginaOperador() {
             textoAccion="Gestionar búsquedas"
           />
           <TarjetaResumen
+            titulo="Sesiones"
+            descripcion="Crear sesiones en vivo a partir de Trivias o Búsquedas activas."
+            destino="/operador/sesiones"
+            textoAccion="Gestionar sesiones"
+          />
+          <TarjetaResumen
             titulo="Participantes"
             descripcion="Consultar las cuentas de Participantes registrados."
             destino="/operador/usuarios/participantes"
