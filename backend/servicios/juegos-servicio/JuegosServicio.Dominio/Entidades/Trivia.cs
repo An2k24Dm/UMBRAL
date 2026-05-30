@@ -45,7 +45,7 @@ public sealed class Trivia
             Descripcion = descripcion.Trim(),
             CreadorId = creadorId,
             TiempoLimitePorPregunta = tiempoLimitePorPregunta,
-            Estado = EstadoTrivia.Borrador,
+            Estado = EstadoTrivia.Inactiva,
             FechaCreacion = fechaCreacion
         };
 
@@ -58,7 +58,7 @@ public sealed class Trivia
         int puntaje,
         IEnumerable<(string Texto, bool EsCorrecta)> opciones)
     {
-        ValidarEstadoBorrador("agregar preguntas");
+        ValidarEstadoInactiva("agregar preguntas");
 
         var pregunta = Pregunta.Crear(Id, enunciado, puntaje, opciones);
         _preguntas.Add(pregunta);
@@ -70,7 +70,7 @@ public sealed class Trivia
         string nuevoEnunciado,
         IEnumerable<(string Texto, bool EsCorrecta)> nuevasOpciones)
     {
-        ValidarEstadoBorrador("modificar preguntas");
+        ValidarEstadoInactiva("modificar preguntas");
 
         var pregunta = _preguntas.FirstOrDefault(p => p.Id == preguntaId)
             ?? throw new ExcepcionNoEncontrado($"No se encontró la pregunta con ID '{preguntaId}'.");
@@ -80,7 +80,7 @@ public sealed class Trivia
 
     public void EliminarPregunta(Guid preguntaId)
     {
-        ValidarEstadoBorrador("eliminar preguntas");
+        ValidarEstadoInactiva("eliminar preguntas");
 
         var pregunta = _preguntas.FirstOrDefault(p => p.Id == preguntaId)
             ?? throw new ExcepcionNoEncontrado($"No se encontró la pregunta con ID '{preguntaId}'.");
@@ -90,8 +90,8 @@ public sealed class Trivia
 
     public void Activar()
     {
-        if (Estado != EstadoTrivia.Borrador && Estado != EstadoTrivia.Archivada)
-            throw new ExcepcionDominio("Solo se puede activar una trivia que esté en estado Borrador o Archivada.");
+        if (Estado == EstadoTrivia.Activa)
+            throw new ExcepcionDominio("La trivia ya está activa.");
         if (_preguntas.Count == 0)
             throw new ExcepcionDominio("La trivia debe tener al menos una pregunta para poder activarse.");
 
@@ -99,10 +99,17 @@ public sealed class Trivia
         _eventos.Add(new TriviaActivadaEvento(Id, Nombre, _preguntas.Count));
     }
 
+    public void Desactivar()
+    {
+        if (Estado == EstadoTrivia.Inactiva)
+            throw new ExcepcionDominio("La trivia ya está inactiva.");
+
+        Estado = EstadoTrivia.Inactiva;
+        _eventos.Add(new TriviaArchivadaEvento(Id));
+    }
+
     public void ModificarDatos(string nuevoNombre, string nuevaDescripcion, int nuevoTiempo)
     {
-        if (Estado == EstadoTrivia.Archivada)
-            throw new ExcepcionDominio("No se puede modificar una trivia archivada.");
         if (string.IsNullOrWhiteSpace(nuevoNombre))
             throw new ExcepcionDominio("El nombre de la trivia es obligatorio.");
         if (string.IsNullOrWhiteSpace(nuevaDescripcion))
@@ -114,15 +121,6 @@ public sealed class Trivia
         Descripcion = nuevaDescripcion.Trim();
         TiempoLimitePorPregunta = nuevoTiempo;
         _eventos.Add(new TriviaModificadaEvento(Id, Nombre, TiempoLimitePorPregunta));
-    }
-
-    public void Desactivar()
-    {
-        if (Estado == EstadoTrivia.Archivada)
-            throw new ExcepcionDominio("La trivia ya está archivada.");
-
-        Estado = EstadoTrivia.Archivada;
-        _eventos.Add(new TriviaArchivadaEvento(Id));
     }
 
     public void LimpiarEventos() => _eventos.Clear();
@@ -151,10 +149,10 @@ public sealed class Trivia
         return trivia;
     }
 
-    private void ValidarEstadoBorrador(string accion)
+    private void ValidarEstadoInactiva(string accion)
     {
-        if (Estado != EstadoTrivia.Borrador)
+        if (Estado != EstadoTrivia.Inactiva)
             throw new ExcepcionDominio(
-                $"No se pueden {accion} a una trivia que no está en estado Borrador.");
+                $"No se pueden {accion} a una trivia que está activa.");
     }
 }

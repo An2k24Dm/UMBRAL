@@ -151,12 +151,12 @@ public sealed class RepositorioBusquedas : IRepositorioBusquedas
             .FirstOrDefaultAsync(b => b.Id == busqueda.Id, cancelacion);
         if (modelo is null) return;
 
-        modelo.Estado = (int)EstadoBusqueda.Archivada;
+        modelo.Estado = (int)EstadoBusqueda.Inactiva;
 
         _contexto.EventosSalida.Add(new EventoSalidaModelo
         {
             Id = Guid.NewGuid(),
-            Tipo = "BusquedaTesoroArchivada",
+            Tipo = "BusquedaTesoroDesactivada",
             Datos = System.Text.Json.JsonSerializer.Serialize(new { BusquedaId = busqueda.Id }),
             FechaCreacion = DateTime.UtcNow,
             Procesado = false

@@ -9,7 +9,19 @@ interface Props {
 }
 
 export function RutaProtegida({ rolesPermitidos, children }: Props) {
-  const { token, usuario } = usarAutenticacion()
+  const { token, usuario, cargandoSesion } = usarAutenticacion()
+
+  // Mientras el ProveedorAutenticacion termina de restaurar el estado
+  // desde localStorage, no decidimos nada: ni redirigimos al login ni
+  // renderizamos la ruta. Esto evita el "flash" al login en cada
+  // recarga, que era el síntoma del bug original.
+  if (cargandoSesion) {
+    return (
+      <div className="cargando-sesion" role="status" aria-live="polite">
+        Cargando…
+      </div>
+    )
+  }
 
   if (!token || !usuario) {
     return <Navigate to="/iniciar-sesion" replace />

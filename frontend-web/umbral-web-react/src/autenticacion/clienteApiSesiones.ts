@@ -2,7 +2,16 @@
 // sesiones-servicio. Conserva el patrón de los otros clientes
 // (clienteApi.ts / clienteApiJuegos.ts) para no introducir disonancia.
 
+import { dispatchSesionInvalida } from './eventosSesion'
+
 const URL_API = import.meta.env.VITE_API_URL ?? 'http://localhost:5000'
+
+// Helper compartido: ante un 401, avisamos al ProveedorAutenticacion
+// para que limpie la sesión y deja el mensaje legible para la UI.
+function lanzar401(mensaje: string): never {
+  dispatchSesionInvalida()
+  throw new Error(mensaje)
+}
 
 const ENDPOINTS = {
   raiz: '/api/sesiones',
@@ -78,7 +87,7 @@ export async function crearSesion(
     headers: { 'Content-Type': 'application/json', ...auth(token) },
     body: JSON.stringify(datos)
   })
-  if (respuesta.status === 401) throw new Error('Debe iniciar sesión.')
+  if (respuesta.status === 401) lanzar401('Debe iniciar sesión.')
   if (respuesta.status === 403) throw new Error('No tiene permisos para crear sesiones.')
   if (!respuesta.ok) throw new Error(await leerError(respuesta))
   return (await respuesta.json()) as SesionRespuestaDto
@@ -91,7 +100,7 @@ export async function listarSesiones(token: string): Promise<SesionListadoDto[]>
   const respuesta = await fetch(`${URL_API}${ENDPOINTS.raiz}`, {
     headers: auth(token)
   })
-  if (respuesta.status === 401) throw new Error('Debe iniciar sesión.')
+  if (respuesta.status === 401) lanzar401('Debe iniciar sesión.')
   if (respuesta.status === 403) throw new Error('No tiene permisos.')
   if (!respuesta.ok) throw new Error(await leerError(respuesta))
   return (await respuesta.json()) as SesionListadoDto[]
@@ -106,7 +115,7 @@ export async function obtenerSesion(
   const respuesta = await fetch(`${URL_API}${ENDPOINTS.porId(id)}`, {
     headers: auth(token)
   })
-  if (respuesta.status === 401) throw new Error('Debe iniciar sesión.')
+  if (respuesta.status === 401) lanzar401('Debe iniciar sesión.')
   if (respuesta.status === 403) throw new Error('No tiene permisos.')
   if (respuesta.status === 404) throw new Error('Sesión no encontrada.')
   if (!respuesta.ok) throw new Error(await leerError(respuesta))
@@ -127,7 +136,7 @@ export async function listarContenidoActivo(
 ): Promise<ContenidoActivoResumen[]> {
   const url = tipoJuego === 'Trivia' ? ENDPOINTS.triviasActivas : ENDPOINTS.busquedasActivas
   const respuesta = await fetch(`${URL_API}${url}`, { headers: auth(token) })
-  if (respuesta.status === 401) throw new Error('Debe iniciar sesión.')
+  if (respuesta.status === 401) lanzar401('Debe iniciar sesión.')
   if (respuesta.status === 403) throw new Error('No tiene permisos.')
   if (!respuesta.ok) throw new Error(await leerError(respuesta))
   const cuerpo = (await respuesta.json()) as Array<{ id: string; nombre: string }>

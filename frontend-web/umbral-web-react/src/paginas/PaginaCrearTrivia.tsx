@@ -88,7 +88,7 @@ export function PaginaCrearTrivia() {
         <div className="seccion-cabecera">
           <div>
             <h2>Nueva trivia</h2>
-            <p>La trivia se crea en estado Borrador. Podrá agregar preguntas después.</p>
+            <p>La trivia se crea en estado Inactiva. Podrá agregar preguntas y activarla después.</p>
           </div>
         </div>
 

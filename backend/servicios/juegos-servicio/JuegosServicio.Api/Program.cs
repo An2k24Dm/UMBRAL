@@ -1,6 +1,7 @@
 using JuegosServicio.Api.Configuraciones;
 using JuegosServicio.Api.Middlewares;
 using JuegosServicio.Aplicacion.Dependencias;
+using JuegosServicio.Aplicacion.Puertos;
 using JuegosServicio.Infraestructura.Dependencias;
 using JuegosServicio.Infraestructura.Persistencia;
 using Microsoft.EntityFrameworkCore;
@@ -15,6 +16,11 @@ constructor.Services.AddControllers().AddJsonOptions(opciones =>
 
 constructor.Services.AddEndpointsApiExplorer();
 constructor.Services.AddSwaggerGen();
+
+// Necesario para que PropagadorTokenActualHttp pueda leer el header
+// Authorization del request entrante y reenviarlo a sesiones-servicio.
+constructor.Services.AddHttpContextAccessor();
+constructor.Services.AddScoped<IPropagadorTokenActual, PropagadorTokenActualHttp>();
 
 constructor.Services.AgregarAplicacion();
 constructor.Services.AgregarInfraestructura(constructor.Configuration);

@@ -8,6 +8,16 @@ import type {
   UsuarioListadoInterno,
   UsuarioListadoParticipante
 } from './tipos'
+import { dispatchSesionInvalida } from './eventosSesion'
+
+// Pequeño helper para no repetir el patrón "401 → invalidar sesión +
+// lanzar error legible". Se llama desde cada adaptador HTTP cuando
+// detecta un 401. No se aplica a 400/403/404/422: esos códigos vienen
+// de validaciones o permisos puntuales y no deben cerrar la sesión.
+function lanzar401(mensaje: string): never {
+  dispatchSesionInvalida()
+  throw new Error(mensaje)
+}
 
 const URL_API = import.meta.env.VITE_API_URL ?? 'http://localhost:5000'
 
@@ -72,7 +82,7 @@ async function leerError(respuesta: Response): Promise<string> {
 
 async function pedirJson<T>(url: string, token: string): Promise<T> {
   const respuesta = await fetch(url, { headers: autorizacion(token) })
-  if (respuesta.status === 401) throw new Error('Debe iniciar sesión.')
+  if (respuesta.status === 401) lanzar401('Debe iniciar sesión.')
   if (respuesta.status === 403) throw new Error('No tiene permisos para consultar este recurso.')
   if (respuesta.status === 404) throw new Error(await leerError(respuesta))
   if (respuesta.status === 404) throw new Error('Usuario no encontrado.')
@@ -177,7 +187,7 @@ export async function registrarUsuario(
     body: JSON.stringify(cuerpo)
   })
 
-  if (respuesta.status === 401) throw new Error('Debe iniciar sesión como administrador.')
+  if (respuesta.status === 401) lanzar401('Debe iniciar sesión como administrador.')
   if (respuesta.status === 403) throw new Error('No tiene permisos para registrar usuarios.')
 
   if (!respuesta.ok) {
@@ -233,7 +243,7 @@ export async function obtenerDetalleParticipante(
     `${URL_API}${ENDPOINTS.detalleParticipante(id)}`,
     { headers: autorizacion(token) }
   )
-  if (respuesta.status === 401) throw new Error('Debe iniciar sesión.')
+  if (respuesta.status === 401) lanzar401('Debe iniciar sesión.')
   if (respuesta.status === 403) throw new Error('No tiene permisos para consultar este participante.')
   if (respuesta.status === 404) throw new Error('Participante no encontrado.')
   if (!respuesta.ok) throw new Error(await leerError(respuesta))
@@ -332,7 +342,7 @@ export async function eliminarOperador(
     headers: autorizacion(token)
   })
 
-  if (respuesta.status === 401) throw new Error('Debe iniciar sesión como administrador.')
+  if (respuesta.status === 401) lanzar401('Debe iniciar sesión como administrador.')
   if (respuesta.status === 403) throw new Error('No tiene permisos para eliminar operadores.')
   if (respuesta.status === 404) throw new Error('El operador solicitado no existe.')
 
@@ -370,7 +380,7 @@ async function patchSinCuerpo(
     body: '{}'
   })
 
-  if (respuesta.status === 401) throw new Error('Debe iniciar sesión.')
+  if (respuesta.status === 401) lanzar401('Debe iniciar sesión.')
   if (respuesta.status === 403) {
     const cuerpo = (await respuesta.json().catch(() => null)) as
       | { codigo?: string; mensaje?: string }
@@ -455,7 +465,7 @@ export async function modificarOperador(
     body: JSON.stringify(cambios)
   })
 
-  if (respuesta.status === 401) throw new Error('Debe iniciar sesión como administrador.')
+  if (respuesta.status === 401) lanzar401('Debe iniciar sesión como administrador.')
   if (respuesta.status === 403) throw new Error('No tiene permisos para modificar operadores.')
   if (respuesta.status === 404) throw new Error('El operador solicitado no existe.')
 

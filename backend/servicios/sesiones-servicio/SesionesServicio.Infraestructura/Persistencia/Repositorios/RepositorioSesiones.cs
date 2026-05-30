@@ -1,11 +1,22 @@
 using Microsoft.EntityFrameworkCore;
 using SesionesServicio.Aplicacion.Puertos;
 using SesionesServicio.Dominio.Entidades;
+using SesionesServicio.Dominio.Enums;
 
 namespace SesionesServicio.Infraestructura.Persistencia.Repositorios;
 
 public sealed class RepositorioSesiones : IRepositorioSesiones
 {
+    // Estados que cuentan como "vigentes" para bloquear la desactivación
+    // de contenido en juegos-servicio. Finalizada y Cancelada NO entran.
+    private static readonly EstadoSesion[] EstadosVigentes =
+    {
+        EstadoSesion.Programada,
+        EstadoSesion.EnPreparacion,
+        EstadoSesion.Activa,
+        EstadoSesion.Pausada
+    };
+
     private readonly ContextoSesiones _contexto;
 
     public RepositorioSesiones(ContextoSesiones contexto)
@@ -36,5 +47,20 @@ public sealed class RepositorioSesiones : IRepositorioSesiones
             .ToListAsync(cancelacion);
 
         return modelos.Select(SesionesMapeador.HaciaDominio).ToList();
+    }
+
+    public Task<bool> ExisteSesionVigentePorContenidoAsync(
+        TipoJuego tipoJuego, Guid contenidoJuegoId, CancellationToken cancelacion)
+    {
+        // AnyAsync genera "SELECT 1 ... LIMIT 1": no materializa filas
+        // ni cuenta totales, sólo informa existencia. EstadosVigentes
+        // se traduce a un IN (...) en PostgreSQL.
+        return _contexto.Sesiones
+            .AsNoTracking()
+            .AnyAsync(s =>
+                s.TipoJuego == tipoJuego &&
+                s.ContenidoJuegoId == contenidoJuegoId &&
+                EstadosVigentes.Contains(s.Estado),
+                cancelacion);
     }
 }

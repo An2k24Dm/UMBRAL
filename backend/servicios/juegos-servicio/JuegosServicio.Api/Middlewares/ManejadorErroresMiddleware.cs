@@ -32,6 +32,14 @@ public sealed class ManejadorErroresMiddleware
             await EscribirCodigoAsync(contexto, HttpStatusCode.NotFound,
                 "NO_ENCONTRADO", ex.Message);
         }
+        catch (ContenidoConSesionesVigentesExcepcion ex)
+        {
+            // Subclase específica de ExcepcionDominio: usamos un código
+            // dedicado para que el frontend pueda reconocer y mostrar el
+            // mensaje exacto, sin pasarse por el catch genérico de abajo.
+            await EscribirCodigoAsync(contexto, HttpStatusCode.UnprocessableEntity,
+                "CONTENIDO_CON_SESIONES_VIGENTES", ex.Message);
+        }
         catch (ExcepcionDominio ex)
         {
             await EscribirCodigoAsync(contexto, HttpStatusCode.UnprocessableEntity,

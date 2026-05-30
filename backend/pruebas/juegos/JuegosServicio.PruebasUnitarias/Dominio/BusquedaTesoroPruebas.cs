@@ -22,7 +22,7 @@ public class BusquedaTesoroPruebas
     public void Crear_ConDatosValidos_RetornaEstadoBorrador()
     {
         var busqueda = BusquedaValida();
-        busqueda.Estado.Should().Be(EstadoBusqueda.Borrador);
+        busqueda.Estado.Should().Be(EstadoBusqueda.Inactiva);
     }
 
     [Fact]

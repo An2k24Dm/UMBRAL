@@ -81,7 +81,7 @@ export function PaginaCrearBusqueda() {
         <div className="seccion-cabecera">
           <div>
             <h2>Nueva búsqueda del tesoro</h2>
-            <p>La búsqueda se crea en estado Borrador. Podrá agregar etapas después.</p>
+            <p>La búsqueda se crea en estado Inactiva. Podrá agregar etapas y activarla después.</p>
           </div>
         </div>
 

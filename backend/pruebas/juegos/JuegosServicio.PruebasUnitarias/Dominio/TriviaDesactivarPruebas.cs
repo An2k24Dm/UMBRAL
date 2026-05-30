@@ -26,17 +26,17 @@ public class TriviaDesactivarPruebas
 
         trivia.Desactivar();
 
-        trivia.Estado.Should().Be(EstadoTrivia.Archivada);
+        trivia.Estado.Should().Be(EstadoTrivia.Inactiva);
     }
 
     [Fact]
-    public void Desactivar_TriviaEnBorrador_CambiaEstadoAArchivada()
+    public void Desactivar_TriviaYaInactiva_LanzaExcepcionDominio()
     {
-        var trivia = Trivia.Crear("Trivia Borrador", "Descripción", Guid.NewGuid(), 30, FechaFija);
+        var trivia = Trivia.Crear("Trivia Inactiva", "Descripción", Guid.NewGuid(), 30, FechaFija);
 
-        trivia.Desactivar();
+        Action accion = () => trivia.Desactivar();
 
-        trivia.Estado.Should().Be(EstadoTrivia.Archivada);
+        accion.Should().Throw<ExcepcionDominio>();
     }
 
     [Fact]
@@ -51,7 +51,7 @@ public class TriviaDesactivarPruebas
     }
 
     [Fact]
-    public void Desactivar_TriviaYaArchivada_LanzaExcepcionDominio()
+    public void Desactivar_TriviaYaInactivaSegundaVez_LanzaExcepcionDominio()
     {
         var trivia = TriviaActiva();
         trivia.Desactivar();
