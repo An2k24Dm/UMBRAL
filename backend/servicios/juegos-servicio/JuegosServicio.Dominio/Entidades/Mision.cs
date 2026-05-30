@@ -1,9 +1,11 @@
 using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Dominio.Excepciones;
+using JuegosServicio.Dominio.Patrones;
 
 namespace JuegosServicio.Dominio.Entidades;
 
-public sealed class Mision
+// Composite — hoja de la jerarquía Etapa → Mision. No tiene hijos.
+public sealed class Mision : IComponenteJuego
 {
     public Guid Id { get; private set; }
     public Guid EtapaId { get; private set; }
@@ -13,6 +15,11 @@ public sealed class Mision
     public string PistaClave { get; private set; } = default!;
 
     private Mision() { }
+
+    // IComponenteJuego — hoja: sin hijos, devuelve su descripción.
+    string IComponenteJuego.ObtenerDescripcion() => $"Misión: {Titulo} [{Tipo}]";
+    IReadOnlyList<IComponenteJuego> IComponenteJuego.ObtenerHijos() =>
+        Array.Empty<IComponenteJuego>();
 
     internal static Mision Crear(
         Guid etapaId,

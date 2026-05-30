@@ -21,7 +21,7 @@ public class ModificarMisionManejadorPruebas
     private static BusquedaTesoro BusquedaConMision(out Guid etapaId, out Guid misionId)
     {
         var busqueda = BusquedaTesoro.Crear("Búsqueda Test", "Descripción", Guid.NewGuid(), FechaFija);
-        var etapa = busqueda.AgregarEtapa("Etapa 1", "Descripción");
+        var etapa = busqueda.AgregarEtapa("Etapa 1", "Descripción", 1);
         etapaId = etapa.Id;
         var mision = busqueda.AgregarMisionAEtapa(etapaId, "Misión", "Desc", TipoMision.PistaTexto, "pista");
         misionId = mision.Id;

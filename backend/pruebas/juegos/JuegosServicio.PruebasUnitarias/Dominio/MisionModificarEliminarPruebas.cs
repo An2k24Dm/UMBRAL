@@ -13,7 +13,7 @@ public class MisionModificarEliminarPruebas
     private static BusquedaTesoro BusquedaConMision(out Guid etapaId, out Guid misionId)
     {
         var busqueda = BusquedaTesoro.Crear("Búsqueda Test", "Descripción", Guid.NewGuid(), FechaFija);
-        var etapa = busqueda.AgregarEtapa("Etapa 1", "Descripción");
+        var etapa = busqueda.AgregarEtapa("Etapa 1", "Descripción", 1);
         etapaId = etapa.Id;
         var mision = busqueda.AgregarMisionAEtapa(etapaId, "Misión original", "Desc original", TipoMision.PistaTexto, "pista-original");
         misionId = mision.Id;

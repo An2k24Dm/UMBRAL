@@ -200,6 +200,7 @@ export interface BusquedaTesoroDetalleDto {
 export interface DatosAgregarEtapa {
   titulo: string
   descripcion: string
+  orden: number
 }
 
 export type TipoMision = 0 | 1 | 2

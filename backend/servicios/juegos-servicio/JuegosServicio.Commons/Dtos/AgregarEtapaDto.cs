@@ -4,4 +4,5 @@ public sealed class AgregarEtapaDto
 {
     public string Titulo { get; init; } = default!;
     public string Descripcion { get; init; } = default!;
+    public int Orden { get; init; }
 }

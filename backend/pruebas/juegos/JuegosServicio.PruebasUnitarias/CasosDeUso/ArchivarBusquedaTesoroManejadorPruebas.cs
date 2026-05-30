@@ -23,7 +23,7 @@ public class ArchivarBusquedaTesoroManejadorPruebas
     private static BusquedaTesoro BusquedaActiva()
     {
         var busqueda = BusquedaTesoro.Crear("Búsqueda Test", "Descripción", Guid.NewGuid(), FechaFija);
-        var etapa = busqueda.AgregarEtapa("Etapa 1", "Descripción");
+        var etapa = busqueda.AgregarEtapa("Etapa 1", "Descripción", 1);
         busqueda.AgregarMisionAEtapa(etapa.Id, "Misión", "Desc", TipoMision.PistaTexto, "pista");
         busqueda.Activar();
         return busqueda;
