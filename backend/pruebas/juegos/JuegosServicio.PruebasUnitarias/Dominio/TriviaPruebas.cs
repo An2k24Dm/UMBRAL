@@ -23,7 +23,7 @@ public class TriviaPruebas
     public void Crear_ConDatosValidos_RetornaEstadoBorrador()
     {
         var trivia = TriviaValida();
-        trivia.Estado.Should().Be(EstadoTrivia.Borrador);
+        trivia.Estado.Should().Be(EstadoTrivia.Inactiva);
     }
 
     [Fact]

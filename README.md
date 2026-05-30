@@ -416,3 +416,39 @@ Si no tienes la herramienta instalada: `dotnet tool install --global dotnet-ef`.
 - Funcionalidades de **juegos** (HU15 a HU26): creación y mantenimiento de trivias y búsquedas
   del tesoro con etapas y misiones, en borrador y activas.
 - Puede requerir ajustes y nuevas migraciones según se agreguen historias de usuario.
+
+## Bases de datos locales
+
+Cada microservicio tiene su propia base de datos PostgreSQL.
+
+### Identidad
+
+- Host: localhost
+- Puerto: 5433
+- Base de datos: umbral_identidad
+- Usuario: umbral
+- Contraseña: umbral123
+
+### Keycloak
+
+- Host: localhost
+- Puerto: 5434
+- Base de datos: keycloak
+- Usuario: keycloak
+- Contraseña: keycloak123
+
+### Juegos
+
+- Host: localhost
+- Puerto: 5435
+- Base de datos: umbral_juegos
+- Usuario: umbral
+- Contraseña: umbral123
+
+### Sesiones
+
+- Host: localhost
+- Puerto: 5436
+- Base de datos: umbral_sesiones
+- Usuario: umbral
+- Contraseña: umbral123

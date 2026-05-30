@@ -399,12 +399,12 @@ export function PaginaGestionPreguntas() {
                 Modificar datos
               </Boton>
             )}
-            {trivia.estado === 'Borrador' && modoForm === 'oculto' && !mostrarFormTrivia && !confirmandoArchivado && (
+            {trivia.estado === 'Inactiva' && modoForm === 'oculto' && !mostrarFormTrivia && !confirmandoArchivado && (
               <Boton variante="secundario" onClick={manejarActivar} disabled={activando}>
                 {activando ? 'Activando…' : 'Activar trivia'}
               </Boton>
             )}
-            {trivia.estado !== 'Archivada' && modoForm === 'oculto' && !mostrarFormTrivia && (
+            {trivia.estado !== 'Activa' && modoForm === 'oculto' && !mostrarFormTrivia && (
               confirmandoArchivado ? (
                 <>
                   <span className="texto-confirmacion">¿Archivar esta trivia?</span>

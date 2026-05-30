@@ -124,6 +124,7 @@ services:
       ASPNETCORE_URLS: http://+:8080
       ConnectionStrings__BaseDatos: "Host=postgres-juegos;Port=5432;Database=umbral_juegos;Username=umbral;Password=umbral123"
       Keycloak__Authority: "http://keycloak:8080/realms/umbral"
+      ServiciosExternos__SesionesServicio__Url: "http://sesiones-servicio:8080"
       Cors__OrigenesPermitidos__0: "http://localhost:3000"
       Cors__OrigenesPermitidos__1: "http://localhost:5173"
     ports:

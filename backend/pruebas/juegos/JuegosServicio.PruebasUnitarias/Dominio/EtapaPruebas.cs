@@ -93,11 +93,11 @@ public class EtapaPruebas
     }
 
     [Fact]
-    public void AgregarEtapa_BusquedaArchivada_LanzaExcepcionDominio()
+    public void AgregarEtapa_BusquedaActiva_LanzaExcepcionDominio()
     {
         var busqueda = BusquedaTesoro.Reconstituir(
             Guid.NewGuid(), "Búsqueda archivada", "Descripción",
-            Guid.NewGuid(), EstadoBusqueda.Archivada, FechaFija,
+            Guid.NewGuid(), EstadoBusqueda.Activa, FechaFija,
             Enumerable.Empty<Etapa>());
 
         Action accion = () => busqueda.AgregarEtapa("Etapa 1", "Descripción");

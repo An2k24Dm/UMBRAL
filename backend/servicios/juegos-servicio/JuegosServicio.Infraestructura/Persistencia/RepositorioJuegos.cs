@@ -174,12 +174,12 @@ public sealed class RepositorioJuegos : IRepositorioJuegos
         var modelo = await _contexto.Trivias.FirstOrDefaultAsync(t => t.Id == trivia.Id, cancelacion);
         if (modelo is null) return;
 
-        modelo.Estado = (int)EstadoTrivia.Archivada;
+        modelo.Estado = (int)EstadoTrivia.Inactiva;
 
         _contexto.EventosSalida.Add(new EventoSalidaModelo
         {
             Id = Guid.NewGuid(),
-            Tipo = "TriviaArchivada",
+            Tipo = "TriviaDesactivada",
             Datos = JsonSerializer.Serialize(new { TriviaId = trivia.Id }),
             FechaCreacion = DateTime.UtcNow,
             Procesado = false

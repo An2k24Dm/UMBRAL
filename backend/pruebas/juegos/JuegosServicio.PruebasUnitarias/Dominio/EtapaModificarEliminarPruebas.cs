@@ -66,12 +66,12 @@ public class EtapaModificarEliminarPruebas
     }
 
     [Fact]
-    public void ModificarEtapa_BusquedaArchivada_LanzaExcepcionDominio()
+    public void ModificarEtapa_BusquedaActiva_LanzaExcepcionDominio()
     {
         var etapaId = Guid.NewGuid();
         var busqueda = BusquedaTesoro.Reconstituir(
             Guid.NewGuid(), "Búsqueda", "Descripción",
-            Guid.NewGuid(), EstadoBusqueda.Archivada, FechaFija,
+            Guid.NewGuid(), EstadoBusqueda.Activa, FechaFija,
             new[] { Etapa.Reconstituir(etapaId, Guid.NewGuid(), "Etapa", "Desc", 1, []) });
 
         Action accion = () => busqueda.ModificarEtapa(etapaId, "Nuevo título", "Nueva descripción");
@@ -102,12 +102,12 @@ public class EtapaModificarEliminarPruebas
     }
 
     [Fact]
-    public void EliminarEtapa_BusquedaArchivada_LanzaExcepcionDominio()
+    public void EliminarEtapa_BusquedaActiva_LanzaExcepcionDominio()
     {
         var etapaId = Guid.NewGuid();
         var busqueda = BusquedaTesoro.Reconstituir(
             Guid.NewGuid(), "Búsqueda", "Descripción",
-            Guid.NewGuid(), EstadoBusqueda.Archivada, FechaFija,
+            Guid.NewGuid(), EstadoBusqueda.Activa, FechaFija,
             new[] { Etapa.Reconstituir(etapaId, Guid.NewGuid(), "Etapa", "Desc", 1, []) });
 
         Action accion = () => busqueda.EliminarEtapa(etapaId);

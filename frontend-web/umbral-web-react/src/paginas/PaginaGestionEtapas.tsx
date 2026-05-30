@@ -392,7 +392,7 @@ export function PaginaGestionEtapas() {
             <Boton variante="volver" onClick={() => navegar(rutaBase)}>
               Volver
             </Boton>
-            {!mostrarFormEtapa && !etapaConFormMision && busqueda.estado === 'Borrador' && (
+            {!mostrarFormEtapa && !etapaConFormMision && busqueda.estado === 'Inactiva' && (
               <>
                 <Boton variante="primario" onClick={abrirFormEtapa}>
                   + Agregar etapa

@@ -102,7 +102,7 @@ public class MisionModificarEliminarPruebas
     }
 
     [Fact]
-    public void EliminarMision_BusquedaArchivada_LanzaExcepcionDominio()
+    public void EliminarMision_BusquedaActiva_LanzaExcepcionDominio()
     {
         var etapaId = Guid.NewGuid();
         var misionId = Guid.NewGuid();
@@ -110,7 +110,7 @@ public class MisionModificarEliminarPruebas
         var etapa = Etapa.Reconstituir(etapaId, Guid.NewGuid(), "Etapa", "Desc", 1, new[] { mision });
         var busqueda = BusquedaTesoro.Reconstituir(
             Guid.NewGuid(), "Búsqueda", "Descripción",
-            Guid.NewGuid(), EstadoBusqueda.Archivada, FechaFija,
+            Guid.NewGuid(), EstadoBusqueda.Activa, FechaFija,
             new[] { etapa });
 
         Action accion = () => busqueda.EliminarMision(etapaId, misionId);

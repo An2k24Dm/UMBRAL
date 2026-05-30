@@ -10,11 +10,9 @@ import { PaginaDetalleUsuario } from './paginas/PaginaDetalleUsuario'
 import { PaginaListaTrivias } from './paginas/PaginaListaTrivias'
 import { PaginaCrearTrivia } from './paginas/PaginaCrearTrivia'
 import { PaginaGestionPreguntas } from './paginas/PaginaGestionPreguntas'
-import { PaginaListaTriviasActivas } from './paginas/PaginaListaTriviasActivas'
 import { PaginaListaBusquedas } from './paginas/PaginaListaBusquedas'
 import { PaginaCrearBusqueda } from './paginas/PaginaCrearBusqueda'
 import { PaginaGestionEtapas } from './paginas/PaginaGestionEtapas'
-import { PaginaListaBusquedasActivas } from './paginas/PaginaListaBusquedasActivas'
 import { PaginaSesiones } from './paginas/PaginaSesiones'
 import { PaginaCrearSesion } from './paginas/PaginaCrearSesion'
 import {
@@ -100,15 +98,7 @@ export function Aplicacion() {
         }
       />
 
-      {/* HU26 — Búsquedas activas (Admin). */}
-      <Route
-        path="/administrador/busquedas/activas"
-        element={
-          <RutaProtegida rolesPermitidos={['Administrador']}>
-            <PaginaListaBusquedasActivas />
-          </RutaProtegida>
-        }
-      />
+      <Route path="/administrador/busquedas/activas" element={<Navigate to="/administrador/busquedas" replace />} />
 
       {/* HU21/22/23 — Búsquedas del tesoro accesibles también por el Administrador. */}
       <Route
@@ -145,14 +135,7 @@ export function Aplicacion() {
           </RutaProtegida>
         }
       />
-      <Route
-        path="/administrador/trivias/activas"
-        element={
-          <RutaProtegida rolesPermitidos={['Administrador']}>
-            <PaginaListaTriviasActivas />
-          </RutaProtegida>
-        }
-      />
+      <Route path="/administrador/trivias/activas" element={<Navigate to="/administrador/trivias" replace />} />
       <Route
         path="/administrador/trivias/crear"
         element={
@@ -225,15 +208,7 @@ export function Aplicacion() {
           </RutaProtegida>
         }
       />
-      {/* HU20 — Listar trivias activas. */}
-      <Route
-        path="/operador/trivias/activas"
-        element={
-          <RutaProtegida rolesPermitidos={['Operador']}>
-            <PaginaListaTriviasActivas />
-          </RutaProtegida>
-        }
-      />
+      <Route path="/operador/trivias/activas" element={<Navigate to="/operador/trivias" replace />} />
       {/* HU16/HU17 — Gestionar preguntas de una trivia. */}
       <Route
         path="/operador/trivias/:triviaId/preguntas"
@@ -243,15 +218,7 @@ export function Aplicacion() {
           </RutaProtegida>
         }
       />
-      {/* HU26 — Búsquedas activas (Operador). */}
-      <Route
-        path="/operador/busquedas/activas"
-        element={
-          <RutaProtegida rolesPermitidos={['Operador']}>
-            <PaginaListaBusquedasActivas />
-          </RutaProtegida>
-        }
-      />
+      <Route path="/operador/busquedas/activas" element={<Navigate to="/operador/busquedas" replace />} />
 
       {/* HU21 — Listar búsquedas del tesoro en borrador. */}
       <Route

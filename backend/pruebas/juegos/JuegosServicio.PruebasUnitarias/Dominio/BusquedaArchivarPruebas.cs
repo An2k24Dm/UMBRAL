@@ -25,19 +25,19 @@ public class BusquedaArchivarPruebas
     {
         var busqueda = BusquedaActiva();
 
-        busqueda.Archivar();
+        busqueda.Desactivar();
 
-        busqueda.Estado.Should().Be(EstadoBusqueda.Archivada);
+        busqueda.Estado.Should().Be(EstadoBusqueda.Inactiva);
     }
 
     [Fact]
-    public void Archivar_BusquedaEnBorrador_CambiaEstadoAArchivada()
+    public void Archivar_BusquedaYaInactiva_LanzaExcepcionDominio()
     {
-        var busqueda = BusquedaTesoro.Crear("Búsqueda Borrador", "Descripción", Guid.NewGuid(), FechaFija);
+        var busqueda = BusquedaTesoro.Crear("Búsqueda Inactiva", "Descripción", Guid.NewGuid(), FechaFija);
 
-        busqueda.Archivar();
+        Action accion = () => busqueda.Desactivar();
 
-        busqueda.Estado.Should().Be(EstadoBusqueda.Archivada);
+        accion.Should().Throw<ExcepcionDominio>();
     }
 
     [Fact]
@@ -46,7 +46,7 @@ public class BusquedaArchivarPruebas
         var busqueda = BusquedaActiva();
         busqueda.LimpiarEventos();
 
-        busqueda.Archivar();
+        busqueda.Desactivar();
 
         busqueda.Eventos.Should().ContainSingle(e => e is BusquedaArchivadaEvento);
     }
@@ -55,9 +55,9 @@ public class BusquedaArchivarPruebas
     public void Archivar_BusquedaYaArchivada_LanzaExcepcionDominio()
     {
         var busqueda = BusquedaActiva();
-        busqueda.Archivar();
+        busqueda.Desactivar();
 
-        Action accion = () => busqueda.Archivar();
+        Action accion = () => busqueda.Desactivar();
 
         accion.Should().Throw<ExcepcionDominio>();
     }

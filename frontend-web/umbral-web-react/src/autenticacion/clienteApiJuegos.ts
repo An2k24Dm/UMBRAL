@@ -1,4 +1,13 @@
+import { dispatchSesionInvalida } from './eventosSesion'
+
 const URL_API = import.meta.env.VITE_API_URL ?? 'http://localhost:5000'
+
+// Helper compartido: ante un 401, avisamos al ProveedorAutenticacion
+// para que limpie la sesión y deja el mensaje legible para la UI.
+function lanzar401(mensaje: string): never {
+  dispatchSesionInvalida()
+  throw new Error(mensaje)
+}
 
 const ENDPOINTS = {
   // HU15
@@ -60,6 +69,21 @@ async function leerError(respuesta: Response): Promise<string> {
   const cuerpo = (await respuesta.json().catch(() => null)) as { mensaje?: string } | null
   return cuerpo?.mensaje ?? `Error ${respuesta.status} al consultar el servidor.`
 }
+
+// Lee la respuesta de error como objeto completo para poder distinguir
+// por código (no sólo por status). Se usa donde sabemos que el backend
+// devuelve { codigo, mensaje } y queremos un trato específico para
+// algún código (por ejemplo CONTENIDO_CON_SESIONES_VIGENTES).
+async function leerErrorEstructurado(
+  respuesta: Response
+): Promise<{ codigo?: string; mensaje?: string } | null> {
+  return (await respuesta.json().catch(() => null)) as
+    | { codigo?: string; mensaje?: string }
+    | null
+}
+
+const MENSAJE_CONTENIDO_CON_SESIONES_VIGENTES =
+  'No se puede desactivar este contenido porque tiene sesiones programadas o en ejecución.'
 
 // ---------------------------------------------------------------------------
 // Tipos
@@ -199,7 +223,7 @@ export async function crearTrivia(
     headers: { 'Content-Type': 'application/json', ...auth(token) },
     body: JSON.stringify(datos)
   })
-  if (respuesta.status === 401) throw new Error('Debe iniciar sesión.')
+  if (respuesta.status === 401) lanzar401('Debe iniciar sesión.')
   if (respuesta.status === 403) throw new Error('No tiene permisos para crear trivias.')
   if (!respuesta.ok) throw new Error(await leerError(respuesta))
   const cuerpo = (await respuesta.json()) as { id: string }
@@ -215,7 +239,7 @@ export async function obtenerTriviasEnBorrador(
   const respuesta = await fetch(`${URL_API}${ENDPOINTS.listarBorrador}`, {
     headers: auth(token)
   })
-  if (respuesta.status === 401) throw new Error('Debe iniciar sesión.')
+  if (respuesta.status === 401) lanzar401('Debe iniciar sesión.')
   if (respuesta.status === 403) throw new Error('No tiene permisos.')
   if (!respuesta.ok) throw new Error(await leerError(respuesta))
   return (await respuesta.json()) as TriviaResumenDto[]
@@ -231,7 +255,7 @@ export async function obtenerDetalleTrivia(
   const respuesta = await fetch(`${URL_API}${ENDPOINTS.detalleTrivia(triviaId)}`, {
     headers: auth(token)
   })
-  if (respuesta.status === 401) throw new Error('Debe iniciar sesión.')
+  if (respuesta.status === 401) lanzar401('Debe iniciar sesión.')
   if (respuesta.status === 403) throw new Error('No tiene permisos.')
   if (respuesta.status === 404) throw new Error('Trivia no encontrada.')
   if (!respuesta.ok) throw new Error(await leerError(respuesta))
@@ -251,7 +275,7 @@ export async function agregarPregunta(
     headers: { 'Content-Type': 'application/json', ...auth(token) },
     body: JSON.stringify(datos)
   })
-  if (respuesta.status === 401) throw new Error('Debe iniciar sesión.')
+  if (respuesta.status === 401) lanzar401('Debe iniciar sesión.')
   if (respuesta.status === 403) throw new Error('No tiene permisos.')
   if (respuesta.status === 404) throw new Error('Trivia no encontrada.')
   if (!respuesta.ok) throw new Error(await leerError(respuesta))
@@ -276,7 +300,7 @@ export async function modificarPregunta(
       body: JSON.stringify(datos)
     }
   )
-  if (respuesta.status === 401) throw new Error('Debe iniciar sesión.')
+  if (respuesta.status === 401) lanzar401('Debe iniciar sesión.')
   if (respuesta.status === 403) throw new Error('No tiene permisos.')
   if (respuesta.status === 404) throw new Error('Pregunta no encontrada.')
   if (!respuesta.ok) throw new Error(await leerError(respuesta))
@@ -296,7 +320,7 @@ export async function agregarMision(
     headers: { 'Content-Type': 'application/json', ...auth(token) },
     body: JSON.stringify(datos)
   })
-  if (respuesta.status === 401) throw new Error('Debe iniciar sesión.')
+  if (respuesta.status === 401) lanzar401('Debe iniciar sesión.')
   if (respuesta.status === 403) throw new Error('No tiene permisos.')
   if (respuesta.status === 404) throw new Error('Etapa no encontrada.')
   if (!respuesta.ok) throw new Error(await leerError(respuesta))
@@ -314,7 +338,7 @@ export async function obtenerDetalleBusqueda(
   const respuesta = await fetch(`${URL_API}${ENDPOINTS.detalleBusqueda(busquedaId)}`, {
     headers: auth(token)
   })
-  if (respuesta.status === 401) throw new Error('Debe iniciar sesión.')
+  if (respuesta.status === 401) lanzar401('Debe iniciar sesión.')
   if (respuesta.status === 403) throw new Error('No tiene permisos.')
   if (respuesta.status === 404) throw new Error('Búsqueda del tesoro no encontrada.')
   if (!respuesta.ok) throw new Error(await leerError(respuesta))
@@ -334,7 +358,7 @@ export async function agregarEtapa(
     headers: { 'Content-Type': 'application/json', ...auth(token) },
     body: JSON.stringify(datos)
   })
-  if (respuesta.status === 401) throw new Error('Debe iniciar sesión.')
+  if (respuesta.status === 401) lanzar401('Debe iniciar sesión.')
   if (respuesta.status === 403) throw new Error('No tiene permisos.')
   if (respuesta.status === 404) throw new Error('Búsqueda del tesoro no encontrada.')
   if (!respuesta.ok) throw new Error(await leerError(respuesta))
@@ -354,7 +378,7 @@ export async function crearBusquedaTesoro(
     headers: { 'Content-Type': 'application/json', ...auth(token) },
     body: JSON.stringify(datos)
   })
-  if (respuesta.status === 401) throw new Error('Debe iniciar sesión.')
+  if (respuesta.status === 401) lanzar401('Debe iniciar sesión.')
   if (respuesta.status === 403) throw new Error('No tiene permisos para crear búsquedas del tesoro.')
   if (!respuesta.ok) throw new Error(await leerError(respuesta))
   const cuerpo = (await respuesta.json()) as { id: string }
@@ -370,7 +394,7 @@ export async function obtenerBusquedasEnBorrador(
   const respuesta = await fetch(`${URL_API}${ENDPOINTS.listarBusquedasBorrador}`, {
     headers: auth(token)
   })
-  if (respuesta.status === 401) throw new Error('Debe iniciar sesión.')
+  if (respuesta.status === 401) lanzar401('Debe iniciar sesión.')
   if (respuesta.status === 403) throw new Error('No tiene permisos.')
   if (!respuesta.ok) throw new Error(await leerError(respuesta))
   return (await respuesta.json()) as BusquedaTesoroResumenDto[]
@@ -379,6 +403,10 @@ export async function obtenerBusquedasEnBorrador(
 // ---------------------------------------------------------------------------
 // HU20 — Archivar trivia
 // ---------------------------------------------------------------------------
+//
+// Si la trivia tiene sesiones vigentes asociadas, el backend responde
+// 422 con código CONTENIDO_CON_SESIONES_VIGENTES. Mostramos un mensaje
+// claro y específico en vez del genérico "ocurrió un error".
 export async function archivarTrivia(
   triviaId: string,
   token: string
@@ -387,9 +415,16 @@ export async function archivarTrivia(
     method: 'DELETE',
     headers: auth(token)
   })
-  if (respuesta.status === 401) throw new Error('Debe iniciar sesión.')
+  if (respuesta.status === 401) lanzar401('Debe iniciar sesión.')
   if (respuesta.status === 403) throw new Error('No tiene permisos.')
   if (respuesta.status === 404) throw new Error('Trivia no encontrada.')
+  if (respuesta.status === 422) {
+    const cuerpo = await leerErrorEstructurado(respuesta)
+    if (cuerpo?.codigo === 'CONTENIDO_CON_SESIONES_VIGENTES') {
+      throw new Error(cuerpo.mensaje ?? MENSAJE_CONTENIDO_CON_SESIONES_VIGENTES)
+    }
+    throw new Error(cuerpo?.mensaje ?? 'No fue posible desactivar la trivia.')
+  }
   if (!respuesta.ok) throw new Error(await leerError(respuesta))
 }
 
@@ -402,7 +437,7 @@ export async function obtenerTriviasActivas(
   const respuesta = await fetch(`${URL_API}${ENDPOINTS.listarActivas}`, {
     headers: auth(token)
   })
-  if (respuesta.status === 401) throw new Error('Debe iniciar sesión.')
+  if (respuesta.status === 401) lanzar401('Debe iniciar sesión.')
   if (respuesta.status === 403) throw new Error('No tiene permisos.')
   if (!respuesta.ok) throw new Error(await leerError(respuesta))
   return (await respuesta.json()) as TriviaActivaResumenDto[]
@@ -421,7 +456,7 @@ export async function modificarTrivia(
     headers: { 'Content-Type': 'application/json', ...auth(token) },
     body: JSON.stringify(datos)
   })
-  if (respuesta.status === 401) throw new Error('Debe iniciar sesión.')
+  if (respuesta.status === 401) lanzar401('Debe iniciar sesión.')
   if (respuesta.status === 403) throw new Error('No tiene permisos.')
   if (respuesta.status === 404) throw new Error('Trivia no encontrada.')
   if (!respuesta.ok) throw new Error(await leerError(respuesta))
@@ -438,7 +473,7 @@ export async function activarTrivia(
     method: 'PATCH',
     headers: auth(token)
   })
-  if (respuesta.status === 401) throw new Error('Debe iniciar sesión.')
+  if (respuesta.status === 401) lanzar401('Debe iniciar sesión.')
   if (respuesta.status === 403) throw new Error('No tiene permisos.')
   if (respuesta.status === 404) throw new Error('Trivia no encontrada.')
   if (!respuesta.ok) throw new Error(await leerError(respuesta))
@@ -466,7 +501,7 @@ export async function modificarEtapa(
       body: JSON.stringify(datos)
     }
   )
-  if (respuesta.status === 401) throw new Error('Debe iniciar sesión.')
+  if (respuesta.status === 401) lanzar401('Debe iniciar sesión.')
   if (respuesta.status === 403) throw new Error('No tiene permisos.')
   if (respuesta.status === 404) throw new Error('Etapa no encontrada.')
   if (!respuesta.ok) throw new Error(await leerError(respuesta))
@@ -484,7 +519,7 @@ export async function eliminarEtapa(
     `${URL_API}${ENDPOINTS.eliminarEtapa(busquedaId, etapaId)}`,
     { method: 'DELETE', headers: auth(token) }
   )
-  if (respuesta.status === 401) throw new Error('Debe iniciar sesión.')
+  if (respuesta.status === 401) lanzar401('Debe iniciar sesión.')
   if (respuesta.status === 403) throw new Error('No tiene permisos.')
   if (respuesta.status === 404) throw new Error('Etapa no encontrada.')
   if (!respuesta.ok) throw new Error(await leerError(respuesta))
@@ -515,7 +550,7 @@ export async function modificarMision(
       body: JSON.stringify(datos)
     }
   )
-  if (respuesta.status === 401) throw new Error('Debe iniciar sesión.')
+  if (respuesta.status === 401) lanzar401('Debe iniciar sesión.')
   if (respuesta.status === 403) throw new Error('No tiene permisos.')
   if (respuesta.status === 404) throw new Error('Misión no encontrada.')
   if (!respuesta.ok) throw new Error(await leerError(respuesta))
@@ -534,7 +569,7 @@ export async function eliminarMision(
     `${URL_API}${ENDPOINTS.eliminarMision(busquedaId, etapaId, misionId)}`,
     { method: 'DELETE', headers: auth(token) }
   )
-  if (respuesta.status === 401) throw new Error('Debe iniciar sesión.')
+  if (respuesta.status === 401) lanzar401('Debe iniciar sesión.')
   if (respuesta.status === 403) throw new Error('No tiene permisos.')
   if (respuesta.status === 404) throw new Error('Misión no encontrada.')
   if (!respuesta.ok) throw new Error(await leerError(respuesta))
@@ -551,7 +586,7 @@ export async function activarBusqueda(
     `${URL_API}${ENDPOINTS.activarBusqueda(busquedaId)}`,
     { method: 'PATCH', headers: auth(token) }
   )
-  if (respuesta.status === 401) throw new Error('Debe iniciar sesión.')
+  if (respuesta.status === 401) lanzar401('Debe iniciar sesión.')
   if (respuesta.status === 403) throw new Error('No tiene permisos.')
   if (respuesta.status === 404) throw new Error('Búsqueda del tesoro no encontrada.')
   if (!respuesta.ok) throw new Error(await leerError(respuesta))
@@ -566,7 +601,7 @@ export async function obtenerBusquedasActivas(
   const respuesta = await fetch(`${URL_API}${ENDPOINTS.listarBusquedasActivas}`, {
     headers: auth(token)
   })
-  if (respuesta.status === 401) throw new Error('Debe iniciar sesión.')
+  if (respuesta.status === 401) lanzar401('Debe iniciar sesión.')
   if (respuesta.status === 403) throw new Error('No tiene permisos.')
   if (!respuesta.ok) throw new Error(await leerError(respuesta))
   return (await respuesta.json()) as BusquedaTesoroResumenDto[]
@@ -575,6 +610,10 @@ export async function obtenerBusquedasActivas(
 // ---------------------------------------------------------------------------
 // HU26 — Archivar búsqueda del tesoro
 // ---------------------------------------------------------------------------
+//
+// Mismo tratamiento que archivarTrivia: si hay sesiones vigentes
+// asociadas, el backend responde 422 con CONTENIDO_CON_SESIONES_VIGENTES
+// y mostramos el mensaje específico.
 export async function archivarBusqueda(
   busquedaId: string,
   token: string
@@ -583,9 +622,16 @@ export async function archivarBusqueda(
     `${URL_API}${ENDPOINTS.archivarBusqueda(busquedaId)}`,
     { method: 'DELETE', headers: auth(token) }
   )
-  if (respuesta.status === 401) throw new Error('Debe iniciar sesión.')
+  if (respuesta.status === 401) lanzar401('Debe iniciar sesión.')
   if (respuesta.status === 403) throw new Error('No tiene permisos.')
   if (respuesta.status === 404) throw new Error('Búsqueda del tesoro no encontrada.')
+  if (respuesta.status === 422) {
+    const cuerpo = await leerErrorEstructurado(respuesta)
+    if (cuerpo?.codigo === 'CONTENIDO_CON_SESIONES_VIGENTES') {
+      throw new Error(cuerpo.mensaje ?? MENSAJE_CONTENIDO_CON_SESIONES_VIGENTES)
+    }
+    throw new Error(cuerpo?.mensaje ?? 'No fue posible archivar la búsqueda del tesoro.')
+  }
   if (!respuesta.ok) throw new Error(await leerError(respuesta))
 }
 
@@ -601,7 +647,7 @@ export async function eliminarPregunta(
     `${URL_API}${ENDPOINTS.eliminarPregunta(triviaId, preguntaId)}`,
     { method: 'DELETE', headers: auth(token) }
   )
-  if (respuesta.status === 401) throw new Error('Debe iniciar sesión.')
+  if (respuesta.status === 401) lanzar401('Debe iniciar sesión.')
   if (respuesta.status === 403) throw new Error('No tiene permisos.')
   if (respuesta.status === 404) throw new Error('Pregunta no encontrada.')
   if (!respuesta.ok) throw new Error(await leerError(respuesta))
