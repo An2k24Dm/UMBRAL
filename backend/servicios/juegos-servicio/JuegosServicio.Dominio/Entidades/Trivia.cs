@@ -1,4 +1,5 @@
 using JuegosServicio.Dominio.Enums;
+using JuegosServicio.Dominio.Estados;
 using JuegosServicio.Dominio.Eventos;
 using JuegosServicio.Dominio.Excepciones;
 
@@ -8,6 +9,7 @@ public sealed class Trivia
 {
     private readonly List<Pregunta> _preguntas = new();
     private readonly List<EventoDominio> _eventos = new();
+    private IEstadoTrivia _estado = default!;
 
     public Guid Id { get; private set; }
     public string Nombre { get; private set; } = default!;
@@ -48,6 +50,7 @@ public sealed class Trivia
             Estado = EstadoTrivia.Inactiva,
             FechaCreacion = fechaCreacion
         };
+        trivia._estado = FabricaEstadoTrivia.Obtener(EstadoTrivia.Inactiva);
 
         trivia._eventos.Add(new TriviaCreadaEvento(trivia.Id, trivia.Nombre));
         return trivia;
@@ -58,7 +61,7 @@ public sealed class Trivia
         int puntaje,
         IEnumerable<(string Texto, bool EsCorrecta)> opciones)
     {
-        ValidarEstadoInactiva("agregar preguntas");
+        _estado.ValidarEdicion("agregar preguntas");
 
         var pregunta = Pregunta.Crear(Id, enunciado, puntaje, opciones);
         _preguntas.Add(pregunta);
@@ -70,7 +73,7 @@ public sealed class Trivia
         string nuevoEnunciado,
         IEnumerable<(string Texto, bool EsCorrecta)> nuevasOpciones)
     {
-        ValidarEstadoInactiva("modificar preguntas");
+        _estado.ValidarEdicion("modificar preguntas");
 
         var pregunta = _preguntas.FirstOrDefault(p => p.Id == preguntaId)
             ?? throw new ExcepcionNoEncontrado($"No se encontró la pregunta con ID '{preguntaId}'.");
@@ -80,7 +83,7 @@ public sealed class Trivia
 
     public void EliminarPregunta(Guid preguntaId)
     {
-        ValidarEstadoInactiva("eliminar preguntas");
+        _estado.ValidarEdicion("eliminar preguntas");
 
         var pregunta = _preguntas.FirstOrDefault(p => p.Id == preguntaId)
             ?? throw new ExcepcionNoEncontrado($"No se encontró la pregunta con ID '{preguntaId}'.");
@@ -88,25 +91,9 @@ public sealed class Trivia
         _preguntas.Remove(pregunta);
     }
 
-    public void Activar()
-    {
-        if (Estado == EstadoTrivia.Activa)
-            throw new ExcepcionDominio("La trivia ya está activa.");
-        if (_preguntas.Count == 0)
-            throw new ExcepcionDominio("La trivia debe tener al menos una pregunta para poder activarse.");
-
-        Estado = EstadoTrivia.Activa;
-        _eventos.Add(new TriviaActivadaEvento(Id, Nombre, _preguntas.Count));
-    }
-
-    public void Desactivar()
-    {
-        if (Estado == EstadoTrivia.Inactiva)
-            throw new ExcepcionDominio("La trivia ya está inactiva.");
-
-        Estado = EstadoTrivia.Inactiva;
-        _eventos.Add(new TriviaArchivadaEvento(Id));
-    }
+    // Patrón State: delega en el objeto de estado actual.
+    public void Activar() => _estado.Activar(this);
+    public void Desactivar() => _estado.Desactivar(this);
 
     public void ModificarDatos(string nuevoNombre, string nuevaDescripcion, int nuevoTiempo)
     {
@@ -145,14 +132,17 @@ public sealed class Trivia
             Estado = estado,
             FechaCreacion = fechaCreacion
         };
+        trivia._estado = FabricaEstadoTrivia.Obtener(estado);
         trivia._preguntas.AddRange(preguntas);
         return trivia;
     }
 
-    private void ValidarEstadoInactiva(string accion)
+    // Métodos internos para uso exclusivo de los estados (patrón State).
+    internal void TransicionarEstado(EstadoTrivia nuevoEstado)
     {
-        if (Estado != EstadoTrivia.Inactiva)
-            throw new ExcepcionDominio(
-                $"No se pueden {accion} a una trivia que está activa.");
+        Estado = nuevoEstado;
+        _estado = FabricaEstadoTrivia.Obtener(nuevoEstado);
     }
+
+    internal void AgregarEventoInterno(EventoDominio evento) => _eventos.Add(evento);
 }

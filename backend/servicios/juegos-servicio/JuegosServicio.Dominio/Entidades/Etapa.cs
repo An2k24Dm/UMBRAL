@@ -1,9 +1,11 @@
 using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Dominio.Excepciones;
+using JuegosServicio.Dominio.Patrones;
 
 namespace JuegosServicio.Dominio.Entidades;
 
-public sealed class Etapa
+// Composite — nodo compuesto de la jerarquía BusquedaTesoro → Etapa → Mision.
+public sealed class Etapa : IComponenteJuego
 {
     private readonly List<Mision> _misiones = new();
 
@@ -71,6 +73,11 @@ public sealed class Etapa
         _misiones.Add(mision);
         return mision;
     }
+
+    // IComponenteJuego — compuesto: devuelve sus misiones como hijos.
+    string IComponenteJuego.ObtenerDescripcion() => $"Etapa {Orden}: {Titulo}";
+    IReadOnlyList<IComponenteJuego> IComponenteJuego.ObtenerHijos() =>
+        _misiones.Cast<IComponenteJuego>().ToList().AsReadOnly();
 
     public static Etapa Reconstituir(
         Guid id,

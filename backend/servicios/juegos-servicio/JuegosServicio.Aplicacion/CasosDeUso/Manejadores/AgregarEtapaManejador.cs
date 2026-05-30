@@ -20,7 +20,7 @@ public sealed class AgregarEtapaManejador : IRequestHandler<AgregarEtapaComando,
             ?? throw new ExcepcionNoEncontrado(
                 $"No se encontró la búsqueda del tesoro con ID '{comando.BusquedaId}'.");
 
-        var etapa = busqueda.AgregarEtapa(comando.Dto.Titulo, comando.Dto.Descripcion);
+        var etapa = busqueda.AgregarEtapa(comando.Dto.Titulo, comando.Dto.Descripcion, comando.Dto.Orden);
 
         await _repositorio.AgregarEtapaAsync(comando.BusquedaId, etapa, cancelacion);
 

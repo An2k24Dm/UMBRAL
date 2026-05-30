@@ -14,7 +14,7 @@ public class MisionPruebas
     {
         var busqueda = BusquedaTesoro.Crear(
             "Búsqueda Test", "Descripción", Guid.NewGuid(), FechaFija);
-        var etapa = busqueda.AgregarEtapa("Etapa 1", "Primera etapa");
+        var etapa = busqueda.AgregarEtapa("Etapa 1", "Primera etapa", 1);
         etapaId = etapa.Id;
         return busqueda;
     }

@@ -1,4 +1,5 @@
 using JuegosServicio.Dominio.Enums;
+using JuegosServicio.Dominio.Estados;
 using JuegosServicio.Dominio.Eventos;
 using JuegosServicio.Dominio.Excepciones;
 
@@ -8,6 +9,7 @@ public sealed class BusquedaTesoro
 {
     private readonly List<Etapa> _etapas = new();
     private readonly List<EventoDominio> _eventos = new();
+    private IEstadoBusqueda _estado = default!;
 
     public Guid Id { get; private set; }
     public string Nombre { get; private set; } = default!;
@@ -43,49 +45,32 @@ public sealed class BusquedaTesoro
             Estado = EstadoBusqueda.Inactiva,
             FechaCreacion = fechaCreacion
         };
+        busqueda._estado = FabricaEstadoBusqueda.Obtener(EstadoBusqueda.Inactiva);
 
         busqueda._eventos.Add(new BusquedaCreadaEvento(busqueda.Id, busqueda.Nombre));
         return busqueda;
     }
 
-    public Etapa AgregarEtapa(string titulo, string descripcion)
+    public Etapa AgregarEtapa(string titulo, string descripcion, int orden)
     {
-        ValidarEstadoInactiva("agregar etapas");
+        _estado.ValidarEdicion("agregar etapas");
 
-        var orden = _etapas.Count + 1;
+        if (_etapas.Any(e => e.Orden == orden))
+            throw new ExcepcionDominio(
+                $"Ya existe una etapa con el orden {orden} en esta búsqueda del tesoro.");
+
         var etapa = Etapa.Crear(Id, titulo, descripcion, orden);
         _etapas.Add(etapa);
         return etapa;
     }
 
-    public void Activar()
-    {
-        if (Estado == EstadoBusqueda.Activa)
-            throw new ExcepcionDominio("La búsqueda del tesoro ya está activa.");
-        if (_etapas.Count == 0)
-            throw new ExcepcionDominio("La búsqueda del tesoro debe tener al menos una etapa para poder activarse.");
-
-        var etapaSinMisiones = _etapas.FirstOrDefault(e => e.Misiones.Count == 0);
-        if (etapaSinMisiones is not null)
-            throw new ExcepcionDominio(
-                $"La etapa '{etapaSinMisiones.Titulo}' no tiene misiones. Cada etapa debe tener al menos una misión.");
-
-        Estado = EstadoBusqueda.Activa;
-        _eventos.Add(new BusquedaActivadaEvento(Id, Nombre, _etapas.Count));
-    }
-
-    public void Desactivar()
-    {
-        if (Estado == EstadoBusqueda.Inactiva)
-            throw new ExcepcionDominio("La búsqueda del tesoro ya está inactiva.");
-
-        Estado = EstadoBusqueda.Inactiva;
-        _eventos.Add(new BusquedaArchivadaEvento(Id));
-    }
+    // Patrón State: delega en el objeto de estado actual.
+    public void Activar() => _estado.Activar(this);
+    public void Desactivar() => _estado.Desactivar(this);
 
     public void ModificarEtapa(Guid etapaId, string nuevoTitulo, string nuevaDescripcion)
     {
-        ValidarEstadoInactiva("modificar etapas");
+        _estado.ValidarEdicion("modificar etapas");
 
         var etapa = _etapas.FirstOrDefault(e => e.Id == etapaId)
             ?? throw new ExcepcionNoEncontrado($"No se encontró la etapa con ID '{etapaId}'.");
@@ -95,7 +80,7 @@ public sealed class BusquedaTesoro
 
     public void EliminarEtapa(Guid etapaId)
     {
-        ValidarEstadoInactiva("eliminar etapas");
+        _estado.ValidarEdicion("eliminar etapas");
 
         var etapa = _etapas.FirstOrDefault(e => e.Id == etapaId)
             ?? throw new ExcepcionNoEncontrado($"No se encontró la etapa con ID '{etapaId}'.");
@@ -110,7 +95,7 @@ public sealed class BusquedaTesoro
         TipoMision tipo,
         string pistaClave)
     {
-        ValidarEstadoInactiva("agregar misiones");
+        _estado.ValidarEdicion("agregar misiones");
 
         var etapa = _etapas.FirstOrDefault(e => e.Id == etapaId)
             ?? throw new ExcepcionNoEncontrado($"No se encontró la etapa con ID '{etapaId}'.");
@@ -120,7 +105,7 @@ public sealed class BusquedaTesoro
 
     public void ModificarMision(Guid etapaId, Guid misionId, string nuevoTitulo, string nuevaDescripcion, TipoMision nuevoTipo, string nuevaPistaClave)
     {
-        ValidarEstadoInactiva("modificar misiones");
+        _estado.ValidarEdicion("modificar misiones");
 
         var etapa = _etapas.FirstOrDefault(e => e.Id == etapaId)
             ?? throw new ExcepcionNoEncontrado($"No se encontró la etapa con ID '{etapaId}'.");
@@ -130,7 +115,7 @@ public sealed class BusquedaTesoro
 
     public void EliminarMision(Guid etapaId, Guid misionId)
     {
-        ValidarEstadoInactiva("eliminar misiones");
+        _estado.ValidarEdicion("eliminar misiones");
 
         var etapa = _etapas.FirstOrDefault(e => e.Id == etapaId)
             ?? throw new ExcepcionNoEncontrado($"No se encontró la etapa con ID '{etapaId}'.");
@@ -158,14 +143,17 @@ public sealed class BusquedaTesoro
             Estado = estado,
             FechaCreacion = fechaCreacion
         };
+        busqueda._estado = FabricaEstadoBusqueda.Obtener(estado);
         busqueda._etapas.AddRange(etapas);
         return busqueda;
     }
 
-    private void ValidarEstadoInactiva(string accion)
+    // Métodos internos para uso exclusivo de los estados (patrón State).
+    internal void TransicionarEstado(EstadoBusqueda nuevoEstado)
     {
-        if (Estado != EstadoBusqueda.Inactiva)
-            throw new ExcepcionDominio(
-                $"No se pueden {accion} a una búsqueda que está activa.");
+        Estado = nuevoEstado;
+        _estado = FabricaEstadoBusqueda.Obtener(nuevoEstado);
     }
+
+    internal void AgregarEventoInterno(EventoDominio evento) => _eventos.Add(evento);
 }

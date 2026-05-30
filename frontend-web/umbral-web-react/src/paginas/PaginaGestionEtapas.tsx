@@ -24,11 +24,13 @@ import { usarAutenticacion } from '../autenticacion/ProveedorAutenticacion'
 interface FormEtapa {
   titulo: string
   descripcion: string
+  orden: string
 }
 
 interface ErroresEtapa {
   titulo?: string
   descripcion?: string
+  orden?: string
 }
 
 // ---------------------------------------------------------------------------
@@ -53,7 +55,7 @@ const TIPOS_MISION: { valor: TipoMision; etiqueta: string }[] = [
   { valor: 2, etiqueta: 'Código QR' }
 ]
 
-const FORM_ETAPA_VACIO: FormEtapa = { titulo: '', descripcion: '' }
+const FORM_ETAPA_VACIO: FormEtapa = { titulo: '', descripcion: '', orden: '' }
 const FORM_MISION_VACIO: FormMision = { titulo: '', descripcion: '', tipo: '0', pistaClave: '' }
 
 function validarEtapa(form: FormEtapa): ErroresEtapa {
@@ -62,6 +64,9 @@ function validarEtapa(form: FormEtapa): ErroresEtapa {
   else if (form.titulo.trim().length > 200) err.titulo = 'Máximo 200 caracteres.'
   if (!form.descripcion.trim()) err.descripcion = 'La descripción es obligatoria.'
   else if (form.descripcion.trim().length > 1000) err.descripcion = 'Máximo 1000 caracteres.'
+  const ordenNum = Number(form.orden)
+  if (!form.orden.trim()) err.orden = 'El orden es obligatorio.'
+  else if (!Number.isInteger(ordenNum) || ordenNum <= 0) err.orden = 'El orden debe ser un número entero positivo.'
   return err
 }
 
@@ -174,7 +179,8 @@ export function PaginaGestionEtapas() {
     try {
       await agregarEtapa(busquedaId, {
         titulo: formEtapa.titulo.trim(),
-        descripcion: formEtapa.descripcion.trim()
+        descripcion: formEtapa.descripcion.trim(),
+        orden: Number(formEtapa.orden)
       }, token)
       const datos = await obtenerDetalleBusqueda(busquedaId, token)
       setBusqueda(datos)
@@ -414,6 +420,21 @@ export function PaginaGestionEtapas() {
             <h3 className="formulario-pregunta-titulo">Nueva etapa</h3>
             {errorFormEtapa && <Alerta tono="error">{errorFormEtapa}</Alerta>}
             <form onSubmit={manejarEnvioEtapa} noValidate>
+              <CampoFormulario etiqueta="Orden" htmlFor="etapa-orden" error={erroresEtapa.orden}
+                ayuda="Número de posición de la etapa en el recorrido (debe ser único).">
+                <input
+                  id="etapa-orden"
+                  type="number"
+                  min={1}
+                  value={formEtapa.orden}
+                  onChange={(e) => {
+                    setFormEtapa((p) => ({ ...p, orden: e.target.value }))
+                    if (erroresEtapa.orden) setErroresEtapa((p) => ({ ...p, orden: undefined }))
+                  }}
+                  disabled={enviandoEtapa}
+                  placeholder="Ej. 1"
+                />
+              </CampoFormulario>
               <CampoFormulario etiqueta="Título" htmlFor="etapa-titulo" error={erroresEtapa.titulo}>
                 <input
                   id="etapa-titulo"
