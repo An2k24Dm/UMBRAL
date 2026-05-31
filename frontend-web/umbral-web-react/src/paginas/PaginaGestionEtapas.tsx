@@ -14,6 +14,7 @@ import {
   eliminarMision,
   activarBusqueda,
   agregarPista,
+  modificarPista,
   type BusquedaTesoroDetalleDto,
   type TipoMision
 } from '../autenticacion/clienteApiJuegos'
@@ -122,6 +123,12 @@ export function PaginaGestionEtapas() {
   const [formPistaContenido, setFormPistaContenido] = useState('')
   const [errorFormPista, setErrorFormPista] = useState<string | null>(null)
   const [enviandoPista, setEnviandoPista] = useState(false)
+
+  // Estado edición de pista
+  const [pistaEnEdicion, setPistaEnEdicion] = useState<string | null>(null)
+  const [formEdicionPistaContenido, setFormEdicionPistaContenido] = useState('')
+  const [errorFormEdicionPista, setErrorFormEdicionPista] = useState<string | null>(null)
+  const [enviandoEdicionPista, setEnviandoEdicionPista] = useState(false)
 
   // Estado del formulario de misión (indexado por etapaId)
   const [etapaConFormMision, setEtapaConFormMision] = useState<string | null>(null)
@@ -372,6 +379,36 @@ export function PaginaGestionEtapas() {
     }
   }
 
+  function abrirEdicionPista(pistaId: string, contenidoActual: string) {
+    setPistaEnEdicion(pistaId)
+    setFormEdicionPistaContenido(contenidoActual)
+    setErrorFormEdicionPista(null)
+  }
+
+  function cerrarEdicionPista() {
+    setPistaEnEdicion(null)
+    setErrorFormEdicionPista(null)
+  }
+
+  async function manejarEnvioEdicionPista(e: React.FormEvent, etapaId: string, pistaId: string) {
+    e.preventDefault()
+    if (!formEdicionPistaContenido.trim()) { setErrorFormEdicionPista('El contenido es obligatorio.'); return }
+    if (!token || !busquedaId) return
+
+    setEnviandoEdicionPista(true)
+    setErrorFormEdicionPista(null)
+    try {
+      await modificarPista(busquedaId, etapaId, pistaId, { nuevoContenido: formEdicionPistaContenido.trim() }, token)
+      const datos = await obtenerDetalleBusqueda(busquedaId, token)
+      setBusqueda(datos)
+      cerrarEdicionPista()
+    } catch (err) {
+      setErrorFormEdicionPista(err instanceof Error ? err.message : 'Ocurrió un error al modificar la pista.')
+    } finally {
+      setEnviandoEdicionPista(false)
+    }
+  }
+
   async function manejarEnvioMision(e: React.FormEvent, etapaId: string) {
     e.preventDefault()
     const erroresValidacion = validarMision(formMision)
@@ -613,7 +650,39 @@ export function PaginaGestionEtapas() {
                     <ul className="pregunta-opciones" style={{ marginTop: 4 }}>
                       {etapa.pistas.map((pista) => (
                         <li key={pista.id} className="pregunta-opcion">
-                          🔔 {pista.contenido}
+                          {pistaEnEdicion === pista.id ? (
+                            <div className="formulario-pregunta-panel" style={{ marginTop: 4 }}>
+                              <h5 className="formulario-pregunta-titulo">Editar pista</h5>
+                              {errorFormEdicionPista && <Alerta tono="error">{errorFormEdicionPista}</Alerta>}
+                              <form onSubmit={(e) => manejarEnvioEdicionPista(e, etapa.id, pista.id)} noValidate>
+                                <CampoFormulario etiqueta="Contenido" htmlFor={`editar-pista-${pista.id}`}>
+                                  <textarea
+                                    id={`editar-pista-${pista.id}`}
+                                    rows={3}
+                                    maxLength={1000}
+                                    value={formEdicionPistaContenido}
+                                    onChange={(e) => { setFormEdicionPistaContenido(e.target.value); setErrorFormEdicionPista(null) }}
+                                    disabled={enviandoEdicionPista}
+                                  />
+                                </CampoFormulario>
+                                <div className="acciones-formulario-trivia">
+                                  <Boton variante="volver" type="button" onClick={cerrarEdicionPista} disabled={enviandoEdicionPista}>Cancelar</Boton>
+                                  <Boton variante="primario" type="submit" disabled={enviandoEdicionPista}>
+                                    {enviandoEdicionPista ? 'Guardando…' : 'Guardar cambios'}
+                                  </Boton>
+                                </div>
+                              </form>
+                            </div>
+                          ) : (
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                              <span>🔔 {pista.contenido}</span>
+                              {busqueda.estado === 'Inactiva' && (
+                                <Boton variante="secundario" onClick={() => abrirEdicionPista(pista.id, pista.contenido)}>
+                                  Editar
+                                </Boton>
+                              )}
+                            </div>
+                          )}
                         </li>
                       ))}
                     </ul>

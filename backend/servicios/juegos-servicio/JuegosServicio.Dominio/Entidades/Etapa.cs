@@ -79,6 +79,14 @@ public sealed class Etapa : IComponenteJuego
         _misiones.Remove(mision);
     }
 
+    // HU30 — modifica el contenido de una pista existente.
+    internal void ModificarPista(Guid pistaId, string nuevoContenido)
+    {
+        var pista = _pistas.FirstOrDefault(p => p.Id == pistaId)
+            ?? throw new ExcepcionNoEncontrado($"No se encontró la pista con ID '{pistaId}'.");
+        pista.Modificar(nuevoContenido);
+    }
+
     // HU28 — agrega una pista de ayuda a esta etapa.
     internal Pista AgregarPista(string contenido)
     {

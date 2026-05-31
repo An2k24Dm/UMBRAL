@@ -65,6 +65,17 @@ public sealed class BusquedaTesoro
     public void Activar() => _estado.Activar(this);
     public void Desactivar() => _estado.Desactivar(this);
 
+    // HU30 — modifica el contenido de una pista existente (solo en estado Inactiva).
+    public void ModificarPista(Guid etapaId, Guid pistaId, string nuevoContenido)
+    {
+        _estado.ValidarEdicion("modificar pistas");
+
+        var etapa = _etapas.FirstOrDefault(e => e.Id == etapaId)
+            ?? throw new ExcepcionNoEncontrado($"No se encontró la etapa con ID '{etapaId}'.");
+
+        etapa.ModificarPista(pistaId, nuevoContenido);
+    }
+
     // HU28 — agrega una pista de ayuda a una etapa específica.
     // Las pistas pueden agregarse en cualquier estado (Inactiva o Activa)
     // porque el Operador puede liberarlas en tiempo real durante una sesión.
