@@ -152,4 +152,32 @@ public class EtapaModificarEliminarPruebas
 
         accion.Should().Throw<ExcepcionDominio>();
     }
+
+    // HU31 — eliminación en cascada: las pistas de la etapa desaparecen del agregado
+    [Fact]
+    public void EliminarEtapa_ConPistas_EliminaEtapaYPistasDelAgregado()
+    {
+        var busqueda = BusquedaTesoro.Crear("Búsqueda Test", "Descripción", Guid.NewGuid(), FechaFija);
+        var etapa = busqueda.AgregarEtapa("Etapa con pistas", "Descripción");
+        busqueda.AgregarPistaAEtapa(etapa.Id, "Pista 1.");
+        busqueda.AgregarPistaAEtapa(etapa.Id, "Pista 2.");
+
+        busqueda.EliminarEtapa(etapa.Id);
+
+        busqueda.Etapas.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void EliminarEtapa_ConMisionesYPistas_ReduceConteoYEliminalHijosDelAgregado()
+    {
+        var busqueda = BusquedaTesoro.Crear("Búsqueda Test", "Descripción", Guid.NewGuid(), FechaFija);
+        var etapa1 = busqueda.AgregarEtapa("Etapa 1", "Descripción");
+        busqueda.AgregarPistaAEtapa(etapa1.Id, "Pista de etapa 1.");
+        busqueda.AgregarEtapa("Etapa 2", "Descripción");
+
+        busqueda.EliminarEtapa(etapa1.Id);
+
+        busqueda.Etapas.Should().HaveCount(1);
+        busqueda.Etapas.First().Titulo.Should().Be("Etapa 2");
+    }
 }
