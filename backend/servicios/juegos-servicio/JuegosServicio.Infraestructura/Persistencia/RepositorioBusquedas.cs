@@ -79,6 +79,7 @@ public sealed class RepositorioBusquedas : IRepositorioBusquedas
 
         modelo.Titulo = etapa.Titulo;
         modelo.Descripcion = etapa.Descripcion;
+        modelo.Orden = etapa.Orden;
         await _contexto.SaveChangesAsync(cancelacion);
     }
 

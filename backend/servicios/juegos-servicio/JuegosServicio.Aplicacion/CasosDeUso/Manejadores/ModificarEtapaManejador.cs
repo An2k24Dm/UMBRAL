@@ -20,7 +20,7 @@ public sealed class ModificarEtapaManejador : IRequestHandler<ModificarEtapaComa
             ?? throw new ExcepcionNoEncontrado(
                 $"No se encontró la búsqueda del tesoro con ID '{comando.BusquedaId}'.");
 
-        busqueda.ModificarEtapa(comando.EtapaId, comando.Dto.NuevoTitulo, comando.Dto.NuevaDescripcion);
+        busqueda.ModificarEtapa(comando.EtapaId, comando.Dto.NuevoTitulo, comando.Dto.NuevaDescripcion, comando.Dto.NuevoOrden);
 
         var etapa = busqueda.Etapas.First(e => e.Id == comando.EtapaId);
         await _repositorio.ModificarEtapaAsync(comando.BusquedaId, etapa, cancelacion);

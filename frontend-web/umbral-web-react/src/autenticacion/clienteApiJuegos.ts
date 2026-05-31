@@ -498,6 +498,7 @@ export async function activarTrivia(
 export interface DatosModificarEtapa {
   nuevoTitulo: string
   nuevaDescripcion: string
+  nuevoOrden: number
 }
 
 export async function modificarEtapa(

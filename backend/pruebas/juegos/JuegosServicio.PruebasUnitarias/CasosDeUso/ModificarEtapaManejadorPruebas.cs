@@ -7,7 +7,7 @@ using JuegosServicio.Dominio.Excepciones;
 
 namespace JuegosServicio.PruebasUnitarias.CasosDeUso;
 
-// HU24: pruebas del manejador de modificación de etapa.
+// HU24/HU29: pruebas del manejador de modificación de etapa.
 public class ModificarEtapaManejadorPruebas
 {
     private readonly Mock<IRepositorioBusquedas> _repositorio = new();
@@ -24,6 +24,10 @@ public class ModificarEtapaManejadorPruebas
         etapaId = etapa.Id;
         return busqueda;
     }
+
+    private static ModificarEtapaComando ComandoValido(Guid busquedaId, Guid etapaId, int orden = 1) =>
+        new(busquedaId, etapaId,
+            new ModificarEtapaDto { NuevoTitulo = "Nuevo", NuevaDescripcion = "Desc", NuevoOrden = orden });
 
     public ModificarEtapaManejadorPruebas()
     {
@@ -42,8 +46,7 @@ public class ModificarEtapaManejadorPruebas
             .ReturnsAsync(busqueda);
 
         await CrearManejador().Handle(
-            new ModificarEtapaComando(busqueda.Id, etapaId,
-                new ModificarEtapaDto { NuevoTitulo = "Nuevo", NuevaDescripcion = "Desc" }),
+            ComandoValido(busqueda.Id, etapaId),
             CancellationToken.None);
 
         _repositorio.Verify(
@@ -60,8 +63,7 @@ public class ModificarEtapaManejadorPruebas
             .ReturnsAsync((BusquedaTesoro?)null);
 
         var accion = async () => await CrearManejador().Handle(
-            new ModificarEtapaComando(busquedaId, Guid.NewGuid(),
-                new ModificarEtapaDto { NuevoTitulo = "Título", NuevaDescripcion = "Desc" }),
+            ComandoValido(busquedaId, Guid.NewGuid()),
             CancellationToken.None);
 
         await accion.Should().ThrowAsync<ExcepcionNoEncontrado>();
@@ -76,10 +78,31 @@ public class ModificarEtapaManejadorPruebas
             .ReturnsAsync(busqueda);
 
         var accion = async () => await CrearManejador().Handle(
-            new ModificarEtapaComando(busqueda.Id, Guid.NewGuid(),
-                new ModificarEtapaDto { NuevoTitulo = "Título", NuevaDescripcion = "Desc" }),
+            ComandoValido(busqueda.Id, Guid.NewGuid()),
             CancellationToken.None);
 
         await accion.Should().ThrowAsync<ExcepcionNoEncontrado>();
+    }
+
+    // HU29 — orden colisionante no persiste
+    [Fact]
+    public async Task Handle_OrdenColisionante_LanzaExcepcionDominio_YNoLlamaModificarAsync()
+    {
+        var busqueda = BusquedaTesoro.Crear("Búsqueda Test", "Descripción", Guid.NewGuid(), FechaFija);
+        busqueda.AgregarEtapa("Etapa A", "Desc");            // orden 1
+        var etapa2 = busqueda.AgregarEtapa("Etapa B", "Desc"); // orden 2
+        _repositorio
+            .Setup(r => r.ObtenerBusquedaPorIdAsync(busqueda.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(busqueda);
+
+        var accion = async () => await CrearManejador().Handle(
+            ComandoValido(busqueda.Id, etapa2.Id, orden: 1),
+            CancellationToken.None);
+
+        await accion.Should().ThrowAsync<ExcepcionDominio>();
+        _repositorio.Verify(
+            r => r.ModificarEtapaAsync(
+                It.IsAny<Guid>(), It.IsAny<Etapa>(), It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 }
