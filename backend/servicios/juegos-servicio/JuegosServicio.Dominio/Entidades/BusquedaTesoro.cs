@@ -76,14 +76,18 @@ public sealed class BusquedaTesoro
         return etapa.AgregarPista(contenido);
     }
 
-    public void ModificarEtapa(Guid etapaId, string nuevoTitulo, string nuevaDescripcion)
+    public void ModificarEtapa(Guid etapaId, string nuevoTitulo, string nuevaDescripcion, int nuevoOrden)
     {
         _estado.ValidarEdicion("modificar etapas");
 
         var etapa = _etapas.FirstOrDefault(e => e.Id == etapaId)
             ?? throw new ExcepcionNoEncontrado($"No se encontró la etapa con ID '{etapaId}'.");
 
-        etapa.Modificar(nuevoTitulo, nuevaDescripcion);
+        if (nuevoOrden != etapa.Orden && _etapas.Any(e => e.Id != etapaId && e.Orden == nuevoOrden))
+            throw new ExcepcionDominio(
+                $"Ya existe una etapa con el orden {nuevoOrden} en esta búsqueda del tesoro.");
+
+        etapa.Modificar(nuevoTitulo, nuevaDescripcion, nuevoOrden);
     }
 
     public void EliminarEtapa(Guid etapaId)

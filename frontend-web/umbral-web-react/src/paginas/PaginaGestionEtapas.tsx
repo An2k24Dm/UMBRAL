@@ -25,11 +25,13 @@ import { usarAutenticacion } from '../autenticacion/ProveedorAutenticacion'
 interface FormEtapa {
   titulo: string
   descripcion: string
+  orden?: string
 }
 
 interface ErroresEtapa {
   titulo?: string
   descripcion?: string
+  orden?: string
 }
 
 // ---------------------------------------------------------------------------
@@ -211,9 +213,9 @@ export function PaginaGestionEtapas() {
     }
   }
 
-  function abrirEdicionEtapa(etapa: { id: string; titulo: string; descripcion: string }) {
+  function abrirEdicionEtapa(etapa: { id: string; titulo: string; descripcion: string; orden: number }) {
     setEtapaEnEdicion(etapa.id)
-    setFormEdicionEtapa({ titulo: etapa.titulo, descripcion: etapa.descripcion })
+    setFormEdicionEtapa({ titulo: etapa.titulo, descripcion: etapa.descripcion, orden: String(etapa.orden) })
     setErroresEdicionEtapa({})
     setErrorFormEdicionEtapa(null)
     setMostrarFormEtapa(false)
@@ -229,6 +231,9 @@ export function PaginaGestionEtapas() {
   async function manejarEnvioEdicionEtapa(e: React.FormEvent, etapaId: string) {
     e.preventDefault()
     const erroresValidacion = validarEtapa(formEdicionEtapa)
+    const ordenNum = Number(formEdicionEtapa.orden)
+    if (!formEdicionEtapa.orden?.trim()) erroresValidacion.orden = 'El orden es obligatorio.'
+    else if (!Number.isInteger(ordenNum) || ordenNum <= 0) erroresValidacion.orden = 'El orden debe ser un número entero positivo.'
     if (Object.keys(erroresValidacion).length > 0) { setErroresEdicionEtapa(erroresValidacion); return }
     if (!token || !busquedaId) return
 
@@ -237,7 +242,8 @@ export function PaginaGestionEtapas() {
     try {
       await modificarEtapa(busquedaId, etapaId, {
         nuevoTitulo: formEdicionEtapa.titulo.trim(),
-        nuevaDescripcion: formEdicionEtapa.descripcion.trim()
+        nuevaDescripcion: formEdicionEtapa.descripcion.trim(),
+        nuevoOrden: ordenNum
       }, token)
       const datos = await obtenerDetalleBusqueda(busquedaId, token)
       setBusqueda(datos)
@@ -650,6 +656,19 @@ export function PaginaGestionEtapas() {
                     <h4 className="formulario-pregunta-titulo">Editar etapa</h4>
                     {errorFormEdicionEtapa && <Alerta tono="error">{errorFormEdicionEtapa}</Alerta>}
                     <form onSubmit={(e) => manejarEnvioEdicionEtapa(e, etapa.id)} noValidate>
+                      <CampoFormulario etiqueta="Orden" htmlFor={`editar-etapa-orden-${etapa.id}`} error={erroresEdicionEtapa.orden}>
+                        <input
+                          id={`editar-etapa-orden-${etapa.id}`}
+                          type="number"
+                          min={1}
+                          value={formEdicionEtapa.orden ?? ''}
+                          onChange={(e) => {
+                            setFormEdicionEtapa((p) => ({ ...p, orden: e.target.value }))
+                            if (erroresEdicionEtapa.orden) setErroresEdicionEtapa((p) => ({ ...p, orden: undefined }))
+                          }}
+                          disabled={enviandoEdicionEtapa}
+                        />
+                      </CampoFormulario>
                       <CampoFormulario etiqueta="Título" htmlFor={`editar-etapa-titulo-${etapa.id}`} error={erroresEdicionEtapa.titulo}>
                         <input
                           id={`editar-etapa-titulo-${etapa.id}`}

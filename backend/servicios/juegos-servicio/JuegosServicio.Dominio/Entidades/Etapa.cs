@@ -40,15 +40,18 @@ public sealed class Etapa : IComponenteJuego
         };
     }
 
-    internal void Modificar(string nuevoTitulo, string nuevaDescripcion)
+    internal void Modificar(string nuevoTitulo, string nuevaDescripcion, int nuevoOrden)
     {
         if (string.IsNullOrWhiteSpace(nuevoTitulo))
             throw new ExcepcionDominio("El título de la etapa es obligatorio.");
         if (string.IsNullOrWhiteSpace(nuevaDescripcion))
             throw new ExcepcionDominio("La descripción de la etapa es obligatoria.");
+        if (nuevoOrden <= 0)
+            throw new ExcepcionDominio("El orden de la etapa debe ser mayor a cero.");
 
         Titulo = nuevoTitulo.Trim();
         Descripcion = nuevaDescripcion.Trim();
+        Orden = nuevoOrden;
     }
 
     internal Mision AgregarMision(
