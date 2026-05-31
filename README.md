@@ -452,3 +452,8 @@ Cada microservicio tiene su propia base de datos PostgreSQL.
 - Base de datos: umbral_sesiones
 - Usuario: umbral
 - Contraseña: umbral123
+
+### Crear un .env.local en app movil 
+- Colocar EXPO_PUBLIC_API_URL=http://tui_ip:5000
+- luego hacer npx expo start -c --tunnel en la raiz de la app movil
+- instalar las dependencias si es necesario npm install expo

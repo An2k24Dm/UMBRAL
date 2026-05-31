@@ -4,6 +4,7 @@
   "displayName": "UMBRAL",
   "registrationAllowed": false,
   "resetPasswordAllowed": true,
+  "editUsernameAllowed": true,
   "loginWithEmailAllowed": false,
   "duplicateEmailsAllowed": true,
   "accessTokenLifespan": 3600,

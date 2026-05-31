@@ -1,13 +1,13 @@
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useAutenticacion } from '../../autenticacion/ContextoAutenticacion'
+import { BotonMovil } from '../../componentes/BotonMovil'
+import { PantallaBase } from '../../componentes/PantallaBase'
 import RutaProtegidaMovil from '../../componentes/RutaProtegidaMovil'
+import { TarjetaMovil } from '../../componentes/TarjetaMovil'
 import { tema } from '../../estilos/tema'
 
-// Menú principal de la app móvil del Participante. Funciona como hub de
-// navegación tras el login. Solo se listan aquí los módulos que cuentan con
-// pantalla implementada; los módulos futuros (sesiones, trivias, búsqueda
-// del tesoro, ranking) se agregarán cuando dispongan de funcionalidad real.
+// Menú principal de la app móvil del Participante. Hub de navegación tras el login.
 export default function PantallaMenuParticipante() {
   return (
     <RutaProtegidaMovil>
@@ -18,7 +18,6 @@ export default function PantallaMenuParticipante() {
 
 interface OpcionMenu {
   clave: string
-  icono: string
   titulo: string
   descripcion: string
   ruta: '/participante/perfil'
@@ -27,11 +26,10 @@ interface OpcionMenu {
 const OPCIONES: OpcionMenu[] = [
   {
     clave: 'perfil',
-    icono: '◆',
     titulo: 'Mi perfil',
     descripcion: 'Consulta tus datos personales de Participante.',
-    ruta: '/participante/perfil'
-  }
+    ruta: '/participante/perfil',
+  },
 ]
 
 function ContenidoMenu() {
@@ -49,20 +47,19 @@ function ContenidoMenu() {
   }
 
   return (
-    <ScrollView
-      style={estilos.contenedor}
-      contentContainerStyle={estilos.contenido}
-    >
-      <Text style={estilos.titulo}>UMBRAL</Text>
-      <Text style={estilos.subtitulo}>Menú del Participante</Text>
+    <PantallaBase>
+      <View style={estilos.marca}>
+        <Text style={estilos.marcaTitulo}>UMBRAL</Text>
+        <Text style={estilos.marcaSubtitulo}>Menú del Participante</Text>
+      </View>
 
-      <View style={estilos.tarjetaBienvenida}>
+      <TarjetaMovil>
         <Text style={estilos.bienvenidaSaludo}>Bienvenido,</Text>
         <Text style={estilos.bienvenidaNombre}>{nombreVisible}</Text>
         <Text style={estilos.bienvenidaTexto}>
           Prepárate para entrar a sesiones, trivias y búsquedas del tesoro.
         </Text>
-      </View>
+      </TarjetaMovil>
 
       {OPCIONES.map((opcion) => (
         <TouchableOpacity
@@ -71,69 +68,58 @@ function ContenidoMenu() {
           onPress={() => alSeleccionar(opcion)}
           style={estilos.tarjetaOpcion}
         >
-          <View style={estilos.iconoCirculo}>
-            <Text style={estilos.iconoTexto}>{opcion.icono}</Text>
-          </View>
+          <View style={estilos.opcionIndicador} />
           <View style={estilos.opcionCuerpo}>
             <Text style={estilos.opcionTitulo}>{opcion.titulo}</Text>
             <Text style={estilos.opcionDescripcion}>{opcion.descripcion}</Text>
           </View>
+          <Text style={estilos.opcionFlecha}>›</Text>
         </TouchableOpacity>
       ))}
 
-      <TouchableOpacity style={estilos.botonCerrar} onPress={alCerrarSesion}>
-        <Text style={estilos.botonCerrarTexto}>Cerrar sesión</Text>
-      </TouchableOpacity>
-    </ScrollView>
+      <BotonMovil
+        titulo="Cerrar sesión"
+        onPress={alCerrarSesion}
+        variante="secundario"
+      />
+    </PantallaBase>
   )
 }
 
 const estilos = StyleSheet.create({
-  contenedor: { flex: 1, backgroundColor: tema.colores.fondo },
-  contenido: {
-    padding: tema.espacios.lg,
-    paddingTop: tema.espacios.xl * 2,
-    paddingBottom: tema.espacios.xl * 2
+  marca: {
+    alignItems: 'center',
+    marginBottom: tema.espacios.lg,
+    paddingTop: tema.espacios.md,
   },
-  titulo: {
-    fontSize: 28,
-    fontWeight: '800',
-    textAlign: 'center',
+  marcaTitulo: {
+    fontSize: tema.tipografia.tamanos.h2,
+    fontWeight: tema.tipografia.pesos.extrabold,
     color: tema.colores.texto,
-    letterSpacing: 3
+    letterSpacing: tema.tipografia.espaciadoLetra.md,
   },
-  subtitulo: {
-    fontSize: 12,
-    textAlign: 'center',
+  marcaSubtitulo: {
+    fontSize: tema.tipografia.tamanos.xs,
     color: tema.colores.textoTenue,
     marginTop: tema.espacios.xs,
-    marginBottom: tema.espacios.lg,
-    letterSpacing: 2,
-    textTransform: 'uppercase'
-  },
-  tarjetaBienvenida: {
-    backgroundColor: tema.colores.fondoTarjeta,
-    borderRadius: tema.radios.tarjeta,
-    borderWidth: 1,
-    borderColor: tema.colores.bordeTarjeta,
-    padding: tema.espacios.lg,
-    marginBottom: tema.espacios.lg
+    letterSpacing: tema.tipografia.espaciadoLetra.sm,
+    textTransform: 'uppercase',
   },
   bienvenidaSaludo: {
     color: tema.colores.textoTenue,
-    fontSize: 13
+    fontSize: tema.tipografia.tamanos.base,
   },
   bienvenidaNombre: {
     color: tema.colores.texto,
-    fontSize: 22,
-    fontWeight: '800',
-    marginTop: tema.espacios.xs
+    fontSize: tema.tipografia.tamanos.h3,
+    fontWeight: tema.tipografia.pesos.extrabold,
+    marginTop: tema.espacios.xs,
   },
   bienvenidaTexto: {
     color: tema.colores.textoTenue,
-    fontSize: 13,
+    fontSize: tema.tipografia.tamanos.base,
     marginTop: tema.espacios.sm,
-    lineHeight: 18
+    lineHeight: 20,
   },
   tarjetaOpcion: {
     flexDirection: 'row',
@@ -143,48 +129,30 @@ const estilos = StyleSheet.create({
     borderColor: tema.colores.bordeTarjeta,
     padding: tema.espacios.md,
     marginBottom: tema.espacios.md,
-    alignItems: 'center'
-  },
-  iconoCirculo: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: tema.colores.entradaFondo,
-    borderWidth: 1,
-    borderColor: tema.colores.bordeTarjeta,
     alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: tema.espacios.md
   },
-  iconoTexto: {
-    color: tema.colores.primario,
-    fontSize: 18,
-    fontWeight: '800'
+  opcionIndicador: {
+    width: 4,
+    height: 40,
+    borderRadius: tema.radios.pastilla,
+    backgroundColor: tema.colores.primario,
+    marginRight: tema.espacios.md,
   },
   opcionCuerpo: { flex: 1 },
   opcionTitulo: {
     color: tema.colores.texto,
-    fontWeight: '700',
-    fontSize: 15
+    fontWeight: tema.tipografia.pesos.bold,
+    fontSize: tema.tipografia.tamanos.lg,
   },
   opcionDescripcion: {
     color: tema.colores.textoTenue,
-    fontSize: 12,
+    fontSize: tema.tipografia.tamanos.sm,
     marginTop: tema.espacios.xs,
-    lineHeight: 16
+    lineHeight: 18,
   },
-  botonCerrar: {
-    marginTop: tema.espacios.lg,
-    paddingVertical: tema.espacios.md,
-    borderRadius: tema.radios.boton,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: tema.colores.bordeTarjeta,
-    backgroundColor: tema.colores.fondoTarjeta
+  opcionFlecha: {
+    color: tema.colores.textoTenue,
+    fontSize: tema.tipografia.tamanos.h4,
+    marginLeft: tema.espacios.sm,
   },
-  botonCerrarTexto: {
-    color: tema.colores.texto,
-    fontWeight: '700',
-    fontSize: 14
-  }
 })

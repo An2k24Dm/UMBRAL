@@ -27,36 +27,58 @@ export function PaginaInicioSesion() {
   }
 
   return (
-    <div className="contenedor-login">
-      <h1>Iniciar sesión — UMBRAL</h1>
-      {error && <div className="error">{error}</div>}
-      <form onSubmit={enviar}>
-        <div className="campo">
-          <label htmlFor="nombreUsuario">Nombre de usuario</label>
-          <input
-            id="nombreUsuario"
-            type="text"
-            value={nombreUsuario}
-            onChange={(e) => setNombreUsuario(e.target.value)}
-            required
-            autoComplete="username"
-          />
+    <div className="pagina-auth">
+      <div className="auth-contenedor">
+        <div className="auth-marca">
+          <span className="auth-logo">
+            <span className="auth-logo-acento">U</span>MBRAL
+          </span>
+          <span className="auth-subtitulo">Plataforma de juegos y misiones</span>
         </div>
-        <div className="campo">
-          <label htmlFor="contrasena">Contraseña</label>
-          <input
-            id="contrasena"
-            type="password"
-            value={contrasena}
-            onChange={(e) => setContrasena(e.target.value)}
-            required
-            autoComplete="current-password"
-          />
+
+        <div className="auth-tarjeta">
+          <h2>Iniciar sesión</h2>
+
+          {error && <div className="error" role="alert">{error}</div>}
+
+          <form onSubmit={enviar}>
+            <div className="campo">
+              <label htmlFor="nombreUsuario">Nombre de usuario</label>
+              <input
+                id="nombreUsuario"
+                type="text"
+                value={nombreUsuario}
+                onChange={(e) => setNombreUsuario(e.target.value)}
+                required
+                autoComplete="username"
+                placeholder="tu.usuario"
+              />
+            </div>
+
+            <div className="campo">
+              <label htmlFor="contrasena">Contraseña</label>
+              <input
+                id="contrasena"
+                type="password"
+                value={contrasena}
+                onChange={(e) => setContrasena(e.target.value)}
+                required
+                autoComplete="current-password"
+                placeholder="••••••••"
+              />
+            </div>
+
+            <button
+              className="boton"
+              type="submit"
+              disabled={cargando}
+              style={{ marginTop: '8px' }}
+            >
+              {cargando ? 'Ingresando…' : 'Iniciar sesión'}
+            </button>
+          </form>
         </div>
-        <button className="boton" type="submit" disabled={cargando}>
-          {cargando ? 'Ingresando…' : 'Iniciar sesión'}
-        </button>
-      </form>
+      </div>
     </div>
   )
 }
