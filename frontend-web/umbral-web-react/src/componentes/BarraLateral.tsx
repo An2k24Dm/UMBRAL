@@ -44,7 +44,9 @@ export function BarraLateral({ rol }: Props) {
   return (
     <aside className="barra-lateral">
       <div className="barra-lateral-marca">
-        <span className="marca-logo">UMBRAL</span>
+        <span className="marca-logo">
+          <span className="marca-logo-acento">U</span>MBRAL
+        </span>
         <span className="marca-subtitulo">Panel administrativo</span>
       </div>
       <nav className="barra-lateral-navegacion" aria-label="Navegación principal">

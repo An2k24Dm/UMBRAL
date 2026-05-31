@@ -1,32 +1,74 @@
-// Tokens visuales compartidos por las pantallas móviles. La estética sigue la
-// del panel web pero adaptada a una app de juego para Participantes: fondos
-// oscuros con tonos azul/violeta, tarjetas con bordes suaves y botones
-// violetas como acción principal.
 export const tema = {
   colores: {
-    fondo: '#0b1020',
-    fondoTarjeta: '#171c33',
-    bordeTarjeta: '#2a2f4a',
-    texto: '#e6e8f5',
-    textoTenue: '#9aa0c0',
-    primario: '#7c5cff',
-    primarioPresionado: '#6647e8',
-    primarioDeshabilitado: '#3b3a66',
-    entradaFondo: '#0f1430',
-    entradaBorde: '#2a2f4a',
-    error: '#ff6b6b',
-    enlace: '#a08bff'
+    fondo:                '#0b1020',
+    fondoTarjeta:         '#171c33',
+    bordeTarjeta:         '#2a2f4a',
+    texto:                '#e6e8f5',
+    textoTenue:           '#9aa0c0',
+    textoBlanco:          '#ffffff',
+    primario:             '#7c5cff',
+    primarioPresionado:   '#6647e8',
+    primarioDeshabilitado:'#3b3a66',
+    entradaFondo:         '#0f1430',
+    entradaBorde:         '#2a2f4a',
+    error:                '#ff6b6b',
+    errorSuave:           'rgba(255, 107, 107, 0.12)',
+    exito:                '#4cd964',
+    exitoSuave:           'rgba(76, 217, 100, 0.12)',
+    aviso:                '#f59e0b',
+    avisoSuave:           'rgba(245, 158, 11, 0.12)',
+    info:                 '#60a5fa',
+    infoSuave:            'rgba(96, 165, 250, 0.12)',
+    enlace:               '#a08bff',
+    overlayLigero:        'rgba(0, 0, 0, 0.5)',
+    overlayOscuro:        'rgba(0, 0, 0, 0.65)',
   },
   radios: {
-    boton: 12,
-    entrada: 10,
-    tarjeta: 16
+    boton:    12,
+    entrada:  10,
+    tarjeta:  16,
+    pastilla: 999,
   },
   espacios: {
-    xs: 4,
-    sm: 8,
-    md: 12,
-    lg: 16,
-    xl: 24
-  }
+    xs:  4,
+    sm:  8,
+    md:  12,
+    lg:  16,
+    xl:  24,
+    xxl: 32,
+  },
+  tipografia: {
+    tamanos: {
+      xs:  11,
+      sm:  12,
+      base:13,
+      md:  14,
+      lg:  15,
+      xl:  16,
+      h4:  18,
+      h3:  22,
+      h2:  26,
+      h1:  32,
+    },
+    pesos: {
+      normal:    '400' as const,
+      semibold:  '600' as const,
+      bold:      '700' as const,
+      extrabold: '800' as const,
+    },
+    espaciadoLetra: {
+      xs: 1,
+      sm: 2,
+      md: 3,
+    },
+  },
+  sombras: {
+    tarjeta: {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 8,
+      elevation: 6,
+    },
+  },
 }
