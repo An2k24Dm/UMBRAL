@@ -15,6 +15,7 @@ import {
   activarBusqueda,
   agregarPista,
   modificarPista,
+  eliminarPista,
   type BusquedaTesoroDetalleDto,
   type TipoMision
 } from '../autenticacion/clienteApiJuegos'
@@ -123,6 +124,9 @@ export function PaginaGestionEtapas() {
   const [formPistaContenido, setFormPistaContenido] = useState('')
   const [errorFormPista, setErrorFormPista] = useState<string | null>(null)
   const [enviandoPista, setEnviandoPista] = useState(false)
+
+  // Estado eliminación de pista
+  const [eliminandoPistaId, setEliminandoPistaId] = useState<string | null>(null)
 
   // Estado edición de pista
   const [pistaEnEdicion, setPistaEnEdicion] = useState<string | null>(null)
@@ -376,6 +380,20 @@ export function PaginaGestionEtapas() {
       setErrorFormPista(err instanceof Error ? err.message : 'Ocurrió un error al agregar la pista.')
     } finally {
       setEnviandoPista(false)
+    }
+  }
+
+  async function manejarEliminarPista(etapaId: string, pistaId: string) {
+    if (!token || !busquedaId) return
+    setEliminandoPistaId(pistaId)
+    try {
+      await eliminarPista(busquedaId, etapaId, pistaId, token)
+      const datos = await obtenerDetalleBusqueda(busquedaId, token)
+      setBusqueda(datos)
+    } catch (err) {
+      setErrorCarga(err instanceof Error ? err.message : 'Ocurrió un error al eliminar la pista.')
+    } finally {
+      setEliminandoPistaId(null)
     }
   }
 
@@ -677,9 +695,18 @@ export function PaginaGestionEtapas() {
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
                               <span>🔔 {pista.contenido}</span>
                               {busqueda.estado === 'Inactiva' && (
-                                <Boton variante="secundario" onClick={() => abrirEdicionPista(pista.id, pista.contenido)}>
-                                  Editar
-                                </Boton>
+                                <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                                  <Boton variante="secundario" onClick={() => abrirEdicionPista(pista.id, pista.contenido)}>
+                                    Editar
+                                  </Boton>
+                                  <Boton
+                                    variante="peligro"
+                                    onClick={() => manejarEliminarPista(etapa.id, pista.id)}
+                                    disabled={eliminandoPistaId === pista.id}
+                                  >
+                                    {eliminandoPistaId === pista.id ? 'Eliminando…' : 'Eliminar'}
+                                  </Boton>
+                                </div>
                               )}
                             </div>
                           )}

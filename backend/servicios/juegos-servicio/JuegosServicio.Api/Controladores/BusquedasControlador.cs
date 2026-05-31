@@ -130,6 +130,23 @@ public sealed class BusquedasControlador : ControllerBase
             new { id = misionId });
     }
 
+    // HU32 — Eliminar una pista de una etapa (solo en estado Inactiva).
+    [HttpDelete("{busquedaId:guid}/etapas/{etapaId:guid}/pistas/{pistaId:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> EliminarPista(
+        Guid busquedaId,
+        Guid etapaId,
+        Guid pistaId,
+        CancellationToken cancelacion)
+    {
+        await _mediador.Send(new EliminarPistaComando(busquedaId, etapaId, pistaId), cancelacion);
+        return NoContent();
+    }
+
     // HU30 — Modificar el contenido de una pista existente (solo en estado Inactiva).
     [HttpPut("{busquedaId:guid}/etapas/{etapaId:guid}/pistas/{pistaId:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]

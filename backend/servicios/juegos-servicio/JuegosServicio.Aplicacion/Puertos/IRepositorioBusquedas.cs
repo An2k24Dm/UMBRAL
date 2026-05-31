@@ -21,4 +21,5 @@ public interface IRepositorioBusquedas
     Task<BusquedaTesoroDetalleDto?> ObtenerDetalleBusquedaAsync(Guid busquedaId, CancellationToken cancelacion);
     Task AgregarPistaAsync(Guid etapaId, Pista pista, CancellationToken cancelacion);
     Task ModificarPistaAsync(Pista pista, CancellationToken cancelacion);
+    Task EliminarPistaAsync(Guid etapaId, Guid pistaId, CancellationToken cancelacion);
 }

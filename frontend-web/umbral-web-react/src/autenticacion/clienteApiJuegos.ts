@@ -46,6 +46,9 @@ const ENDPOINTS = {
   // HU30
   modificarPista: (busquedaId: string, etapaId: string, pistaId: string) =>
     `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}/etapas/${encodeURIComponent(etapaId)}/pistas/${encodeURIComponent(pistaId)}`,
+  // HU32
+  eliminarPista: (busquedaId: string, etapaId: string, pistaId: string) =>
+    `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}/etapas/${encodeURIComponent(etapaId)}/pistas/${encodeURIComponent(pistaId)}`,
   // HU23
   agregarMision: (busquedaId: string, etapaId: string) =>
     `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}/etapas/${encodeURIComponent(etapaId)}/misiones`,
@@ -695,6 +698,25 @@ export async function modificarPista(
       headers: { 'Content-Type': 'application/json', ...auth(token) },
       body: JSON.stringify(datos)
     }
+  )
+  if (respuesta.status === 401) lanzar401('Debe iniciar sesión.')
+  if (respuesta.status === 403) throw new Error('No tiene permisos.')
+  if (respuesta.status === 404) throw new Error('Pista no encontrada.')
+  if (!respuesta.ok) throw new Error(await leerError(respuesta))
+}
+
+// ---------------------------------------------------------------------------
+// HU32 — Eliminar pista
+// ---------------------------------------------------------------------------
+export async function eliminarPista(
+  busquedaId: string,
+  etapaId: string,
+  pistaId: string,
+  token: string
+): Promise<void> {
+  const respuesta = await fetch(
+    `${URL_API}${ENDPOINTS.eliminarPista(busquedaId, etapaId, pistaId)}`,
+    { method: 'DELETE', headers: auth(token) }
   )
   if (respuesta.status === 401) lanzar401('Debe iniciar sesión.')
   if (respuesta.status === 403) throw new Error('No tiene permisos.')

@@ -68,6 +68,17 @@ public sealed class BusquedaTesoro : IComponenteJuego
     public void Activar() => _estado.Activar(this);
     public void Desactivar() => _estado.Desactivar(this);
 
+    // HU32 — elimina una pista de una etapa (solo en estado Inactiva).
+    public void EliminarPista(Guid etapaId, Guid pistaId)
+    {
+        _estado.ValidarEdicion("eliminar pistas");
+
+        var etapa = _etapas.FirstOrDefault(e => e.Id == etapaId)
+            ?? throw new ExcepcionNoEncontrado($"No se encontró la etapa con ID '{etapaId}'.");
+
+        etapa.EliminarPista(pistaId);
+    }
+
     // HU30 — modifica el contenido de una pista existente (solo en estado Inactiva).
     public void ModificarPista(Guid etapaId, Guid pistaId, string nuevoContenido)
     {
