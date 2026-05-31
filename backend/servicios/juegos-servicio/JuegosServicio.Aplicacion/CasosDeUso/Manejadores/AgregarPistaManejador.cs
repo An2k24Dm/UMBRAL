@@ -5,25 +5,25 @@ using MediatR;
 
 namespace JuegosServicio.Aplicacion.CasosDeUso.Manejadores;
 
-public sealed class AgregarEtapaManejador : IRequestHandler<AgregarEtapaComando, Guid>
+public sealed class AgregarPistaManejador : IRequestHandler<AgregarPistaComando, Guid>
 {
     private readonly IRepositorioBusquedas _repositorio;
 
-    public AgregarEtapaManejador(IRepositorioBusquedas repositorio)
+    public AgregarPistaManejador(IRepositorioBusquedas repositorio)
     {
         _repositorio = repositorio;
     }
 
-    public async Task<Guid> Handle(AgregarEtapaComando comando, CancellationToken cancelacion)
+    public async Task<Guid> Handle(AgregarPistaComando comando, CancellationToken cancelacion)
     {
         var busqueda = await _repositorio.ObtenerBusquedaPorIdAsync(comando.BusquedaId, cancelacion)
             ?? throw new ExcepcionNoEncontrado(
                 $"No se encontró la búsqueda del tesoro con ID '{comando.BusquedaId}'.");
 
-        var etapa = busqueda.AgregarEtapa(comando.Dto.Titulo, comando.Dto.Descripcion);
+        var pista = busqueda.AgregarPistaAEtapa(comando.EtapaId, comando.Dto.Contenido);
 
-        await _repositorio.AgregarEtapaAsync(comando.BusquedaId, etapa, cancelacion);
+        await _repositorio.AgregarPistaAsync(comando.EtapaId, pista, cancelacion);
 
-        return etapa.Id;
+        return pista.Id;
     }
 }

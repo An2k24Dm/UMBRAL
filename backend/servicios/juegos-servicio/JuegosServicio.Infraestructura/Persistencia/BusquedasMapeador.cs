@@ -31,7 +31,8 @@ public static class BusquedasMapeador
             Titulo = etapa.Titulo,
             Descripcion = etapa.Descripcion,
             Orden = etapa.Orden,
-            Misiones = etapa.Misiones.Select(AModelo).ToList()
+            Misiones = etapa.Misiones.Select(AModelo).ToList(),
+            Pistas = etapa.Pistas.Select(AModelo).ToList()
         };
     }
 
@@ -45,6 +46,16 @@ public static class BusquedasMapeador
             Descripcion = mision.Descripcion,
             Tipo = (int)mision.Tipo,
             PistaClave = mision.PistaClave
+        };
+    }
+
+    public static PistaModelo AModelo(Pista pista)
+    {
+        return new PistaModelo
+        {
+            Id = pista.Id,
+            EtapaId = pista.EtapaId,
+            Contenido = pista.Contenido
         };
     }
 
@@ -66,13 +77,15 @@ public static class BusquedasMapeador
     public static Etapa ADominio(EtapaModelo modelo)
     {
         var misiones = modelo.Misiones.Select(ADominio);
+        var pistas = modelo.Pistas.Select(ADominio);
         return Etapa.Reconstituir(
             modelo.Id,
             modelo.BusquedaId,
             modelo.Titulo,
             modelo.Descripcion,
             modelo.Orden,
-            misiones);
+            misiones,
+            pistas);
     }
 
     public static Mision ADominio(MisionModelo modelo)
@@ -84,5 +97,10 @@ public static class BusquedasMapeador
             modelo.Descripcion,
             (TipoMision)modelo.Tipo,
             modelo.PistaClave);
+    }
+
+    public static Pista ADominio(PistaModelo modelo)
+    {
+        return Pista.Reconstituir(modelo.Id, modelo.EtapaId, modelo.Contenido);
     }
 }

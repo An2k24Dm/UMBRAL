@@ -51,14 +51,11 @@ public sealed class BusquedaTesoro
         return busqueda;
     }
 
-    public Etapa AgregarEtapa(string titulo, string descripcion, int orden)
+    public Etapa AgregarEtapa(string titulo, string descripcion)
     {
         _estado.ValidarEdicion("agregar etapas");
 
-        if (_etapas.Any(e => e.Orden == orden))
-            throw new ExcepcionDominio(
-                $"Ya existe una etapa con el orden {orden} en esta búsqueda del tesoro.");
-
+        var orden = _etapas.Count + 1;
         var etapa = Etapa.Crear(Id, titulo, descripcion, orden);
         _etapas.Add(etapa);
         return etapa;
@@ -67,6 +64,17 @@ public sealed class BusquedaTesoro
     // Patrón State: delega en el objeto de estado actual.
     public void Activar() => _estado.Activar(this);
     public void Desactivar() => _estado.Desactivar(this);
+
+    // HU28 — agrega una pista de ayuda a una etapa específica.
+    // Las pistas pueden agregarse en cualquier estado (Inactiva o Activa)
+    // porque el Operador puede liberarlas en tiempo real durante una sesión.
+    public Pista AgregarPistaAEtapa(Guid etapaId, string contenido)
+    {
+        var etapa = _etapas.FirstOrDefault(e => e.Id == etapaId)
+            ?? throw new ExcepcionNoEncontrado($"No se encontró la etapa con ID '{etapaId}'.");
+
+        return etapa.AgregarPista(contenido);
+    }
 
     public void ModificarEtapa(Guid etapaId, string nuevoTitulo, string nuevaDescripcion)
     {

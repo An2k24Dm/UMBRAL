@@ -20,7 +20,7 @@ public class ActivarBusquedaTesoroManejadorPruebas
     private static BusquedaTesoro BusquedaConEtapaYMision()
     {
         var busqueda = BusquedaTesoro.Crear("Búsqueda Test", "Descripción", Guid.NewGuid(), FechaFija);
-        var etapa = busqueda.AgregarEtapa("Etapa 1", "Descripción", 1);
+        var etapa = busqueda.AgregarEtapa("Etapa 1", "Descripción");
         busqueda.AgregarMisionAEtapa(etapa.Id, "Misión", "Desc", TipoMision.PistaTexto, "pista");
         return busqueda;
     }

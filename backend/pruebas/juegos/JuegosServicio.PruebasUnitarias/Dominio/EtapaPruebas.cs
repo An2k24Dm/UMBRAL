@@ -4,7 +4,7 @@ using JuegosServicio.Dominio.Excepciones;
 
 namespace JuegosServicio.PruebasUnitarias.Dominio;
 
-// HU22/HU27: pruebas de BusquedaTesoro.AgregarEtapa y la entidad Etapa.
+// HU22: pruebas de BusquedaTesoro.AgregarEtapa y la entidad Etapa.
 public class EtapaPruebas
 {
     private static readonly DateTime FechaFija =
@@ -18,7 +18,7 @@ public class EtapaPruebas
     {
         var busqueda = BusquedaEnBorrador();
 
-        var etapa = busqueda.AgregarEtapa("Etapa 1", "Primera etapa del recorrido", 1);
+        var etapa = busqueda.AgregarEtapa("Etapa 1", "Primera etapa del recorrido");
 
         etapa.Id.Should().NotBe(Guid.Empty);
     }
@@ -28,29 +28,29 @@ public class EtapaPruebas
     {
         var busqueda = BusquedaEnBorrador();
 
-        var etapa = busqueda.AgregarEtapa("Etapa 1", "Descripción", 1);
+        var etapa = busqueda.AgregarEtapa("Etapa 1", "Descripción");
 
         etapa.BusquedaId.Should().Be(busqueda.Id);
     }
 
     [Fact]
-    public void AgregarEtapa_ConOrdenExplicito_AsignaOrdenIndicado()
+    public void AgregarEtapa_PrimeraEtapa_AsignaOrden1()
     {
         var busqueda = BusquedaEnBorrador();
 
-        var etapa = busqueda.AgregarEtapa("Etapa 1", "Descripción", 5);
+        var etapa = busqueda.AgregarEtapa("Etapa 1", "Descripción");
 
-        etapa.Orden.Should().Be(5);
+        etapa.Orden.Should().Be(1);
     }
 
     [Fact]
-    public void AgregarEtapa_VariasEtapas_OrdenesDistintos_SeGuardanCorrectamente()
+    public void AgregarEtapa_VariasEtapas_AsignaOrdenConsecutivo()
     {
         var busqueda = BusquedaEnBorrador();
 
-        var etapa1 = busqueda.AgregarEtapa("Etapa A", "Descripción", 1);
-        var etapa2 = busqueda.AgregarEtapa("Etapa B", "Descripción", 2);
-        var etapa3 = busqueda.AgregarEtapa("Etapa C", "Descripción", 3);
+        var etapa1 = busqueda.AgregarEtapa("Etapa 1", "Descripción");
+        var etapa2 = busqueda.AgregarEtapa("Etapa 2", "Descripción");
+        var etapa3 = busqueda.AgregarEtapa("Etapa 3", "Descripción");
 
         etapa1.Orden.Should().Be(1);
         etapa2.Orden.Should().Be(2);
@@ -62,8 +62,8 @@ public class EtapaPruebas
     {
         var busqueda = BusquedaEnBorrador();
 
-        busqueda.AgregarEtapa("Etapa 1", "Descripción", 1);
-        busqueda.AgregarEtapa("Etapa 2", "Descripción", 2);
+        busqueda.AgregarEtapa("Etapa 1", "Descripción");
+        busqueda.AgregarEtapa("Etapa 2", "Descripción");
 
         busqueda.Etapas.Should().HaveCount(2);
     }
@@ -75,7 +75,7 @@ public class EtapaPruebas
     {
         var busqueda = BusquedaEnBorrador();
 
-        Action accion = () => busqueda.AgregarEtapa(titulo, "Descripción", 1);
+        Action accion = () => busqueda.AgregarEtapa(titulo, "Descripción");
 
         accion.Should().Throw<ExcepcionDominio>();
     }
@@ -87,7 +87,7 @@ public class EtapaPruebas
     {
         var busqueda = BusquedaEnBorrador();
 
-        Action accion = () => busqueda.AgregarEtapa("Título válido", descripcion, 1);
+        Action accion = () => busqueda.AgregarEtapa("Título válido", descripcion);
 
         accion.Should().Throw<ExcepcionDominio>();
     }
@@ -100,46 +100,8 @@ public class EtapaPruebas
             Guid.NewGuid(), EstadoBusqueda.Activa, FechaFija,
             Enumerable.Empty<Etapa>());
 
-        Action accion = () => busqueda.AgregarEtapa("Etapa 1", "Descripción", 1);
+        Action accion = () => busqueda.AgregarEtapa("Etapa 1", "Descripción");
 
         accion.Should().Throw<ExcepcionDominio>();
-    }
-
-    // HU27 — validaciones de orden
-    [Fact]
-    public void AgregarEtapa_OrdenDuplicado_LanzaExcepcionDominio()
-    {
-        var busqueda = BusquedaEnBorrador();
-        busqueda.AgregarEtapa("Etapa 1", "Descripción", 1);
-
-        Action accion = () => busqueda.AgregarEtapa("Etapa 2", "Otra descripción", 1);
-
-        accion.Should().Throw<ExcepcionDominio>();
-    }
-
-    [Theory]
-    [InlineData(0)]
-    [InlineData(-1)]
-    [InlineData(-100)]
-    public void AgregarEtapa_OrdenMenorOIgualACero_LanzaExcepcionDominio(int orden)
-    {
-        var busqueda = BusquedaEnBorrador();
-
-        Action accion = () => busqueda.AgregarEtapa("Etapa 1", "Descripción", orden);
-
-        accion.Should().Throw<ExcepcionDominio>();
-    }
-
-    [Fact]
-    public void AgregarEtapa_OrdenNoConsecutivo_SePermite()
-    {
-        var busqueda = BusquedaEnBorrador();
-
-        var etapa1 = busqueda.AgregarEtapa("Etapa 1", "Descripción", 1);
-        var etapa3 = busqueda.AgregarEtapa("Etapa 3", "Descripción", 3);
-
-        etapa1.Orden.Should().Be(1);
-        etapa3.Orden.Should().Be(3);
-        busqueda.Etapas.Should().HaveCount(2);
     }
 }
