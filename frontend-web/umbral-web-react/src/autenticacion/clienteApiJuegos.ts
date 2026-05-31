@@ -40,6 +40,9 @@ const ENDPOINTS = {
     `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}`,
   agregarEtapa: (busquedaId: string) =>
     `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}/etapas`,
+  // HU28
+  agregarPista: (busquedaId: string, etapaId: string) =>
+    `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}/etapas/${encodeURIComponent(etapaId)}/pistas`,
   // HU23
   agregarMision: (busquedaId: string, etapaId: string) =>
     `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}/etapas/${encodeURIComponent(etapaId)}/misiones`,
@@ -180,12 +183,18 @@ export interface MisionDetalleDto {
   pistaClave: string
 }
 
+export interface PistaDetalleDto {
+  id: string
+  contenido: string
+}
+
 export interface EtapaDetalleDto {
   id: string
   titulo: string
   descripcion: string
   orden: number
   misiones: MisionDetalleDto[]
+  pistas: PistaDetalleDto[]
 }
 
 export interface BusquedaTesoroDetalleDto {
@@ -200,7 +209,10 @@ export interface BusquedaTesoroDetalleDto {
 export interface DatosAgregarEtapa {
   titulo: string
   descripcion: string
-  orden: number
+}
+
+export interface DatosAgregarPista {
+  contenido: string
 }
 
 export type TipoMision = 0 | 1 | 2
@@ -634,6 +646,28 @@ export async function archivarBusqueda(
     throw new Error(cuerpo?.mensaje ?? 'No fue posible archivar la búsqueda del tesoro.')
   }
   if (!respuesta.ok) throw new Error(await leerError(respuesta))
+}
+
+// ---------------------------------------------------------------------------
+// HU28 — Agregar pista a una etapa
+// ---------------------------------------------------------------------------
+export async function agregarPista(
+  busquedaId: string,
+  etapaId: string,
+  datos: DatosAgregarPista,
+  token: string
+): Promise<string> {
+  const respuesta = await fetch(`${URL_API}${ENDPOINTS.agregarPista(busquedaId, etapaId)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...auth(token) },
+    body: JSON.stringify(datos)
+  })
+  if (respuesta.status === 401) lanzar401('Debe iniciar sesión.')
+  if (respuesta.status === 403) throw new Error('No tiene permisos.')
+  if (respuesta.status === 404) throw new Error('Etapa no encontrada.')
+  if (!respuesta.ok) throw new Error(await leerError(respuesta))
+  const cuerpo = (await respuesta.json()) as { id: string }
+  return cuerpo.id
 }
 
 // ---------------------------------------------------------------------------

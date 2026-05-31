@@ -130,6 +130,26 @@ public sealed class BusquedasControlador : ControllerBase
             new { id = misionId });
     }
 
+    // HU28 — Agregar pista a una etapa (solo en estado Inactiva).
+    [HttpPost("{busquedaId:guid}/etapas/{etapaId:guid}/pistas")]
+    [ProducesResponseType(StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> AgregarPista(
+        Guid busquedaId,
+        Guid etapaId,
+        [FromBody] AgregarPistaDto dto,
+        CancellationToken cancelacion)
+    {
+        var pistaId = await _mediador.Send(new AgregarPistaComando(busquedaId, etapaId, dto), cancelacion);
+        return Created(
+            $"/api/juegos/busquedas/{busquedaId}/etapas/{etapaId}/pistas/{pistaId}",
+            new { id = pistaId });
+    }
+
     // HU22 — Agregar etapa a una búsqueda del tesoro.
     [HttpPost("{busquedaId:guid}/etapas")]
     [ProducesResponseType(StatusCodes.Status201Created)]

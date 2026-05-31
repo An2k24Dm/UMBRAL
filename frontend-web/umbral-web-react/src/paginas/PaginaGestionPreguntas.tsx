@@ -336,7 +336,7 @@ export function PaginaGestionPreguntas() {
   }
 
   // ---------------------------------------------------------------------------
-  // Archivar trivia (HU20)
+  // Desactivar trivia (HU20)
   // ---------------------------------------------------------------------------
   async function manejarArchivar() {
     if (!token || !triviaId) return
@@ -346,7 +346,7 @@ export function PaginaGestionPreguntas() {
       await archivarTrivia(triviaId, token)
       navegar(rutaBase)
     } catch (err) {
-      setErrorArchivado(err instanceof Error ? err.message : 'No fue posible archivar la trivia.')
+      setErrorArchivado(err instanceof Error ? err.message : 'No fue posible desactivar la trivia.')
       setConfirmandoArchivado(false)
     } finally {
       setArchivando(false)
@@ -404,12 +404,12 @@ export function PaginaGestionPreguntas() {
                 {activando ? 'Activando…' : 'Activar trivia'}
               </Boton>
             )}
-            {trivia.estado !== 'Activa' && modoForm === 'oculto' && !mostrarFormTrivia && (
+            {trivia.estado === 'Activa' && modoForm === 'oculto' && !mostrarFormTrivia && (
               confirmandoArchivado ? (
                 <>
-                  <span className="texto-confirmacion">¿Archivar esta trivia?</span>
+                  <span className="texto-confirmacion">¿Desactivar esta trivia?</span>
                   <Boton variante="peligro" onClick={manejarArchivar} disabled={archivando}>
-                    {archivando ? 'Archivando…' : 'Sí, archivar'}
+                    {archivando ? 'Desactivando…' : 'Sí, desactivar'}
                   </Boton>
                   <Boton variante="volver" onClick={() => setConfirmandoArchivado(false)} disabled={archivando}>
                     Cancelar
@@ -417,7 +417,7 @@ export function PaginaGestionPreguntas() {
                 </>
               ) : (
                 <Boton variante="peligro" onClick={() => setConfirmandoArchivado(true)}>
-                  Archivar trivia
+                  Desactivar trivia
                 </Boton>
               )
             )}

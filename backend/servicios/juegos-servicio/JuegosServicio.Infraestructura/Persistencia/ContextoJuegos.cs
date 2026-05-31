@@ -14,6 +14,7 @@ public sealed class ContextoJuegos : DbContext
     public DbSet<BusquedaTesoroModelo> BusquedasTesoro => Set<BusquedaTesoroModelo>();
     public DbSet<EtapaModelo> Etapas => Set<EtapaModelo>();
     public DbSet<MisionModelo> Misiones => Set<MisionModelo>();
+    public DbSet<PistaModelo> Pistas => Set<PistaModelo>();
 
     protected override void OnModelCreating(ModelBuilder constructor)
     {
@@ -127,6 +128,21 @@ public sealed class ContextoJuegos : DbContext
             e.Property(x => x.Descripcion).HasColumnName("descripcion").HasMaxLength(1000).IsRequired();
             e.Property(x => x.Tipo).HasColumnName("tipo").IsRequired();
             e.Property(x => x.PistaClave).HasColumnName("pista_clave").IsRequired();
+        });
+
+        // ---------- Pista ----------
+        constructor.Entity<PistaModelo>(e =>
+        {
+            e.ToTable("Pista");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.EtapaId).HasColumnName("etapa_id").IsRequired();
+            e.Property(x => x.Contenido).HasColumnName("contenido").HasMaxLength(1000).IsRequired();
+
+            e.HasOne(x => x.Etapa)
+                .WithMany(et => et.Pistas)
+                .HasForeignKey(x => x.EtapaId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

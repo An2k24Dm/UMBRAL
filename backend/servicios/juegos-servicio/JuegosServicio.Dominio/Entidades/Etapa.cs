@@ -4,10 +4,11 @@ using JuegosServicio.Dominio.Patrones;
 
 namespace JuegosServicio.Dominio.Entidades;
 
-// Composite — nodo compuesto de la jerarquía BusquedaTesoro → Etapa → Mision.
+// Composite — nodo compuesto de la jerarquía BusquedaTesoro → Etapa → Mision / Pista.
 public sealed class Etapa : IComponenteJuego
 {
     private readonly List<Mision> _misiones = new();
+    private readonly List<Pista> _pistas = new();
 
     public Guid Id { get; private set; }
     public Guid BusquedaId { get; private set; }
@@ -16,6 +17,7 @@ public sealed class Etapa : IComponenteJuego
     public int Orden { get; private set; }
 
     public IReadOnlyList<Mision> Misiones => _misiones.AsReadOnly();
+    public IReadOnlyList<Pista> Pistas => _pistas.AsReadOnly();
 
     private Etapa() { }
 
@@ -49,6 +51,17 @@ public sealed class Etapa : IComponenteJuego
         Descripcion = nuevaDescripcion.Trim();
     }
 
+    internal Mision AgregarMision(
+        string titulo,
+        string descripcion,
+        TipoMision tipo,
+        string pistaClave)
+    {
+        var mision = Mision.Crear(Id, titulo, descripcion, tipo, pistaClave);
+        _misiones.Add(mision);
+        return mision;
+    }
+
     internal void ModificarMision(Guid misionId, string nuevoTitulo, string nuevaDescripcion, TipoMision nuevoTipo, string nuevaPistaClave)
     {
         var mision = _misiones.FirstOrDefault(m => m.Id == misionId)
@@ -63,21 +76,23 @@ public sealed class Etapa : IComponenteJuego
         _misiones.Remove(mision);
     }
 
-    internal Mision AgregarMision(
-        string titulo,
-        string descripcion,
-        TipoMision tipo,
-        string pistaClave)
+    // HU28 — agrega una pista de ayuda a esta etapa.
+    internal Pista AgregarPista(string contenido)
     {
-        var mision = Mision.Crear(Id, titulo, descripcion, tipo, pistaClave);
-        _misiones.Add(mision);
-        return mision;
+        var pista = Pista.Crear(Id, contenido);
+        _pistas.Add(pista);
+        return pista;
     }
 
-    // IComponenteJuego — compuesto: devuelve sus misiones como hijos.
+    // IComponenteJuego — compuesto: devuelve misiones y pistas como hijos.
     string IComponenteJuego.ObtenerDescripcion() => $"Etapa {Orden}: {Titulo}";
-    IReadOnlyList<IComponenteJuego> IComponenteJuego.ObtenerHijos() =>
-        _misiones.Cast<IComponenteJuego>().ToList().AsReadOnly();
+    IReadOnlyList<IComponenteJuego> IComponenteJuego.ObtenerHijos()
+    {
+        var hijos = new List<IComponenteJuego>();
+        hijos.AddRange(_misiones.Cast<IComponenteJuego>());
+        hijos.AddRange(_pistas.Cast<IComponenteJuego>());
+        return hijos.AsReadOnly();
+    }
 
     public static Etapa Reconstituir(
         Guid id,
@@ -85,7 +100,8 @@ public sealed class Etapa : IComponenteJuego
         string titulo,
         string descripcion,
         int orden,
-        IEnumerable<Mision> misiones)
+        IEnumerable<Mision> misiones,
+        IEnumerable<Pista>? pistas = null)
     {
         var etapa = new Etapa
         {
@@ -96,6 +112,7 @@ public sealed class Etapa : IComponenteJuego
             Orden = orden
         };
         etapa._misiones.AddRange(misiones);
+        if (pistas is not null) etapa._pistas.AddRange(pistas);
         return etapa;
     }
 }

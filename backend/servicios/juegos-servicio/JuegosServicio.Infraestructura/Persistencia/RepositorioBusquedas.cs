@@ -35,6 +35,8 @@ public sealed class RepositorioBusquedas : IRepositorioBusquedas
         var modelo = await _contexto.BusquedasTesoro
             .Include(b => b.Etapas)
                 .ThenInclude(e => e.Misiones)
+            .Include(b => b.Etapas)
+                .ThenInclude(e => e.Pistas)
             .AsNoTracking()
             .FirstOrDefaultAsync(b => b.Id == busquedaId, cancelacion);
 
@@ -107,6 +109,13 @@ public sealed class RepositorioBusquedas : IRepositorioBusquedas
         modelo.Descripcion = mision.Descripcion;
         modelo.Tipo = (int)mision.Tipo;
         modelo.PistaClave = mision.PistaClave;
+        await _contexto.SaveChangesAsync(cancelacion);
+    }
+
+    public async Task AgregarPistaAsync(Guid etapaId, Pista pista, CancellationToken cancelacion)
+    {
+        var modelo = BusquedasMapeador.AModelo(pista);
+        _contexto.Pistas.Add(modelo);
         await _contexto.SaveChangesAsync(cancelacion);
     }
 
@@ -191,6 +200,8 @@ public sealed class RepositorioBusquedas : IRepositorioBusquedas
         var modelo = await _contexto.BusquedasTesoro
             .Include(b => b.Etapas.OrderBy(e => e.Orden))
                 .ThenInclude(e => e.Misiones)
+            .Include(b => b.Etapas)
+                .ThenInclude(e => e.Pistas)
             .AsNoTracking()
             .FirstOrDefaultAsync(b => b.Id == busquedaId, cancelacion);
 
@@ -216,6 +227,11 @@ public sealed class RepositorioBusquedas : IRepositorioBusquedas
                     Descripcion = m.Descripcion,
                     Tipo = ((TipoMision)m.Tipo).ToString(),
                     PistaClave = m.PistaClave
+                }).ToList(),
+                Pistas = e.Pistas.Select(p => new PistaDetalleDto
+                {
+                    Id = p.Id,
+                    Contenido = p.Contenido
                 }).ToList()
             }).ToList()
         };

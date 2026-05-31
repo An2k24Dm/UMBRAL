@@ -13,6 +13,7 @@ import {
   modificarMision,
   eliminarMision,
   activarBusqueda,
+  agregarPista,
   type BusquedaTesoroDetalleDto,
   type TipoMision
 } from '../autenticacion/clienteApiJuegos'
@@ -24,13 +25,11 @@ import { usarAutenticacion } from '../autenticacion/ProveedorAutenticacion'
 interface FormEtapa {
   titulo: string
   descripcion: string
-  orden: string
 }
 
 interface ErroresEtapa {
   titulo?: string
   descripcion?: string
-  orden?: string
 }
 
 // ---------------------------------------------------------------------------
@@ -55,7 +54,7 @@ const TIPOS_MISION: { valor: TipoMision; etiqueta: string }[] = [
   { valor: 2, etiqueta: 'Código QR' }
 ]
 
-const FORM_ETAPA_VACIO: FormEtapa = { titulo: '', descripcion: '', orden: '' }
+const FORM_ETAPA_VACIO: FormEtapa = { titulo: '', descripcion: '' }
 const FORM_MISION_VACIO: FormMision = { titulo: '', descripcion: '', tipo: '0', pistaClave: '' }
 
 function validarEtapa(form: FormEtapa): ErroresEtapa {
@@ -64,9 +63,6 @@ function validarEtapa(form: FormEtapa): ErroresEtapa {
   else if (form.titulo.trim().length > 200) err.titulo = 'Máximo 200 caracteres.'
   if (!form.descripcion.trim()) err.descripcion = 'La descripción es obligatoria.'
   else if (form.descripcion.trim().length > 1000) err.descripcion = 'Máximo 1000 caracteres.'
-  const ordenNum = Number(form.orden)
-  if (!form.orden.trim()) err.orden = 'El orden es obligatorio.'
-  else if (!Number.isInteger(ordenNum) || ordenNum <= 0) err.orden = 'El orden debe ser un número entero positivo.'
   return err
 }
 
@@ -118,6 +114,12 @@ export function PaginaGestionEtapas() {
   const [errorFormEdicionMision, setErrorFormEdicionMision] = useState<string | null>(null)
   const [enviandoEdicionMision, setEnviandoEdicionMision] = useState(false)
   const [eliminandoMisionId, setEliminandoMisionId] = useState<string | null>(null)
+
+  // Estado del formulario de pista (indexado por etapaId)
+  const [etapaConFormPista, setEtapaConFormPista] = useState<string | null>(null)
+  const [formPistaContenido, setFormPistaContenido] = useState('')
+  const [errorFormPista, setErrorFormPista] = useState<string | null>(null)
+  const [enviandoPista, setEnviandoPista] = useState(false)
 
   // Estado del formulario de misión (indexado por etapaId)
   const [etapaConFormMision, setEtapaConFormMision] = useState<string | null>(null)
@@ -179,8 +181,7 @@ export function PaginaGestionEtapas() {
     try {
       await agregarEtapa(busquedaId, {
         titulo: formEtapa.titulo.trim(),
-        descripcion: formEtapa.descripcion.trim(),
-        orden: Number(formEtapa.orden)
+        descripcion: formEtapa.descripcion.trim()
       }, token)
       const datos = await obtenerDetalleBusqueda(busquedaId, token)
       setBusqueda(datos)
@@ -333,6 +334,38 @@ export function PaginaGestionEtapas() {
     setErrorFormMision(null)
   }
 
+  function abrirFormPista(etapaId: string) {
+    setFormPistaContenido('')
+    setErrorFormPista(null)
+    setEtapaConFormMision(null)
+    setMostrarFormEtapa(false)
+    setEtapaConFormPista(etapaId)
+  }
+
+  function cerrarFormPista() {
+    setEtapaConFormPista(null)
+    setErrorFormPista(null)
+  }
+
+  async function manejarEnvioPista(e: React.FormEvent, etapaId: string) {
+    e.preventDefault()
+    if (!formPistaContenido.trim()) { setErrorFormPista('El contenido de la pista es obligatorio.'); return }
+    if (!token || !busquedaId) return
+
+    setEnviandoPista(true)
+    setErrorFormPista(null)
+    try {
+      await agregarPista(busquedaId, etapaId, { contenido: formPistaContenido.trim() }, token)
+      const datos = await obtenerDetalleBusqueda(busquedaId, token)
+      setBusqueda(datos)
+      cerrarFormPista()
+    } catch (err) {
+      setErrorFormPista(err instanceof Error ? err.message : 'Ocurrió un error al agregar la pista.')
+    } finally {
+      setEnviandoPista(false)
+    }
+  }
+
   async function manejarEnvioMision(e: React.FormEvent, etapaId: string) {
     e.preventDefault()
     const erroresValidacion = validarMision(formMision)
@@ -420,21 +453,6 @@ export function PaginaGestionEtapas() {
             <h3 className="formulario-pregunta-titulo">Nueva etapa</h3>
             {errorFormEtapa && <Alerta tono="error">{errorFormEtapa}</Alerta>}
             <form onSubmit={manejarEnvioEtapa} noValidate>
-              <CampoFormulario etiqueta="Orden" htmlFor="etapa-orden" error={erroresEtapa.orden}
-                ayuda="Número de posición de la etapa en el recorrido (debe ser único).">
-                <input
-                  id="etapa-orden"
-                  type="number"
-                  min={1}
-                  value={formEtapa.orden}
-                  onChange={(e) => {
-                    setFormEtapa((p) => ({ ...p, orden: e.target.value }))
-                    if (erroresEtapa.orden) setErroresEtapa((p) => ({ ...p, orden: undefined }))
-                  }}
-                  disabled={enviandoEtapa}
-                  placeholder="Ej. 1"
-                />
-              </CampoFormulario>
               <CampoFormulario etiqueta="Título" htmlFor="etapa-titulo" error={erroresEtapa.titulo}>
                 <input
                   id="etapa-titulo"
@@ -492,8 +510,11 @@ export function PaginaGestionEtapas() {
                     </span>
                   </div>
                   <div className="pregunta-card-acciones">
-                    {etapaConFormMision !== etapa.id && etapaEnEdicion !== etapa.id && !mostrarFormEtapa && (
+                    {etapaConFormMision !== etapa.id && etapaConFormPista !== etapa.id && etapaEnEdicion !== etapa.id && !mostrarFormEtapa && (
                       <>
+                        <Boton variante="secundario" onClick={() => abrirFormPista(etapa.id)}>
+                          + Agregar pista
+                        </Boton>
                         <Boton variante="secundario" onClick={() => abrirFormMision(etapa.id)}>
                           + Agregar misión
                         </Boton>
@@ -577,6 +598,50 @@ export function PaginaGestionEtapas() {
                       </li>
                     ))}
                   </ul>
+                )}
+
+                {/* Pistas de la etapa */}
+                {etapa.pistas && etapa.pistas.length > 0 && (
+                  <div style={{ marginTop: 8 }}>
+                    <strong style={{ fontSize: '0.85rem' }}>Pistas de ayuda:</strong>
+                    <ul className="pregunta-opciones" style={{ marginTop: 4 }}>
+                      {etapa.pistas.map((pista) => (
+                        <li key={pista.id} className="pregunta-opcion">
+                          🔔 {pista.contenido}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Formulario agregar pista (inline) */}
+                {etapaConFormPista === etapa.id && (
+                  <div className="formulario-pregunta-panel" style={{ marginTop: 16 }}>
+                    <h4 className="formulario-pregunta-titulo">Nueva pista para esta etapa</h4>
+                    {errorFormPista && <Alerta tono="error">{errorFormPista}</Alerta>}
+                    <form onSubmit={(e) => manejarEnvioPista(e, etapa.id)} noValidate>
+                      <CampoFormulario etiqueta="Contenido de la pista" htmlFor="pista-contenido"
+                        ayuda="Texto de ayuda que el Operador podrá liberar a los participantes durante la sesión.">
+                        <textarea
+                          id="pista-contenido"
+                          rows={3}
+                          maxLength={1000}
+                          value={formPistaContenido}
+                          onChange={(e) => { setFormPistaContenido(e.target.value); setErrorFormPista(null) }}
+                          disabled={enviandoPista}
+                          placeholder="Ej. La respuesta se encuentra cerca de la entrada principal."
+                        />
+                      </CampoFormulario>
+                      <div className="acciones-formulario-trivia">
+                        <Boton variante="volver" type="button" onClick={cerrarFormPista} disabled={enviandoPista}>
+                          Cancelar
+                        </Boton>
+                        <Boton variante="primario" type="submit" disabled={enviandoPista}>
+                          {enviandoPista ? 'Guardando…' : 'Agregar pista'}
+                        </Boton>
+                      </div>
+                    </form>
+                  </div>
                 )}
 
                 {/* Formulario editar etapa (inline) */}

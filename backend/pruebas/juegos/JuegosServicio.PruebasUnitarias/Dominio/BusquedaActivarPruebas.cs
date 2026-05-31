@@ -14,7 +14,7 @@ public class BusquedaActivarPruebas
     private static BusquedaTesoro BusquedaConEtapaYMision()
     {
         var busqueda = BusquedaTesoro.Crear("Búsqueda Test", "Descripción", Guid.NewGuid(), FechaFija);
-        var etapa = busqueda.AgregarEtapa("Etapa 1", "Descripción", 1);
+        var etapa = busqueda.AgregarEtapa("Etapa 1", "Descripción");
         busqueda.AgregarMisionAEtapa(etapa.Id, "Misión 1", "Desc", TipoMision.PistaTexto, "pista");
         return busqueda;
     }
@@ -54,7 +54,7 @@ public class BusquedaActivarPruebas
     public void Activar_EtapaSinMisiones_LanzaExcepcionDominio()
     {
         var busqueda = BusquedaTesoro.Crear("Búsqueda Test", "Descripción", Guid.NewGuid(), FechaFija);
-        busqueda.AgregarEtapa("Etapa vacía", "Sin misiones", 1);
+        busqueda.AgregarEtapa("Etapa vacía", "Sin misiones");
 
         Action accion = () => busqueda.Activar();
 
@@ -76,9 +76,9 @@ public class BusquedaActivarPruebas
     public void Activar_VariasEtapasConMisiones_CambiaEstadoAActiva()
     {
         var busqueda = BusquedaTesoro.Crear("Búsqueda Test", "Descripción", Guid.NewGuid(), FechaFija);
-        var etapa1 = busqueda.AgregarEtapa("Etapa 1", "Desc", 1);
+        var etapa1 = busqueda.AgregarEtapa("Etapa 1", "Desc");
         busqueda.AgregarMisionAEtapa(etapa1.Id, "M1", "Desc", TipoMision.Acertijo, "pista1");
-        var etapa2 = busqueda.AgregarEtapa("Etapa 2", "Desc", 2);
+        var etapa2 = busqueda.AgregarEtapa("Etapa 2", "Desc");
         busqueda.AgregarMisionAEtapa(etapa2.Id, "M2", "Desc", TipoMision.CodigoQR, "pista2");
 
         busqueda.Activar();

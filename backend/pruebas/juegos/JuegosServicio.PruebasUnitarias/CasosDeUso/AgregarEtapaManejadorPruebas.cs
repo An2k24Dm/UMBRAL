@@ -7,7 +7,7 @@ using JuegosServicio.Dominio.Excepciones;
 
 namespace JuegosServicio.PruebasUnitarias.CasosDeUso;
 
-// HU22/HU27: pruebas del manejador para agregar una etapa a una búsqueda del tesoro.
+// HU22: pruebas del manejador para agregar una etapa a una búsqueda del tesoro.
 public class AgregarEtapaManejadorPruebas
 {
     private readonly Mock<IRepositorioBusquedas> _repositorio = new();
@@ -20,12 +20,11 @@ public class AgregarEtapaManejadorPruebas
     private static BusquedaTesoro BusquedaEnBorrador() =>
         BusquedaTesoro.Crear("Búsqueda Test", "Descripción", Guid.NewGuid(), FechaFija);
 
-    private static AgregarEtapaComando ComandoValido(Guid busquedaId, int orden = 1) =>
+    private static AgregarEtapaComando ComandoValido(Guid busquedaId) =>
         new(busquedaId, new AgregarEtapaDto
         {
             Titulo = "Etapa 1 — Entrada al parque",
-            Descripcion = "Busca la estatua principal",
-            Orden = orden
+            Descripcion = "Busca la estatua principal"
         });
 
     public AgregarEtapaManejadorPruebas()
@@ -90,26 +89,6 @@ public class AgregarEtapaManejadorPruebas
         try { await CrearManejador().Handle(ComandoValido(busquedaId), CancellationToken.None); }
         catch (ExcepcionNoEncontrado) { }
 
-        _repositorio.Verify(
-            r => r.AgregarEtapaAsync(
-                It.IsAny<Guid>(), It.IsAny<Etapa>(), It.IsAny<CancellationToken>()),
-            Times.Never);
-    }
-
-    // HU27 — orden duplicado: el dominio lanza ExcepcionDominio y no se persiste
-    [Fact]
-    public async Task Handle_OrdenDuplicado_LanzaExcepcionDominio_YNoLlamaAgregarEtapaAsync()
-    {
-        var busqueda = BusquedaEnBorrador();
-        busqueda.AgregarEtapa("Etapa existente", "Ya ocupa el orden 1", 1);
-        _repositorio
-            .Setup(r => r.ObtenerBusquedaPorIdAsync(busqueda.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(busqueda);
-
-        var accion = async () =>
-            await CrearManejador().Handle(ComandoValido(busqueda.Id, orden: 1), CancellationToken.None);
-
-        await accion.Should().ThrowAsync<ExcepcionDominio>();
         _repositorio.Verify(
             r => r.AgregarEtapaAsync(
                 It.IsAny<Guid>(), It.IsAny<Etapa>(), It.IsAny<CancellationToken>()),

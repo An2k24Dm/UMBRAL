@@ -10,4 +10,5 @@ public sealed class EtapaModelo
 
     public BusquedaTesoroModelo BusquedaTesoro { get; set; } = default!;
     public List<MisionModelo> Misiones { get; set; } = new();
+    public List<PistaModelo> Pistas { get; set; } = new();
 }

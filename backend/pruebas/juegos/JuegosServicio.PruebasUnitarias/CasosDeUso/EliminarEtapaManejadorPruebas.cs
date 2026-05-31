@@ -19,7 +19,7 @@ public class EliminarEtapaManejadorPruebas
     private static BusquedaTesoro BusquedaConEtapa(out Guid etapaId)
     {
         var busqueda = BusquedaTesoro.Crear("Búsqueda Test", "Descripción", Guid.NewGuid(), FechaFija);
-        var etapa = busqueda.AgregarEtapa("Etapa 1", "Descripción", 1);
+        var etapa = busqueda.AgregarEtapa("Etapa 1", "Descripción");
         etapaId = etapa.Id;
         return busqueda;
     }

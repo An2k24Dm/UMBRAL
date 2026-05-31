@@ -7,4 +7,5 @@ public sealed class EtapaDetalleDto
     public string Descripcion { get; set; } = default!;
     public int Orden { get; set; }
     public List<MisionDetalleDto> Misiones { get; set; } = new();
+    public List<PistaDetalleDto> Pistas { get; set; } = new();
 }
