@@ -123,6 +123,16 @@ public sealed class RepositorioBusquedas : IRepositorioBusquedas
         await _contexto.SaveChangesAsync(cancelacion);
     }
 
+    public async Task EliminarPistaAsync(Guid etapaId, Guid pistaId, CancellationToken cancelacion)
+    {
+        var modelo = await _contexto.Pistas
+            .FirstOrDefaultAsync(p => p.Id == pistaId, cancelacion);
+        if (modelo is null) return;
+
+        _contexto.Pistas.Remove(modelo);
+        await _contexto.SaveChangesAsync(cancelacion);
+    }
+
     public async Task AgregarPistaAsync(Guid etapaId, Pista pista, CancellationToken cancelacion)
     {
         var modelo = BusquedasMapeador.AModelo(pista);
