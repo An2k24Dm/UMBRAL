@@ -10,7 +10,7 @@ namespace JuegosServicio.Api.Controladores;
 
 [ApiController]
 [Route("api/juegos/trivias")]
-[Authorize(Policy = "PoliticaOperador")]
+[Authorize(Policy = "PoliticaAdministrador")]
 public sealed class TriviasControlador : ControllerBase
 {
     private readonly IMediator _mediador;
