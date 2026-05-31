@@ -130,6 +130,25 @@ public sealed class BusquedasControlador : ControllerBase
             new { id = misionId });
     }
 
+    // HU30 — Modificar el contenido de una pista existente (solo en estado Inactiva).
+    [HttpPut("{busquedaId:guid}/etapas/{etapaId:guid}/pistas/{pistaId:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> ModificarPista(
+        Guid busquedaId,
+        Guid etapaId,
+        Guid pistaId,
+        [FromBody] ModificarPistaDto dto,
+        CancellationToken cancelacion)
+    {
+        await _mediador.Send(new ModificarPistaComando(busquedaId, etapaId, pistaId, dto), cancelacion);
+        return NoContent();
+    }
+
     // HU28 — Agregar pista a una etapa (solo en estado Inactiva).
     [HttpPost("{busquedaId:guid}/etapas/{etapaId:guid}/pistas")]
     [ProducesResponseType(StatusCodes.Status201Created)]

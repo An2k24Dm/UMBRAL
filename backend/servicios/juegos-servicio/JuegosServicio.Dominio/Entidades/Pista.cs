@@ -27,6 +27,14 @@ public sealed class Pista : IComponenteJuego
         };
     }
 
+    internal void Modificar(string nuevoContenido)
+    {
+        if (string.IsNullOrWhiteSpace(nuevoContenido))
+            throw new ExcepcionDominio("El contenido de la pista es obligatorio.");
+
+        Contenido = nuevoContenido.Trim();
+    }
+
     public static Pista Reconstituir(Guid id, Guid etapaId, string contenido)
     {
         return new Pista { Id = id, EtapaId = etapaId, Contenido = contenido };

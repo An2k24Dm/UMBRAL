@@ -43,6 +43,9 @@ const ENDPOINTS = {
   // HU28
   agregarPista: (busquedaId: string, etapaId: string) =>
     `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}/etapas/${encodeURIComponent(etapaId)}/pistas`,
+  // HU30
+  modificarPista: (busquedaId: string, etapaId: string, pistaId: string) =>
+    `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}/etapas/${encodeURIComponent(etapaId)}/pistas/${encodeURIComponent(pistaId)}`,
   // HU23
   agregarMision: (busquedaId: string, etapaId: string) =>
     `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}/etapas/${encodeURIComponent(etapaId)}/misiones`,
@@ -213,6 +216,10 @@ export interface DatosAgregarEtapa {
 
 export interface DatosAgregarPista {
   contenido: string
+}
+
+export interface DatosModificarPista {
+  nuevoContenido: string
 }
 
 export type TipoMision = 0 | 1 | 2
@@ -669,6 +676,30 @@ export async function agregarPista(
   if (!respuesta.ok) throw new Error(await leerError(respuesta))
   const cuerpo = (await respuesta.json()) as { id: string }
   return cuerpo.id
+}
+
+// ---------------------------------------------------------------------------
+// HU30 — Modificar pista
+// ---------------------------------------------------------------------------
+export async function modificarPista(
+  busquedaId: string,
+  etapaId: string,
+  pistaId: string,
+  datos: DatosModificarPista,
+  token: string
+): Promise<void> {
+  const respuesta = await fetch(
+    `${URL_API}${ENDPOINTS.modificarPista(busquedaId, etapaId, pistaId)}`,
+    {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...auth(token) },
+      body: JSON.stringify(datos)
+    }
+  )
+  if (respuesta.status === 401) lanzar401('Debe iniciar sesión.')
+  if (respuesta.status === 403) throw new Error('No tiene permisos.')
+  if (respuesta.status === 404) throw new Error('Pista no encontrada.')
+  if (!respuesta.ok) throw new Error(await leerError(respuesta))
 }
 
 // ---------------------------------------------------------------------------
