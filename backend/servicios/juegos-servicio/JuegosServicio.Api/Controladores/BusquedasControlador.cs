@@ -10,7 +10,7 @@ namespace JuegosServicio.Api.Controladores;
 
 [ApiController]
 [Route("api/juegos/busquedas")]
-[Authorize(Policy = "PoliticaOperador")]
+[Authorize(Policy = "PoliticaAdministrador")]
 public sealed class BusquedasControlador : ControllerBase
 {
     private readonly IMediator _mediador;
