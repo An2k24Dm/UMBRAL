@@ -2,10 +2,13 @@ using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Dominio.Estados;
 using JuegosServicio.Dominio.Eventos;
 using JuegosServicio.Dominio.Excepciones;
+using JuegosServicio.Dominio.Patrones;
 
 namespace JuegosServicio.Dominio.Entidades;
 
-public sealed class BusquedaTesoro
+// Composite — raíz del árbol jerárquico: BusquedaTesoro → Etapa → Mision / Pista.
+// Toda operación sobre nodos y hojas debe pasar por este Aggregate Root.
+public sealed class BusquedaTesoro : IComponenteJuego
 {
     private readonly List<Etapa> _etapas = new();
     private readonly List<EventoDominio> _eventos = new();
@@ -145,6 +148,11 @@ public sealed class BusquedaTesoro
 
         etapa.EliminarMision(misionId);
     }
+
+    // IComponenteJuego — raíz: sus hijos son las Etapas.
+    string IComponenteJuego.ObtenerDescripcion() => $"Búsqueda: {Nombre} [{Estado}]";
+    IReadOnlyList<IComponenteJuego> IComponenteJuego.ObtenerHijos() =>
+        _etapas.Cast<IComponenteJuego>().ToList().AsReadOnly();
 
     public void LimpiarEventos() => _eventos.Clear();
 

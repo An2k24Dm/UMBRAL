@@ -206,7 +206,7 @@ public sealed class BusquedasControlador : ControllerBase
         return NoContent();
     }
 
-    // HU24 — Eliminar una etapa (solo en estado Borrador). Las misiones se borran en cascada.
+    // HU24/HU31 — Eliminar una etapa (solo en estado Inactiva). Las misiones y pistas se borran en cascada por EF Core.
     [HttpDelete("{busquedaId:guid}/etapas/{etapaId:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]

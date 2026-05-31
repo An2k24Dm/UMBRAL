@@ -6,7 +6,7 @@ using JuegosServicio.Dominio.Excepciones;
 
 namespace JuegosServicio.PruebasUnitarias.CasosDeUso;
 
-// HU24: pruebas del manejador de eliminación de etapa.
+// HU24/HU31: pruebas del manejador de eliminación de etapa (con cascada de pistas).
 public class EliminarEtapaManejadorPruebas
 {
     private readonly Mock<IRepositorioBusquedas> _repositorio = new();
@@ -74,5 +74,23 @@ public class EliminarEtapaManejadorPruebas
             new EliminarEtapaComando(busqueda.Id, Guid.NewGuid()), CancellationToken.None);
 
         await accion.Should().ThrowAsync<ExcepcionNoEncontrado>();
+    }
+
+    // HU31 — la etapa con pistas también llama a EliminarEtapaAsync (cascade en DB)
+    [Fact]
+    public async Task Handle_EtapaConPistas_LlamaEliminarEtapaAsyncUnaVez()
+    {
+        var busqueda = BusquedaConEtapa(out var etapaId);
+        busqueda.AgregarPistaAEtapa(etapaId, "Pista de prueba.");
+        _repositorio
+            .Setup(r => r.ObtenerBusquedaPorIdAsync(busqueda.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(busqueda);
+
+        await CrearManejador().Handle(
+            new EliminarEtapaComando(busqueda.Id, etapaId), CancellationToken.None);
+
+        _repositorio.Verify(
+            r => r.EliminarEtapaAsync(busqueda.Id, etapaId, It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 }
