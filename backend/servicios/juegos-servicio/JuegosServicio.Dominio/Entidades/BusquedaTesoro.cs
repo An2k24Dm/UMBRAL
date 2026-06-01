@@ -58,6 +58,9 @@ public sealed class BusquedaTesoro : IComponenteJuego
     {
         _estado.ValidarEdicion("agregar etapas");
 
+        if (_etapas.Count >= 10)
+            throw new ExcepcionDominio("La búsqueda del tesoro no puede tener más de 10 etapas.");
+
         var orden = _etapas.Count + 1;
         var etapa = Etapa.Crear(Id, titulo, descripcion, orden);
         _etapas.Add(etapa);

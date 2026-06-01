@@ -92,6 +92,31 @@ public class EtapaPruebas
         accion.Should().Throw<ExcepcionDominio>();
     }
 
+    // Regla: máximo 10 etapas
+    [Fact]
+    public void AgregarEtapa_Mas10Etapas_LanzaExcepcionDominio()
+    {
+        var busqueda = BusquedaEnBorrador();
+        for (var i = 1; i <= 10; i++)
+            busqueda.AgregarEtapa($"Etapa {i}", "Descripción");
+
+        Action accion = () => busqueda.AgregarEtapa("Etapa 11", "Descripción");
+
+        accion.Should().Throw<ExcepcionDominio>();
+    }
+
+    [Fact]
+    public void AgregarEtapa_Exactamente10Etapas_NoLanzaExcepcion()
+    {
+        var busqueda = BusquedaEnBorrador();
+        for (var i = 1; i <= 9; i++)
+            busqueda.AgregarEtapa($"Etapa {i}", "Descripción");
+
+        Action accion = () => busqueda.AgregarEtapa("Etapa 10", "Descripción");
+
+        accion.Should().NotThrow();
+    }
+
     [Fact]
     public void AgregarEtapa_BusquedaActiva_LanzaExcepcionDominio()
     {

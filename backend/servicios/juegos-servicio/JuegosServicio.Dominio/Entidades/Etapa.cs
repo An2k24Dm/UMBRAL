@@ -98,6 +98,9 @@ public sealed class Etapa : IComponenteJuego
     // HU28 — agrega una pista de ayuda a esta etapa.
     internal Pista AgregarPista(string contenido)
     {
+        if (_pistas.Count >= 5)
+            throw new ExcepcionDominio("Una etapa no puede tener más de 5 pistas.");
+
         var pista = Pista.Crear(Id, contenido);
         _pistas.Add(pista);
         return pista;

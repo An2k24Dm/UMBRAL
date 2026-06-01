@@ -63,6 +63,31 @@ public class PistaPruebas
         accion.Should().Throw<ExcepcionDominio>();
     }
 
+    // Regla: máximo 5 pistas por etapa
+    [Fact]
+    public void AgregarPistaAEtapa_Mas5Pistas_LanzaExcepcionDominio()
+    {
+        var busqueda = BusquedaConEtapa(out var etapaId);
+        for (var i = 1; i <= 5; i++)
+            busqueda.AgregarPistaAEtapa(etapaId, $"Pista {i}.");
+
+        Action accion = () => busqueda.AgregarPistaAEtapa(etapaId, "Pista 6.");
+
+        accion.Should().Throw<ExcepcionDominio>();
+    }
+
+    [Fact]
+    public void AgregarPistaAEtapa_Exactamente5Pistas_NoLanzaExcepcion()
+    {
+        var busqueda = BusquedaConEtapa(out var etapaId);
+        for (var i = 1; i <= 4; i++)
+            busqueda.AgregarPistaAEtapa(etapaId, $"Pista {i}.");
+
+        Action accion = () => busqueda.AgregarPistaAEtapa(etapaId, "Pista 5.");
+
+        accion.Should().NotThrow();
+    }
+
     [Fact]
     public void AgregarPistaAEtapa_EtapaInexistente_LanzaExcepcionNoEncontrado()
     {
