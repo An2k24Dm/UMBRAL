@@ -68,6 +68,8 @@ namespace SesionesServicio.Infraestructura.Persistencia.Migraciones
 
                     b.HasIndex("ContenidoJuegoId");
 
+                    b.HasIndex("CreadaPorUsuarioId");
+
                     b.HasIndex("Estado");
 
                     b.HasIndex("FechaProgramada");

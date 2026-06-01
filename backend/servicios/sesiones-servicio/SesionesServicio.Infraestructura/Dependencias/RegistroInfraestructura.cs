@@ -3,9 +3,11 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using SesionesServicio.Aplicacion.Puertos;
+using SesionesServicio.Aplicacion.ServiciosEnSegundoPlano;
 using SesionesServicio.Infraestructura.Mapeadores;
 using SesionesServicio.Infraestructura.Persistencia;
 using SesionesServicio.Infraestructura.Persistencia.Repositorios;
+using SesionesServicio.Infraestructura.ServiciosEnSegundoPlano;
 using SesionesServicio.Infraestructura.ServiciosExternos;
 using SesionesServicio.Infraestructura.Tiempo;
 
@@ -40,8 +42,18 @@ public static class RegistroInfraestructura
 
         servicios.Configure<OpcionesJuegosServicio>(
             configuracion.GetSection(OpcionesJuegosServicio.Seccion));
+        servicios.Configure<OpcionesIdentidadServicio>(
+            configuracion.GetSection(OpcionesIdentidadServicio.Seccion));
 
         servicios.AddHttpClient<IClienteContenidoJuegos, ClienteContenidoJuegosHttp>();
+        servicios.AddHttpClient<IClienteIdentidadUsuarios, ClienteIdentidadUsuariosHttp>();
+
+        // HU34/5.1 — Servicio en segundo plano para pasar sesiones
+        // Programadas vencidas a EnPreparacion.
+        servicios.Configure<OpcionesPreparacionSesiones>(
+            configuracion.GetSection(OpcionesPreparacionSesiones.Seccion));
+        servicios.AddScoped<ProcesadorPreparacionSesiones>();
+        servicios.AddHostedService<ServicioPreparacionSesionesProgramadas>();
 
         return servicios;
     }

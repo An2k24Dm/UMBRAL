@@ -4,9 +4,6 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace IdentidadServicio.PruebasUnitarias.Api;
 
-// HU07: comprueba por reflexión que los endpoints del controlador exigen la
-// política que permite Administrador y Operador. No levanta el host: sólo
-// inspecciona los atributos del método compilado.
 public class UsuariosControladorAutorizacionPruebas
 {
     private const string PoliticaEsperada = "PoliticaAdministradorUOperador";

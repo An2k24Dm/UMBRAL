@@ -34,6 +34,13 @@ async function leerError(respuesta: Response): Promise<string> {
 // ---------------------------------------------------------------------------
 export type TipoJuegoSesion = 'Trivia' | 'BusquedaTesoro'
 export type ModoSesionApi = 'Individual' | 'Grupo'
+export type EstadoSesionApi =
+  | 'Programada'
+  | 'EnPreparacion'
+  | 'Activa'
+  | 'Pausada'
+  | 'Finalizada'
+  | 'Cancelada'
 
 export interface CrearSesionSolicitud {
   nombre: string
@@ -63,9 +70,67 @@ export interface SesionListadoDto {
   modo: string
   estado: string
   fechaProgramada: string
+  creadaPorUsuarioId: string
+  numeroGrupos: number
 }
 
-export type SesionDetalleDto = SesionRespuestaDto
+// HU34/5.2 — DTOs del contenido enriquecido en el detalle.
+export interface OpcionTriviaSesionDto {
+  id: string
+  texto: string
+  esCorrecta: boolean
+}
+
+export interface PreguntaTriviaSesionDto {
+  id: string
+  enunciado: string
+  puntajeAsignado: number
+  opciones: OpcionTriviaSesionDto[]
+}
+
+export interface DetalleTriviaSesionDto {
+  id: string
+  nombre: string
+  descripcion: string
+  estado: string
+  preguntas: PreguntaTriviaSesionDto[]
+}
+
+export interface PistaBusquedaSesionDto {
+  id: string
+  texto: string
+  orden: number
+}
+
+export interface EtapaBusquedaSesionDto {
+  id: string
+  nombre: string
+  descripcion: string
+  orden: number
+  pistas: PistaBusquedaSesionDto[]
+}
+
+export interface DetalleBusquedaSesionDto {
+  id: string
+  nombre: string
+  descripcion: string
+  estado: string
+  etapas: EtapaBusquedaSesionDto[]
+}
+
+export interface SesionDetalleDto {
+  id: string
+  nombre: string
+  tipoJuego: string
+  contenidoJuegoId: string
+  modo: string
+  estado: string
+  fechaProgramada: string
+  creadaPorUsuarioId: string
+  fechaCreacion: string
+  trivia: DetalleTriviaSesionDto | null
+  busquedaTesoro: DetalleBusquedaSesionDto | null
+}
 
 export interface ContenidoJuegoActivoDto {
   id: string
@@ -94,12 +159,26 @@ export async function crearSesion(
 }
 
 // ---------------------------------------------------------------------------
-// HU33 — Listar sesiones
+// HU34 — Listar sesiones con visibilidad por rol y filtros opcionales.
+// El backend aplica la regla; el frontend sólo envía los filtros tal
+// como los pide el usuario.
 // ---------------------------------------------------------------------------
-export async function listarSesiones(token: string): Promise<SesionListadoDto[]> {
-  const respuesta = await fetch(`${URL_API}${ENDPOINTS.raiz}`, {
-    headers: auth(token)
-  })
+export interface FiltrosListadoSesiones {
+  tipoJuego?: TipoJuegoSesion | ''
+  estado?: EstadoSesionApi | ''
+}
+
+export async function listarSesiones(
+  token: string,
+  filtros: FiltrosListadoSesiones = {}
+): Promise<SesionListadoDto[]> {
+  const params = new URLSearchParams()
+  if (filtros.tipoJuego) params.set('tipoJuego', filtros.tipoJuego)
+  if (filtros.estado) params.set('estado', filtros.estado)
+  const cadena = params.toString()
+  const url = cadena ? `${ENDPOINTS.raiz}?${cadena}` : ENDPOINTS.raiz
+
+  const respuesta = await fetch(`${URL_API}${url}`, { headers: auth(token) })
   if (respuesta.status === 401) lanzar401('Debe iniciar sesión.')
   if (respuesta.status === 403) throw new Error('No tiene permisos.')
   if (!respuesta.ok) throw new Error(await leerError(respuesta))
@@ -107,7 +186,9 @@ export async function listarSesiones(token: string): Promise<SesionListadoDto[]>
 }
 
 // ---------------------------------------------------------------------------
-// HU33 — Obtener una sesión por id
+// HU34/5.2 — Obtener detalle de sesión con contenido enriquecido.
+// 403 indica que el usuario no tiene permiso para esa sesión (regla
+// de visibilidad). 404 indica que la sesión no existe.
 // ---------------------------------------------------------------------------
 export async function obtenerSesion(
   id: string, token: string
@@ -116,7 +197,7 @@ export async function obtenerSesion(
     headers: auth(token)
   })
   if (respuesta.status === 401) lanzar401('Debe iniciar sesión.')
-  if (respuesta.status === 403) throw new Error('No tiene permisos.')
+  if (respuesta.status === 403) throw new Error('No tiene permiso para ver esta sesión.')
   if (respuesta.status === 404) throw new Error('Sesión no encontrada.')
   if (!respuesta.ok) throw new Error(await leerError(respuesta))
   return (await respuesta.json()) as SesionDetalleDto

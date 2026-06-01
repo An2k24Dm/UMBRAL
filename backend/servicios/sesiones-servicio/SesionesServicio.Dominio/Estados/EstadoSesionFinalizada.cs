@@ -1,4 +1,5 @@
 using SesionesServicio.Dominio.Abstract;
+using SesionesServicio.Dominio.Entidades;
 using SesionesServicio.Dominio.Enums;
 using SesionesServicio.Dominio.Excepciones;
 
@@ -7,12 +8,14 @@ namespace SesionesServicio.Dominio.Estados;
 // Estado terminal: ninguna transición es válida.
 internal sealed class EstadoSesionFinalizada : IEstadoSesion
 {
+    private const string Mensaje = "Una sesión Finalizada no permite cambios de estado.";
+
     public EstadoSesion Estado => EstadoSesion.Finalizada;
 
-    public EstadoSesion Preparar() => throw new TransicionEstadoSesionInvalidaExcepcion(Estado, nameof(Preparar));
-    public EstadoSesion Iniciar() => throw new TransicionEstadoSesionInvalidaExcepcion(Estado, nameof(Iniciar));
-    public EstadoSesion Pausar() => throw new TransicionEstadoSesionInvalidaExcepcion(Estado, nameof(Pausar));
-    public EstadoSesion Reanudar() => throw new TransicionEstadoSesionInvalidaExcepcion(Estado, nameof(Reanudar));
-    public EstadoSesion Finalizar() => throw new TransicionEstadoSesionInvalidaExcepcion(Estado, nameof(Finalizar));
-    public EstadoSesion Cancelar() => throw new TransicionEstadoSesionInvalidaExcepcion(Estado, nameof(Cancelar));
+    public void Preparar(Sesion sesion) => throw new TransicionEstadoSesionInvalidaExcepcion(Estado, nameof(Preparar), Mensaje);
+    public void Iniciar(Sesion sesion) => throw new TransicionEstadoSesionInvalidaExcepcion(Estado, nameof(Iniciar), Mensaje);
+    public void Pausar(Sesion sesion) => throw new TransicionEstadoSesionInvalidaExcepcion(Estado, nameof(Pausar), Mensaje);
+    public void Reanudar(Sesion sesion) => throw new TransicionEstadoSesionInvalidaExcepcion(Estado, nameof(Reanudar), Mensaje);
+    public void Finalizar(Sesion sesion) => throw new TransicionEstadoSesionInvalidaExcepcion(Estado, nameof(Finalizar), Mensaje);
+    public void Cancelar(Sesion sesion) => throw new TransicionEstadoSesionInvalidaExcepcion(Estado, nameof(Cancelar), Mensaje);
 }

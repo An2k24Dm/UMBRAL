@@ -10,7 +10,7 @@ namespace JuegosServicio.Api.Controladores;
 
 [ApiController]
 [Route("api/juegos/busquedas")]
-[Authorize(Policy = "PoliticaAdministrador")]
+[Authorize]
 public sealed class BusquedasControlador : ControllerBase
 {
     private readonly IMediator _mediador;
@@ -22,6 +22,7 @@ public sealed class BusquedasControlador : ControllerBase
 
     // HU26 — Archivar búsqueda del tesoro (soft delete).
     [HttpDelete("{busquedaId:guid}")]
+    [Authorize(Policy = "PoliticaAdministrador")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -36,6 +37,7 @@ public sealed class BusquedasControlador : ControllerBase
 
     // HU26 — Activar búsqueda del tesoro (Borrador → Activa).
     [HttpPatch("{busquedaId:guid}/activar")]
+    [Authorize(Policy = "PoliticaAdministrador")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -48,8 +50,11 @@ public sealed class BusquedasControlador : ControllerBase
         return NoContent();
     }
 
-    // HU26 — Listar búsquedas activas (para selección en sesiones de juego).
+    // HU26 / HU34 — Listar búsquedas activas (para selección en
+    // sesiones de juego). El Operador necesita verlas para crear
+    // sesiones.
     [HttpGet("activas")]
+    [Authorize(Policy = "PoliticaOperador")]
     [ProducesResponseType(typeof(List<BusquedaTesoroResumenDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -61,6 +66,7 @@ public sealed class BusquedasControlador : ControllerBase
 
     // HU21 — Crear búsqueda del tesoro en estado Borrador.
     [HttpPost]
+    [Authorize(Policy = "PoliticaAdministrador")]
     [ProducesResponseType(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -76,6 +82,7 @@ public sealed class BusquedasControlador : ControllerBase
 
     // HU25 — Modificar una misión de una etapa (solo en estado Borrador).
     [HttpPut("{busquedaId:guid}/etapas/{etapaId:guid}/misiones/{misionId:guid}")]
+    [Authorize(Policy = "PoliticaAdministrador")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -95,6 +102,7 @@ public sealed class BusquedasControlador : ControllerBase
 
     // HU25 — Eliminar una misión de una etapa (solo en estado Borrador).
     [HttpDelete("{busquedaId:guid}/etapas/{etapaId:guid}/misiones/{misionId:guid}")]
+    [Authorize(Policy = "PoliticaAdministrador")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -112,6 +120,7 @@ public sealed class BusquedasControlador : ControllerBase
 
     // HU23 — Agregar misión a una etapa de la búsqueda del tesoro.
     [HttpPost("{busquedaId:guid}/etapas/{etapaId:guid}/misiones")]
+    [Authorize(Policy = "PoliticaAdministrador")]
     [ProducesResponseType(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -132,6 +141,7 @@ public sealed class BusquedasControlador : ControllerBase
 
     // HU32 — Eliminar una pista de una etapa (solo en estado Inactiva).
     [HttpDelete("{busquedaId:guid}/etapas/{etapaId:guid}/pistas/{pistaId:guid}")]
+    [Authorize(Policy = "PoliticaAdministrador")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -149,6 +159,7 @@ public sealed class BusquedasControlador : ControllerBase
 
     // HU30 — Modificar el contenido de una pista existente (solo en estado Inactiva).
     [HttpPut("{busquedaId:guid}/etapas/{etapaId:guid}/pistas/{pistaId:guid}")]
+    [Authorize(Policy = "PoliticaAdministrador")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -168,6 +179,7 @@ public sealed class BusquedasControlador : ControllerBase
 
     // HU28 — Agregar pista a una etapa (solo en estado Inactiva).
     [HttpPost("{busquedaId:guid}/etapas/{etapaId:guid}/pistas")]
+    [Authorize(Policy = "PoliticaAdministrador")]
     [ProducesResponseType(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -188,6 +200,7 @@ public sealed class BusquedasControlador : ControllerBase
 
     // HU22 — Agregar etapa a una búsqueda del tesoro.
     [HttpPost("{busquedaId:guid}/etapas")]
+    [Authorize(Policy = "PoliticaAdministrador")]
     [ProducesResponseType(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -207,6 +220,7 @@ public sealed class BusquedasControlador : ControllerBase
 
     // HU24 — Modificar datos de una etapa (solo en estado Borrador).
     [HttpPut("{busquedaId:guid}/etapas/{etapaId:guid}")]
+    [Authorize(Policy = "PoliticaAdministrador")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -225,6 +239,7 @@ public sealed class BusquedasControlador : ControllerBase
 
     // HU24/HU31 — Eliminar una etapa (solo en estado Inactiva). Las misiones y pistas se borran en cascada por EF Core.
     [HttpDelete("{busquedaId:guid}/etapas/{etapaId:guid}")]
+    [Authorize(Policy = "PoliticaAdministrador")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -239,8 +254,12 @@ public sealed class BusquedasControlador : ControllerBase
         return NoContent();
     }
 
-    // HU22 — Obtener detalle de una búsqueda del tesoro con sus etapas y misiones.
+    // HU22 / HU34 — Obtener detalle de una búsqueda del tesoro con
+    // sus etapas y misiones. El Operador necesita poder consultarlo
+    // para que sesiones-servicio pueda armar el detalle de una sesión
+    // de Búsqueda del Tesoro.
     [HttpGet("{busquedaId:guid}")]
+    [Authorize(Policy = "PoliticaOperador")]
     [ProducesResponseType(typeof(BusquedaTesoroDetalleDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -253,8 +272,9 @@ public sealed class BusquedasControlador : ControllerBase
         return resultado is null ? NotFound() : Ok(resultado);
     }
 
-    // HU21 — Listar búsquedas en borrador. Admin ve todas; Operador ve solo las suyas.
+    // HU21 — Listar búsquedas en borrador (gestión interna del catálogo).
     [HttpGet("borrador")]
+    [Authorize(Policy = "PoliticaAdministrador")]
     [ProducesResponseType(typeof(List<BusquedaTesoroResumenDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]

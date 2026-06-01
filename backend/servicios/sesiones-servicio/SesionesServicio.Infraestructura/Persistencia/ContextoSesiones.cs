@@ -30,6 +30,8 @@ public sealed class ContextoSesiones : DbContext
             e.HasIndex(x => x.FechaProgramada);
             e.HasIndex(x => x.TipoJuego);
             e.HasIndex(x => x.ContenidoJuegoId);
+            // HU34 — Filtrar sesiones del Operador por su creador.
+            e.HasIndex(x => x.CreadaPorUsuarioId);
         });
     }
 }

@@ -19,6 +19,13 @@ namespace SesionesServicio.PruebasIntegracion;
 public sealed class FabricaApiPruebas : WebApplicationFactory<Program>
 {
     public Mock<IClienteContenidoJuegos> MockClienteContenido { get; } = new();
+    public Mock<IClienteIdentidadUsuarios> MockClienteIdentidad { get; } = new();
+
+    // Ids de prueba: el "Administrador" en los tests usa el sub
+    // 11111111-1111-1111-1111-111111111111; los operadores usan otros
+    // ids. El mock de identidad clasifica como Administrador
+    // exactamente a IdAdministradorPrueba.
+    public static readonly Guid IdAdministradorPrueba = Guid.Parse("11111111-1111-1111-1111-111111111111");
 
     public static readonly Guid IdTriviaActiva = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
     public static readonly Guid IdBusquedaActiva = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
@@ -87,6 +94,25 @@ public sealed class FabricaApiPruebas : WebApplicationFactory<Program>
             ConfigurarMockClienteContenido();
             servicios.AddSingleton(MockClienteContenido.Object);
 
+            // HU34 — Reemplazamos el adaptador HTTP a identidad por un mock.
+            // Clasifica como Administrador SÓLO al sub
+            // 11111111-1111-1111-1111-111111111111 (IdAdministradorPrueba);
+            // el resto se considera Operador o desconocido.
+            var descIdentidad = servicios.SingleOrDefault(
+                d => d.ServiceType == typeof(IClienteIdentidadUsuarios));
+            if (descIdentidad is not null) servicios.Remove(descIdentidad);
+
+            ConfigurarMockClienteIdentidad();
+            servicios.AddSingleton(MockClienteIdentidad.Object);
+
+            // Quitamos el HostedService de preparación: en pruebas no
+            // queremos que un timer en background mute estados de
+            // forma asincrónica (provocaría flakiness).
+            var hosted = servicios
+                .Where(d => d.ImplementationType?.Name == "ServicioPreparacionSesionesProgramadas")
+                .ToList();
+            foreach (var d in hosted) servicios.Remove(d);
+
             // Sustituye JwtBearer por el esquema de pruebas.
             servicios.AddAuthentication(opciones =>
             {
@@ -136,5 +162,68 @@ public sealed class FabricaApiPruebas : WebApplicationFactory<Program>
             .Setup(c => c.ObtenerContenidoAsync(
                 It.IsAny<TipoJuego>(), IdContenidoInexistente, It.IsAny<CancellationToken>()))
             .ReturnsAsync((ContenidoJuegoActivoDto?)null);
+
+        // HU34/5.2 — Detalle del contenido para enriquecer el detalle
+        // de la sesión. Devolvemos un objeto liviano con datos
+        // consistentes para no fallar las pruebas que llegan a GET /id.
+        MockClienteContenido
+            .Setup(c => c.ObtenerDetalleTriviaAsync(IdTriviaActiva, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new DetalleTriviaSesionDto
+            {
+                Id = IdTriviaActiva,
+                Nombre = "Trivia historia",
+                Descripcion = "Demo",
+                Estado = "Activa",
+                Preguntas = new List<PreguntaTriviaSesionDto>
+                {
+                    new() {
+                        Id = Guid.NewGuid(),
+                        Enunciado = "¿Qué año?",
+                        PuntajeAsignado = 10,
+                        Opciones = new List<OpcionTriviaSesionDto>
+                        {
+                            new() { Id = Guid.NewGuid(), Texto = "1810", EsCorrecta = true },
+                            new() { Id = Guid.NewGuid(), Texto = "1821", EsCorrecta = false }
+                        }
+                    }
+                }
+            });
+
+        MockClienteContenido
+            .Setup(c => c.ObtenerDetalleBusquedaTesoroAsync(IdBusquedaActiva, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new DetalleBusquedaSesionDto
+            {
+                Id = IdBusquedaActiva,
+                Nombre = "Búsqueda piloto",
+                Descripcion = "Demo",
+                Estado = "Activa",
+                Etapas = new List<EtapaBusquedaSesionDto>
+                {
+                    new() {
+                        Id = Guid.NewGuid(),
+                        Nombre = "Etapa 1",
+                        Descripcion = "Bienvenida",
+                        Orden = 1,
+                        Pistas = new List<PistaBusquedaSesionDto>
+                        {
+                            new() { Id = Guid.NewGuid(), Texto = "Mira al norte", Orden = 1 }
+                        }
+                    }
+                }
+            });
+    }
+
+    private void ConfigurarMockClienteIdentidad()
+    {
+        MockClienteIdentidad
+            .Setup(c => c.EsAdministradorAsync(
+                It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Guid id, CancellationToken _) => id == IdAdministradorPrueba);
+
+        MockClienteIdentidad
+            .Setup(c => c.FiltrarAdministradoresAsync(
+                It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IReadOnlyCollection<Guid> ids, CancellationToken _) =>
+                ids.Where(id => id == IdAdministradorPrueba).ToList());
     }
 }

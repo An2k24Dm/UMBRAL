@@ -15,6 +15,7 @@ import { PaginaCrearBusqueda } from './paginas/PaginaCrearBusqueda'
 import { PaginaGestionEtapas } from './paginas/PaginaGestionEtapas'
 import { PaginaSesiones } from './paginas/PaginaSesiones'
 import { PaginaCrearSesion } from './paginas/PaginaCrearSesion'
+import { PaginaDetalleSesion } from './paginas/PaginaDetalleSesion'
 import {
   obtenerDetalleParticipante,
   obtenerDetalleUsuarioInterno
@@ -208,6 +209,15 @@ export function Aplicacion() {
           </RutaProtegida>
         }
       />
+      {/* HU34 — Detalle de sesión (Administrador). */}
+      <Route
+        path="/administrador/sesiones/:id"
+        element={
+          <RutaProtegida rolesPermitidos={['Administrador']}>
+            <PaginaDetalleSesion />
+          </RutaProtegida>
+        }
+      />
 
       {/* HU33 — Sesiones en vivo (Operador). */}
       <Route
@@ -223,6 +233,15 @@ export function Aplicacion() {
         element={
           <RutaProtegida rolesPermitidos={['Operador']}>
             <PaginaCrearSesion />
+          </RutaProtegida>
+        }
+      />
+      {/* HU34 — Detalle de sesión (Operador). */}
+      <Route
+        path="/operador/sesiones/:id"
+        element={
+          <RutaProtegida rolesPermitidos={['Operador']}>
+            <PaginaDetalleSesion />
           </RutaProtegida>
         }
       />

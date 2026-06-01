@@ -21,8 +21,10 @@ interface Props<T> {
   // Numeración por posición considerando paginación (HU07).
   inicioNumeracion?: number
   mostrarColumnaNumero?: boolean
-  // Acción "Ver perfil" — el padre decide a dónde navegar.
+  // Acción principal por fila — el padre decide a dónde navegar y
+  // qué etiqueta mostrar en el botón.
   alVerPerfil?: (fila: T) => void
+  etiquetaAccion?: string
   // Ordenamiento controlado por el padre.
   columnaOrdenada?: string
   direccionOrden?: DireccionOrden
@@ -39,6 +41,7 @@ export function TablaUsuarios<T>({
   inicioNumeracion,
   mostrarColumnaNumero = false,
   alVerPerfil,
+  etiquetaAccion = 'Ver perfil',
   columnaOrdenada,
   direccionOrden,
   alOrdenar
@@ -111,7 +114,7 @@ export function TablaUsuarios<T>({
               {alVerPerfil && (
                 <td className="columna-acciones">
                   <Boton variante="fantasma" onClick={() => alVerPerfil(fila)}>
-                    Ver perfil
+                    {etiquetaAccion}
                   </Boton>
                 </td>
               )}

@@ -836,6 +836,164 @@ a { color: inherit; }
   border-color: var(--color-borde-fuerte);
 }
 
+/* HU34 — Badges por estado de sesión. */
+.badge-sesion-programada {
+  background: rgba(99, 102, 241, 0.18);
+  color: var(--color-acento-texto);
+  border-color: rgba(99, 102, 241, 0.45);
+}
+.badge-sesion-preparacion {
+  background: var(--color-aviso-suave);
+  color: var(--color-aviso-texto);
+  border-color: var(--color-aviso-borde);
+}
+.badge-sesion-activa {
+  background: rgba(16, 185, 129, 0.18);
+  color: var(--color-exito-texto);
+  border-color: rgba(16, 185, 129, 0.4);
+}
+.badge-sesion-pausada {
+  background: var(--color-info-suave);
+  color: var(--color-info-texto);
+  border-color: var(--color-info-borde);
+}
+.badge-sesion-finalizada {
+  background: var(--color-superficie-2);
+  color: var(--color-texto-tenue);
+  border-color: var(--color-borde-fuerte);
+}
+.badge-sesion-cancelada {
+  background: rgba(239, 68, 68, 0.13);
+  color: var(--color-error-texto);
+  border-color: rgba(239, 68, 68, 0.4);
+}
+.badge-md {
+  padding: 5px 12px;
+  font-size: var(--texto-sm);
+}
+
+/* HU34 — Vista de detalle de sesión (tarjetas y grilla de campos). */
+.detalle-sesion-cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espacio-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--espacio-4);
+}
+.detalle-sesion-cabecera h2 {
+  margin: 0;
+  font-size: var(--texto-2xl);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.detalle-sesion-cabecera p {
+  margin: 4px 0 0;
+  color: var(--color-texto-tenue);
+  font-size: var(--texto-sm);
+}
+
+.detalle-grilla {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--espacio-4) var(--espacio-6);
+}
+@media (min-width: 900px) {
+  .detalle-grilla { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+.detalle-campo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.detalle-campo-etiqueta {
+  font-size: var(--texto-xs);
+  color: var(--color-texto-tenue);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}
+.detalle-campo-valor {
+  font-size: var(--texto-md);
+  color: var(--color-texto);
+  word-break: break-word;
+}
+
+.detalle-subtitulo {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--espacio-3);
+  flex-wrap: wrap;
+  margin: 0 0 var(--espacio-4);
+}
+.detalle-subtitulo h3 { margin: 0; font-size: var(--texto-lg); font-weight: 600; }
+.detalle-subtitulo p { margin: 4px 0 0; color: var(--color-texto-tenue); font-size: var(--texto-sm); }
+
+.lista-etapas { display: flex; flex-direction: column; gap: var(--espacio-3); }
+.etapa-card {
+  background: var(--color-superficie);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+  padding: 16px 20px;
+  transition: border-color var(--transicion-rapida);
+}
+.etapa-card:hover { border-color: var(--color-borde-fuerte); }
+.etapa-card-cabecera {
+  display: flex;
+  align-items: baseline;
+  gap: var(--espacio-2);
+  flex-wrap: wrap;
+  margin-bottom: var(--espacio-2);
+}
+.etapa-numero {
+  font-size: var(--texto-xs);
+  font-weight: 600;
+  color: var(--color-texto-tenue);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.etapa-nombre { font-weight: 600; font-size: var(--texto-md); color: var(--color-texto); }
+.etapa-descripcion { margin: 0 0 var(--espacio-3); font-size: var(--texto-sm); color: var(--color-texto-tenue); line-height: 1.55; }
+
+.lista-pistas { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--espacio-2); }
+.pista-item {
+  display: flex;
+  gap: var(--espacio-3);
+  align-items: flex-start;
+  background: var(--color-fondo-elevado);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-pequeno);
+  padding: 8px 12px;
+  font-size: var(--texto-sm);
+  color: var(--color-texto);
+}
+.pista-orden {
+  flex-shrink: 0;
+  background: var(--color-acento-suave);
+  color: var(--color-acento-texto);
+  border-radius: var(--radio-pastilla);
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--texto-xs);
+  font-weight: 700;
+}
+
+.detalle-mensaje-vacio {
+  padding: var(--espacio-5);
+  background: var(--color-fondo-elevado);
+  border: 1px dashed var(--color-borde-fuerte);
+  border-radius: var(--radio-pequeno);
+  color: var(--color-texto-tenue);
+  font-size: var(--texto-sm);
+  text-align: center;
+}
+
 /* ===========================================================================
    14. FILTROS
    =========================================================================== */

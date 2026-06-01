@@ -45,7 +45,14 @@ const ESTADO_INICIAL: Datos = {
   fechaProgramada: ''
 }
 
-function validar(datos: Datos): Errores {
+// Devuelve "YYYY-MM-DDTHH:mm" en hora local del usuario, formato que
+// espera el input datetime-local para `min` y para `value`.
+function aDateTimeLocalString(fecha: Date): string {
+  const desplazamiento = fecha.getTimezoneOffset() * 60_000
+  return new Date(fecha.getTime() - desplazamiento).toISOString().slice(0, 16)
+}
+
+function validar(datos: Datos, ahora: Date): Errores {
   const errores: Errores = {}
   const nombre = datos.nombre.trim()
   if (!nombre) errores.nombre = 'El nombre es obligatorio.'
@@ -60,8 +67,21 @@ function validar(datos: Datos): Errores {
   if (datos.modo !== 'Individual' && datos.modo !== 'Grupo')
     errores.modo = 'Seleccione un modo válido.'
 
-  if (!datos.fechaProgramada)
+  if (!datos.fechaProgramada) {
     errores.fechaProgramada = 'Debe indicar la fecha programada.'
+  } else {
+    // El input datetime-local emite "YYYY-MM-DDTHH:mm" sin zona; al
+    // pasarlo a Date se interpreta en la zona local del usuario, que
+    // es exactamente lo que él seleccionó visualmente. Comparamos esa
+    // instancia con la hora actual también en local.
+    const fechaSeleccionada = new Date(datos.fechaProgramada)
+    if (Number.isNaN(fechaSeleccionada.getTime())) {
+      errores.fechaProgramada = 'La fecha programada no es válida.'
+    } else if (fechaSeleccionada.getTime() <= ahora.getTime()) {
+      errores.fechaProgramada =
+        'La sesión no puede programarse para una fecha y hora que ya pasó.'
+    }
+  }
 
   return errores
 }
@@ -117,7 +137,9 @@ export function PaginaCrearSesion() {
 
   async function manejarEnvio(e: React.FormEvent) {
     e.preventDefault()
-    const erroresValidacion = validar(datos)
+    // "ahora" se recalcula en cada envío para que la validación de
+    // fecha futura no use un valor cacheado del primer render.
+    const erroresValidacion = validar(datos, new Date())
     if (Object.keys(erroresValidacion).length > 0) {
       setErrores(erroresValidacion)
       return
@@ -223,6 +245,7 @@ export function PaginaCrearSesion() {
               id="fechaProgramada"
               type="datetime-local"
               value={datos.fechaProgramada}
+              min={aDateTimeLocalString(new Date())}
               onChange={(e) => manejarCambio('fechaProgramada', e.target.value)}
               disabled={enviando}
             />
