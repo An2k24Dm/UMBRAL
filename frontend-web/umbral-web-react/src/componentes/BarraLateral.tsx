@@ -29,8 +29,6 @@ function obtenerEnlaces(rol: Rol): EnlaceNavegacion[] {
   if (rol === 'Operador') {
     return [
       { destino: '/operador', etiqueta: 'Dashboard' },
-      { destino: '/operador/trivias', etiqueta: 'Trivias' },
-      { destino: '/operador/busquedas', etiqueta: 'Búsquedas del tesoro' },
       { destino: '/operador/sesiones', etiqueta: 'Sesiones' },
       { destino: '/operador/usuarios/participantes', etiqueta: 'Participantes' },
       { destino: '/operador/perfil', etiqueta: 'Mi perfil' }

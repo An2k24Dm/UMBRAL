@@ -10,7 +10,7 @@ namespace JuegosServicio.Api.Controladores;
 
 [ApiController]
 [Route("api/juegos/trivias")]
-[Authorize(Policy = "PoliticaOperador")]
+[Authorize]
 public sealed class TriviasControlador : ControllerBase
 {
     private readonly IMediator _mediador;
@@ -22,6 +22,7 @@ public sealed class TriviasControlador : ControllerBase
 
     // HU15 — Crear trivia (cascarón inicial en estado Borrador).
     [HttpPost]
+    [Authorize(Policy = "PoliticaAdministrador")]
     [ProducesResponseType(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -35,8 +36,11 @@ public sealed class TriviasControlador : ControllerBase
         return Created($"/api/juegos/trivias/{triviaId}", new { id = triviaId });
     }
 
-    // HU15 — Detalle completo de una trivia (con preguntas y opciones).
+    // HU15 / HU34 — Detalle completo de una trivia (con preguntas y
+    // opciones). El Operador necesita poder consultarlo para que
+    // sesiones-servicio pueda armar el detalle de una sesión de Trivia.
     [HttpGet("{triviaId:guid}")]
+    [Authorize(Policy = "PoliticaOperador")]
     [ProducesResponseType(typeof(TriviaDetalleDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -48,8 +52,9 @@ public sealed class TriviasControlador : ControllerBase
         return Ok(resultado);
     }
 
-    // HU15 — Listar trivias en borrador. Admin ve todas; Operador ve solo las suyas.
+    // HU15 — Listar trivias en borrador (gestión interna del catálogo).
     [HttpGet("borrador")]
+    [Authorize(Policy = "PoliticaAdministrador")]
     [ProducesResponseType(typeof(List<TriviaResumenDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -62,6 +67,7 @@ public sealed class TriviasControlador : ControllerBase
 
     // HU18 — Activar trivia (Borrador → Activa).
     [HttpPatch("{triviaId:guid}/activar")]
+    [Authorize(Policy = "PoliticaAdministrador")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -76,6 +82,7 @@ public sealed class TriviasControlador : ControllerBase
 
     // HU19 — Modificar datos generales de una trivia.
     [HttpPut("{triviaId:guid}")]
+    [Authorize(Policy = "PoliticaAdministrador")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -93,6 +100,7 @@ public sealed class TriviasControlador : ControllerBase
 
     // HU20 — Archivar trivia (soft delete).
     [HttpDelete("{triviaId:guid}")]
+    [Authorize(Policy = "PoliticaAdministrador")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -105,8 +113,8 @@ public sealed class TriviasControlador : ControllerBase
         return NoContent();
     }
 
-    // HU20 — Listar trivias activas (para selección en sesiones de juego).
     [HttpGet("activas")]
+    [Authorize(Policy = "PoliticaOperador")]
     [ProducesResponseType(typeof(List<TriviaResumenDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -118,6 +126,7 @@ public sealed class TriviasControlador : ControllerBase
 
     // HU16 — Agregar pregunta a una trivia en borrador.
     [HttpPost("{triviaId:guid}/preguntas")]
+    [Authorize(Policy = "PoliticaAdministrador")]
     [ProducesResponseType(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -138,6 +147,7 @@ public sealed class TriviasControlador : ControllerBase
 
     // HU17 — Modificar una pregunta de una trivia en borrador.
     [HttpPut("{triviaId:guid}/preguntas/{preguntaId:guid}")]
+    [Authorize(Policy = "PoliticaAdministrador")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -156,6 +166,7 @@ public sealed class TriviasControlador : ControllerBase
 
     // HU17 — Eliminar una pregunta de una trivia en borrador.
     [HttpDelete("{triviaId:guid}/preguntas/{preguntaId:guid}")]
+    [Authorize(Policy = "PoliticaAdministrador")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]

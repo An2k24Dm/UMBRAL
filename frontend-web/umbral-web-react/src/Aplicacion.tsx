@@ -191,63 +191,6 @@ export function Aplicacion() {
           </RutaProtegida>
         }
       />
-      {/* HU15 — Listar trivias en borrador. */}
-      <Route
-        path="/operador/trivias"
-        element={
-          <RutaProtegida rolesPermitidos={['Operador']}>
-            <PaginaListaTrivias />
-          </RutaProtegida>
-        }
-      />
-      {/* HU15 — Crear trivia. */}
-      <Route
-        path="/operador/trivias/crear"
-        element={
-          <RutaProtegida rolesPermitidos={['Operador']}>
-            <PaginaCrearTrivia />
-          </RutaProtegida>
-        }
-      />
-      <Route path="/operador/trivias/activas" element={<Navigate to="/operador/trivias" replace />} />
-      {/* HU16/HU17 — Gestionar preguntas de una trivia. */}
-      <Route
-        path="/operador/trivias/:triviaId/preguntas"
-        element={
-          <RutaProtegida rolesPermitidos={['Operador']}>
-            <PaginaGestionPreguntas />
-          </RutaProtegida>
-        }
-      />
-      <Route path="/operador/busquedas/activas" element={<Navigate to="/operador/busquedas" replace />} />
-
-      {/* HU21 — Listar búsquedas del tesoro en borrador. */}
-      <Route
-        path="/operador/busquedas"
-        element={
-          <RutaProtegida rolesPermitidos={['Operador']}>
-            <PaginaListaBusquedas />
-          </RutaProtegida>
-        }
-      />
-      {/* HU21 — Crear búsqueda del tesoro. */}
-      <Route
-        path="/operador/busquedas/crear"
-        element={
-          <RutaProtegida rolesPermitidos={['Operador']}>
-            <PaginaCrearBusqueda />
-          </RutaProtegida>
-        }
-      />
-      {/* HU22 — Gestionar etapas de una búsqueda del tesoro. */}
-      <Route
-        path="/operador/busquedas/:busquedaId/etapas"
-        element={
-          <RutaProtegida rolesPermitidos={['Operador']}>
-            <PaginaGestionEtapas />
-          </RutaProtegida>
-        }
-      />
 
       {/* HU33 — Sesiones en vivo (Administrador). */}
       <Route

@@ -50,6 +50,10 @@ public static class RegistroSeguridad
             opciones.AddPolicy("PoliticaOperador", p =>
                 p.RequireAuthenticatedUser()
                  .RequireRole("Operador", "Administrador"));
+
+            opciones.AddPolicy("PoliticaAdministrador", p =>
+                p.RequireAuthenticatedUser()
+                 .RequireRole("Administrador"));
         });
 
         return servicios;
