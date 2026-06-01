@@ -7,6 +7,11 @@ namespace SesionesServicio.Aplicacion.Validaciones;
 // requieren acceso a sistemas externos (existencia y estado del
 // contenido, identidad/rol del usuario actual) viven en el manejador
 // porque dependen de puertos inyectados.
+//
+// HU34 — la regla "FechaProgramada debe ser futura" NO vive aquí. Es
+// una política de dominio (PoliticaProgramacionSesion); el manejador
+// la invoca con la hora actual obtenida de IProveedorFechaHora. Acá
+// sólo verificamos que el campo venga informado (no `default`).
 public sealed class ValidadorCrearSesion : ValidadorBase<CrearSesionComando>
 {
     private const int LongitudMinimaNombre = 3;

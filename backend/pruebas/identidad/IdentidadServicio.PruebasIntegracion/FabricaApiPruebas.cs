@@ -21,11 +21,24 @@ public sealed class FabricaApiPruebas : WebApplicationFactory<Program>
 
         constructor.ConfigureServices(servicios =>
         {
-            var descCtx = servicios.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<ContextoIdentidad>));
-            if (descCtx is not null) servicios.Remove(descCtx);
+            var aRemover = servicios.Where(d =>
+                d.ServiceType == typeof(DbContextOptions<ContextoIdentidad>) ||
+                d.ServiceType == typeof(DbContextOptions) ||
+                d.ServiceType == typeof(ContextoIdentidad) ||
+                (d.ServiceType.FullName?.Contains("EntityFrameworkCore", StringComparison.Ordinal) ?? false) ||
+                (d.ImplementationType?.FullName?.Contains("Npgsql", StringComparison.Ordinal) ?? false))
+                .ToList();
+            foreach (var d in aRemover) servicios.Remove(d);
+
+            var providerInMemory = new ServiceCollection()
+                .AddEntityFrameworkInMemoryDatabase()
+                .BuildServiceProvider();
 
             servicios.AddDbContext<ContextoIdentidad>(opciones =>
-                opciones.UseInMemoryDatabase(_nombreBaseDatos));
+            {
+                opciones.UseInMemoryDatabase(_nombreBaseDatos);
+                opciones.UseInternalServiceProvider(providerInMemory);
+            });
 
             var descProv = servicios.SingleOrDefault(d => d.ServiceType == typeof(IProveedorIdentidad));
             if (descProv is not null) servicios.Remove(descProv);
@@ -49,15 +62,8 @@ public sealed class FabricaApiPruebas : WebApplicationFactory<Program>
         });
     }
 
-    // HU09 — id del Operador sembrado, expuesto para que las pruebas de
-    // integración puedan apuntar al endpoint PATCH /api/usuarios/operadores/{id}
-    // sin tener que crearlo previamente.
     public static readonly Guid IdOperadorSembrado = Guid.Parse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
 
-    // HU10 — IdKeycloak del Participante activo sembrado, usado por las
-    // pruebas de integración del endpoint PATCH /api/usuarios/participantes/perfil.
-    // El AuthHandlerPruebas emite este sub como NameIdentifier vía la
-    // cabecera X-IdKeycloak-Prueba.
     public const string IdKeycloakParticipanteSembrado = "kc-par-activo";
 
     private static void Sembrar(ContextoIdentidad contexto)
@@ -91,8 +97,6 @@ public sealed class FabricaApiPruebas : WebApplicationFactory<Program>
                 Rol = (int)RolUsuario.Operador, Estado = (int)EstadoUsuario.Activo, FechaRegistro = ahora
             });
 
-        // Teléfonos únicos sembrados: HU02 añade índice único sobre persona.telefono.
-        // Direcciones y teléfonos válidos: HU02 hace que DatosContacto sea estricto.
         var pAdmin = new PersonaModelo
         {
             Id = Guid.NewGuid(), UsuarioId = idAdmin,

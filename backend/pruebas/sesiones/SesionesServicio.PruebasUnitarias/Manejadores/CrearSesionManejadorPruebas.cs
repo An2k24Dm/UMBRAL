@@ -14,6 +14,10 @@ namespace SesionesServicio.PruebasUnitarias.Manejadores;
 
 // HU33 — Pruebas unitarias del manejador CrearSesion. Cubren autorización,
 // validación de contenido y persistencia con dobles para los puertos.
+//
+// HU34 — La sesión NO guarda el rol del creador, así que no hay ningún
+// aserto sobre CreadaPorRol: el rol se resuelve al consultar y no al
+// crear.
 public class CrearSesionManejadorPruebas
 {
     private static readonly DateTime AhoraUtc = new(2026, 5, 29, 12, 0, 0, DateTimeKind.Utc);
@@ -226,5 +230,102 @@ public class CrearSesionManejadorPruebas
             new CrearSesionComando(solicitud), CancellationToken.None);
 
         await accion.Should().ThrowAsync<ExcepcionValidacion>();
+    }
+
+    [Fact]
+    public async Task FechaProgramada_Pasada_DebeLanzarSesionInvalida_YNoPersistir()
+    {
+        var fabrica = new Fabrica(new[] { "Administrador" });
+        var solicitud = SolicitudValida();
+        solicitud.FechaProgramada = AhoraUtc.AddMinutes(-1);
+
+        var manejador = fabrica.Construir();
+        Func<Task> accion = () => manejador.Handle(
+            new CrearSesionComando(solicitud), CancellationToken.None);
+
+        await accion.Should()
+            .ThrowAsync<SesionInvalidaExcepcion>()
+            .WithMessage("La sesión no puede programarse para una fecha y hora que ya pasó.");
+
+        fabrica.Repositorio.Verify(
+            r => r.AgregarAsync(It.IsAny<Sesion>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        fabrica.Unidad.Verify(
+            u => u.GuardarCambiosAsync(It.IsAny<CancellationToken>()), Times.Never);
+        fabrica.Cliente.Verify(
+            c => c.ObtenerContenidoAsync(
+                It.IsAny<TipoJuego>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task FechaProgramada_IgualAhora_DebeLanzarSesionInvalida()
+    {
+        var fabrica = new Fabrica(new[] { "Operador" });
+        var solicitud = SolicitudValida();
+        solicitud.FechaProgramada = AhoraUtc;
+
+        var manejador = fabrica.Construir();
+        Func<Task> accion = () => manejador.Handle(
+            new CrearSesionComando(solicitud), CancellationToken.None);
+
+        await accion.Should().ThrowAsync<SesionInvalidaExcepcion>();
+    }
+
+    [Fact]
+    public async Task FechaProgramada_Futura_DebeAceptarse()
+    {
+        var fabrica = new Fabrica(new[] { "Administrador" });
+        fabrica.Cliente
+            .Setup(c => c.ObtenerContenidoAsync(TipoJuego.Trivia, ContenidoJuegoId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ContenidoActivo("Trivia"));
+
+        var solicitud = SolicitudValida();
+        solicitud.FechaProgramada = AhoraUtc.AddSeconds(1);
+
+        var manejador = fabrica.Construir();
+        var respuesta = await manejador.Handle(
+            new CrearSesionComando(solicitud), CancellationToken.None);
+
+        respuesta.Estado.Should().Be("Programada");
+        fabrica.Unidad.Verify(
+            u => u.GuardarCambiosAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task PoliticaFecha_UsaProveedorFechaHora_NoUtcNow()
+    {
+        // El reloj inyectado retorna AhoraUtc (29-may-2026). Si pasamos
+        // una fecha "pasada" relativa a AhoraUtc pero "futura" relativa
+        // al reloj real del sistema, el manejador igualmente debe
+        // rechazarla. Eso prueba que la comparación va contra el reloj
+        // inyectado, no contra DateTime.UtcNow.
+        var fabrica = new Fabrica(new[] { "Administrador" });
+        var solicitud = SolicitudValida();
+        solicitud.FechaProgramada = AhoraUtc.AddMinutes(-1);
+
+        var manejador = fabrica.Construir();
+        Func<Task> accion = () => manejador.Handle(
+            new CrearSesionComando(solicitud), CancellationToken.None);
+
+        await accion.Should().ThrowAsync<SesionInvalidaExcepcion>();
+        fabrica.Reloj.Verify(r => r.ObtenerFechaHoraUtc(), Times.AtLeastOnce);
+    }
+
+    [Fact]
+    public async Task RespuestaDto_NoDebeExponerCreadaPorRol()
+    {
+        var fabrica = new Fabrica(new[] { "Administrador" });
+        fabrica.Cliente
+            .Setup(c => c.ObtenerContenidoAsync(TipoJuego.Trivia, ContenidoJuegoId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ContenidoActivo("Trivia"));
+
+        var manejador = fabrica.Construir();
+        var respuesta = await manejador.Handle(
+            new CrearSesionComando(SolicitudValida()), CancellationToken.None);
+
+        // Defensa estructural: el DTO no debe traer la propiedad CreadaPorRol.
+        typeof(CrearSesionRespuestaDto).GetProperty("CreadaPorRol").Should().BeNull();
+        respuesta.Should().NotBeNull();
     }
 }

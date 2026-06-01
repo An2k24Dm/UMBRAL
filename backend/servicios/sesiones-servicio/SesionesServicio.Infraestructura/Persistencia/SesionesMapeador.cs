@@ -9,6 +9,10 @@ namespace SesionesServicio.Infraestructura.Persistencia;
 // no Mapster. La dirección dominio → modelo no necesita encapsulación;
 // se hace con un proyector manual para mantener el código a la vista
 // y evitar cualquier sorpresa por convenciones de mapeo automático.
+//
+// Rehidratar reconstruye además el ConcreteState del patrón State
+// (via FabricaEstadoSesion). _estadoActual NO se persiste; sólo el
+// enum Estado.
 public static class SesionesMapeador
 {
     public static SesionModelo HaciaModelo(Sesion sesion) => new()

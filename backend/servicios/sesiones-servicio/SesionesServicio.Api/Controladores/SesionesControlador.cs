@@ -35,23 +35,64 @@ public sealed class SesionesControlador : ControllerBase
         return Created($"/api/sesiones/{resultado.Id}", resultado);
     }
 
-    // HU33 — Listado de sesiones para el panel del Operador/Administrador.
+    // HU34 — Listado de sesiones con visibilidad por rol y filtros
+    // opcionales por tipo de juego y estado. La regla de visibilidad
+    // (Administrador ve todo, Operador ve propias + creadas por
+    // Administrador) la aplica el manejador en base de datos.
     [HttpGet]
     [ProducesResponseType(typeof(List<SesionListadoDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    public async Task<IActionResult> ListarSesiones(CancellationToken cancelacion)
+    public async Task<IActionResult> ListarSesiones(
+        [FromQuery] string? tipoJuego,
+        [FromQuery] string? estado,
+        CancellationToken cancelacion)
     {
-        var resultado = await _mediador.Send(new ListarSesionesConsulta(), cancelacion);
+        TipoJuego? tipoJuegoFiltro = null;
+        if (!string.IsNullOrWhiteSpace(tipoJuego))
+        {
+            if (!Enum.TryParse<TipoJuego>(tipoJuego, ignoreCase: true, out var tj)
+                || !Enum.IsDefined(typeof(TipoJuego), tj))
+            {
+                return BadRequest(new
+                {
+                    codigo = "TIPO_JUEGO_INVALIDO",
+                    mensaje = "El tipo de juego debe ser Trivia o BusquedaTesoro."
+                });
+            }
+            tipoJuegoFiltro = tj;
+        }
+
+        EstadoSesion? estadoFiltro = null;
+        if (!string.IsNullOrWhiteSpace(estado))
+        {
+            if (!Enum.TryParse<EstadoSesion>(estado, ignoreCase: true, out var es)
+                || !Enum.IsDefined(typeof(EstadoSesion), es))
+            {
+                return BadRequest(new
+                {
+                    codigo = "ESTADO_SESION_INVALIDO",
+                    mensaje = "El estado debe ser Programada, EnPreparacion, Activa, Pausada, Finalizada o Cancelada."
+                });
+            }
+            estadoFiltro = es;
+        }
+
+        var resultado = await _mediador.Send(
+            new ListarSesionesConsulta(tipoJuegoFiltro, estadoFiltro), cancelacion);
         return Ok(resultado);
     }
 
-    // HU33 — Detalle de una sesión por identificador.
+    // HU34 — Detalle de una sesión por identificador, con visibilidad
+    // por rol y el contenido (Trivia o Búsqueda) traído desde
+    // juegos-servicio.
     [HttpGet("{id:guid}")]
     [ProducesResponseType(typeof(SesionDetalleDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> ObtenerSesion(Guid id, CancellationToken cancelacion)
     {
         var resultado = await _mediador.Send(new ObtenerSesionPorIdConsulta(id), cancelacion);

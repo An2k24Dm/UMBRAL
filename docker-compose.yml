@@ -169,6 +169,7 @@ services:
       ConnectionStrings__BaseDatos: "Host=postgres-sesiones;Port=5432;Database=umbral_sesiones;Username=umbral;Password=umbral123"
       Keycloak__Authority: "http://keycloak:8080/realms/umbral"
       ServiciosExternos__JuegosServicio__Url: "http://juegos-servicio:8080"
+      ServiciosExternos__IdentidadServicio__Url: "http://identidad-servicio:8080"
       Cors__OrigenesPermitidos__0: "http://localhost:3000"
       Cors__OrigenesPermitidos__1: "http://localhost:5173"
     ports:

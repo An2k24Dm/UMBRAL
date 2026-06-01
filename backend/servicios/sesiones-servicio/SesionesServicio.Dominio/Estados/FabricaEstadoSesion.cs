@@ -1,28 +1,25 @@
 using SesionesServicio.Dominio.Abstract;
 using SesionesServicio.Dominio.Enums;
+using SesionesServicio.Dominio.Excepciones;
 
 namespace SesionesServicio.Dominio.Estados;
 
-// Devuelve la implementación de IEstadoSesion correspondiente al valor
-// actual del enum EstadoSesion. Los estados son sin estado (stateless)
-// y reentrantes, por eso se cachean como instancias estáticas.
+// Reconstruye el ConcreteState del patrón State a partir del valor del
+// enum EstadoSesion guardado en persistencia. La usa Sesion.Crear para
+// inicializar el estado y Sesion.Rehidratar para reconstruir el estado
+// desde la base de datos.
 public static class FabricaEstadoSesion
 {
-    private static readonly IEstadoSesion Programada = new EstadoSesionProgramada();
-    private static readonly IEstadoSesion EnPreparacion = new EstadoSesionEnPreparacion();
-    private static readonly IEstadoSesion Activa = new EstadoSesionActiva();
-    private static readonly IEstadoSesion Pausada = new EstadoSesionPausada();
-    private static readonly IEstadoSesion Finalizada = new EstadoSesionFinalizada();
-    private static readonly IEstadoSesion Cancelada = new EstadoSesionCancelada();
-
-    public static IEstadoSesion Obtener(EstadoSesion estado) => estado switch
+    public static IEstadoSesion Crear(EstadoSesion estado) => estado switch
     {
-        EstadoSesion.Programada => Programada,
-        EstadoSesion.EnPreparacion => EnPreparacion,
-        EstadoSesion.Activa => Activa,
-        EstadoSesion.Pausada => Pausada,
-        EstadoSesion.Finalizada => Finalizada,
-        EstadoSesion.Cancelada => Cancelada,
-        _ => throw new ArgumentOutOfRangeException(nameof(estado), estado, "Estado de sesión no soportado.")
+        EstadoSesion.Programada => new EstadoSesionProgramada(),
+        EstadoSesion.EnPreparacion => new EstadoSesionEnPreparacion(),
+        EstadoSesion.Activa => new EstadoSesionActiva(),
+        EstadoSesion.Pausada => new EstadoSesionPausada(),
+        EstadoSesion.Finalizada => new EstadoSesionFinalizada(),
+        EstadoSesion.Cancelada => new EstadoSesionCancelada(),
+        _ => throw new TransicionEstadoSesionInvalidaExcepcion(
+            estado, "Crear",
+            "El estado de la sesión no es válido.")
     };
 }
