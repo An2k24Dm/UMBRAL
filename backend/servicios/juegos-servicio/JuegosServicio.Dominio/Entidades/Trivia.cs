@@ -63,6 +63,9 @@ public sealed class Trivia
     {
         _estado.ValidarEdicion("agregar preguntas");
 
+        if (_preguntas.Count >= 20)
+            throw new ExcepcionDominio("La trivia no puede tener más de 20 preguntas.");
+
         var pregunta = Pregunta.Crear(Id, enunciado, puntaje, opciones);
         _preguntas.Add(pregunta);
         return pregunta;

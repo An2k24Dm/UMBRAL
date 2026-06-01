@@ -62,7 +62,7 @@ public class PreguntaPruebas
     }
 
     [Fact]
-    public void AgregarPregunta_ConDatosValidos_MarcaOpcionCorrectaCorrectamente()
+    public void AgregarPregunta_ConDatosValidos_MarcaUnicaOpcionCorrectaCorrectamente()
     {
         var trivia = TriviaEnBorrador();
 
@@ -84,16 +84,43 @@ public class PreguntaPruebas
         accion.Should().Throw<ExcepcionDominio>();
     }
 
+    // Regla: puntaje múltiplo de 5, máximo 100
     [Theory]
     [InlineData(0)]
     [InlineData(-5)]
-    public void AgregarPregunta_PuntajeMenorOIgualACero_LanzaExcepcionDominio(int puntaje)
+    [InlineData(3)]
+    [InlineData(7)]
+    [InlineData(11)]
+    public void AgregarPregunta_PuntajeNoMultiploDe5_LanzaExcepcionDominio(int puntaje)
     {
         var trivia = TriviaEnBorrador();
 
         Action accion = () => trivia.AgregarPregunta("¿Pregunta?", puntaje, OpcionesValidas());
 
         accion.Should().Throw<ExcepcionDominio>();
+    }
+
+    [Fact]
+    public void AgregarPregunta_PuntajeMayorA100_LanzaExcepcionDominio()
+    {
+        var trivia = TriviaEnBorrador();
+
+        Action accion = () => trivia.AgregarPregunta("¿Pregunta?", 105, OpcionesValidas());
+
+        accion.Should().Throw<ExcepcionDominio>();
+    }
+
+    [Theory]
+    [InlineData(5)]
+    [InlineData(50)]
+    [InlineData(100)]
+    public void AgregarPregunta_PuntajeValidoMultiploDe5_NoLanzaExcepcion(int puntaje)
+    {
+        var trivia = TriviaEnBorrador();
+
+        Action accion = () => trivia.AgregarPregunta("¿Pregunta?", puntaje, OpcionesValidas());
+
+        accion.Should().NotThrow();
     }
 
     [Fact]
@@ -116,6 +143,43 @@ public class PreguntaPruebas
         Action accion = () => trivia.AgregarPregunta("¿Pregunta?", 10, sinCorrecta);
 
         accion.Should().Throw<ExcepcionDominio>();
+    }
+
+    // Regla: una sola respuesta correcta
+    [Fact]
+    public void AgregarPregunta_MasDeUnaOpcionCorrecta_LanzaExcepcionDominio()
+    {
+        var trivia = TriviaEnBorrador();
+        var dosCorrectas = new[] { ("París", true), ("Madrid", true), ("Roma", false) };
+
+        Action accion = () => trivia.AgregarPregunta("¿Pregunta?", 10, dosCorrectas);
+
+        accion.Should().Throw<ExcepcionDominio>();
+    }
+
+    // Regla: máximo 20 preguntas
+    [Fact]
+    public void AgregarPregunta_Mas20Preguntas_LanzaExcepcionDominio()
+    {
+        var trivia = TriviaEnBorrador();
+        for (var i = 1; i <= 20; i++)
+            trivia.AgregarPregunta($"Pregunta {i}", 5, OpcionesValidas());
+
+        Action accion = () => trivia.AgregarPregunta("Pregunta 21", 5, OpcionesValidas());
+
+        accion.Should().Throw<ExcepcionDominio>();
+    }
+
+    [Fact]
+    public void AgregarPregunta_Exactamente20Preguntas_NoLanzaExcepcion()
+    {
+        var trivia = TriviaEnBorrador();
+        for (var i = 1; i <= 19; i++)
+            trivia.AgregarPregunta($"Pregunta {i}", 5, OpcionesValidas());
+
+        Action accion = () => trivia.AgregarPregunta("Pregunta 20", 5, OpcionesValidas());
+
+        accion.Should().NotThrow();
     }
 
     [Fact]

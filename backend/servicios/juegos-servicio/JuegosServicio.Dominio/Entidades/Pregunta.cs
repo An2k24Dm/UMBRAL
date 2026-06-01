@@ -22,14 +22,18 @@ public sealed class Pregunta
     {
         if (string.IsNullOrWhiteSpace(enunciado))
             throw new ExcepcionDominio("El enunciado de la pregunta es obligatorio.");
-        if (puntaje <= 0)
-            throw new ExcepcionDominio("El puntaje asignado debe ser mayor a cero.");
+        if (puntaje <= 0 || puntaje % 5 != 0)
+            throw new ExcepcionDominio("El puntaje debe ser un múltiplo de 5 (5, 10, 15… 100).");
+        if (puntaje > 100)
+            throw new ExcepcionDominio("El puntaje máximo por pregunta es 100.");
 
         var listaOpciones = opciones.ToList();
         if (listaOpciones.Count < 2)
             throw new ExcepcionDominio("La pregunta debe tener al menos dos opciones.");
         if (!listaOpciones.Any(o => o.EsCorrecta))
-            throw new ExcepcionDominio("Al menos una opción debe estar marcada como correcta.");
+            throw new ExcepcionDominio("La pregunta debe tener exactamente una opción correcta.");
+        if (listaOpciones.Count(o => o.EsCorrecta) > 1)
+            throw new ExcepcionDominio("La pregunta solo puede tener una opción correcta.");
 
         var preguntaId = Guid.NewGuid();
         var pregunta = new Pregunta
@@ -55,7 +59,9 @@ public sealed class Pregunta
         if (lista.Count < 2)
             throw new ExcepcionDominio("La pregunta debe tener al menos dos opciones.");
         if (!lista.Any(o => o.EsCorrecta))
-            throw new ExcepcionDominio("Al menos una opción debe estar marcada como correcta.");
+            throw new ExcepcionDominio("La pregunta debe tener exactamente una opción correcta.");
+        if (lista.Count(o => o.EsCorrecta) > 1)
+            throw new ExcepcionDominio("La pregunta solo puede tener una opción correcta.");
 
         Enunciado = nuevoEnunciado.Trim();
         _opciones.Clear();

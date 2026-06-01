@@ -35,7 +35,6 @@ interface FormPregunta {
 
 interface ErroresPregunta {
   enunciado?: string
-  puntajeAsignado?: string
   opciones?: string
 }
 
@@ -62,15 +61,14 @@ function validarPregunta(form: FormPregunta): ErroresPregunta {
   const err: ErroresPregunta = {}
   if (!form.enunciado.trim()) err.enunciado = 'El enunciado es obligatorio.'
   else if (form.enunciado.trim().length > 500) err.enunciado = 'Máximo 500 caracteres.'
-  const puntaje = Number(form.puntajeAsignado)
-  if (!form.puntajeAsignado || isNaN(puntaje) || puntaje <= 0)
-    err.puntajeAsignado = 'El puntaje debe ser mayor a 0.'
   if (form.opciones.length < 2)
     err.opciones = 'La pregunta debe tener al menos dos opciones.'
   else if (form.opciones.some((o) => !o.texto.trim()))
     err.opciones = 'Todas las opciones deben tener texto.'
   else if (!form.opciones.some((o) => o.esCorrecta))
-    err.opciones = 'Al menos una opción debe estar marcada como correcta.'
+    err.opciones = 'Debe haber exactamente una opción correcta.'
+  else if (form.opciones.filter((o) => o.esCorrecta).length > 1)
+    err.opciones = 'Solo puede haber una opción correcta.'
   return err
 }
 
@@ -175,7 +173,6 @@ export function PaginaGestionPreguntas() {
 
   function cambiarPuntaje(valor: string) {
     setForm((p) => ({ ...p, puntajeAsignado: valor }))
-    if (erroresForm.puntajeAsignado) setErroresForm((p) => ({ ...p, puntajeAsignado: undefined }))
   }
 
   function cambiarOpcionTexto(key: string, valor: string) {
@@ -189,7 +186,7 @@ export function PaginaGestionPreguntas() {
   function cambiarOpcionCorrecta(key: string) {
     setForm((p) => ({
       ...p,
-      opciones: p.opciones.map((o) => o._key === key ? { ...o, esCorrecta: !o.esCorrecta } : o)
+      opciones: p.opciones.map((o) => ({ ...o, esCorrecta: o._key === key }))
     }))
     if (erroresForm.opciones) setErroresForm((p) => ({ ...p, opciones: undefined }))
   }
@@ -510,16 +507,17 @@ export function PaginaGestionPreguntas() {
               <CampoFormulario
                 etiqueta="Puntaje asignado"
                 htmlFor="puntaje"
-                error={erroresForm.puntajeAsignado}
               >
-                <input
+                <select
                   id="puntaje"
-                  type="number"
-                  min={1}
                   value={form.puntajeAsignado}
                   onChange={(e) => cambiarPuntaje(e.target.value)}
                   disabled={enviando}
-                />
+                >
+                  {Array.from({ length: 20 }, (_, i) => (i + 1) * 5).map((pts) => (
+                    <option key={pts} value={String(pts)}>{pts} pts</option>
+                  ))}
+                </select>
               </CampoFormulario>
 
               <div className="campo">
