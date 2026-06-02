@@ -6,7 +6,7 @@ import { Boton } from '../componentes/Boton'
 import {
   obtenerTriviasEnBorrador,
   obtenerTriviasActivas,
-  archivarTrivia,
+  desactivarTrivia,
   activarTrivia,
   type TriviaResumenDto
 } from '../autenticacion/clienteApiJuegos'
@@ -75,7 +75,7 @@ export function PaginaListaTrivias() {
     if (!token) return
     setProcesandoId(triviaId)
     setMensajeError(null)
-    try { await archivarTrivia(triviaId, token); await cargar() }
+    try { await desactivarTrivia(triviaId, token); await cargar() }
     catch (err) { setMensajeError(err instanceof Error ? err.message : 'No fue posible desactivar la trivia.') }
     finally { setProcesandoId(null) }
   }

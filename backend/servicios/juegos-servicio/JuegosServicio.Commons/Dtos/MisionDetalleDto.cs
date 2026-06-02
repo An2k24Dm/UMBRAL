@@ -7,4 +7,5 @@ public sealed class MisionDetalleDto
     public string Descripcion { get; set; } = default!;
     public string Tipo { get; set; } = default!;
     public string PistaClave { get; set; } = default!;
+    public List<PistaDetalleDto> Pistas { get; set; } = new();
 }

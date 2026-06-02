@@ -1,124 +1,94 @@
-using JuegosServicio.Dominio.Entidades;
+﻿using JuegosServicio.Dominio.Entidades;
 using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Dominio.Excepciones;
 
 namespace JuegosServicio.PruebasUnitarias.Dominio;
 
-// HU28: pruebas del aggregate root BusquedaTesoro.AgregarPistaAEtapa y la entidad Pista.
+// HU28: pruebas de BusquedaTesoro.AgregarPistaAMision y la entidad Pista.
 public class PistaPruebas
 {
     private static readonly DateTime FechaFija =
         new(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc);
 
-    private static BusquedaTesoro BusquedaConEtapa(out Guid etapaId)
+    private static BusquedaTesoro BusquedaConMision()
     {
-        var busqueda = BusquedaTesoro.Crear(
-            "Búsqueda Test", "Descripción", Guid.NewGuid(), FechaFija);
-        var etapa = busqueda.AgregarEtapa("Etapa 1", "Primera etapa");
-        etapaId = etapa.Id;
+        var busqueda = BusquedaTesoro.Crear("Búsqueda Test", "Descripción", Guid.NewGuid(), FechaFija);
+        busqueda.AsignarMision("Busca el cofre", "Primera misión", TipoMision.PalabraClave, "cofre_norte");
         return busqueda;
     }
 
     [Fact]
-    public void AgregarPistaAEtapa_ConContenidoValido_RetornaPistaConIdNoVacio()
+    public void AgregarPistaAMision_ConContenidoValido_RetornaPistaConIdNoVacio()
     {
-        var busqueda = BusquedaConEtapa(out var etapaId);
+        var busqueda = BusquedaConMision();
 
-        var pista = busqueda.AgregarPistaAEtapa(etapaId, "Busca el árbol más alto del parque.");
+        var pista = busqueda.AgregarPistaAMision("Busca el árbol más alto del parque.");
 
         pista.Id.Should().NotBe(Guid.Empty);
     }
 
     [Fact]
-    public void AgregarPistaAEtapa_ConContenidoValido_AsignaEtapaId()
+    public void AgregarPistaAMision_ConContenidoValido_AsignaMisionId()
     {
-        var busqueda = BusquedaConEtapa(out var etapaId);
+        var busqueda = BusquedaConMision();
 
-        var pista = busqueda.AgregarPistaAEtapa(etapaId, "Pista de prueba.");
+        var pista = busqueda.AgregarPistaAMision("Pista de prueba.");
 
-        pista.EtapaId.Should().Be(etapaId);
+        pista.MisionId.Should().Be(busqueda.Mision!.Id);
     }
 
     [Fact]
-    public void AgregarPistaAEtapa_ConContenidoValido_AparecerEnListaDePistas()
+    public void AgregarPistaAMision_VariosPistas_AparecenEnListaDePistas()
     {
-        var busqueda = BusquedaConEtapa(out var etapaId);
+        var busqueda = BusquedaConMision();
 
-        busqueda.AgregarPistaAEtapa(etapaId, "Pista 1.");
-        busqueda.AgregarPistaAEtapa(etapaId, "Pista 2.");
+        busqueda.AgregarPistaAMision("Pista 1.");
+        busqueda.AgregarPistaAMision("Pista 2.");
 
-        var etapa = busqueda.Etapas.First(e => e.Id == etapaId);
-        etapa.Pistas.Should().HaveCount(2);
+        busqueda.Mision!.Pistas.Should().HaveCount(2);
     }
 
     [Theory]
     [InlineData("")]
     [InlineData("   ")]
-    public void AgregarPistaAEtapa_ContenidoVacioOEspacios_LanzaExcepcionDominio(string contenido)
+    public void AgregarPistaAMision_ContenidoVacioOEspacios_LanzaExcepcionDominio(string contenido)
     {
-        var busqueda = BusquedaConEtapa(out var etapaId);
+        var busqueda = BusquedaConMision();
 
-        Action accion = () => busqueda.AgregarPistaAEtapa(etapaId, contenido);
-
-        accion.Should().Throw<ExcepcionDominio>();
-    }
-
-    // Regla: máximo 5 pistas por etapa
-    [Fact]
-    public void AgregarPistaAEtapa_Mas5Pistas_LanzaExcepcionDominio()
-    {
-        var busqueda = BusquedaConEtapa(out var etapaId);
-        for (var i = 1; i <= 5; i++)
-            busqueda.AgregarPistaAEtapa(etapaId, $"Pista {i}.");
-
-        Action accion = () => busqueda.AgregarPistaAEtapa(etapaId, "Pista 6.");
+        Action accion = () => busqueda.AgregarPistaAMision(contenido);
 
         accion.Should().Throw<ExcepcionDominio>();
     }
 
     [Fact]
-    public void AgregarPistaAEtapa_Exactamente5Pistas_NoLanzaExcepcion()
+    public void AgregarPistaAMision_SinMisionAsignada_LanzaExcepcionNoEncontrado()
     {
-        var busqueda = BusquedaConEtapa(out var etapaId);
-        for (var i = 1; i <= 4; i++)
-            busqueda.AgregarPistaAEtapa(etapaId, $"Pista {i}.");
+        var busqueda = BusquedaTesoro.Crear("Búsqueda sin misión", "Descripción", Guid.NewGuid(), FechaFija);
 
-        Action accion = () => busqueda.AgregarPistaAEtapa(etapaId, "Pista 5.");
-
-        accion.Should().NotThrow();
-    }
-
-    [Fact]
-    public void AgregarPistaAEtapa_EtapaInexistente_LanzaExcepcionNoEncontrado()
-    {
-        var busqueda = BusquedaConEtapa(out _);
-
-        Action accion = () => busqueda.AgregarPistaAEtapa(Guid.NewGuid(), "Pista válida.");
+        Action accion = () => busqueda.AgregarPistaAMision("Una pista.");
 
         accion.Should().Throw<ExcepcionNoEncontrado>();
     }
 
     [Fact]
-    public void AgregarPistaAEtapa_BusquedaActiva_PermiteAgregarPista()
+    public void AgregarPistaAMision_BusquedaActiva_PermiteAgregarPista()
     {
-        // Las pistas son ayudas en tiempo real: se pueden agregar aunque
-        // la búsqueda esté activa y haya una sesión en curso.
-        var busqueda = BusquedaConEtapa(out var etapaId);
-        busqueda.AgregarMisionAEtapa(etapaId, "Misión", "Desc", TipoMision.PistaTexto, "pista");
+        // Las pistas son ayudas en tiempo real: se pueden agregar aunque la búsqueda esté activa.
+        var busqueda = BusquedaConMision();
         busqueda.Activar();
 
-        var pista = busqueda.AgregarPistaAEtapa(etapaId, "Mira cerca de la fuente.");
+        var pista = busqueda.AgregarPistaAMision("Mira cerca de la fuente.");
 
         pista.Id.Should().NotBe(Guid.Empty);
-        busqueda.Etapas.First(e => e.Id == etapaId).Pistas.Should().HaveCount(1);
+        busqueda.Mision!.Pistas.Should().HaveCount(1);
     }
 
     [Fact]
-    public void AgregarPistaAEtapa_ConEspaciosEnContenido_NormalizaConTrim()
+    public void AgregarPistaAMision_ConEspaciosEnContenido_NormalizaConTrim()
     {
-        var busqueda = BusquedaConEtapa(out var etapaId);
+        var busqueda = BusquedaConMision();
 
-        var pista = busqueda.AgregarPistaAEtapa(etapaId, "  Mira hacia el norte  ");
+        var pista = busqueda.AgregarPistaAMision("  Mira hacia el norte  ");
 
         pista.Contenido.Should().Be("Mira hacia el norte");
     }

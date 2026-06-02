@@ -21,16 +21,12 @@ public sealed class ModificarMisionManejador : IRequestHandler<ModificarMisionCo
             ?? throw new ExcepcionNoEncontrado(
                 $"No se encontró la búsqueda del tesoro con ID '{comando.BusquedaId}'.");
 
-        var tipo = (TipoMision)comando.Dto.NuevoTipo;
         busqueda.ModificarMision(
-            comando.EtapaId, comando.MisionId,
-            comando.Dto.NuevoTitulo, comando.Dto.NuevaDescripcion,
-            tipo, comando.Dto.NuevaPistaClave);
+            comando.Dto.NuevoTitulo,
+            comando.Dto.NuevaDescripcion,
+            (TipoMision)comando.Dto.NuevoTipo,
+            comando.Dto.NuevaPistaClave);
 
-        var mision = busqueda.Etapas
-            .First(e => e.Id == comando.EtapaId)
-            .Misiones.First(m => m.Id == comando.MisionId);
-
-        await _repositorio.ModificarMisionAsync(comando.EtapaId, mision, cancelacion);
+        await _repositorio.ModificarMisionAsync(busqueda.Mision!, cancelacion);
     }
 }

@@ -29,45 +29,40 @@ const ENDPOINTS = {
   modificarTrivia: (triviaId: string) =>
     `/api/juegos/trivias/${encodeURIComponent(triviaId)}`,
   // HU20
-  archivarTrivia: (triviaId: string) =>
+  desactivarTrivia: (triviaId: string) =>
     `/api/juegos/trivias/${encodeURIComponent(triviaId)}`,
   listarActivas: '/api/juegos/trivias/activas',
   // HU21
-  crearBusqueda:       '/api/juegos/busquedas',
+  crearBusqueda:           '/api/juegos/busquedas',
   listarBusquedasBorrador: '/api/juegos/busquedas/borrador',
+  listarBusquedasActivas:  '/api/juegos/busquedas/activas',
   // HU22
   detalleBusqueda: (busquedaId: string) =>
     `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}`,
-  agregarEtapa: (busquedaId: string) =>
-    `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}/etapas`,
-  // HU28
-  agregarPista: (busquedaId: string, etapaId: string) =>
-    `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}/etapas/${encodeURIComponent(etapaId)}/pistas`,
-  // HU30
-  modificarPista: (busquedaId: string, etapaId: string, pistaId: string) =>
-    `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}/etapas/${encodeURIComponent(etapaId)}/pistas/${encodeURIComponent(pistaId)}`,
-  // HU32
-  eliminarPista: (busquedaId: string, etapaId: string, pistaId: string) =>
-    `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}/etapas/${encodeURIComponent(etapaId)}/pistas/${encodeURIComponent(pistaId)}`,
-  // HU23
-  agregarMision: (busquedaId: string, etapaId: string) =>
-    `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}/etapas/${encodeURIComponent(etapaId)}/misiones`,
-  // HU24
-  modificarEtapa: (busquedaId: string, etapaId: string) =>
-    `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}/etapas/${encodeURIComponent(etapaId)}`,
-  eliminarEtapa: (busquedaId: string, etapaId: string) =>
-    `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}/etapas/${encodeURIComponent(etapaId)}`,
+  // HU23 — misión única
+  asignarMision: (busquedaId: string) =>
+    `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}/mision`,
   // HU25
-  modificarMision: (busquedaId: string, etapaId: string, misionId: string) =>
-    `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}/etapas/${encodeURIComponent(etapaId)}/misiones/${encodeURIComponent(misionId)}`,
-  eliminarMision: (busquedaId: string, etapaId: string, misionId: string) =>
-    `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}/etapas/${encodeURIComponent(etapaId)}/misiones/${encodeURIComponent(misionId)}`,
+  modificarMision: (busquedaId: string) =>
+    `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}/mision`,
+  eliminarMision: (busquedaId: string) =>
+    `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}/mision`,
   // HU26
   activarBusqueda: (busquedaId: string) =>
     `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}/activar`,
-  archivarBusqueda: (busquedaId: string) =>
+  desactivarBusqueda: (busquedaId: string) =>
     `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}`,
-  listarBusquedasActivas: '/api/juegos/busquedas/activas'
+  eliminarBusqueda: (busquedaId: string) =>
+    `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}/eliminar`,
+  // HU28 — pistas bajo la misión
+  agregarPista: (busquedaId: string) =>
+    `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}/mision/pistas`,
+  // HU30
+  modificarPista: (busquedaId: string, pistaId: string) =>
+    `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}/mision/pistas/${encodeURIComponent(pistaId)}`,
+  // HU32
+  eliminarPista: (busquedaId: string, pistaId: string) =>
+    `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}/mision/pistas/${encodeURIComponent(pistaId)}`
 }
 
 function auth(token: string) {
@@ -172,7 +167,7 @@ export interface BusquedaTesoroResumenDto {
   nombre: string
   descripcion: string
   estado: string
-  totalEtapas: number
+  tieneMision: boolean
   fechaCreacion: string
 }
 
@@ -181,25 +176,17 @@ export interface DatosCrearBusquedaTesoro {
   descripcion: string
 }
 
+export interface PistaDetalleDto {
+  id: string
+  contenido: string
+}
+
 export interface MisionDetalleDto {
   id: string
   titulo: string
   descripcion: string
   tipo: string
   pistaClave: string
-}
-
-export interface PistaDetalleDto {
-  id: string
-  contenido: string
-}
-
-export interface EtapaDetalleDto {
-  id: string
-  titulo: string
-  descripcion: string
-  orden: number
-  misiones: MisionDetalleDto[]
   pistas: PistaDetalleDto[]
 }
 
@@ -209,12 +196,7 @@ export interface BusquedaTesoroDetalleDto {
   descripcion: string
   estado: string
   fechaCreacion: string
-  etapas: EtapaDetalleDto[]
-}
-
-export interface DatosAgregarEtapa {
-  titulo: string
-  descripcion: string
+  mision: MisionDetalleDto | null
 }
 
 export interface DatosAgregarPista {
@@ -225,9 +207,9 @@ export interface DatosModificarPista {
   nuevoContenido: string
 }
 
-export type TipoMision = 0 | 1 | 2
+export type TipoMision = 0 | 1 | 2 // 0 = CodigoQR, 1 = PalabraClave, 2 = Codigo
 
-export interface DatosAgregarMision {
+export interface DatosAsignarMision {
   titulo: string
   descripcion: string
   tipo: TipoMision
@@ -330,22 +312,21 @@ export async function modificarPregunta(
 }
 
 // ---------------------------------------------------------------------------
-// HU23 — Agregar misión a una etapa
+// HU23 — Asignar la misión única a una búsqueda del tesoro
 // ---------------------------------------------------------------------------
-export async function agregarMision(
+export async function asignarMision(
   busquedaId: string,
-  etapaId: string,
-  datos: DatosAgregarMision,
+  datos: DatosAsignarMision,
   token: string
 ): Promise<string> {
-  const respuesta = await fetch(`${URL_API}${ENDPOINTS.agregarMision(busquedaId, etapaId)}`, {
+  const respuesta = await fetch(`${URL_API}${ENDPOINTS.asignarMision(busquedaId)}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...auth(token) },
     body: JSON.stringify(datos)
   })
   if (respuesta.status === 401) lanzar401('Debe iniciar sesión.')
   if (respuesta.status === 403) throw new Error('No tiene permisos.')
-  if (respuesta.status === 404) throw new Error('Etapa no encontrada.')
+  if (respuesta.status === 404) throw new Error('Búsqueda del tesoro no encontrada.')
   if (!respuesta.ok) throw new Error(await leerError(respuesta))
   const cuerpo = (await respuesta.json()) as { id: string }
   return cuerpo.id
@@ -368,26 +349,6 @@ export async function obtenerDetalleBusqueda(
   return (await respuesta.json()) as BusquedaTesoroDetalleDto
 }
 
-// ---------------------------------------------------------------------------
-// HU22 — Agregar etapa a búsqueda del tesoro
-// ---------------------------------------------------------------------------
-export async function agregarEtapa(
-  busquedaId: string,
-  datos: DatosAgregarEtapa,
-  token: string
-): Promise<string> {
-  const respuesta = await fetch(`${URL_API}${ENDPOINTS.agregarEtapa(busquedaId)}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...auth(token) },
-    body: JSON.stringify(datos)
-  })
-  if (respuesta.status === 401) lanzar401('Debe iniciar sesión.')
-  if (respuesta.status === 403) throw new Error('No tiene permisos.')
-  if (respuesta.status === 404) throw new Error('Búsqueda del tesoro no encontrada.')
-  if (!respuesta.ok) throw new Error(await leerError(respuesta))
-  const cuerpo = (await respuesta.json()) as { id: string }
-  return cuerpo.id
-}
 
 // ---------------------------------------------------------------------------
 // HU21 — Crear búsqueda del tesoro
@@ -430,11 +391,11 @@ export async function obtenerBusquedasEnBorrador(
 // Si la trivia tiene sesiones vigentes asociadas, el backend responde
 // 422 con código CONTENIDO_CON_SESIONES_VIGENTES. Mostramos un mensaje
 // claro y específico en vez del genérico "ocurrió un error".
-export async function archivarTrivia(
+export async function desactivarTrivia(
   triviaId: string,
   token: string
 ): Promise<void> {
-  const respuesta = await fetch(`${URL_API}${ENDPOINTS.archivarTrivia(triviaId)}`, {
+  const respuesta = await fetch(`${URL_API}${ENDPOINTS.desactivarTrivia(triviaId)}`, {
     method: 'DELETE',
     headers: auth(token)
   })
@@ -503,54 +464,7 @@ export async function activarTrivia(
 }
 
 // ---------------------------------------------------------------------------
-// HU24 — Modificar etapa
-// ---------------------------------------------------------------------------
-export interface DatosModificarEtapa {
-  nuevoTitulo: string
-  nuevaDescripcion: string
-  nuevoOrden: number
-}
-
-export async function modificarEtapa(
-  busquedaId: string,
-  etapaId: string,
-  datos: DatosModificarEtapa,
-  token: string
-): Promise<void> {
-  const respuesta = await fetch(
-    `${URL_API}${ENDPOINTS.modificarEtapa(busquedaId, etapaId)}`,
-    {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', ...auth(token) },
-      body: JSON.stringify(datos)
-    }
-  )
-  if (respuesta.status === 401) lanzar401('Debe iniciar sesión.')
-  if (respuesta.status === 403) throw new Error('No tiene permisos.')
-  if (respuesta.status === 404) throw new Error('Etapa no encontrada.')
-  if (!respuesta.ok) throw new Error(await leerError(respuesta))
-}
-
-// ---------------------------------------------------------------------------
-// HU24 — Eliminar etapa
-// ---------------------------------------------------------------------------
-export async function eliminarEtapa(
-  busquedaId: string,
-  etapaId: string,
-  token: string
-): Promise<void> {
-  const respuesta = await fetch(
-    `${URL_API}${ENDPOINTS.eliminarEtapa(busquedaId, etapaId)}`,
-    { method: 'DELETE', headers: auth(token) }
-  )
-  if (respuesta.status === 401) lanzar401('Debe iniciar sesión.')
-  if (respuesta.status === 403) throw new Error('No tiene permisos.')
-  if (respuesta.status === 404) throw new Error('Etapa no encontrada.')
-  if (!respuesta.ok) throw new Error(await leerError(respuesta))
-}
-
-// ---------------------------------------------------------------------------
-// HU25 — Modificar misión
+// HU25 — Modificar la misión única de una búsqueda
 // ---------------------------------------------------------------------------
 export interface DatosModificarMision {
   nuevoTitulo: string
@@ -561,13 +475,11 @@ export interface DatosModificarMision {
 
 export async function modificarMision(
   busquedaId: string,
-  etapaId: string,
-  misionId: string,
   datos: DatosModificarMision,
   token: string
 ): Promise<void> {
   const respuesta = await fetch(
-    `${URL_API}${ENDPOINTS.modificarMision(busquedaId, etapaId, misionId)}`,
+    `${URL_API}${ENDPOINTS.modificarMision(busquedaId)}`,
     {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', ...auth(token) },
@@ -581,16 +493,14 @@ export async function modificarMision(
 }
 
 // ---------------------------------------------------------------------------
-// HU25 — Eliminar misión
+// HU25 — Eliminar la misión de una búsqueda
 // ---------------------------------------------------------------------------
 export async function eliminarMision(
   busquedaId: string,
-  etapaId: string,
-  misionId: string,
   token: string
 ): Promise<void> {
   const respuesta = await fetch(
-    `${URL_API}${ENDPOINTS.eliminarMision(busquedaId, etapaId, misionId)}`,
+    `${URL_API}${ENDPOINTS.eliminarMision(busquedaId)}`,
     { method: 'DELETE', headers: auth(token) }
   )
   if (respuesta.status === 401) lanzar401('Debe iniciar sesión.')
@@ -635,15 +545,15 @@ export async function obtenerBusquedasActivas(
 // HU26 — Archivar búsqueda del tesoro
 // ---------------------------------------------------------------------------
 //
-// Mismo tratamiento que archivarTrivia: si hay sesiones vigentes
+// Mismo tratamiento que desactivarTrivia: si hay sesiones vigentes
 // asociadas, el backend responde 422 con CONTENIDO_CON_SESIONES_VIGENTES
 // y mostramos el mensaje específico.
-export async function archivarBusqueda(
+export async function desactivarBusqueda(
   busquedaId: string,
   token: string
 ): Promise<void> {
   const respuesta = await fetch(
-    `${URL_API}${ENDPOINTS.archivarBusqueda(busquedaId)}`,
+    `${URL_API}${ENDPOINTS.desactivarBusqueda(busquedaId)}`,
     { method: 'DELETE', headers: auth(token) }
   )
   if (respuesta.status === 401) lanzar401('Debe iniciar sesión.')
@@ -660,22 +570,39 @@ export async function archivarBusqueda(
 }
 
 // ---------------------------------------------------------------------------
-// HU28 — Agregar pista a una etapa
+// Eliminar búsqueda del tesoro (solo si está Inactiva)
+// ---------------------------------------------------------------------------
+export async function eliminarBusqueda(
+  busquedaId: string,
+  token: string
+): Promise<void> {
+  const respuesta = await fetch(
+    `${URL_API}${ENDPOINTS.eliminarBusqueda(busquedaId)}`,
+    { method: 'DELETE', headers: auth(token) }
+  )
+  if (respuesta.status === 401) lanzar401('Debe iniciar sesión.')
+  if (respuesta.status === 403) throw new Error('No tiene permisos.')
+  if (respuesta.status === 404) throw new Error('Búsqueda del tesoro no encontrada.')
+  if (respuesta.status === 422) throw new Error(await leerError(respuesta))
+  if (!respuesta.ok) throw new Error(await leerError(respuesta))
+}
+
+// ---------------------------------------------------------------------------
+// HU28 — Agregar pista a la misión
 // ---------------------------------------------------------------------------
 export async function agregarPista(
   busquedaId: string,
-  etapaId: string,
   datos: DatosAgregarPista,
   token: string
 ): Promise<string> {
-  const respuesta = await fetch(`${URL_API}${ENDPOINTS.agregarPista(busquedaId, etapaId)}`, {
+  const respuesta = await fetch(`${URL_API}${ENDPOINTS.agregarPista(busquedaId)}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...auth(token) },
     body: JSON.stringify(datos)
   })
   if (respuesta.status === 401) lanzar401('Debe iniciar sesión.')
   if (respuesta.status === 403) throw new Error('No tiene permisos.')
-  if (respuesta.status === 404) throw new Error('Etapa no encontrada.')
+  if (respuesta.status === 404) throw new Error('Misión no encontrada.')
   if (!respuesta.ok) throw new Error(await leerError(respuesta))
   const cuerpo = (await respuesta.json()) as { id: string }
   return cuerpo.id
@@ -686,13 +613,12 @@ export async function agregarPista(
 // ---------------------------------------------------------------------------
 export async function modificarPista(
   busquedaId: string,
-  etapaId: string,
   pistaId: string,
   datos: DatosModificarPista,
   token: string
 ): Promise<void> {
   const respuesta = await fetch(
-    `${URL_API}${ENDPOINTS.modificarPista(busquedaId, etapaId, pistaId)}`,
+    `${URL_API}${ENDPOINTS.modificarPista(busquedaId, pistaId)}`,
     {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', ...auth(token) },
@@ -710,12 +636,11 @@ export async function modificarPista(
 // ---------------------------------------------------------------------------
 export async function eliminarPista(
   busquedaId: string,
-  etapaId: string,
   pistaId: string,
   token: string
 ): Promise<void> {
   const respuesta = await fetch(
-    `${URL_API}${ENDPOINTS.eliminarPista(busquedaId, etapaId, pistaId)}`,
+    `${URL_API}${ENDPOINTS.eliminarPista(busquedaId, pistaId)}`,
     { method: 'DELETE', headers: auth(token) }
   )
   if (respuesta.status === 401) lanzar401('Debe iniciar sesión.')

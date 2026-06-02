@@ -6,6 +6,6 @@ public sealed class BusquedaTesoroResumenDto
     public string Nombre { get; init; } = default!;
     public string Descripcion { get; init; } = default!;
     public string Estado { get; init; } = default!;
-    public int TotalEtapas { get; init; }
+    public bool TieneMision { get; init; }
     public DateTime FechaCreacion { get; init; }
 }

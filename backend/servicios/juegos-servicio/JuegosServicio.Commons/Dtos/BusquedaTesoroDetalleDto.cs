@@ -7,5 +7,5 @@ public sealed class BusquedaTesoroDetalleDto
     public string Descripcion { get; set; } = default!;
     public string Estado { get; set; } = default!;
     public DateTime FechaCreacion { get; set; }
-    public List<EtapaDetalleDto> Etapas { get; set; } = new();
+    public MisionDetalleDto? Mision { get; set; }
 }

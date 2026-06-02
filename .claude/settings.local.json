@@ -16,7 +16,14 @@
       "Bash(cd \"/c/Users/asusr/Documents/GitHub/UMBRAL/frontend-movil/umbral-app-react-native\" && cat package.json)",
       "Bash(git commit -m ' *)",
       "Bash(git push *)",
-      "Bash(git merge *)"
+      "Bash(git merge *)",
+      "Bash(gh pr *)",
+      "Bash(where gh *)",
+      "PowerShell(Get-Command gh -ErrorAction SilentlyContinue)",
+      "Bash(gh auth *)",
+      "PowerShell(gh auth status)",
+      "PowerShell(Get-ChildItem \"C:\\\\Program Files\\\\GitHub CLI\\\\gh.exe\" -ErrorAction SilentlyContinue; Get-ChildItem \"$env:LOCALAPPDATA\\\\Programs\\\\GitHub CLI\\\\gh.exe\" -ErrorAction SilentlyContinue; where.exe gh 2>$null)",
+      "PowerShell(& \"C:\\\\Program Files\\\\GitHub CLI\\\\gh.exe\" auth status)"
     ]
   }
 }

@@ -20,9 +20,9 @@ public sealed class AgregarPistaManejador : IRequestHandler<AgregarPistaComando,
             ?? throw new ExcepcionNoEncontrado(
                 $"No se encontró la búsqueda del tesoro con ID '{comando.BusquedaId}'.");
 
-        var pista = busqueda.AgregarPistaAEtapa(comando.EtapaId, comando.Dto.Contenido);
+        var pista = busqueda.AgregarPistaAMision(comando.Dto.Contenido);
 
-        await _repositorio.AgregarPistaAsync(comando.EtapaId, pista, cancelacion);
+        await _repositorio.AgregarPistaAsync(busqueda.Mision!.Id, pista, cancelacion);
 
         return pista.Id;
     }

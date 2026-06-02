@@ -1,8 +1,8 @@
+﻿using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Aplicacion.CasosDeUso.Comandos;
 using JuegosServicio.Aplicacion.CasosDeUso.Manejadores;
 using JuegosServicio.Aplicacion.Puertos;
 using JuegosServicio.Dominio.Entidades;
-using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Dominio.Excepciones;
 
 namespace JuegosServicio.PruebasUnitarias.CasosDeUso;
@@ -17,13 +17,10 @@ public class EliminarMisionManejadorPruebas
 
     private EliminarMisionManejador CrearManejador() => new(_repositorio.Object);
 
-    private static BusquedaTesoro BusquedaConMision(out Guid etapaId, out Guid misionId)
+    private static BusquedaTesoro BusquedaConMision()
     {
         var busqueda = BusquedaTesoro.Crear("Búsqueda Test", "Descripción", Guid.NewGuid(), FechaFija);
-        var etapa = busqueda.AgregarEtapa("Etapa 1", "Descripción");
-        etapaId = etapa.Id;
-        var mision = busqueda.AgregarMisionAEtapa(etapaId, "Misión", "Desc", TipoMision.PistaTexto, "pista");
-        misionId = mision.Id;
+        busqueda.AsignarMision("Misión", "Desc", TipoMision.PalabraClave, "pista");
         return busqueda;
     }
 
@@ -31,23 +28,23 @@ public class EliminarMisionManejadorPruebas
     {
         _repositorio
             .Setup(r => r.EliminarMisionAsync(
-                It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
     }
 
     [Fact]
-    public async Task Handle_TodosExistentes_LlamaEliminarMisionAsyncUnaVez()
+    public async Task Handle_BusquedaConMision_LlamaEliminarMisionAsyncUnaVez()
     {
-        var busqueda = BusquedaConMision(out var etapaId, out var misionId);
+        var busqueda = BusquedaConMision();
         _repositorio
             .Setup(r => r.ObtenerBusquedaPorIdAsync(busqueda.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(busqueda);
 
         await CrearManejador().Handle(
-            new EliminarMisionComando(busqueda.Id, etapaId, misionId), CancellationToken.None);
+            new EliminarMisionComando(busqueda.Id), CancellationToken.None);
 
         _repositorio.Verify(
-            r => r.EliminarMisionAsync(etapaId, misionId, It.IsAny<CancellationToken>()),
+            r => r.EliminarMisionAsync(busqueda.Id, It.IsAny<CancellationToken>()),
             Times.Once);
     }
 
@@ -60,23 +57,21 @@ public class EliminarMisionManejadorPruebas
             .ReturnsAsync((BusquedaTesoro?)null);
 
         var accion = async () => await CrearManejador().Handle(
-            new EliminarMisionComando(busquedaId, Guid.NewGuid(), Guid.NewGuid()),
-            CancellationToken.None);
+            new EliminarMisionComando(busquedaId), CancellationToken.None);
 
         await accion.Should().ThrowAsync<ExcepcionNoEncontrado>();
     }
 
     [Fact]
-    public async Task Handle_MisionInexistente_LanzaExcepcionNoEncontrado()
+    public async Task Handle_SinMisionAsignada_LanzaExcepcionNoEncontrado()
     {
-        var busqueda = BusquedaConMision(out var etapaId, out _);
+        var busqueda = BusquedaTesoro.Crear("Búsqueda sin misión", "Descripción", Guid.NewGuid(), FechaFija);
         _repositorio
             .Setup(r => r.ObtenerBusquedaPorIdAsync(busqueda.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(busqueda);
 
         var accion = async () => await CrearManejador().Handle(
-            new EliminarMisionComando(busqueda.Id, etapaId, Guid.NewGuid()),
-            CancellationToken.None);
+            new EliminarMisionComando(busqueda.Id), CancellationToken.None);
 
         await accion.Should().ThrowAsync<ExcepcionNoEncontrado>();
     }

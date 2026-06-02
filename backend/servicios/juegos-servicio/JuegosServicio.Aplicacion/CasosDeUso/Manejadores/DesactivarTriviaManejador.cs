@@ -37,6 +37,6 @@ public sealed class DesactivarTriviaManejador : IRequestHandler<DesactivarTrivia
 
         // 3. Transición de estado en el dominio y persistencia.
         trivia.Desactivar();
-        await _repositorio.ArchivarTriviaAsync(trivia, cancelacion);
+        await _repositorio.DesactivarTriviaAsync(trivia, cancelacion);
     }
 }

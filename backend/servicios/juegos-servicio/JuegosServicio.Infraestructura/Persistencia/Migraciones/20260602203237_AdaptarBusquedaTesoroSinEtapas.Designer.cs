@@ -3,6 +3,7 @@ using System;
 using JuegosServicio.Infraestructura.Persistencia;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace JuegosServicio.Infraestructura.Persistencia.Migraciones
 {
     [DbContext(typeof(ContextoJuegos))]
-    partial class ContextoJuegosModelSnapshot : ModelSnapshot
+    [Migration("20260602203237_AdaptarBusquedaTesoroSinEtapas")]
+    partial class AdaptarBusquedaTesoroSinEtapas
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -115,10 +118,6 @@ namespace JuegosServicio.Infraestructura.Persistencia.Migraciones
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)")
                         .HasColumnName("pista_clave");
-
-                    b.Property<int>("Tipo")
-                        .HasColumnType("integer")
-                        .HasColumnName("tipo");
 
                     b.Property<string>("Titulo")
                         .IsRequired()

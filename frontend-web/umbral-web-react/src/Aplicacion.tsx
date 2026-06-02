@@ -119,7 +119,7 @@ export function Aplicacion() {
         }
       />
       <Route
-        path="/administrador/busquedas/:busquedaId/etapas"
+        path="/administrador/busquedas/:busquedaId/mision"
         element={
           <RutaProtegida rolesPermitidos={['Administrador']}>
             <PaginaGestionEtapas />

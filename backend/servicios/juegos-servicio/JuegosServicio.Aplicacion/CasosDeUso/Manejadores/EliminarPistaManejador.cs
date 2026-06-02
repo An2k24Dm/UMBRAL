@@ -20,8 +20,8 @@ public sealed class EliminarPistaManejador : IRequestHandler<EliminarPistaComand
             ?? throw new ExcepcionNoEncontrado(
                 $"No se encontró la búsqueda del tesoro con ID '{comando.BusquedaId}'.");
 
-        busqueda.EliminarPista(comando.EtapaId, comando.PistaId);
+        busqueda.EliminarPista(comando.PistaId);
 
-        await _repositorio.EliminarPistaAsync(comando.EtapaId, comando.PistaId, cancelacion);
+        await _repositorio.EliminarPistaAsync(comando.PistaId, cancelacion);
     }
 }

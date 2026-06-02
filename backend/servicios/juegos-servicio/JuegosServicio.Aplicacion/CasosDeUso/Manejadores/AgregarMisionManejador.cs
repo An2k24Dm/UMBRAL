@@ -22,14 +22,13 @@ public sealed class AgregarMisionManejador : IRequestHandler<AgregarMisionComand
                 $"No se encontró la búsqueda del tesoro con ID '{comando.BusquedaId}'.");
 
         var tipo = (TipoMision)comando.Dto.Tipo;
-        var mision = busqueda.AgregarMisionAEtapa(
-            comando.EtapaId,
+        var mision = busqueda.AsignarMision(
             comando.Dto.Titulo,
             comando.Dto.Descripcion,
             tipo,
             comando.Dto.PistaClave);
 
-        await _repositorio.AgregarMisionAsync(comando.EtapaId, mision, cancelacion);
+        await _repositorio.AsignarMisionAsync(busqueda.Id, mision, cancelacion);
 
         return mision.Id;
     }
