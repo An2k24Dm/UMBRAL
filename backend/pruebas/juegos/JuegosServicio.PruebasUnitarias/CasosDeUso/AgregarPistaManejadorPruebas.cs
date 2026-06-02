@@ -1,3 +1,4 @@
+﻿using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Aplicacion.CasosDeUso.Comandos;
 using JuegosServicio.Aplicacion.CasosDeUso.Manejadores;
 using JuegosServicio.Aplicacion.Puertos;
@@ -7,7 +8,7 @@ using JuegosServicio.Dominio.Excepciones;
 
 namespace JuegosServicio.PruebasUnitarias.CasosDeUso;
 
-// HU28: pruebas del manejador para agregar una pista a una etapa.
+// HU28: pruebas del manejador para agregar una pista a la misión.
 public class AgregarPistaManejadorPruebas
 {
     private readonly Mock<IRepositorioBusquedas> _repositorio = new();
@@ -17,17 +18,15 @@ public class AgregarPistaManejadorPruebas
 
     private AgregarPistaManejador CrearManejador() => new(_repositorio.Object);
 
-    private static BusquedaTesoro BusquedaConEtapa(out Guid etapaId)
+    private static BusquedaTesoro BusquedaConMision()
     {
-        var busqueda = BusquedaTesoro.Crear(
-            "Búsqueda Test", "Descripción", Guid.NewGuid(), FechaFija);
-        var etapa = busqueda.AgregarEtapa("Etapa 1", "Primera etapa");
-        etapaId = etapa.Id;
+        var busqueda = BusquedaTesoro.Crear("Búsqueda Test", "Descripción", Guid.NewGuid(), FechaFija);
+        busqueda.AsignarMision("Misión", "Desc", TipoMision.PalabraClave, "clave");
         return busqueda;
     }
 
-    private static AgregarPistaComando ComandoValido(Guid busquedaId, Guid etapaId) =>
-        new(busquedaId, etapaId, new AgregarPistaDto
+    private static AgregarPistaComando ComandoValido(Guid busquedaId) =>
+        new(busquedaId, new AgregarPistaDto
         {
             Contenido = "Busca la fuente principal del parque."
         });
@@ -41,31 +40,31 @@ public class AgregarPistaManejadorPruebas
     }
 
     [Fact]
-    public async Task Handle_BusquedaYEtapaExistentes_RetornaIdDePistaNoVacio()
+    public async Task Handle_BusquedaConMision_RetornaIdDePistaNoVacio()
     {
-        var busqueda = BusquedaConEtapa(out var etapaId);
+        var busqueda = BusquedaConMision();
         _repositorio
             .Setup(r => r.ObtenerBusquedaPorIdAsync(busqueda.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(busqueda);
 
         var resultado = await CrearManejador()
-            .Handle(ComandoValido(busqueda.Id, etapaId), CancellationToken.None);
+            .Handle(ComandoValido(busqueda.Id), CancellationToken.None);
 
         resultado.Should().NotBe(Guid.Empty);
     }
 
     [Fact]
-    public async Task Handle_BusquedaYEtapaExistentes_LlamaAgregarPistaAsyncUnaVez()
+    public async Task Handle_BusquedaConMision_LlamaAgregarPistaAsyncUnaVez()
     {
-        var busqueda = BusquedaConEtapa(out var etapaId);
+        var busqueda = BusquedaConMision();
         _repositorio
             .Setup(r => r.ObtenerBusquedaPorIdAsync(busqueda.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(busqueda);
 
-        await CrearManejador().Handle(ComandoValido(busqueda.Id, etapaId), CancellationToken.None);
+        await CrearManejador().Handle(ComandoValido(busqueda.Id), CancellationToken.None);
 
         _repositorio.Verify(
-            r => r.AgregarPistaAsync(etapaId, It.IsAny<Pista>(), It.IsAny<CancellationToken>()),
+            r => r.AgregarPistaAsync(busqueda.Mision!.Id, It.IsAny<Pista>(), It.IsAny<CancellationToken>()),
             Times.Once);
     }
 
@@ -78,23 +77,21 @@ public class AgregarPistaManejadorPruebas
             .ReturnsAsync((BusquedaTesoro?)null);
 
         var accion = async () =>
-            await CrearManejador()
-                .Handle(ComandoValido(busquedaId, Guid.NewGuid()), CancellationToken.None);
+            await CrearManejador().Handle(ComandoValido(busquedaId), CancellationToken.None);
 
         await accion.Should().ThrowAsync<ExcepcionNoEncontrado>();
     }
 
     [Fact]
-    public async Task Handle_EtapaInexistente_LanzaExcepcionNoEncontrado()
+    public async Task Handle_SinMisionAsignada_LanzaExcepcionNoEncontrado()
     {
-        var busqueda = BusquedaConEtapa(out _);
+        var busqueda = BusquedaTesoro.Crear("Búsqueda sin misión", "Descripción", Guid.NewGuid(), FechaFija);
         _repositorio
             .Setup(r => r.ObtenerBusquedaPorIdAsync(busqueda.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(busqueda);
 
         var accion = async () =>
-            await CrearManejador()
-                .Handle(ComandoValido(busqueda.Id, Guid.NewGuid()), CancellationToken.None);
+            await CrearManejador().Handle(ComandoValido(busqueda.Id), CancellationToken.None);
 
         await accion.Should().ThrowAsync<ExcepcionNoEncontrado>();
     }
@@ -107,12 +104,11 @@ public class AgregarPistaManejadorPruebas
             .Setup(r => r.ObtenerBusquedaPorIdAsync(busquedaId, It.IsAny<CancellationToken>()))
             .ReturnsAsync((BusquedaTesoro?)null);
 
-        try { await CrearManejador().Handle(ComandoValido(busquedaId, Guid.NewGuid()), CancellationToken.None); }
+        try { await CrearManejador().Handle(ComandoValido(busquedaId), CancellationToken.None); }
         catch (ExcepcionNoEncontrado) { }
 
         _repositorio.Verify(
-            r => r.AgregarPistaAsync(
-                It.IsAny<Guid>(), It.IsAny<Pista>(), It.IsAny<CancellationToken>()),
+            r => r.AgregarPistaAsync(It.IsAny<Guid>(), It.IsAny<Pista>(), It.IsAny<CancellationToken>()),
             Times.Never);
     }
 }

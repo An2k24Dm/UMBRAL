@@ -1,3 +1,4 @@
+﻿using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Aplicacion.CasosDeUso.Comandos;
 using JuegosServicio.Aplicacion.CasosDeUso.Manejadores;
 using JuegosServicio.Aplicacion.Puertos;
@@ -16,13 +17,11 @@ public class EliminarPistaManejadorPruebas
 
     private EliminarPistaManejador CrearManejador() => new(_repositorio.Object);
 
-    private static BusquedaTesoro BusquedaConPista(out Guid etapaId, out Guid pistaId)
+    private static BusquedaTesoro BusquedaConPista(out Guid pistaId)
     {
-        var busqueda = BusquedaTesoro.Crear(
-            "Búsqueda Test", "Descripción", Guid.NewGuid(), FechaFija);
-        var etapa = busqueda.AgregarEtapa("Etapa 1", "Primera etapa");
-        etapaId = etapa.Id;
-        var pista = busqueda.AgregarPistaAEtapa(etapaId, "Pista de prueba.");
+        var busqueda = BusquedaTesoro.Crear("Búsqueda Test", "Descripción", Guid.NewGuid(), FechaFija);
+        busqueda.AsignarMision("Misión", "Desc", TipoMision.PalabraClave, "pista-clave");
+        var pista = busqueda.AgregarPistaAMision("Pista de prueba.");
         pistaId = pista.Id;
         return busqueda;
     }
@@ -31,23 +30,23 @@ public class EliminarPistaManejadorPruebas
     {
         _repositorio
             .Setup(r => r.EliminarPistaAsync(
-                It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
     }
 
     [Fact]
     public async Task Handle_TodosExistentes_LlamaEliminarPistaAsyncUnaVez()
     {
-        var busqueda = BusquedaConPista(out var etapaId, out var pistaId);
+        var busqueda = BusquedaConPista(out var pistaId);
         _repositorio
             .Setup(r => r.ObtenerBusquedaPorIdAsync(busqueda.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(busqueda);
 
         await CrearManejador().Handle(
-            new EliminarPistaComando(busqueda.Id, etapaId, pistaId), CancellationToken.None);
+            new EliminarPistaComando(busqueda.Id, pistaId), CancellationToken.None);
 
         _repositorio.Verify(
-            r => r.EliminarPistaAsync(etapaId, pistaId, It.IsAny<CancellationToken>()),
+            r => r.EliminarPistaAsync(pistaId, It.IsAny<CancellationToken>()),
             Times.Once);
     }
 
@@ -60,23 +59,7 @@ public class EliminarPistaManejadorPruebas
             .ReturnsAsync((BusquedaTesoro?)null);
 
         var accion = async () => await CrearManejador().Handle(
-            new EliminarPistaComando(busquedaId, Guid.NewGuid(), Guid.NewGuid()),
-            CancellationToken.None);
-
-        await accion.Should().ThrowAsync<ExcepcionNoEncontrado>();
-    }
-
-    [Fact]
-    public async Task Handle_EtapaInexistente_LanzaExcepcionNoEncontrado()
-    {
-        var busqueda = BusquedaConPista(out _, out var pistaId);
-        _repositorio
-            .Setup(r => r.ObtenerBusquedaPorIdAsync(busqueda.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(busqueda);
-
-        var accion = async () => await CrearManejador().Handle(
-            new EliminarPistaComando(busqueda.Id, Guid.NewGuid(), pistaId),
-            CancellationToken.None);
+            new EliminarPistaComando(busquedaId, Guid.NewGuid()), CancellationToken.None);
 
         await accion.Should().ThrowAsync<ExcepcionNoEncontrado>();
     }
@@ -84,14 +67,13 @@ public class EliminarPistaManejadorPruebas
     [Fact]
     public async Task Handle_PistaInexistente_LanzaExcepcionNoEncontrado()
     {
-        var busqueda = BusquedaConPista(out var etapaId, out _);
+        var busqueda = BusquedaConPista(out _);
         _repositorio
             .Setup(r => r.ObtenerBusquedaPorIdAsync(busqueda.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(busqueda);
 
         var accion = async () => await CrearManejador().Handle(
-            new EliminarPistaComando(busqueda.Id, etapaId, Guid.NewGuid()),
-            CancellationToken.None);
+            new EliminarPistaComando(busqueda.Id, Guid.NewGuid()), CancellationToken.None);
 
         await accion.Should().ThrowAsync<ExcepcionNoEncontrado>();
     }
@@ -105,12 +87,11 @@ public class EliminarPistaManejadorPruebas
             .ReturnsAsync((BusquedaTesoro?)null);
 
         try { await CrearManejador().Handle(
-            new EliminarPistaComando(busquedaId, Guid.NewGuid(), Guid.NewGuid()), CancellationToken.None); }
+            new EliminarPistaComando(busquedaId, Guid.NewGuid()), CancellationToken.None); }
         catch (ExcepcionNoEncontrado) { }
 
         _repositorio.Verify(
-            r => r.EliminarPistaAsync(
-                It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()),
+            r => r.EliminarPistaAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()),
             Times.Never);
     }
 }

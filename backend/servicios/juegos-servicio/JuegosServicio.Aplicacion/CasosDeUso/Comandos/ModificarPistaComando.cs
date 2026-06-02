@@ -3,5 +3,4 @@ using MediatR;
 
 namespace JuegosServicio.Aplicacion.CasosDeUso.Comandos;
 
-public sealed record ModificarPistaComando(Guid BusquedaId, Guid EtapaId, Guid PistaId, ModificarPistaDto Dto)
-    : IRequest;
+public sealed record ModificarPistaComando(Guid BusquedaId, Guid PistaId, ModificarPistaDto Dto) : IRequest;

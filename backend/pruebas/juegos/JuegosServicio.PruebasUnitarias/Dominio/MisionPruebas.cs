@@ -1,66 +1,56 @@
-using JuegosServicio.Dominio.Entidades;
+﻿using JuegosServicio.Dominio.Entidades;
 using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Dominio.Excepciones;
 
 namespace JuegosServicio.PruebasUnitarias.Dominio;
 
-// HU23: pruebas de BusquedaTesoro.AgregarMisionAEtapa y la entidad Mision.
+// HU23: pruebas de BusquedaTesoro.AsignarMision y la entidad Mision.
 public class MisionPruebas
 {
     private static readonly DateTime FechaFija =
         new(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc);
 
-    private static BusquedaTesoro BusquedaConEtapa(out Guid etapaId)
-    {
-        var busqueda = BusquedaTesoro.Crear(
-            "Búsqueda Test", "Descripción", Guid.NewGuid(), FechaFija);
-        var etapa = busqueda.AgregarEtapa("Etapa 1", "Primera etapa");
-        etapaId = etapa.Id;
-        return busqueda;
-    }
+    private static BusquedaTesoro BusquedaValida() =>
+        BusquedaTesoro.Crear("Búsqueda Test", "Descripción", Guid.NewGuid(), FechaFija);
 
     [Fact]
-    public void AgregarMisionAEtapa_ConDatosValidos_RetornaMisionConIdNoVacio()
+    public void AsignarMision_ConDatosValidos_RetornaMisionConIdNoVacio()
     {
-        var busqueda = BusquedaConEtapa(out var etapaId);
+        var busqueda = BusquedaValida();
 
-        var mision = busqueda.AgregarMisionAEtapa(
-            etapaId, "Misión 1", "Descripción", TipoMision.PistaTexto, "Busca el árbol");
+        var mision = busqueda.AsignarMision("Busca el cofre", "Descripción", TipoMision.PalabraClave, "cofre_norte");
 
         mision.Id.Should().NotBe(Guid.Empty);
     }
 
     [Fact]
-    public void AgregarMisionAEtapa_ConDatosValidos_AsignaEtapaId()
+    public void AsignarMision_ConDatosValidos_AsignaBusquedaId()
     {
-        var busqueda = BusquedaConEtapa(out var etapaId);
+        var busqueda = BusquedaValida();
 
-        var mision = busqueda.AgregarMisionAEtapa(
-            etapaId, "Misión 1", "Descripción", TipoMision.Acertijo, "¿Qué tiene alas?");
+        var mision = busqueda.AsignarMision("Busca el cofre", "Descripción", TipoMision.PalabraClave, "cofre_norte");
 
-        mision.EtapaId.Should().Be(etapaId);
+        mision.BusquedaId.Should().Be(busqueda.Id);
     }
 
     [Fact]
-    public void AgregarMisionAEtapa_ConDatosValidos_AsignaTipoMision()
+    public void AsignarMision_ConDatosValidos_GuardaMisionEnLaBusqueda()
     {
-        var busqueda = BusquedaConEtapa(out var etapaId);
+        var busqueda = BusquedaValida();
 
-        var mision = busqueda.AgregarMisionAEtapa(
-            etapaId, "Misión QR", "Descripción", TipoMision.CodigoQR, "QR-001");
+        busqueda.AsignarMision("Busca el cofre", "Descripción", TipoMision.PalabraClave, "cofre_norte");
 
-        mision.Tipo.Should().Be(TipoMision.CodigoQR);
+        busqueda.Mision.Should().NotBeNull();
     }
 
     [Theory]
     [InlineData("")]
     [InlineData("   ")]
-    public void AgregarMisionAEtapa_TituloVacioOEspacios_LanzaExcepcionDominio(string titulo)
+    public void AsignarMision_TituloVacioOEspacios_LanzaExcepcionDominio(string titulo)
     {
-        var busqueda = BusquedaConEtapa(out var etapaId);
+        var busqueda = BusquedaValida();
 
-        Action accion = () => busqueda.AgregarMisionAEtapa(
-            etapaId, titulo, "Descripción", TipoMision.PistaTexto, "Pista");
+        Action accion = () => busqueda.AsignarMision(titulo, "Descripción", TipoMision.PalabraClave, "Pista");
 
         accion.Should().Throw<ExcepcionDominio>();
     }
@@ -68,39 +58,36 @@ public class MisionPruebas
     [Theory]
     [InlineData("")]
     [InlineData("   ")]
-    public void AgregarMisionAEtapa_PistaClaVaciaOEspacios_LanzaExcepcionDominio(string pistaClave)
+    public void AsignarMision_PistaClaveVaciaOEspacios_LanzaExcepcionDominio(string pistaClave)
     {
-        var busqueda = BusquedaConEtapa(out var etapaId);
+        var busqueda = BusquedaValida();
 
-        Action accion = () => busqueda.AgregarMisionAEtapa(
-            etapaId, "Título", "Descripción", TipoMision.PistaTexto, pistaClave);
+        Action accion = () => busqueda.AsignarMision("Título", "Descripción", TipoMision.PalabraClave, pistaClave);
 
         accion.Should().Throw<ExcepcionDominio>();
     }
 
     [Fact]
-    public void AgregarMisionAEtapa_EtapaInexistente_LanzaExcepcionNoEncontrado()
+    public void AsignarMision_BusquedaActiva_LanzaExcepcionDominio()
     {
-        var busqueda = BusquedaConEtapa(out _);
-        var etapaIdInexistente = Guid.NewGuid();
-
-        Action accion = () => busqueda.AgregarMisionAEtapa(
-            etapaIdInexistente, "Título", "Descripción", TipoMision.Acertijo, "Pista");
-
-        accion.Should().Throw<ExcepcionNoEncontrado>();
-    }
-
-    [Fact]
-    public void AgregarMisionAEtapa_BusquedaActiva_LanzaExcepcionDominio()
-    {
-        var etapaId = Guid.NewGuid();
+        var mision = Mision.Reconstituir(Guid.NewGuid(), Guid.NewGuid(), "Misión", "Desc", TipoMision.PalabraClave, "pista");
         var busqueda = BusquedaTesoro.Reconstituir(
-            Guid.NewGuid(), "Búsqueda archivada", "Descripción",
+            Guid.NewGuid(), "Búsqueda Activa", "Descripción",
             Guid.NewGuid(), EstadoBusqueda.Activa, FechaFija,
-            new[] { Etapa.Reconstituir(etapaId, Guid.NewGuid(), "Etapa", "Desc", 1, []) });
+            mision);
 
-        Action accion = () => busqueda.AgregarMisionAEtapa(
-            etapaId, "Título", "Descripción", TipoMision.PistaTexto, "Pista");
+        Action accion = () => busqueda.AsignarMision("Otra misión", "Desc", TipoMision.PalabraClave, "clave");
+
+        accion.Should().Throw<ExcepcionDominio>();
+    }
+
+    [Fact]
+    public void AsignarMision_YaTieneMision_LanzaExcepcionDominio()
+    {
+        var busqueda = BusquedaValida();
+        busqueda.AsignarMision("Primera misión", "Desc", TipoMision.PalabraClave, "clave1");
+
+        Action accion = () => busqueda.AsignarMision("Segunda misión", "Desc", TipoMision.PalabraClave, "clave2");
 
         accion.Should().Throw<ExcepcionDominio>();
     }

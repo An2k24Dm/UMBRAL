@@ -169,7 +169,7 @@ public sealed class RepositorioJuegos : IRepositorioJuegos
         await _contexto.SaveChangesAsync(cancelacion);
     }
 
-    public async Task ArchivarTriviaAsync(Trivia trivia, CancellationToken cancelacion)
+    public async Task DesactivarTriviaAsync(Trivia trivia, CancellationToken cancelacion)
     {
         var modelo = await _contexto.Trivias.FirstOrDefaultAsync(t => t.Id == trivia.Id, cancelacion);
         if (modelo is null) return;

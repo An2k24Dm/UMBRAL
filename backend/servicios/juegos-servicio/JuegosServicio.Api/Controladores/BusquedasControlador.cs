@@ -20,51 +20,7 @@ public sealed class BusquedasControlador : ControllerBase
         _mediador = mediador;
     }
 
-    // HU26 — Archivar búsqueda del tesoro (soft delete).
-    [HttpDelete("{busquedaId:guid}")]
-    [Authorize(Policy = "PoliticaAdministrador")]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
-    public async Task<IActionResult> ArchivarBusqueda(Guid busquedaId, CancellationToken cancelacion)
-    {
-        var operadorId = ObtenerCreadorId();
-        await _mediador.Send(new ArchivarBusquedaTesoroComando(busquedaId, operadorId), cancelacion);
-        return NoContent();
-    }
-
-    // HU26 — Activar búsqueda del tesoro (Borrador → Activa).
-    [HttpPatch("{busquedaId:guid}/activar")]
-    [Authorize(Policy = "PoliticaAdministrador")]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
-    public async Task<IActionResult> ActivarBusqueda(Guid busquedaId, CancellationToken cancelacion)
-    {
-        var operadorId = ObtenerCreadorId();
-        await _mediador.Send(new ActivarBusquedaTesoroComando(busquedaId, operadorId), cancelacion);
-        return NoContent();
-    }
-
-    // HU26 / HU34 — Listar búsquedas activas (para selección en
-    // sesiones de juego). El Operador necesita verlas para crear
-    // sesiones.
-    [HttpGet("activas")]
-    [Authorize(Policy = "PoliticaOperador")]
-    [ProducesResponseType(typeof(List<BusquedaTesoroResumenDto>), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    public async Task<IActionResult> ObtenerBusquedasActivas(CancellationToken cancelacion)
-    {
-        var resultado = await _mediador.Send(new ObtenerBusquedasActivasConsulta(), cancelacion);
-        return Ok(resultado);
-    }
-
-    // HU21 — Crear búsqueda del tesoro en estado Borrador.
+    // HU21 — Crear búsqueda del tesoro en estado Inactiva.
     [HttpPost]
     [Authorize(Policy = "PoliticaAdministrador")]
     [ProducesResponseType(StatusCodes.Status201Created)]
@@ -80,184 +36,32 @@ public sealed class BusquedasControlador : ControllerBase
         return Created($"/api/juegos/busquedas/{busquedaId}", new { id = busquedaId });
     }
 
-    // HU25 — Modificar una misión de una etapa (solo en estado Borrador).
-    [HttpPut("{busquedaId:guid}/etapas/{etapaId:guid}/misiones/{misionId:guid}")]
+    // HU21 — Listar búsquedas inactivas (gestión interna del catálogo).
+    [HttpGet("borrador")]
     [Authorize(Policy = "PoliticaAdministrador")]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(List<BusquedaTesoroResumenDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
-    public async Task<IActionResult> ModificarMision(
-        Guid busquedaId,
-        Guid etapaId,
-        Guid misionId,
-        [FromBody] ModificarMisionDto dto,
-        CancellationToken cancelacion)
+    public async Task<IActionResult> ObtenerBusquedasEnBorrador(CancellationToken cancelacion)
     {
-        await _mediador.Send(new ModificarMisionComando(busquedaId, etapaId, misionId, dto), cancelacion);
-        return NoContent();
+        var resultado = await _mediador.Send(
+            new ObtenerBusquedasEnBorradorConsulta(null), cancelacion);
+        return Ok(resultado);
     }
 
-    // HU25 — Eliminar una misión de una etapa (solo en estado Borrador).
-    [HttpDelete("{busquedaId:guid}/etapas/{etapaId:guid}/misiones/{misionId:guid}")]
-    [Authorize(Policy = "PoliticaAdministrador")]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    // HU26 / HU34 — Listar búsquedas activas (para selección en sesiones de juego).
+    [HttpGet("activas")]
+    [Authorize(Policy = "PoliticaOperador")]
+    [ProducesResponseType(typeof(List<BusquedaTesoroResumenDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
-    public async Task<IActionResult> EliminarMision(
-        Guid busquedaId,
-        Guid etapaId,
-        Guid misionId,
-        CancellationToken cancelacion)
+    public async Task<IActionResult> ObtenerBusquedasActivas(CancellationToken cancelacion)
     {
-        await _mediador.Send(new EliminarMisionComando(busquedaId, etapaId, misionId), cancelacion);
-        return NoContent();
+        var resultado = await _mediador.Send(new ObtenerBusquedasActivasConsulta(), cancelacion);
+        return Ok(resultado);
     }
 
-    // HU23 — Agregar misión a una etapa de la búsqueda del tesoro.
-    [HttpPost("{busquedaId:guid}/etapas/{etapaId:guid}/misiones")]
-    [Authorize(Policy = "PoliticaAdministrador")]
-    [ProducesResponseType(StatusCodes.Status201Created)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
-    public async Task<IActionResult> AgregarMision(
-        Guid busquedaId,
-        Guid etapaId,
-        [FromBody] AgregarMisionDto dto,
-        CancellationToken cancelacion)
-    {
-        var misionId = await _mediador.Send(new AgregarMisionComando(busquedaId, etapaId, dto), cancelacion);
-        return Created(
-            $"/api/juegos/busquedas/{busquedaId}/etapas/{etapaId}/misiones/{misionId}",
-            new { id = misionId });
-    }
-
-    // HU32 — Eliminar una pista de una etapa (solo en estado Inactiva).
-    [HttpDelete("{busquedaId:guid}/etapas/{etapaId:guid}/pistas/{pistaId:guid}")]
-    [Authorize(Policy = "PoliticaAdministrador")]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
-    public async Task<IActionResult> EliminarPista(
-        Guid busquedaId,
-        Guid etapaId,
-        Guid pistaId,
-        CancellationToken cancelacion)
-    {
-        await _mediador.Send(new EliminarPistaComando(busquedaId, etapaId, pistaId), cancelacion);
-        return NoContent();
-    }
-
-    // HU30 — Modificar el contenido de una pista existente (solo en estado Inactiva).
-    [HttpPut("{busquedaId:guid}/etapas/{etapaId:guid}/pistas/{pistaId:guid}")]
-    [Authorize(Policy = "PoliticaAdministrador")]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
-    public async Task<IActionResult> ModificarPista(
-        Guid busquedaId,
-        Guid etapaId,
-        Guid pistaId,
-        [FromBody] ModificarPistaDto dto,
-        CancellationToken cancelacion)
-    {
-        await _mediador.Send(new ModificarPistaComando(busquedaId, etapaId, pistaId, dto), cancelacion);
-        return NoContent();
-    }
-
-    // HU28 — Agregar pista a una etapa (solo en estado Inactiva).
-    [HttpPost("{busquedaId:guid}/etapas/{etapaId:guid}/pistas")]
-    [Authorize(Policy = "PoliticaAdministrador")]
-    [ProducesResponseType(StatusCodes.Status201Created)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
-    public async Task<IActionResult> AgregarPista(
-        Guid busquedaId,
-        Guid etapaId,
-        [FromBody] AgregarPistaDto dto,
-        CancellationToken cancelacion)
-    {
-        var pistaId = await _mediador.Send(new AgregarPistaComando(busquedaId, etapaId, dto), cancelacion);
-        return Created(
-            $"/api/juegos/busquedas/{busquedaId}/etapas/{etapaId}/pistas/{pistaId}",
-            new { id = pistaId });
-    }
-
-    // HU22 — Agregar etapa a una búsqueda del tesoro.
-    [HttpPost("{busquedaId:guid}/etapas")]
-    [Authorize(Policy = "PoliticaAdministrador")]
-    [ProducesResponseType(StatusCodes.Status201Created)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
-    public async Task<IActionResult> AgregarEtapa(
-        Guid busquedaId,
-        [FromBody] AgregarEtapaDto dto,
-        CancellationToken cancelacion)
-    {
-        var etapaId = await _mediador.Send(new AgregarEtapaComando(busquedaId, dto), cancelacion);
-        return Created(
-            $"/api/juegos/busquedas/{busquedaId}/etapas/{etapaId}",
-            new { id = etapaId });
-    }
-
-    // HU24 — Modificar datos de una etapa (solo en estado Borrador).
-    [HttpPut("{busquedaId:guid}/etapas/{etapaId:guid}")]
-    [Authorize(Policy = "PoliticaAdministrador")]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
-    public async Task<IActionResult> ModificarEtapa(
-        Guid busquedaId,
-        Guid etapaId,
-        [FromBody] ModificarEtapaDto dto,
-        CancellationToken cancelacion)
-    {
-        await _mediador.Send(new ModificarEtapaComando(busquedaId, etapaId, dto), cancelacion);
-        return NoContent();
-    }
-
-    // HU24/HU31 — Eliminar una etapa (solo en estado Inactiva). Las misiones y pistas se borran en cascada por EF Core.
-    [HttpDelete("{busquedaId:guid}/etapas/{etapaId:guid}")]
-    [Authorize(Policy = "PoliticaAdministrador")]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
-    public async Task<IActionResult> EliminarEtapa(
-        Guid busquedaId,
-        Guid etapaId,
-        CancellationToken cancelacion)
-    {
-        await _mediador.Send(new EliminarEtapaComando(busquedaId, etapaId), cancelacion);
-        return NoContent();
-    }
-
-    // HU22 / HU34 — Obtener detalle de una búsqueda del tesoro con
-    // sus etapas y misiones. El Operador necesita poder consultarlo
-    // para que sesiones-servicio pueda armar el detalle de una sesión
-    // de Búsqueda del Tesoro.
+    // HU22 / HU34 — Obtener detalle de una búsqueda con su misión y pistas.
     [HttpGet("{busquedaId:guid}")]
     [Authorize(Policy = "PoliticaOperador")]
     [ProducesResponseType(typeof(BusquedaTesoroDetalleDto), StatusCodes.Status200OK)]
@@ -272,17 +76,155 @@ public sealed class BusquedasControlador : ControllerBase
         return resultado is null ? NotFound() : Ok(resultado);
     }
 
-    // HU21 — Listar búsquedas en borrador (gestión interna del catálogo).
-    [HttpGet("borrador")]
+    // HU26 — Activar búsqueda del tesoro (Inactiva → Activa). Requiere misión asignada.
+    [HttpPatch("{busquedaId:guid}/activar")]
     [Authorize(Policy = "PoliticaAdministrador")]
-    [ProducesResponseType(typeof(List<BusquedaTesoroResumenDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    public async Task<IActionResult> ObtenerBusquedasEnBorrador(CancellationToken cancelacion)
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> ActivarBusqueda(Guid busquedaId, CancellationToken cancelacion)
     {
-        var resultado = await _mediador.Send(
-            new ObtenerBusquedasEnBorradorConsulta(null), cancelacion);
-        return Ok(resultado);
+        var operadorId = ObtenerCreadorId();
+        await _mediador.Send(new ActivarBusquedaTesoroComando(busquedaId, operadorId), cancelacion);
+        return NoContent();
+    }
+
+    // HU26 — Desactivar búsqueda del tesoro (Activa → Inactiva).
+    [HttpDelete("{busquedaId:guid}")]
+    [Authorize(Policy = "PoliticaAdministrador")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> DesactivarBusqueda(Guid busquedaId, CancellationToken cancelacion)
+    {
+        var operadorId = ObtenerCreadorId();
+        await _mediador.Send(new DesactivarBusquedaTesoroComando(busquedaId, operadorId), cancelacion);
+        return NoContent();
+    }
+
+    // Eliminar búsqueda del tesoro de la base de datos (solo si está Inactiva).
+    [HttpDelete("{busquedaId:guid}/eliminar")]
+    [Authorize(Policy = "PoliticaAdministrador")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> EliminarBusqueda(Guid busquedaId, CancellationToken cancelacion)
+    {
+        await _mediador.Send(new EliminarBusquedaTesoroComando(busquedaId), cancelacion);
+        return NoContent();
+    }
+
+    // HU23 — Asignar la misión única a una búsqueda (solo en estado Inactiva).
+    [HttpPost("{busquedaId:guid}/mision")]
+    [Authorize(Policy = "PoliticaAdministrador")]
+    [ProducesResponseType(StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> AsignarMision(
+        Guid busquedaId,
+        [FromBody] AgregarMisionDto dto,
+        CancellationToken cancelacion)
+    {
+        var misionId = await _mediador.Send(new AgregarMisionComando(busquedaId, dto), cancelacion);
+        return Created($"/api/juegos/busquedas/{busquedaId}/mision", new { id = misionId });
+    }
+
+    // HU25 — Modificar la misión de una búsqueda (solo en estado Inactiva).
+    [HttpPut("{busquedaId:guid}/mision")]
+    [Authorize(Policy = "PoliticaAdministrador")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> ModificarMision(
+        Guid busquedaId,
+        [FromBody] ModificarMisionDto dto,
+        CancellationToken cancelacion)
+    {
+        await _mediador.Send(new ModificarMisionComando(busquedaId, dto), cancelacion);
+        return NoContent();
+    }
+
+    // HU25 — Eliminar la misión de una búsqueda (solo en estado Inactiva).
+    [HttpDelete("{busquedaId:guid}/mision")]
+    [Authorize(Policy = "PoliticaAdministrador")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> EliminarMision(
+        Guid busquedaId,
+        CancellationToken cancelacion)
+    {
+        await _mediador.Send(new EliminarMisionComando(busquedaId), cancelacion);
+        return NoContent();
+    }
+
+    // HU28 — Agregar pista de ayuda a la misión (se puede hacer en cualquier estado para liberarla en tiempo real).
+    [HttpPost("{busquedaId:guid}/mision/pistas")]
+    [Authorize(Policy = "PoliticaAdministrador")]
+    [ProducesResponseType(StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> AgregarPista(
+        Guid busquedaId,
+        [FromBody] AgregarPistaDto dto,
+        CancellationToken cancelacion)
+    {
+        var pistaId = await _mediador.Send(new AgregarPistaComando(busquedaId, dto), cancelacion);
+        return Created(
+            $"/api/juegos/busquedas/{busquedaId}/mision/pistas/{pistaId}",
+            new { id = pistaId });
+    }
+
+    // HU30 — Modificar el contenido de una pista (solo en estado Inactiva).
+    [HttpPut("{busquedaId:guid}/mision/pistas/{pistaId:guid}")]
+    [Authorize(Policy = "PoliticaAdministrador")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> ModificarPista(
+        Guid busquedaId,
+        Guid pistaId,
+        [FromBody] ModificarPistaDto dto,
+        CancellationToken cancelacion)
+    {
+        await _mediador.Send(new ModificarPistaComando(busquedaId, pistaId, dto), cancelacion);
+        return NoContent();
+    }
+
+    // HU32 — Eliminar una pista (solo en estado Inactiva).
+    [HttpDelete("{busquedaId:guid}/mision/pistas/{pistaId:guid}")]
+    [Authorize(Policy = "PoliticaAdministrador")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> EliminarPista(
+        Guid busquedaId,
+        Guid pistaId,
+        CancellationToken cancelacion)
+    {
+        await _mediador.Send(new EliminarPistaComando(busquedaId, pistaId), cancelacion);
+        return NoContent();
     }
 
     private Guid ObtenerCreadorId()

@@ -1,11 +1,11 @@
-using JuegosServicio.Dominio.Entidades;
+﻿using JuegosServicio.Dominio.Entidades;
 using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Dominio.Eventos;
 using JuegosServicio.Dominio.Excepciones;
 
 namespace JuegosServicio.PruebasUnitarias.Dominio;
 
-// Pruebas de BusquedaTesoro.Archivar.
+// Pruebas de BusquedaTesoro.Desactivar.
 public class BusquedaArchivarPruebas
 {
     private static readonly DateTime FechaFija =
@@ -14,14 +14,13 @@ public class BusquedaArchivarPruebas
     private static BusquedaTesoro BusquedaActiva()
     {
         var busqueda = BusquedaTesoro.Crear("Búsqueda Test", "Descripción", Guid.NewGuid(), FechaFija);
-        var etapa = busqueda.AgregarEtapa("Etapa 1", "Descripción");
-        busqueda.AgregarMisionAEtapa(etapa.Id, "Misión 1", "Desc", TipoMision.PistaTexto, "pista");
+        busqueda.AsignarMision("Busca el cofre", "Encuéntralo en el parque", TipoMision.PalabraClave, "cofre_norte");
         busqueda.Activar();
         return busqueda;
     }
 
     [Fact]
-    public void Archivar_BusquedaActiva_CambiaEstadoAArchivada()
+    public void Archivar_BusquedaActiva_CambiaEstadoAInactiva()
     {
         var busqueda = BusquedaActiva();
 

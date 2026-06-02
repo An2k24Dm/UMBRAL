@@ -33,7 +33,7 @@ public class DesactivarTriviaManejadorPruebas
     public DesactivarTriviaManejadorPruebas()
     {
         _repositorio
-            .Setup(r => r.ArchivarTriviaAsync(It.IsAny<Trivia>(), It.IsAny<CancellationToken>()))
+            .Setup(r => r.DesactivarTriviaAsync(It.IsAny<Trivia>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         // Por defecto, sesiones-servicio reporta que no hay sesiones
@@ -59,7 +59,7 @@ public class DesactivarTriviaManejadorPruebas
         _clienteSesiones.Verify(c => c.ExisteSesionVigentePorContenidoAsync(
             TipoJuego.Trivia, trivia.Id, It.IsAny<CancellationToken>()), Times.Once);
         _repositorio.Verify(
-            r => r.ArchivarTriviaAsync(trivia, It.IsAny<CancellationToken>()),
+            r => r.DesactivarTriviaAsync(trivia, It.IsAny<CancellationToken>()),
             Times.Once);
     }
 
@@ -81,7 +81,7 @@ public class DesactivarTriviaManejadorPruebas
         await accion.Should().ThrowAsync<ContenidoConSesionesVigentesExcepcion>();
 
         _repositorio.Verify(
-            r => r.ArchivarTriviaAsync(It.IsAny<Trivia>(), It.IsAny<CancellationToken>()),
+            r => r.DesactivarTriviaAsync(It.IsAny<Trivia>(), It.IsAny<CancellationToken>()),
             Times.Never);
         // La trivia sigue Activa: la transición de estado no se ejecuta.
         trivia.Estado.Should().Be(EstadoTrivia.Activa);
@@ -92,7 +92,7 @@ public class DesactivarTriviaManejadorPruebas
     {
         // Verifica el orden: primero se consulta a IClienteSesiones,
         // recién después se persiste. Si la consulta dice "vigente",
-        // el repositorio nunca debería ejecutar ArchivarTriviaAsync.
+        // el repositorio nunca debería ejecutar DesactivarTriviaAsync.
         var trivia = TriviaActiva();
         _repositorio
             .Setup(r => r.ObtenerTriviaPorIdAsync(trivia.Id, It.IsAny<CancellationToken>()))
@@ -105,7 +105,7 @@ public class DesactivarTriviaManejadorPruebas
             .Callback(() => ordenLlamadas.Add("cliente"))
             .ReturnsAsync(false);
         _repositorio
-            .Setup(r => r.ArchivarTriviaAsync(trivia, It.IsAny<CancellationToken>()))
+            .Setup(r => r.DesactivarTriviaAsync(trivia, It.IsAny<CancellationToken>()))
             .Callback(() => ordenLlamadas.Add("repositorio"))
             .Returns(Task.CompletedTask);
 

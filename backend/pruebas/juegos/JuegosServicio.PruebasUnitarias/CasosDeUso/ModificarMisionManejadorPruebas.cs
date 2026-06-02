@@ -1,9 +1,9 @@
+﻿using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Aplicacion.CasosDeUso.Comandos;
 using JuegosServicio.Aplicacion.CasosDeUso.Manejadores;
 using JuegosServicio.Aplicacion.Puertos;
 using JuegosServicio.Commons.Dtos;
 using JuegosServicio.Dominio.Entidades;
-using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Dominio.Excepciones;
 
 namespace JuegosServicio.PruebasUnitarias.CasosDeUso;
@@ -18,13 +18,10 @@ public class ModificarMisionManejadorPruebas
 
     private ModificarMisionManejador CrearManejador() => new(_repositorio.Object);
 
-    private static BusquedaTesoro BusquedaConMision(out Guid etapaId, out Guid misionId)
+    private static BusquedaTesoro BusquedaConMision()
     {
         var busqueda = BusquedaTesoro.Crear("Búsqueda Test", "Descripción", Guid.NewGuid(), FechaFija);
-        var etapa = busqueda.AgregarEtapa("Etapa 1", "Descripción");
-        etapaId = etapa.Id;
-        var mision = busqueda.AgregarMisionAEtapa(etapaId, "Misión", "Desc", TipoMision.PistaTexto, "pista");
-        misionId = mision.Id;
+        busqueda.AsignarMision("Misión", "Desc", TipoMision.PalabraClave, "pista");
         return busqueda;
     }
 
@@ -32,7 +29,6 @@ public class ModificarMisionManejadorPruebas
     {
         NuevoTitulo = "Título modificado",
         NuevaDescripcion = "Descripción modificada",
-        NuevoTipo = 1,
         NuevaPistaClave = "nueva-pista"
     };
 
@@ -40,24 +36,24 @@ public class ModificarMisionManejadorPruebas
     {
         _repositorio
             .Setup(r => r.ModificarMisionAsync(
-                It.IsAny<Guid>(), It.IsAny<Mision>(), It.IsAny<CancellationToken>()))
+                It.IsAny<Mision>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
     }
 
     [Fact]
-    public async Task Handle_TodosExistentes_LlamaModificarMisionAsyncUnaVez()
+    public async Task Handle_BusquedaConMision_LlamaModificarMisionAsyncUnaVez()
     {
-        var busqueda = BusquedaConMision(out var etapaId, out var misionId);
+        var busqueda = BusquedaConMision();
         _repositorio
             .Setup(r => r.ObtenerBusquedaPorIdAsync(busqueda.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(busqueda);
 
         await CrearManejador().Handle(
-            new ModificarMisionComando(busqueda.Id, etapaId, misionId, DtoValido()),
+            new ModificarMisionComando(busqueda.Id, DtoValido()),
             CancellationToken.None);
 
         _repositorio.Verify(
-            r => r.ModificarMisionAsync(etapaId, It.IsAny<Mision>(), It.IsAny<CancellationToken>()),
+            r => r.ModificarMisionAsync(It.IsAny<Mision>(), It.IsAny<CancellationToken>()),
             Times.Once);
     }
 
@@ -70,23 +66,21 @@ public class ModificarMisionManejadorPruebas
             .ReturnsAsync((BusquedaTesoro?)null);
 
         var accion = async () => await CrearManejador().Handle(
-            new ModificarMisionComando(busquedaId, Guid.NewGuid(), Guid.NewGuid(), DtoValido()),
-            CancellationToken.None);
+            new ModificarMisionComando(busquedaId, DtoValido()), CancellationToken.None);
 
         await accion.Should().ThrowAsync<ExcepcionNoEncontrado>();
     }
 
     [Fact]
-    public async Task Handle_MisionInexistente_LanzaExcepcionNoEncontrado()
+    public async Task Handle_SinMisionAsignada_LanzaExcepcionNoEncontrado()
     {
-        var busqueda = BusquedaConMision(out var etapaId, out _);
+        var busqueda = BusquedaTesoro.Crear("Búsqueda sin misión", "Descripción", Guid.NewGuid(), FechaFija);
         _repositorio
             .Setup(r => r.ObtenerBusquedaPorIdAsync(busqueda.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(busqueda);
 
         var accion = async () => await CrearManejador().Handle(
-            new ModificarMisionComando(busqueda.Id, etapaId, Guid.NewGuid(), DtoValido()),
-            CancellationToken.None);
+            new ModificarMisionComando(busqueda.Id, DtoValido()), CancellationToken.None);
 
         await accion.Should().ThrowAsync<ExcepcionNoEncontrado>();
     }

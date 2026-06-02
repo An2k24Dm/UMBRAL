@@ -20,12 +20,9 @@ public sealed class ModificarPistaManejador : IRequestHandler<ModificarPistaComa
             ?? throw new ExcepcionNoEncontrado(
                 $"No se encontró la búsqueda del tesoro con ID '{comando.BusquedaId}'.");
 
-        busqueda.ModificarPista(comando.EtapaId, comando.PistaId, comando.Dto.NuevoContenido);
+        busqueda.ModificarPista(comando.PistaId, comando.Dto.NuevoContenido);
 
-        var pista = busqueda.Etapas
-            .First(e => e.Id == comando.EtapaId)
-            .Pistas.First(p => p.Id == comando.PistaId);
-
+        var pista = busqueda.Mision!.Pistas.First(p => p.Id == comando.PistaId);
         await _repositorio.ModificarPistaAsync(pista, cancelacion);
     }
 }

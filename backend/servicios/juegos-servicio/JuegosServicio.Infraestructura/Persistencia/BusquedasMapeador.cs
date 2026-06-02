@@ -6,8 +6,6 @@ namespace JuegosServicio.Infraestructura.Persistencia;
 
 public static class BusquedasMapeador
 {
-    // Dominio → Modelos
-
     public static BusquedaTesoroModelo AModelo(BusquedaTesoro busqueda)
     {
         return new BusquedaTesoroModelo
@@ -18,21 +16,7 @@ public static class BusquedasMapeador
             CreadorId = busqueda.CreadorId,
             Estado = (int)busqueda.Estado,
             FechaCreacion = busqueda.FechaCreacion,
-            Etapas = busqueda.Etapas.Select(AModelo).ToList()
-        };
-    }
-
-    public static EtapaModelo AModelo(Etapa etapa)
-    {
-        return new EtapaModelo
-        {
-            Id = etapa.Id,
-            BusquedaId = etapa.BusquedaId,
-            Titulo = etapa.Titulo,
-            Descripcion = etapa.Descripcion,
-            Orden = etapa.Orden,
-            Misiones = etapa.Misiones.Select(AModelo).ToList(),
-            Pistas = etapa.Pistas.Select(AModelo).ToList()
+            Mision = busqueda.Mision is null ? null : AModelo(busqueda.Mision)
         };
     }
 
@@ -41,11 +25,12 @@ public static class BusquedasMapeador
         return new MisionModelo
         {
             Id = mision.Id,
-            EtapaId = mision.EtapaId,
+            BusquedaId = mision.BusquedaId,
             Titulo = mision.Titulo,
             Descripcion = mision.Descripcion,
             Tipo = (int)mision.Tipo,
-            PistaClave = mision.PistaClave
+            PistaClave = mision.PistaClave,
+            Pistas = mision.Pistas.Select(AModelo).ToList()
         };
     }
 
@@ -54,16 +39,14 @@ public static class BusquedasMapeador
         return new PistaModelo
         {
             Id = pista.Id,
-            EtapaId = pista.EtapaId,
+            MisionId = pista.MisionId,
             Contenido = pista.Contenido
         };
     }
 
-    // Modelos → Dominio
-
     public static BusquedaTesoro ADominio(BusquedaTesoroModelo modelo)
     {
-        var etapas = modelo.Etapas.Select(ADominio);
+        var mision = modelo.Mision is null ? null : ADominio(modelo.Mision);
         return BusquedaTesoro.Reconstituir(
             modelo.Id,
             modelo.Nombre,
@@ -71,36 +54,24 @@ public static class BusquedasMapeador
             modelo.CreadorId,
             (EstadoBusqueda)modelo.Estado,
             modelo.FechaCreacion,
-            etapas);
-    }
-
-    public static Etapa ADominio(EtapaModelo modelo)
-    {
-        var misiones = modelo.Misiones.Select(ADominio);
-        var pistas = modelo.Pistas.Select(ADominio);
-        return Etapa.Reconstituir(
-            modelo.Id,
-            modelo.BusquedaId,
-            modelo.Titulo,
-            modelo.Descripcion,
-            modelo.Orden,
-            misiones,
-            pistas);
+            mision);
     }
 
     public static Mision ADominio(MisionModelo modelo)
     {
+        var pistas = modelo.Pistas.Select(ADominio);
         return Mision.Reconstituir(
             modelo.Id,
-            modelo.EtapaId,
+            modelo.BusquedaId,
             modelo.Titulo,
             modelo.Descripcion,
             (TipoMision)modelo.Tipo,
-            modelo.PistaClave);
+            modelo.PistaClave,
+            pistas);
     }
 
     public static Pista ADominio(PistaModelo modelo)
     {
-        return Pista.Reconstituir(modelo.Id, modelo.EtapaId, modelo.Contenido);
+        return Pista.Reconstituir(modelo.Id, modelo.MisionId, modelo.Contenido);
     }
 }

@@ -6,8 +6,9 @@ import { Boton } from '../componentes/Boton'
 import {
   obtenerBusquedasEnBorrador,
   obtenerBusquedasActivas,
-  archivarBusqueda,
+  desactivarBusqueda,
   activarBusqueda,
+  eliminarBusqueda,
   type BusquedaTesoroResumenDto
 } from '../autenticacion/clienteApiJuegos'
 import { usarAutenticacion } from '../autenticacion/ProveedorAutenticacion'
@@ -74,8 +75,18 @@ export function PaginaListaBusquedas() {
     if (!token) return
     setProcesandoId(busquedaId)
     setMensajeError(null)
-    try { await archivarBusqueda(busquedaId, token); await cargar() }
+    try { await desactivarBusqueda(busquedaId, token); await cargar() }
     catch (err) { setMensajeError(err instanceof Error ? err.message : 'No fue posible desactivar la búsqueda.') }
+    finally { setProcesandoId(null) }
+  }
+
+  async function manejarEliminar(e: React.MouseEvent, busquedaId: string) {
+    e.stopPropagation()
+    if (!token) return
+    setProcesandoId(busquedaId)
+    setMensajeError(null)
+    try { await eliminarBusqueda(busquedaId, token); await cargar() }
+    catch (err) { setMensajeError(err instanceof Error ? err.message : 'No fue posible eliminar la búsqueda.') }
     finally { setProcesandoId(null) }
   }
 
@@ -137,8 +148,8 @@ export function PaginaListaBusquedas() {
                 className="trivia-card"
                 role="button"
                 tabIndex={0}
-                onClick={() => navegar(`${rutaBase}/${b.id}/etapas`)}
-                onKeyDown={(e) => e.key === 'Enter' && navegar(`${rutaBase}/${b.id}/etapas`)}
+                onClick={() => navegar(`${rutaBase}/${b.id}/mision`)}
+                onKeyDown={(e) => e.key === 'Enter' && navegar(`${rutaBase}/${b.id}/mision`)}
                 style={{
                   borderLeft: `4px solid ${b.estado === 'Activa' ? '#22c55e' : '#94a3b8'}`,
                   opacity: b.estado === 'Inactiva' ? 0.85 : 1
@@ -147,7 +158,7 @@ export function PaginaListaBusquedas() {
                 <div className="trivia-card-cabecera">
                   <span className="trivia-card-nombre">{b.nombre}</span>
                   <span className="trivia-card-meta">
-                    {b.totalEtapas} {b.totalEtapas === 1 ? 'etapa' : 'etapas'}
+                    {b.tieneMision ? 'Con misión' : 'Sin misión'}
                     &nbsp;·&nbsp;{formatearFecha(b.fechaCreacion)}
                   </span>
                 </div>
@@ -157,9 +168,14 @@ export function PaginaListaBusquedas() {
                 </div>
                 <div className="acciones-formulario-trivia" style={{ marginTop: 8 }}>
                   {b.estado === 'Inactiva' ? (
-                    <Boton variante="secundario" onClick={(e) => manejarActivar(e, b.id)} disabled={procesandoId === b.id}>
-                      {procesandoId === b.id ? 'Activando…' : 'Activar'}
-                    </Boton>
+                    <>
+                      <Boton variante="secundario" onClick={(e) => manejarActivar(e, b.id)} disabled={procesandoId === b.id}>
+                        {procesandoId === b.id ? 'Activando…' : 'Activar'}
+                      </Boton>
+                      <Boton variante="peligro" onClick={(e) => manejarEliminar(e, b.id)} disabled={procesandoId === b.id}>
+                        {procesandoId === b.id ? 'Eliminando…' : 'Eliminar'}
+                      </Boton>
+                    </>
                   ) : (
                     <Boton variante="peligro" onClick={(e) => manejarDesactivar(e, b.id)} disabled={procesandoId === b.id}>
                       {procesandoId === b.id ? 'Desactivando…' : 'Desactivar'}

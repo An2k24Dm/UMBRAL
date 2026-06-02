@@ -12,7 +12,6 @@ public sealed class ContextoJuegos : DbContext
     public DbSet<OpcionModelo> Opciones => Set<OpcionModelo>();
     public DbSet<EventoSalidaModelo> EventosSalida => Set<EventoSalidaModelo>();
     public DbSet<BusquedaTesoroModelo> BusquedasTesoro => Set<BusquedaTesoroModelo>();
-    public DbSet<EtapaModelo> Etapas => Set<EtapaModelo>();
     public DbSet<MisionModelo> Misiones => Set<MisionModelo>();
     public DbSet<PistaModelo> Pistas => Set<PistaModelo>();
 
@@ -32,9 +31,7 @@ public sealed class ContextoJuegos : DbContext
             e.Property(x => x.TiempoLimitePorPregunta).HasColumnName("tiempo_limite_por_pregunta").IsRequired();
             e.Property(x => x.Estado).HasColumnName("estado").IsRequired();
             e.Property(x => x.FechaCreacion).HasColumnName("fecha_creacion").IsRequired();
-
             e.HasIndex(x => x.Nombre).IsUnique();
-
             e.HasMany(x => x.Preguntas)
                 .WithOne(p => p.Trivia)
                 .HasForeignKey(p => p.TriviaId)
@@ -50,7 +47,6 @@ public sealed class ContextoJuegos : DbContext
             e.Property(x => x.TriviaId).HasColumnName("trivia_id").IsRequired();
             e.Property(x => x.Enunciado).HasColumnName("enunciado").HasMaxLength(500).IsRequired();
             e.Property(x => x.PuntajeAsignado).HasColumnName("puntaje_asignado").IsRequired();
-
             e.HasMany(x => x.Opciones)
                 .WithOne(o => o.Pregunta)
                 .HasForeignKey(o => o.PreguntaId)
@@ -91,29 +87,10 @@ public sealed class ContextoJuegos : DbContext
             e.Property(x => x.CreadorId).HasColumnName("creador_id").IsRequired();
             e.Property(x => x.Estado).HasColumnName("estado").IsRequired();
             e.Property(x => x.FechaCreacion).HasColumnName("fecha_creacion").IsRequired();
-
             e.HasIndex(x => x.Nombre).IsUnique();
-
-            e.HasMany(x => x.Etapas)
-                .WithOne(et => et.BusquedaTesoro)
-                .HasForeignKey(et => et.BusquedaId)
-                .OnDelete(DeleteBehavior.Cascade);
-        });
-
-        // ---------- Etapa ----------
-        constructor.Entity<EtapaModelo>(e =>
-        {
-            e.ToTable("Etapa");
-            e.HasKey(x => x.Id);
-            e.Property(x => x.Id).HasColumnName("id");
-            e.Property(x => x.BusquedaId).HasColumnName("busqueda_id").IsRequired();
-            e.Property(x => x.Titulo).HasColumnName("titulo").HasMaxLength(200).IsRequired();
-            e.Property(x => x.Descripcion).HasColumnName("descripcion").HasMaxLength(1000).IsRequired();
-            e.Property(x => x.Orden).HasColumnName("orden").IsRequired();
-
-            e.HasMany(x => x.Misiones)
-                .WithOne(m => m.Etapa)
-                .HasForeignKey(m => m.EtapaId)
+            e.HasOne(x => x.Mision)
+                .WithOne(m => m.BusquedaTesoro)
+                .HasForeignKey<MisionModelo>(m => m.BusquedaId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
@@ -123,11 +100,15 @@ public sealed class ContextoJuegos : DbContext
             e.ToTable("Mision");
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).HasColumnName("id");
-            e.Property(x => x.EtapaId).HasColumnName("etapa_id").IsRequired();
+            e.Property(x => x.BusquedaId).HasColumnName("busqueda_id").IsRequired();
             e.Property(x => x.Titulo).HasColumnName("titulo").HasMaxLength(200).IsRequired();
             e.Property(x => x.Descripcion).HasColumnName("descripcion").HasMaxLength(1000).IsRequired();
             e.Property(x => x.Tipo).HasColumnName("tipo").IsRequired();
-            e.Property(x => x.PistaClave).HasColumnName("pista_clave").IsRequired();
+            e.Property(x => x.PistaClave).HasColumnName("pista_clave").HasMaxLength(500).IsRequired();
+            e.HasMany(x => x.Pistas)
+                .WithOne(p => p.Mision)
+                .HasForeignKey(p => p.MisionId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         // ---------- Pista ----------
@@ -136,13 +117,8 @@ public sealed class ContextoJuegos : DbContext
             e.ToTable("Pista");
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).HasColumnName("id");
-            e.Property(x => x.EtapaId).HasColumnName("etapa_id").IsRequired();
+            e.Property(x => x.MisionId).HasColumnName("mision_id").IsRequired();
             e.Property(x => x.Contenido).HasColumnName("contenido").HasMaxLength(1000).IsRequired();
-
-            e.HasOne(x => x.Etapa)
-                .WithMany(et => et.Pistas)
-                .HasForeignKey(x => x.EtapaId)
-                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

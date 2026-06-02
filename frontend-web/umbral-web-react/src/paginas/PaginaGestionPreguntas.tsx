@@ -11,7 +11,7 @@ import {
   eliminarPregunta,
   activarTrivia,
   modificarTrivia,
-  archivarTrivia,
+  desactivarTrivia,
   type TriviaDetalleDto,
   type PreguntaDetalleDto,
   type OpcionInput
@@ -340,7 +340,7 @@ export function PaginaGestionPreguntas() {
     setArchivando(true)
     setErrorArchivado(null)
     try {
-      await archivarTrivia(triviaId, token)
+      await desactivarTrivia(triviaId, token)
       navegar(rutaBase)
     } catch (err) {
       setErrorArchivado(err instanceof Error ? err.message : 'No fue posible desactivar la trivia.')

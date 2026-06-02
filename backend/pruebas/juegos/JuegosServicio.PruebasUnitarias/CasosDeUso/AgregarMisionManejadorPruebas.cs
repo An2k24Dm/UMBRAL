@@ -1,3 +1,4 @@
+﻿using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Aplicacion.CasosDeUso.Comandos;
 using JuegosServicio.Aplicacion.CasosDeUso.Manejadores;
 using JuegosServicio.Aplicacion.Puertos;
@@ -7,7 +8,7 @@ using JuegosServicio.Dominio.Excepciones;
 
 namespace JuegosServicio.PruebasUnitarias.CasosDeUso;
 
-// HU23: pruebas del manejador para agregar una misión a una etapa.
+// HU23: pruebas del manejador para asignar la misión a una búsqueda del tesoro.
 public class AgregarMisionManejadorPruebas
 {
     private readonly Mock<IRepositorioBusquedas> _repositorio = new();
@@ -17,59 +18,51 @@ public class AgregarMisionManejadorPruebas
 
     private AgregarMisionManejador CrearManejador() => new(_repositorio.Object);
 
-    private static BusquedaTesoro BusquedaConEtapa(out Guid etapaId)
-    {
-        var busqueda = BusquedaTesoro.Crear(
-            "Búsqueda Test", "Descripción", Guid.NewGuid(), FechaFija);
-        var etapa = busqueda.AgregarEtapa("Etapa 1", "Primera etapa");
-        etapaId = etapa.Id;
-        return busqueda;
-    }
+    private static BusquedaTesoro BusquedaSinMision() =>
+        BusquedaTesoro.Crear("Búsqueda Test", "Descripción", Guid.NewGuid(), FechaFija);
 
-    private static AgregarMisionComando ComandoValido(Guid busquedaId, Guid etapaId) =>
-        new(busquedaId, etapaId, new AgregarMisionDto
+    private static AgregarMisionComando ComandoValido(Guid busquedaId) =>
+        new(busquedaId, new AgregarMisionDto
         {
             Titulo = "Encuentra la estatua",
             Descripcion = "Busca la estatua principal del parque",
-            Tipo = 0, // PistaTexto
             PistaClave = "Mira hacia el norte"
         });
 
     public AgregarMisionManejadorPruebas()
     {
         _repositorio
-            .Setup(r => r.AgregarMisionAsync(
+            .Setup(r => r.AsignarMisionAsync(
                 It.IsAny<Guid>(), It.IsAny<Mision>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
     }
 
     [Fact]
-    public async Task Handle_BusquedaYEtapaExistentes_RetornaIdDeMisionNoVacio()
+    public async Task Handle_BusquedaExistente_RetornaIdDeMisionNoVacio()
     {
-        var busqueda = BusquedaConEtapa(out var etapaId);
+        var busqueda = BusquedaSinMision();
         _repositorio
             .Setup(r => r.ObtenerBusquedaPorIdAsync(busqueda.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(busqueda);
 
         var resultado = await CrearManejador()
-            .Handle(ComandoValido(busqueda.Id, etapaId), CancellationToken.None);
+            .Handle(ComandoValido(busqueda.Id), CancellationToken.None);
 
         resultado.Should().NotBe(Guid.Empty);
     }
 
     [Fact]
-    public async Task Handle_BusquedaYEtapaExistentes_LlamaAgregarMisionAsyncUnaVez()
+    public async Task Handle_BusquedaExistente_LlamaAsignarMisionAsyncUnaVez()
     {
-        var busqueda = BusquedaConEtapa(out var etapaId);
+        var busqueda = BusquedaSinMision();
         _repositorio
             .Setup(r => r.ObtenerBusquedaPorIdAsync(busqueda.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(busqueda);
 
-        await CrearManejador()
-            .Handle(ComandoValido(busqueda.Id, etapaId), CancellationToken.None);
+        await CrearManejador().Handle(ComandoValido(busqueda.Id), CancellationToken.None);
 
         _repositorio.Verify(
-            r => r.AgregarMisionAsync(etapaId, It.IsAny<Mision>(), It.IsAny<CancellationToken>()),
+            r => r.AsignarMisionAsync(busqueda.Id, It.IsAny<Mision>(), It.IsAny<CancellationToken>()),
             Times.Once);
     }
 
@@ -82,24 +75,23 @@ public class AgregarMisionManejadorPruebas
             .ReturnsAsync((BusquedaTesoro?)null);
 
         var accion = async () =>
-            await CrearManejador()
-                .Handle(ComandoValido(busquedaId, Guid.NewGuid()), CancellationToken.None);
+            await CrearManejador().Handle(ComandoValido(busquedaId), CancellationToken.None);
 
         await accion.Should().ThrowAsync<ExcepcionNoEncontrado>();
     }
 
     [Fact]
-    public async Task Handle_EtapaInexistente_LanzaExcepcionNoEncontrado()
+    public async Task Handle_BusquedaYaTieneMision_LanzaExcepcionDominio()
     {
-        var busqueda = BusquedaConEtapa(out _);
+        var busqueda = BusquedaSinMision();
+        busqueda.AsignarMision("Misión existente", "Desc", TipoMision.PalabraClave, "clave");
         _repositorio
             .Setup(r => r.ObtenerBusquedaPorIdAsync(busqueda.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(busqueda);
 
         var accion = async () =>
-            await CrearManejador()
-                .Handle(ComandoValido(busqueda.Id, Guid.NewGuid()), CancellationToken.None);
+            await CrearManejador().Handle(ComandoValido(busqueda.Id), CancellationToken.None);
 
-        await accion.Should().ThrowAsync<ExcepcionNoEncontrado>();
+        await accion.Should().ThrowAsync<ExcepcionDominio>();
     }
 }

@@ -7,9 +7,8 @@ using JuegosServicio.Dominio.Excepciones;
 
 namespace JuegosServicio.PruebasUnitarias.CasosDeUso;
 
-// HU26 + regla "no archivar si hay sesiones vigentes": pruebas del
-// manejador de archivado de Búsqueda del Tesoro.
-public class ArchivarBusquedaTesoroManejadorPruebas
+// HU26 + regla "no desactivar si hay sesiones vigentes": pruebas del manejador de desactivación.
+public class DesactivarBusquedaTesoroManejadorPruebas
 {
     private readonly Mock<IRepositorioBusquedas> _repositorio = new();
     private readonly Mock<IClienteSesiones> _clienteSesiones = new();
@@ -17,22 +16,21 @@ public class ArchivarBusquedaTesoroManejadorPruebas
     private static readonly DateTime FechaFija =
         new(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc);
 
-    private ArchivarBusquedaTesoroManejador CrearManejador() =>
+    private DesactivarBusquedaTesoroManejador CrearManejador() =>
         new(_repositorio.Object, _clienteSesiones.Object);
 
     private static BusquedaTesoro BusquedaActiva()
     {
         var busqueda = BusquedaTesoro.Crear("Búsqueda Test", "Descripción", Guid.NewGuid(), FechaFija);
-        var etapa = busqueda.AgregarEtapa("Etapa 1", "Descripción");
-        busqueda.AgregarMisionAEtapa(etapa.Id, "Misión", "Desc", TipoMision.PistaTexto, "pista");
+        busqueda.AsignarMision("Busca el cofre", "Encuéntralo en el parque", TipoMision.PalabraClave, "cofre_norte");
         busqueda.Activar();
         return busqueda;
     }
 
-    public ArchivarBusquedaTesoroManejadorPruebas()
+    public DesactivarBusquedaTesoroManejadorPruebas()
     {
         _repositorio
-            .Setup(r => r.ArchivarBusquedaTesoroAsync(
+            .Setup(r => r.DesactivarBusquedaTesoroAsync(
                 It.IsAny<BusquedaTesoro>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
@@ -43,7 +41,7 @@ public class ArchivarBusquedaTesoroManejadorPruebas
     }
 
     [Fact]
-    public async Task Handle_BusquedaSinSesionesVigentes_ArchivaCorrectamente()
+    public async Task Handle_BusquedaSinSesionesVigentes_DesactivaCorrectamente()
     {
         var busqueda = BusquedaActiva();
         _repositorio
@@ -51,12 +49,12 @@ public class ArchivarBusquedaTesoroManejadorPruebas
             .ReturnsAsync(busqueda);
 
         await CrearManejador().Handle(
-            new ArchivarBusquedaTesoroComando(busqueda.Id, Guid.NewGuid()), CancellationToken.None);
+            new DesactivarBusquedaTesoroComando(busqueda.Id, Guid.NewGuid()), CancellationToken.None);
 
         _clienteSesiones.Verify(c => c.ExisteSesionVigentePorContenidoAsync(
             TipoJuego.BusquedaTesoro, busqueda.Id, It.IsAny<CancellationToken>()), Times.Once);
         _repositorio.Verify(
-            r => r.ArchivarBusquedaTesoroAsync(busqueda, It.IsAny<CancellationToken>()),
+            r => r.DesactivarBusquedaTesoroAsync(busqueda, It.IsAny<CancellationToken>()),
             Times.Once);
     }
 
@@ -73,17 +71,17 @@ public class ArchivarBusquedaTesoroManejadorPruebas
             .ReturnsAsync(true);
 
         var accion = async () => await CrearManejador().Handle(
-            new ArchivarBusquedaTesoroComando(busqueda.Id, Guid.NewGuid()), CancellationToken.None);
+            new DesactivarBusquedaTesoroComando(busqueda.Id, Guid.NewGuid()), CancellationToken.None);
 
         await accion.Should().ThrowAsync<ContenidoConSesionesVigentesExcepcion>();
         _repositorio.Verify(
-            r => r.ArchivarBusquedaTesoroAsync(It.IsAny<BusquedaTesoro>(), It.IsAny<CancellationToken>()),
+            r => r.DesactivarBusquedaTesoroAsync(It.IsAny<BusquedaTesoro>(), It.IsAny<CancellationToken>()),
             Times.Never);
         busqueda.Estado.Should().Be(EstadoBusqueda.Activa);
     }
 
     [Fact]
-    public async Task Handle_ConsultaSesiones_AntesDeArchivar()
+    public async Task Handle_ConsultaSesiones_AntesDeDesactivar()
     {
         var busqueda = BusquedaActiva();
         _repositorio
@@ -97,12 +95,12 @@ public class ArchivarBusquedaTesoroManejadorPruebas
             .Callback(() => orden.Add("cliente"))
             .ReturnsAsync(false);
         _repositorio
-            .Setup(r => r.ArchivarBusquedaTesoroAsync(busqueda, It.IsAny<CancellationToken>()))
+            .Setup(r => r.DesactivarBusquedaTesoroAsync(busqueda, It.IsAny<CancellationToken>()))
             .Callback(() => orden.Add("repositorio"))
             .Returns(Task.CompletedTask);
 
         await CrearManejador().Handle(
-            new ArchivarBusquedaTesoroComando(busqueda.Id, Guid.NewGuid()), CancellationToken.None);
+            new DesactivarBusquedaTesoroComando(busqueda.Id, Guid.NewGuid()), CancellationToken.None);
 
         orden.Should().Equal("cliente", "repositorio");
     }
@@ -116,7 +114,7 @@ public class ArchivarBusquedaTesoroManejadorPruebas
             .ReturnsAsync((BusquedaTesoro?)null);
 
         var accion = async () => await CrearManejador().Handle(
-            new ArchivarBusquedaTesoroComando(busquedaId, Guid.NewGuid()), CancellationToken.None);
+            new DesactivarBusquedaTesoroComando(busquedaId, Guid.NewGuid()), CancellationToken.None);
 
         await accion.Should().ThrowAsync<ExcepcionNoEncontrado>();
         _clienteSesiones.Verify(c => c.ExisteSesionVigentePorContenidoAsync(
@@ -124,7 +122,7 @@ public class ArchivarBusquedaTesoroManejadorPruebas
     }
 
     [Fact]
-    public async Task Handle_BusquedaYaArchivada_LanzaExcepcionDominio()
+    public async Task Handle_BusquedaYaInactiva_LanzaExcepcionDominio()
     {
         var busqueda = BusquedaActiva();
         busqueda.Desactivar();
@@ -133,7 +131,7 @@ public class ArchivarBusquedaTesoroManejadorPruebas
             .ReturnsAsync(busqueda);
 
         var accion = async () => await CrearManejador().Handle(
-            new ArchivarBusquedaTesoroComando(busqueda.Id, Guid.NewGuid()), CancellationToken.None);
+            new DesactivarBusquedaTesoroComando(busqueda.Id, Guid.NewGuid()), CancellationToken.None);
 
         await accion.Should().ThrowAsync<ExcepcionDominio>();
     }

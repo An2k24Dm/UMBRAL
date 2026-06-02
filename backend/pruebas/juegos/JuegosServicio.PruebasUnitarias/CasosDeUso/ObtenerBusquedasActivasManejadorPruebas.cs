@@ -17,8 +17,8 @@ public class ObtenerBusquedasActivasManejadorPruebas
     {
         var lista = new List<BusquedaTesoroResumenDto>
         {
-            new() { Id = Guid.NewGuid(), Nombre = "Búsqueda A", TotalEtapas = 2 },
-            new() { Id = Guid.NewGuid(), Nombre = "Búsqueda B", TotalEtapas = 3 }
+            new() { Id = Guid.NewGuid(), Nombre = "Búsqueda A", TieneMision = true },
+            new() { Id = Guid.NewGuid(), Nombre = "Búsqueda B", TieneMision = true }
         };
         _repositorio
             .Setup(r => r.ObtenerBusquedasActivasAsync(It.IsAny<CancellationToken>()))

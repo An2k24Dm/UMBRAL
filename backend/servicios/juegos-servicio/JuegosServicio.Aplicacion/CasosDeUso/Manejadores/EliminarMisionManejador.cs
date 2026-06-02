@@ -20,8 +20,8 @@ public sealed class EliminarMisionManejador : IRequestHandler<EliminarMisionComa
             ?? throw new ExcepcionNoEncontrado(
                 $"No se encontró la búsqueda del tesoro con ID '{comando.BusquedaId}'.");
 
-        busqueda.EliminarMision(comando.EtapaId, comando.MisionId);
+        busqueda.EliminarMision();
 
-        await _repositorio.EliminarMisionAsync(comando.EtapaId, comando.MisionId, cancelacion);
+        await _repositorio.EliminarMisionAsync(comando.BusquedaId, cancelacion);
     }
 }

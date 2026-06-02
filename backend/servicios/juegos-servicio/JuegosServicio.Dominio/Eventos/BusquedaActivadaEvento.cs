@@ -4,12 +4,10 @@ public sealed class BusquedaActivadaEvento : EventoDominio
 {
     public Guid BusquedaId { get; }
     public string Nombre { get; }
-    public int CantidadEtapas { get; }
 
-    public BusquedaActivadaEvento(Guid busquedaId, string nombre, int cantidadEtapas)
+    public BusquedaActivadaEvento(Guid busquedaId, string nombre)
     {
         BusquedaId = busquedaId;
         Nombre = nombre;
-        CantidadEtapas = cantidadEtapas;
     }
 }

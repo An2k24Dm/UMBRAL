@@ -9,17 +9,15 @@ public interface IRepositorioBusquedas
     Task CrearBusquedaTesoroAsync(BusquedaTesoro busqueda, CancellationToken cancelacion);
     Task<BusquedaTesoro?> ObtenerBusquedaPorIdAsync(Guid busquedaId, CancellationToken cancelacion);
     Task<List<BusquedaTesoroResumenDto>> ObtenerBusquedasEnBorradorAsync(Guid? creadorId, CancellationToken cancelacion);
-    Task AgregarEtapaAsync(Guid busquedaId, Etapa etapa, CancellationToken cancelacion);
-    Task ModificarEtapaAsync(Guid busquedaId, Etapa etapa, CancellationToken cancelacion);
-    Task EliminarEtapaAsync(Guid busquedaId, Guid etapaId, CancellationToken cancelacion);
-    Task AgregarMisionAsync(Guid etapaId, Mision mision, CancellationToken cancelacion);
-    Task ModificarMisionAsync(Guid etapaId, Mision mision, CancellationToken cancelacion);
-    Task EliminarMisionAsync(Guid etapaId, Guid misionId, CancellationToken cancelacion);
-    Task ActivarBusquedaTesoroAsync(BusquedaTesoro busqueda, CancellationToken cancelacion);
-    Task ArchivarBusquedaTesoroAsync(BusquedaTesoro busqueda, CancellationToken cancelacion);
     Task<List<BusquedaTesoroResumenDto>> ObtenerBusquedasActivasAsync(CancellationToken cancelacion);
     Task<BusquedaTesoroDetalleDto?> ObtenerDetalleBusquedaAsync(Guid busquedaId, CancellationToken cancelacion);
-    Task AgregarPistaAsync(Guid etapaId, Pista pista, CancellationToken cancelacion);
+    Task AsignarMisionAsync(Guid busquedaId, Mision mision, CancellationToken cancelacion);
+    Task ModificarMisionAsync(Mision mision, CancellationToken cancelacion);
+    Task EliminarMisionAsync(Guid busquedaId, CancellationToken cancelacion);
+    Task AgregarPistaAsync(Guid misionId, Pista pista, CancellationToken cancelacion);
     Task ModificarPistaAsync(Pista pista, CancellationToken cancelacion);
-    Task EliminarPistaAsync(Guid etapaId, Guid pistaId, CancellationToken cancelacion);
+    Task EliminarPistaAsync(Guid pistaId, CancellationToken cancelacion);
+    Task ActivarBusquedaTesoroAsync(BusquedaTesoro busqueda, CancellationToken cancelacion);
+    Task DesactivarBusquedaTesoroAsync(BusquedaTesoro busqueda, CancellationToken cancelacion);
+    Task EliminarBusquedaTesoroAsync(Guid busquedaId, CancellationToken cancelacion);
 }

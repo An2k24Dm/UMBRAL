@@ -9,5 +9,5 @@ public sealed class BusquedaTesoroModelo
     public int Estado { get; set; }
     public DateTime FechaCreacion { get; set; }
 
-    public List<EtapaModelo> Etapas { get; set; } = new();
+    public MisionModelo? Mision { get; set; }
 }

@@ -1,8 +1,8 @@
+﻿using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Aplicacion.CasosDeUso.Comandos;
 using JuegosServicio.Aplicacion.CasosDeUso.Manejadores;
 using JuegosServicio.Aplicacion.Puertos;
 using JuegosServicio.Dominio.Entidades;
-using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Dominio.Excepciones;
 
 namespace JuegosServicio.PruebasUnitarias.CasosDeUso;
@@ -17,11 +17,10 @@ public class ActivarBusquedaTesoroManejadorPruebas
 
     private ActivarBusquedaTesoroManejador CrearManejador() => new(_repositorio.Object);
 
-    private static BusquedaTesoro BusquedaConEtapaYMision()
+    private static BusquedaTesoro BusquedaConMision()
     {
         var busqueda = BusquedaTesoro.Crear("Búsqueda Test", "Descripción", Guid.NewGuid(), FechaFija);
-        var etapa = busqueda.AgregarEtapa("Etapa 1", "Descripción");
-        busqueda.AgregarMisionAEtapa(etapa.Id, "Misión", "Desc", TipoMision.PistaTexto, "pista");
+        busqueda.AsignarMision("Busca el cofre", "Encuéntralo en el parque", TipoMision.PalabraClave, "cofre_norte");
         return busqueda;
     }
 
@@ -34,9 +33,9 @@ public class ActivarBusquedaTesoroManejadorPruebas
     }
 
     [Fact]
-    public async Task Handle_BusquedaConEtapasYMisiones_LlamaActivarAsyncUnaVez()
+    public async Task Handle_BusquedaConMision_LlamaActivarAsyncUnaVez()
     {
-        var busqueda = BusquedaConEtapaYMision();
+        var busqueda = BusquedaConMision();
         _repositorio
             .Setup(r => r.ObtenerBusquedaPorIdAsync(busqueda.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(busqueda);
@@ -64,7 +63,7 @@ public class ActivarBusquedaTesoroManejadorPruebas
     }
 
     [Fact]
-    public async Task Handle_BusquedaSinEtapas_LanzaExcepcionDominio()
+    public async Task Handle_BusquedaSinMision_LanzaExcepcionDominio()
     {
         var busquedaVacia = BusquedaTesoro.Crear("Búsqueda vacía", "Descripción", Guid.NewGuid(), FechaFija);
         _repositorio

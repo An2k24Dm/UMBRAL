@@ -1,5 +1,5 @@
+﻿using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Dominio.Entidades;
-using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Dominio.Excepciones;
 
 namespace JuegosServicio.PruebasUnitarias.Dominio;
@@ -10,13 +10,11 @@ public class PistaEliminarPruebas
     private static readonly DateTime FechaFija =
         new(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc);
 
-    private static BusquedaTesoro BusquedaConEtapaYPista(out Guid etapaId, out Guid pistaId)
+    private static BusquedaTesoro BusquedaConPista(out Guid pistaId)
     {
-        var busqueda = BusquedaTesoro.Crear(
-            "Búsqueda Test", "Descripción", Guid.NewGuid(), FechaFija);
-        var etapa = busqueda.AgregarEtapa("Etapa 1", "Primera etapa");
-        etapaId = etapa.Id;
-        var pista = busqueda.AgregarPistaAEtapa(etapaId, "Pista de prueba.");
+        var busqueda = BusquedaTesoro.Crear("Búsqueda Test", "Descripción", Guid.NewGuid(), FechaFija);
+        busqueda.AsignarMision("Misión", "Desc", TipoMision.PalabraClave, "clave");
+        var pista = busqueda.AgregarPistaAMision("Pista de prueba.");
         pistaId = pista.Id;
         return busqueda;
     }
@@ -24,40 +22,30 @@ public class PistaEliminarPruebas
     [Fact]
     public void EliminarPista_PistaExistente_ReduceConteoDePistas()
     {
-        var busqueda = BusquedaConEtapaYPista(out var etapaId, out var pistaId);
+        var busqueda = BusquedaConPista(out var pistaId);
 
-        busqueda.EliminarPista(etapaId, pistaId);
+        busqueda.EliminarPista(pistaId);
 
-        busqueda.Etapas.First(e => e.Id == etapaId).Pistas.Should().BeEmpty();
+        busqueda.Mision!.Pistas.Should().BeEmpty();
     }
 
     [Fact]
     public void EliminarPista_VariasPistas_SoloEliminaLaIndicada()
     {
-        var busqueda = BusquedaConEtapaYPista(out var etapaId, out var pistaId);
-        busqueda.AgregarPistaAEtapa(etapaId, "Segunda pista.");
+        var busqueda = BusquedaConPista(out var pistaId);
+        busqueda.AgregarPistaAMision("Segunda pista.");
 
-        busqueda.EliminarPista(etapaId, pistaId);
+        busqueda.EliminarPista(pistaId);
 
-        busqueda.Etapas.First(e => e.Id == etapaId).Pistas.Should().HaveCount(1);
-    }
-
-    [Fact]
-    public void EliminarPista_EtapaInexistente_LanzaExcepcionNoEncontrado()
-    {
-        var busqueda = BusquedaConEtapaYPista(out _, out var pistaId);
-
-        Action accion = () => busqueda.EliminarPista(Guid.NewGuid(), pistaId);
-
-        accion.Should().Throw<ExcepcionNoEncontrado>();
+        busqueda.Mision!.Pistas.Should().HaveCount(1);
     }
 
     [Fact]
     public void EliminarPista_PistaInexistente_LanzaExcepcionNoEncontrado()
     {
-        var busqueda = BusquedaConEtapaYPista(out var etapaId, out _);
+        var busqueda = BusquedaConPista(out _);
 
-        Action accion = () => busqueda.EliminarPista(etapaId, Guid.NewGuid());
+        Action accion = () => busqueda.EliminarPista(Guid.NewGuid());
 
         accion.Should().Throw<ExcepcionNoEncontrado>();
     }
@@ -65,11 +53,10 @@ public class PistaEliminarPruebas
     [Fact]
     public void EliminarPista_BusquedaActiva_LanzaExcepcionDominio()
     {
-        var busqueda = BusquedaConEtapaYPista(out var etapaId, out var pistaId);
-        busqueda.AgregarMisionAEtapa(etapaId, "Misión", "Desc", TipoMision.PistaTexto, "clave");
+        var busqueda = BusquedaConPista(out var pistaId);
         busqueda.Activar();
 
-        Action accion = () => busqueda.EliminarPista(etapaId, pistaId);
+        Action accion = () => busqueda.EliminarPista(pistaId);
 
         accion.Should().Throw<ExcepcionDominio>();
     }

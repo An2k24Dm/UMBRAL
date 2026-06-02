@@ -6,10 +6,7 @@ import { Boton } from '../componentes/Boton'
 import { CampoFormulario } from '../componentes/CampoFormulario'
 import {
   obtenerDetalleBusqueda,
-  agregarEtapa,
-  modificarEtapa,
-  eliminarEtapa,
-  agregarMision,
+  asignarMision,
   modificarMision,
   eliminarMision,
   activarBusqueda,
@@ -21,24 +18,12 @@ import {
 } from '../autenticacion/clienteApiJuegos'
 import { usarAutenticacion } from '../autenticacion/ProveedorAutenticacion'
 
-// ---------------------------------------------------------------------------
-// Tipos del formulario de etapa
-// ---------------------------------------------------------------------------
-interface FormEtapa {
-  titulo: string
-  descripcion: string
-  orden?: string
-}
+const TIPOS_MISION: { valor: TipoMision; nombre: string; etiqueta: string; descripcion: string }[] = [
+  { valor: 0, nombre: 'CodigoQR',     etiqueta: 'Código QR',     descripcion: 'El participante debe escanear un código QR' },
+  { valor: 1, nombre: 'PalabraClave', etiqueta: 'Palabra clave', descripcion: 'El participante debe encontrar una palabra o frase específica' },
+  { valor: 2, nombre: 'Codigo',       etiqueta: 'Código',        descripcion: 'El participante debe ingresar un código alfanumérico' }
+]
 
-interface ErroresEtapa {
-  titulo?: string
-  descripcion?: string
-  orden?: string
-}
-
-// ---------------------------------------------------------------------------
-// Tipos del formulario de misión
-// ---------------------------------------------------------------------------
 interface FormMision {
   titulo: string
   descripcion: string
@@ -52,23 +37,7 @@ interface ErroresMision {
   pistaClave?: string
 }
 
-const TIPOS_MISION: { valor: TipoMision; etiqueta: string }[] = [
-  { valor: 0, etiqueta: 'Pista de texto' },
-  { valor: 1, etiqueta: 'Acertijo' },
-  { valor: 2, etiqueta: 'Código QR' }
-]
-
-const FORM_ETAPA_VACIO: FormEtapa = { titulo: '', descripcion: '' }
-const FORM_MISION_VACIO: FormMision = { titulo: '', descripcion: '', tipo: '0', pistaClave: '' }
-
-function validarEtapa(form: FormEtapa): ErroresEtapa {
-  const err: ErroresEtapa = {}
-  if (!form.titulo.trim()) err.titulo = 'El título es obligatorio.'
-  else if (form.titulo.trim().length > 200) err.titulo = 'Máximo 200 caracteres.'
-  if (!form.descripcion.trim()) err.descripcion = 'La descripción es obligatoria.'
-  else if (form.descripcion.trim().length > 1000) err.descripcion = 'Máximo 1000 caracteres.'
-  return err
-}
+const FORM_MISION_VACIO: FormMision = { titulo: '', descripcion: '', tipo: '1', pistaClave: '' }
 
 function validarMision(form: FormMision): ErroresMision {
   const err: ErroresMision = {}
@@ -81,9 +50,6 @@ function validarMision(form: FormMision): ErroresMision {
   return err
 }
 
-// ---------------------------------------------------------------------------
-// Componente principal
-// ---------------------------------------------------------------------------
 export function PaginaGestionEtapas() {
   const { busquedaId } = useParams<{ busquedaId: string }>()
   const { token, usuario } = usarAutenticacion()
@@ -94,63 +60,42 @@ export function PaginaGestionEtapas() {
   const [estadoCarga, setEstadoCarga] = useState<'cargando' | 'error' | 'listo'>('cargando')
   const [errorCarga, setErrorCarga] = useState<string | null>(null)
 
-  // Estado del formulario de etapa (crear)
-  const [mostrarFormEtapa, setMostrarFormEtapa] = useState(false)
-  const [formEtapa, setFormEtapa] = useState<FormEtapa>(FORM_ETAPA_VACIO)
-  const [erroresEtapa, setErroresEtapa] = useState<ErroresEtapa>({})
-  const [errorFormEtapa, setErrorFormEtapa] = useState<string | null>(null)
-  const [enviandoEtapa, setEnviandoEtapa] = useState(false)
-
-  // Estado del formulario de etapa (editar)
-  const [etapaEnEdicion, setEtapaEnEdicion] = useState<string | null>(null)
-  const [formEdicionEtapa, setFormEdicionEtapa] = useState<FormEtapa>(FORM_ETAPA_VACIO)
-  const [erroresEdicionEtapa, setErroresEdicionEtapa] = useState<ErroresEtapa>({})
-  const [errorFormEdicionEtapa, setErrorFormEdicionEtapa] = useState<string | null>(null)
-  const [enviandoEdicionEtapa, setEnviandoEdicionEtapa] = useState(false)
-  const [eliminandoEtapaId, setEliminandoEtapaId] = useState<string | null>(null)
+  // Activar
   const [activando, setActivando] = useState(false)
   const [errorActivacion, setErrorActivacion] = useState<string | null>(null)
 
-  // Estado del formulario de misión (editar, indexado por misionId)
-  const [misionEnEdicion, setMisionEnEdicion] = useState<string | null>(null)
-  const [formEdicionMision, setFormEdicionMision] = useState<FormMision>(FORM_MISION_VACIO)
-  const [erroresEdicionMision, setErroresEdicionMision] = useState<ErroresMision>({})
-  const [errorFormEdicionMision, setErrorFormEdicionMision] = useState<string | null>(null)
-  const [enviandoEdicionMision, setEnviandoEdicionMision] = useState(false)
-  const [eliminandoMisionId, setEliminandoMisionId] = useState<string | null>(null)
-
-  // Estado del formulario de pista (indexado por etapaId)
-  const [etapaConFormPista, setEtapaConFormPista] = useState<string | null>(null)
-  const [formPistaContenido, setFormPistaContenido] = useState('')
-  const [errorFormPista, setErrorFormPista] = useState<string | null>(null)
-  const [enviandoPista, setEnviandoPista] = useState(false)
-
-  // Estado eliminación de pista
-  const [eliminandoPistaId, setEliminandoPistaId] = useState<string | null>(null)
-
-  // Estado edición de pista
-  const [pistaEnEdicion, setPistaEnEdicion] = useState<string | null>(null)
-  const [formEdicionPistaContenido, setFormEdicionPistaContenido] = useState('')
-  const [errorFormEdicionPista, setErrorFormEdicionPista] = useState<string | null>(null)
-  const [enviandoEdicionPista, setEnviandoEdicionPista] = useState(false)
-
-  // Estado del formulario de misión (indexado por etapaId)
-  const [etapaConFormMision, setEtapaConFormMision] = useState<string | null>(null)
+  // Formulario asignar misión
+  const [mostrarFormMision, setMostrarFormMision] = useState(false)
   const [formMision, setFormMision] = useState<FormMision>(FORM_MISION_VACIO)
   const [erroresMision, setErroresMision] = useState<ErroresMision>({})
   const [errorFormMision, setErrorFormMision] = useState<string | null>(null)
   const [enviandoMision, setEnviandoMision] = useState(false)
 
-  // ---------------------------------------------------------------------------
-  // Carga inicial
-  // ---------------------------------------------------------------------------
+  // Edición de misión
+  const [modoEdicionMision, setModoEdicionMision] = useState(false)
+  const [formEdicionMision, setFormEdicionMision] = useState<FormMision>(FORM_MISION_VACIO)
+  const [erroresEdicionMision, setErroresEdicionMision] = useState<ErroresMision>({})
+  const [errorFormEdicionMision, setErrorFormEdicionMision] = useState<string | null>(null)
+  const [enviandoEdicionMision, setEnviandoEdicionMision] = useState(false)
+  const [eliminandoMision, setEliminandoMision] = useState(false)
+
+  // Pistas
+  const [mostrarFormPista, setMostrarFormPista] = useState(false)
+  const [formPistaContenido, setFormPistaContenido] = useState('')
+  const [errorFormPista, setErrorFormPista] = useState<string | null>(null)
+  const [enviandoPista, setEnviandoPista] = useState(false)
+  const [eliminandoPistaId, setEliminandoPistaId] = useState<string | null>(null)
+  const [pistaEnEdicion, setPistaEnEdicion] = useState<string | null>(null)
+  const [formEdicionPistaContenido, setFormEdicionPistaContenido] = useState('')
+  const [errorFormEdicionPista, setErrorFormEdicionPista] = useState<string | null>(null)
+  const [enviandoEdicionPista, setEnviandoEdicionPista] = useState(false)
+
   useEffect(() => {
     if (!busquedaId) return
     let cancelado = false
     async function cargar() {
       if (!token) { setEstadoCarga('error'); setErrorCarga('Debe iniciar sesión.'); return }
       setEstadoCarga('cargando')
-      setErrorCarga(null)
       try {
         const datos = await obtenerDetalleBusqueda(busquedaId!, token)
         if (cancelado) return
@@ -166,289 +111,148 @@ export function PaginaGestionEtapas() {
     return () => { cancelado = true }
   }, [busquedaId, token])
 
-  // ---------------------------------------------------------------------------
-  // Etapas
-  // ---------------------------------------------------------------------------
-  function abrirFormEtapa() {
-    setFormEtapa(FORM_ETAPA_VACIO)
-    setErroresEtapa({})
-    setErrorFormEtapa(null)
-    setEtapaConFormMision(null)
-    setMostrarFormEtapa(true)
-  }
-
-  function cerrarFormEtapa() {
-    setMostrarFormEtapa(false)
-    setErroresEtapa({})
-    setErrorFormEtapa(null)
-  }
-
-  async function manejarEnvioEtapa(e: React.FormEvent) {
-    e.preventDefault()
-    const erroresValidacion = validarEtapa(formEtapa)
-    if (Object.keys(erroresValidacion).length > 0) { setErroresEtapa(erroresValidacion); return }
+  async function recargar() {
     if (!token || !busquedaId) return
-
-    setEnviandoEtapa(true)
-    setErrorFormEtapa(null)
-    try {
-      await agregarEtapa(busquedaId, {
-        titulo: formEtapa.titulo.trim(),
-        descripcion: formEtapa.descripcion.trim()
-      }, token)
-      const datos = await obtenerDetalleBusqueda(busquedaId, token)
-      setBusqueda(datos)
-      cerrarFormEtapa()
-    } catch (err) {
-      setErrorFormEtapa(err instanceof Error ? err.message : 'Ocurrió un error al agregar la etapa.')
-    } finally {
-      setEnviandoEtapa(false)
-    }
+    const datos = await obtenerDetalleBusqueda(busquedaId, token)
+    setBusqueda(datos)
   }
 
   // ---------------------------------------------------------------------------
-  // Editar etapa
+  // Activar
   // ---------------------------------------------------------------------------
-  async function manejarActivarBusqueda() {
+  async function manejarActivar() {
     if (!token || !busquedaId) return
     setActivando(true)
     setErrorActivacion(null)
-    try {
-      await activarBusqueda(busquedaId, token)
-      const datos = await obtenerDetalleBusqueda(busquedaId, token)
-      setBusqueda(datos)
-    } catch (err) {
-      setErrorActivacion(err instanceof Error ? err.message : 'Ocurrió un error al activar la búsqueda.')
-    } finally {
-      setActivando(false)
-    }
-  }
-
-  function abrirEdicionEtapa(etapa: { id: string; titulo: string; descripcion: string; orden: number }) {
-    setEtapaEnEdicion(etapa.id)
-    setFormEdicionEtapa({ titulo: etapa.titulo, descripcion: etapa.descripcion, orden: String(etapa.orden) })
-    setErroresEdicionEtapa({})
-    setErrorFormEdicionEtapa(null)
-    setMostrarFormEtapa(false)
-    setEtapaConFormMision(null)
-  }
-
-  function cerrarEdicionEtapa() {
-    setEtapaEnEdicion(null)
-    setErroresEdicionEtapa({})
-    setErrorFormEdicionEtapa(null)
-  }
-
-  async function manejarEnvioEdicionEtapa(e: React.FormEvent, etapaId: string) {
-    e.preventDefault()
-    const erroresValidacion = validarEtapa(formEdicionEtapa)
-    const ordenNum = Number(formEdicionEtapa.orden)
-    if (!formEdicionEtapa.orden?.trim()) erroresValidacion.orden = 'El orden es obligatorio.'
-    else if (!Number.isInteger(ordenNum) || ordenNum <= 0) erroresValidacion.orden = 'El orden debe ser un número entero positivo.'
-    if (Object.keys(erroresValidacion).length > 0) { setErroresEdicionEtapa(erroresValidacion); return }
-    if (!token || !busquedaId) return
-
-    setEnviandoEdicionEtapa(true)
-    setErrorFormEdicionEtapa(null)
-    try {
-      await modificarEtapa(busquedaId, etapaId, {
-        nuevoTitulo: formEdicionEtapa.titulo.trim(),
-        nuevaDescripcion: formEdicionEtapa.descripcion.trim(),
-        nuevoOrden: ordenNum
-      }, token)
-      const datos = await obtenerDetalleBusqueda(busquedaId, token)
-      setBusqueda(datos)
-      cerrarEdicionEtapa()
-    } catch (err) {
-      setErrorFormEdicionEtapa(err instanceof Error ? err.message : 'Ocurrió un error al modificar la etapa.')
-    } finally {
-      setEnviandoEdicionEtapa(false)
-    }
-  }
-
-  async function manejarEliminarEtapa(etapaId: string) {
-    if (!token || !busquedaId) return
-    setEliminandoEtapaId(etapaId)
-    try {
-      await eliminarEtapa(busquedaId, etapaId, token)
-      const datos = await obtenerDetalleBusqueda(busquedaId, token)
-      setBusqueda(datos)
-    } catch (err) {
-      setErrorCarga(err instanceof Error ? err.message : 'Ocurrió un error al eliminar la etapa.')
-    } finally {
-      setEliminandoEtapaId(null)
-    }
+    try { await activarBusqueda(busquedaId, token); await recargar() }
+    catch (err) { setErrorActivacion(err instanceof Error ? err.message : 'Error al activar.') }
+    finally { setActivando(false) }
   }
 
   // ---------------------------------------------------------------------------
-  // Misiones
+  // Asignar misión
   // ---------------------------------------------------------------------------
-  function abrirEdicionMision(mision: { id: string; titulo: string; descripcion: string; tipo: string; pistaClave: string }) {
-    setMisionEnEdicion(mision.id)
-    const tipoNumero = TIPOS_MISION.find(t => t.etiqueta === mision.tipo)?.valor ?? 0
-    setFormEdicionMision({ titulo: mision.titulo, descripcion: mision.descripcion, tipo: String(tipoNumero), pistaClave: mision.pistaClave })
-    setErroresEdicionMision({})
-    setErrorFormEdicionMision(null)
-    setEtapaConFormMision(null)
-  }
-
-  function cerrarEdicionMision() {
-    setMisionEnEdicion(null)
-    setErroresEdicionMision({})
-    setErrorFormEdicionMision(null)
-  }
-
-  async function manejarEnvioEdicionMision(e: React.FormEvent, etapaId: string, misionId: string) {
-    e.preventDefault()
-    const erroresValidacion = validarMision(formEdicionMision)
-    if (Object.keys(erroresValidacion).length > 0) { setErroresEdicionMision(erroresValidacion); return }
-    if (!token || !busquedaId) return
-
-    setEnviandoEdicionMision(true)
-    setErrorFormEdicionMision(null)
-    try {
-      await modificarMision(busquedaId, etapaId, misionId, {
-        nuevoTitulo: formEdicionMision.titulo.trim(),
-        nuevaDescripcion: formEdicionMision.descripcion.trim(),
-        nuevoTipo: Number(formEdicionMision.tipo) as TipoMision,
-        nuevaPistaClave: formEdicionMision.pistaClave.trim()
-      }, token)
-      const datos = await obtenerDetalleBusqueda(busquedaId, token)
-      setBusqueda(datos)
-      cerrarEdicionMision()
-    } catch (err) {
-      setErrorFormEdicionMision(err instanceof Error ? err.message : 'Ocurrió un error al modificar la misión.')
-    } finally {
-      setEnviandoEdicionMision(false)
-    }
-  }
-
-  async function manejarEliminarMision(etapaId: string, misionId: string) {
-    if (!token || !busquedaId) return
-    setEliminandoMisionId(misionId)
-    try {
-      await eliminarMision(busquedaId, etapaId, misionId, token)
-      const datos = await obtenerDetalleBusqueda(busquedaId, token)
-      setBusqueda(datos)
-    } catch (err) {
-      setErrorCarga(err instanceof Error ? err.message : 'Ocurrió un error al eliminar la misión.')
-    } finally {
-      setEliminandoMisionId(null)
-    }
-  }
-
-  function abrirFormMision(etapaId: string) {
+  function abrirFormMision() {
     setFormMision(FORM_MISION_VACIO)
     setErroresMision({})
     setErrorFormMision(null)
-    setMostrarFormEtapa(false)
-    setEtapaConFormMision(etapaId)
+    setMostrarFormMision(true)
   }
 
-  function cerrarFormMision() {
-    setEtapaConFormMision(null)
-    setErroresMision({})
-    setErrorFormMision(null)
-  }
-
-  function abrirFormPista(etapaId: string) {
-    setFormPistaContenido('')
-    setErrorFormPista(null)
-    setEtapaConFormMision(null)
-    setMostrarFormEtapa(false)
-    setEtapaConFormPista(etapaId)
-  }
-
-  function cerrarFormPista() {
-    setEtapaConFormPista(null)
-    setErrorFormPista(null)
-  }
-
-  async function manejarEnvioPista(e: React.FormEvent, etapaId: string) {
+  async function manejarEnvioMision(e: React.FormEvent) {
     e.preventDefault()
-    if (!formPistaContenido.trim()) { setErrorFormPista('El contenido de la pista es obligatorio.'); return }
+    const errs = validarMision(formMision)
+    if (Object.keys(errs).length > 0) { setErroresMision(errs); return }
     if (!token || !busquedaId) return
-
-    setEnviandoPista(true)
-    setErrorFormPista(null)
-    try {
-      await agregarPista(busquedaId, etapaId, { contenido: formPistaContenido.trim() }, token)
-      const datos = await obtenerDetalleBusqueda(busquedaId, token)
-      setBusqueda(datos)
-      cerrarFormPista()
-    } catch (err) {
-      setErrorFormPista(err instanceof Error ? err.message : 'Ocurrió un error al agregar la pista.')
-    } finally {
-      setEnviandoPista(false)
-    }
-  }
-
-  async function manejarEliminarPista(etapaId: string, pistaId: string) {
-    if (!token || !busquedaId) return
-    setEliminandoPistaId(pistaId)
-    try {
-      await eliminarPista(busquedaId, etapaId, pistaId, token)
-      const datos = await obtenerDetalleBusqueda(busquedaId, token)
-      setBusqueda(datos)
-    } catch (err) {
-      setErrorCarga(err instanceof Error ? err.message : 'Ocurrió un error al eliminar la pista.')
-    } finally {
-      setEliminandoPistaId(null)
-    }
-  }
-
-  function abrirEdicionPista(pistaId: string, contenidoActual: string) {
-    setPistaEnEdicion(pistaId)
-    setFormEdicionPistaContenido(contenidoActual)
-    setErrorFormEdicionPista(null)
-  }
-
-  function cerrarEdicionPista() {
-    setPistaEnEdicion(null)
-    setErrorFormEdicionPista(null)
-  }
-
-  async function manejarEnvioEdicionPista(e: React.FormEvent, etapaId: string, pistaId: string) {
-    e.preventDefault()
-    if (!formEdicionPistaContenido.trim()) { setErrorFormEdicionPista('El contenido es obligatorio.'); return }
-    if (!token || !busquedaId) return
-
-    setEnviandoEdicionPista(true)
-    setErrorFormEdicionPista(null)
-    try {
-      await modificarPista(busquedaId, etapaId, pistaId, { nuevoContenido: formEdicionPistaContenido.trim() }, token)
-      const datos = await obtenerDetalleBusqueda(busquedaId, token)
-      setBusqueda(datos)
-      cerrarEdicionPista()
-    } catch (err) {
-      setErrorFormEdicionPista(err instanceof Error ? err.message : 'Ocurrió un error al modificar la pista.')
-    } finally {
-      setEnviandoEdicionPista(false)
-    }
-  }
-
-  async function manejarEnvioMision(e: React.FormEvent, etapaId: string) {
-    e.preventDefault()
-    const erroresValidacion = validarMision(formMision)
-    if (Object.keys(erroresValidacion).length > 0) { setErroresMision(erroresValidacion); return }
-    if (!token || !busquedaId) return
-
     setEnviandoMision(true)
     setErrorFormMision(null)
     try {
-      await agregarMision(busquedaId, etapaId, {
+      await asignarMision(busquedaId, {
         titulo: formMision.titulo.trim(),
         descripcion: formMision.descripcion.trim(),
         tipo: Number(formMision.tipo) as TipoMision,
         pistaClave: formMision.pistaClave.trim()
       }, token)
-      const datos = await obtenerDetalleBusqueda(busquedaId, token)
-      setBusqueda(datos)
-      cerrarFormMision()
+      await recargar()
+      setMostrarFormMision(false)
     } catch (err) {
-      setErrorFormMision(err instanceof Error ? err.message : 'Ocurrió un error al agregar la misión.')
+      setErrorFormMision(err instanceof Error ? err.message : 'Error al asignar la misión.')
     } finally {
       setEnviandoMision(false)
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Editar misión
+  // ---------------------------------------------------------------------------
+  function abrirEdicionMision() {
+    if (!busqueda?.mision) return
+    const tipoActual = TIPOS_MISION.find(t => t.nombre === busqueda.mision!.tipo)?.valor ?? 1
+    setFormEdicionMision({
+      titulo: busqueda.mision.titulo,
+      descripcion: busqueda.mision.descripcion,
+      tipo: String(tipoActual),
+      pistaClave: busqueda.mision.pistaClave
+    })
+    setErroresEdicionMision({})
+    setErrorFormEdicionMision(null)
+    setModoEdicionMision(true)
+  }
+
+  async function manejarEnvioEdicionMision(e: React.FormEvent) {
+    e.preventDefault()
+    const errs = validarMision(formEdicionMision)
+    if (Object.keys(errs).length > 0) { setErroresEdicionMision(errs); return }
+    if (!token || !busquedaId) return
+    setEnviandoEdicionMision(true)
+    setErrorFormEdicionMision(null)
+    try {
+      await modificarMision(busquedaId, {
+        nuevoTitulo: formEdicionMision.titulo.trim(),
+        nuevaDescripcion: formEdicionMision.descripcion.trim(),
+        nuevoTipo: Number(formEdicionMision.tipo) as TipoMision,
+        nuevaPistaClave: formEdicionMision.pistaClave.trim()
+      }, token)
+      await recargar()
+      setModoEdicionMision(false)
+    } catch (err) {
+      setErrorFormEdicionMision(err instanceof Error ? err.message : 'Error al modificar la misión.')
+    } finally {
+      setEnviandoEdicionMision(false)
+    }
+  }
+
+  async function manejarEliminarMision() {
+    if (!token || !busquedaId) return
+    setEliminandoMision(true)
+    try { await eliminarMision(busquedaId, token); await recargar() }
+    catch (err) { setErrorCarga(err instanceof Error ? err.message : 'Error al eliminar la misión.') }
+    finally { setEliminandoMision(false) }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Pistas
+  // ---------------------------------------------------------------------------
+  async function manejarEnvioPista(e: React.FormEvent) {
+    e.preventDefault()
+    if (!formPistaContenido.trim()) { setErrorFormPista('El contenido es obligatorio.'); return }
+    if (!token || !busquedaId) return
+    setEnviandoPista(true)
+    setErrorFormPista(null)
+    try {
+      await agregarPista(busquedaId, { contenido: formPistaContenido.trim() }, token)
+      await recargar()
+      setMostrarFormPista(false)
+      setFormPistaContenido('')
+    } catch (err) {
+      setErrorFormPista(err instanceof Error ? err.message : 'Error al agregar la pista.')
+    } finally {
+      setEnviandoPista(false)
+    }
+  }
+
+  async function manejarEliminarPista(pistaId: string) {
+    if (!token || !busquedaId) return
+    setEliminandoPistaId(pistaId)
+    try { await eliminarPista(busquedaId, pistaId, token); await recargar() }
+    catch (err) { setErrorCarga(err instanceof Error ? err.message : 'Error al eliminar la pista.') }
+    finally { setEliminandoPistaId(null) }
+  }
+
+  async function manejarEnvioEdicionPista(e: React.FormEvent, pistaId: string) {
+    e.preventDefault()
+    if (!formEdicionPistaContenido.trim()) { setErrorFormEdicionPista('El contenido es obligatorio.'); return }
+    if (!token || !busquedaId) return
+    setEnviandoEdicionPista(true)
+    setErrorFormEdicionPista(null)
+    try {
+      await modificarPista(busquedaId, pistaId, { nuevoContenido: formEdicionPistaContenido.trim() }, token)
+      await recargar()
+      setPistaEnEdicion(null)
+    } catch (err) {
+      setErrorFormEdicionPista(err instanceof Error ? err.message : 'Error al modificar la pista.')
+    } finally {
+      setEnviandoEdicionPista(false)
     }
   }
 
@@ -457,7 +261,7 @@ export function PaginaGestionEtapas() {
   // ---------------------------------------------------------------------------
   if (estadoCarga === 'cargando') {
     return (
-      <LayoutPanel titulo="Etapas" descripcion="Cargando búsqueda del tesoro…">
+      <LayoutPanel titulo="Misión" descripcion="Cargando búsqueda…">
         <p className="tabla-estado-mensaje">Cargando…</p>
       </LayoutPanel>
     )
@@ -465,42 +269,40 @@ export function PaginaGestionEtapas() {
 
   if (estadoCarga === 'error' || !busqueda) {
     return (
-      <LayoutPanel titulo="Etapas" descripcion="Error al cargar la búsqueda.">
+      <LayoutPanel titulo="Misión" descripcion="Error al cargar.">
         <Alerta tono="error">{errorCarga ?? 'Error desconocido.'}</Alerta>
-        <Boton variante="volver" onClick={() => navegar(rutaBase)}>
-          Volver a mis búsquedas
-        </Boton>
+        <Boton variante="volver" onClick={() => navegar(rutaBase)}>Volver</Boton>
       </LayoutPanel>
     )
   }
 
+  const esInactiva = busqueda.estado === 'Inactiva'
+
   return (
     <LayoutPanel
       titulo={busqueda.nombre}
-      descripcion={`Gestión de etapas · ${busqueda.etapas.length} ${busqueda.etapas.length === 1 ? 'etapa' : 'etapas'}`}
+      descripcion={`Misión de búsqueda del tesoro`}
     >
       <section className="seccion">
         <div className="seccion-cabecera">
           <div>
-            <h2>Etapas de la búsqueda</h2>
+            <h2>{busqueda.nombre}</h2>
             <p>{busqueda.descripcion}</p>
             <span className={`estado-badge estado-badge-${busqueda.estado.toLowerCase()}`}>
               {busqueda.estado}
             </span>
           </div>
           <div className="cabecera-pagina-acciones">
-            <Boton variante="volver" onClick={() => navegar(rutaBase)}>
-              Volver
-            </Boton>
-            {!mostrarFormEtapa && !etapaConFormMision && busqueda.estado === 'Inactiva' && (
-              <>
-                <Boton variante="primario" onClick={abrirFormEtapa}>
-                  + Agregar etapa
-                </Boton>
-                <Boton variante="primario" onClick={manejarActivarBusqueda} disabled={activando}>
-                  {activando ? 'Activando…' : 'Activar búsqueda'}
-                </Boton>
-              </>
+            <Boton variante="volver" onClick={() => navegar(rutaBase)}>Volver</Boton>
+            {esInactiva && !busqueda.mision && !mostrarFormMision && (
+              <Boton variante="primario" onClick={abrirFormMision}>
+                + Asignar misión
+              </Boton>
+            )}
+            {esInactiva && busqueda.mision && (
+              <Boton variante="primario" onClick={manejarActivar} disabled={activando}>
+                {activando ? 'Activando…' : 'Activar búsqueda'}
+              </Boton>
             )}
           </div>
         </div>
@@ -508,375 +310,205 @@ export function PaginaGestionEtapas() {
         {errorCarga && <Alerta tono="error">{errorCarga}</Alerta>}
         {errorActivacion && <Alerta tono="error">{errorActivacion}</Alerta>}
 
-        {/* Formulario agregar etapa */}
-        {mostrarFormEtapa && (
+        {/* Formulario asignar misión */}
+        {mostrarFormMision && (
           <div className="formulario-pregunta-panel">
-            <h3 className="formulario-pregunta-titulo">Nueva etapa</h3>
-            {errorFormEtapa && <Alerta tono="error">{errorFormEtapa}</Alerta>}
-            <form onSubmit={manejarEnvioEtapa} noValidate>
-              <CampoFormulario etiqueta="Título" htmlFor="etapa-titulo" error={erroresEtapa.titulo}>
-                <input
-                  id="etapa-titulo"
-                  type="text"
-                  maxLength={200}
-                  value={formEtapa.titulo}
-                  onChange={(e) => {
-                    setFormEtapa((p) => ({ ...p, titulo: e.target.value }))
-                    if (erroresEtapa.titulo) setErroresEtapa((p) => ({ ...p, titulo: undefined }))
-                  }}
-                  disabled={enviandoEtapa}
-                  placeholder="Ej. Punto de partida"
-                />
+            <h3 className="formulario-pregunta-titulo">Asignar misión</h3>
+            {errorFormMision && <Alerta tono="error">{errorFormMision}</Alerta>}
+            <form onSubmit={manejarEnvioMision} noValidate>
+              <CampoFormulario etiqueta="Título" htmlFor="mision-titulo" error={erroresMision.titulo}>
+                <input id="mision-titulo" type="text" maxLength={200}
+                  value={formMision.titulo}
+                  onChange={(e) => { setFormMision(p => ({ ...p, titulo: e.target.value })); if (erroresMision.titulo) setErroresMision(p => ({ ...p, titulo: undefined })) }}
+                  disabled={enviandoMision} placeholder="Ej. Encuentra el cofre del parque" />
               </CampoFormulario>
-              <CampoFormulario etiqueta="Descripción" htmlFor="etapa-descripcion" error={erroresEtapa.descripcion}>
-                <textarea
-                  id="etapa-descripcion"
-                  rows={3}
-                  maxLength={1000}
-                  value={formEtapa.descripcion}
-                  onChange={(e) => {
-                    setFormEtapa((p) => ({ ...p, descripcion: e.target.value }))
-                    if (erroresEtapa.descripcion) setErroresEtapa((p) => ({ ...p, descripcion: undefined }))
-                  }}
-                  disabled={enviandoEtapa}
-                  placeholder="Describe qué debe hacer el participante en esta etapa"
-                />
+              <CampoFormulario etiqueta="Descripción" htmlFor="mision-desc" error={erroresMision.descripcion}>
+                <textarea id="mision-desc" rows={3} maxLength={1000}
+                  value={formMision.descripcion}
+                  onChange={(e) => { setFormMision(p => ({ ...p, descripcion: e.target.value })); if (erroresMision.descripcion) setErroresMision(p => ({ ...p, descripcion: undefined })) }}
+                  disabled={enviandoMision} placeholder="Describe qué deben buscar los participantes" />
+              </CampoFormulario>
+              <CampoFormulario etiqueta="Tipo de misión" htmlFor="mision-tipo">
+                <select id="mision-tipo"
+                  value={formMision.tipo}
+                  onChange={(e) => setFormMision(p => ({ ...p, tipo: e.target.value }))}
+                  disabled={enviandoMision}>
+                  {TIPOS_MISION.map(t => (
+                    <option key={t.valor} value={String(t.valor)}>{t.etiqueta} — {t.descripcion}</option>
+                  ))}
+                </select>
+              </CampoFormulario>
+              <CampoFormulario etiqueta="Pista clave" htmlFor="mision-pista" error={erroresMision.pistaClave}
+                ayuda="Palabra, frase o código que el participante debe encontrar para completar la misión.">
+                <input id="mision-pista" type="text" maxLength={500}
+                  value={formMision.pistaClave}
+                  onChange={(e) => { setFormMision(p => ({ ...p, pistaClave: e.target.value })); if (erroresMision.pistaClave) setErroresMision(p => ({ ...p, pistaClave: undefined })) }}
+                  disabled={enviandoMision} placeholder="Ej. UMBRAL2026" />
               </CampoFormulario>
               <div className="acciones-formulario-trivia">
-                <Boton variante="volver" type="button" onClick={cerrarFormEtapa} disabled={enviandoEtapa}>
-                  Cancelar
-                </Boton>
-                <Boton variante="primario" type="submit" disabled={enviandoEtapa}>
-                  {enviandoEtapa ? 'Guardando…' : 'Agregar etapa'}
-                </Boton>
+                <Boton variante="volver" type="button" onClick={() => setMostrarFormMision(false)} disabled={enviandoMision}>Cancelar</Boton>
+                <Boton variante="primario" type="submit" disabled={enviandoMision}>{enviandoMision ? 'Guardando…' : 'Asignar misión'}</Boton>
               </div>
             </form>
           </div>
         )}
 
-        {/* Lista de etapas */}
-        {busqueda.etapas.length === 0 && !mostrarFormEtapa ? (
+        {/* Sin misión */}
+        {!busqueda.mision && !mostrarFormMision && (
           <p className="tabla-estado-mensaje">
-            Esta búsqueda aún no tiene etapas. Haga clic en "Agregar etapa" para comenzar.
+            Esta búsqueda no tiene misión asignada. {esInactiva && 'Haga clic en "Asignar misión" para comenzar.'}
           </p>
-        ) : (
-          <div className="lista-preguntas">
-            {busqueda.etapas.map((etapa) => (
-              <div key={etapa.id} className="pregunta-card">
-                <div className="pregunta-card-cabecera">
-                  <div className="pregunta-card-info">
-                    <span className="pregunta-numero">Etapa {etapa.orden}</span>
-                    <span className="pregunta-puntaje">
-                      {etapa.misiones.length} {etapa.misiones.length === 1 ? 'misión' : 'misiones'}
-                    </span>
-                  </div>
-                  <div className="pregunta-card-acciones">
-                    {etapaConFormMision !== etapa.id && etapaConFormPista !== etapa.id && etapaEnEdicion !== etapa.id && !mostrarFormEtapa && (
-                      <>
-                        <Boton variante="secundario" onClick={() => abrirFormPista(etapa.id)}>
-                          + Agregar pista
-                        </Boton>
-                        <Boton variante="secundario" onClick={() => abrirFormMision(etapa.id)}>
-                          + Agregar misión
-                        </Boton>
-                        <Boton variante="secundario" onClick={() => abrirEdicionEtapa(etapa)}>
-                          Editar
-                        </Boton>
-                        <Boton
-                          variante="peligro"
-                          onClick={() => manejarEliminarEtapa(etapa.id)}
-                          disabled={eliminandoEtapaId === etapa.id}
-                        >
-                          {eliminandoEtapaId === etapa.id ? 'Eliminando…' : 'Eliminar'}
-                        </Boton>
-                      </>
-                    )}
-                  </div>
+        )}
+
+        {/* Misión asignada */}
+        {busqueda.mision && (
+          <div className="pregunta-card">
+            <div className="pregunta-card-cabecera">
+              <div className="pregunta-card-info">
+                <span className="pregunta-numero">Misión</span>
+                <span className="pregunta-puntaje">
+                  {busqueda.mision.pistas.length} {busqueda.mision.pistas.length === 1 ? 'pista' : 'pistas'}
+                </span>
+              </div>
+              {esInactiva && !modoEdicionMision && (
+                <div className="pregunta-card-acciones">
+                  <Boton variante="secundario" onClick={() => { setMostrarFormPista(true); setModoEdicionMision(false) }}>
+                    + Agregar pista
+                  </Boton>
+                  <Boton variante="secundario" onClick={abrirEdicionMision}>Editar</Boton>
+                  <Boton variante="peligro" onClick={manejarEliminarMision} disabled={eliminandoMision}>
+                    {eliminandoMision ? 'Eliminando…' : 'Eliminar misión'}
+                  </Boton>
                 </div>
+              )}
+              {busqueda.estado === 'Activa' && (
+                <div className="pregunta-card-acciones">
+                  <Boton variante="secundario" onClick={() => { setMostrarFormPista(true) }}>
+                    + Agregar pista (en tiempo real)
+                  </Boton>
+                </div>
+              )}
+            </div>
 
-                <p className="pregunta-enunciado"><strong>{etapa.titulo}</strong></p>
-                <p className="pregunta-enunciado">{etapa.descripcion}</p>
+            {/* Detalle de la misión */}
+            {!modoEdicionMision ? (
+              <>
+                <p className="pregunta-enunciado"><strong>{busqueda.mision.titulo}</strong></p>
+                <p className="pregunta-enunciado">{busqueda.mision.descripcion}</p>
+                <p style={{ fontSize: '0.85rem', color: '#64748b', marginTop: 4 }}>
+                  Tipo: <strong>{TIPOS_MISION.find(t => t.nombre === busqueda.mision!.tipo)?.etiqueta ?? busqueda.mision.tipo}</strong>
+                </p>
+                <p style={{ fontSize: '0.85rem', color: '#64748b', marginTop: 4 }}>
+                  🔑 Pista clave: <strong>{busqueda.mision.pistaClave}</strong>
+                </p>
+              </>
+            ) : (
+              <div className="formulario-pregunta-panel" style={{ marginTop: 12 }}>
+                <h4 className="formulario-pregunta-titulo">Editar misión</h4>
+                {errorFormEdicionMision && <Alerta tono="error">{errorFormEdicionMision}</Alerta>}
+                <form onSubmit={manejarEnvioEdicionMision} noValidate>
+                  <CampoFormulario etiqueta="Título" htmlFor="editar-mision-titulo" error={erroresEdicionMision.titulo}>
+                    <input id="editar-mision-titulo" type="text" maxLength={200}
+                      value={formEdicionMision.titulo}
+                      onChange={(e) => { setFormEdicionMision(p => ({ ...p, titulo: e.target.value })); if (erroresEdicionMision.titulo) setErroresEdicionMision(p => ({ ...p, titulo: undefined })) }}
+                      disabled={enviandoEdicionMision} />
+                  </CampoFormulario>
+                  <CampoFormulario etiqueta="Descripción" htmlFor="editar-mision-desc" error={erroresEdicionMision.descripcion}>
+                    <textarea id="editar-mision-desc" rows={3} maxLength={1000}
+                      value={formEdicionMision.descripcion}
+                      onChange={(e) => { setFormEdicionMision(p => ({ ...p, descripcion: e.target.value })); if (erroresEdicionMision.descripcion) setErroresEdicionMision(p => ({ ...p, descripcion: undefined })) }}
+                      disabled={enviandoEdicionMision} />
+                  </CampoFormulario>
+                  <CampoFormulario etiqueta="Tipo de misión" htmlFor="editar-mision-tipo">
+                    <select id="editar-mision-tipo"
+                      value={formEdicionMision.tipo}
+                      onChange={(e) => setFormEdicionMision(p => ({ ...p, tipo: e.target.value }))}
+                      disabled={enviandoEdicionMision}>
+                      {TIPOS_MISION.map(t => (
+                        <option key={t.valor} value={String(t.valor)}>{t.etiqueta} — {t.descripcion}</option>
+                      ))}
+                    </select>
+                  </CampoFormulario>
+                  <CampoFormulario etiqueta="Pista clave" htmlFor="editar-mision-pista" error={erroresEdicionMision.pistaClave}>
+                    <input id="editar-mision-pista" type="text" maxLength={500}
+                      value={formEdicionMision.pistaClave}
+                      onChange={(e) => { setFormEdicionMision(p => ({ ...p, pistaClave: e.target.value })); if (erroresEdicionMision.pistaClave) setErroresEdicionMision(p => ({ ...p, pistaClave: undefined })) }}
+                      disabled={enviandoEdicionMision} />
+                  </CampoFormulario>
+                  <div className="acciones-formulario-trivia">
+                    <Boton variante="volver" type="button" onClick={() => setModoEdicionMision(false)} disabled={enviandoEdicionMision}>Cancelar</Boton>
+                    <Boton variante="primario" type="submit" disabled={enviandoEdicionMision}>{enviandoEdicionMision ? 'Guardando…' : 'Guardar cambios'}</Boton>
+                  </div>
+                </form>
+              </div>
+            )}
 
-                {/* Misiones de la etapa */}
-                {etapa.misiones.length > 0 && (
-                  <ul className="pregunta-opciones">
-                    {etapa.misiones.map((mision) => (
-                      <li key={mision.id} className="pregunta-opcion">
-                        {misionEnEdicion === mision.id ? (
-                          <div className="formulario-pregunta-panel" style={{ marginTop: 8 }}>
-                            <h5 className="formulario-pregunta-titulo">Editar misión</h5>
-                            {errorFormEdicionMision && <Alerta tono="error">{errorFormEdicionMision}</Alerta>}
-                            <form onSubmit={(e) => manejarEnvioEdicionMision(e, etapa.id, mision.id)} noValidate>
-                              <CampoFormulario etiqueta="Título" htmlFor={`editar-mision-titulo-${mision.id}`} error={erroresEdicionMision.titulo}>
-                                <input id={`editar-mision-titulo-${mision.id}`} type="text" maxLength={200}
-                                  value={formEdicionMision.titulo}
-                                  onChange={(e) => { setFormEdicionMision((p) => ({ ...p, titulo: e.target.value })); if (erroresEdicionMision.titulo) setErroresEdicionMision((p) => ({ ...p, titulo: undefined })) }}
-                                  disabled={enviandoEdicionMision} />
-                              </CampoFormulario>
-                              <CampoFormulario etiqueta="Descripción" htmlFor={`editar-mision-desc-${mision.id}`} error={erroresEdicionMision.descripcion}>
-                                <textarea id={`editar-mision-desc-${mision.id}`} rows={2} maxLength={1000}
-                                  value={formEdicionMision.descripcion}
-                                  onChange={(e) => { setFormEdicionMision((p) => ({ ...p, descripcion: e.target.value })); if (erroresEdicionMision.descripcion) setErroresEdicionMision((p) => ({ ...p, descripcion: undefined })) }}
-                                  disabled={enviandoEdicionMision} />
-                              </CampoFormulario>
-                              <CampoFormulario etiqueta="Tipo de misión" htmlFor={`editar-mision-tipo-${mision.id}`}>
-                                <select id={`editar-mision-tipo-${mision.id}`} value={formEdicionMision.tipo}
-                                  onChange={(e) => setFormEdicionMision((p) => ({ ...p, tipo: e.target.value }))}
-                                  disabled={enviandoEdicionMision}>
-                                  {TIPOS_MISION.map((t) => (<option key={t.valor} value={t.valor}>{t.etiqueta}</option>))}
-                                </select>
-                              </CampoFormulario>
-                              <CampoFormulario etiqueta="Pista clave" htmlFor={`editar-mision-pista-${mision.id}`} error={erroresEdicionMision.pistaClave}>
-                                <input id={`editar-mision-pista-${mision.id}`} type="text" maxLength={500}
-                                  value={formEdicionMision.pistaClave}
-                                  onChange={(e) => { setFormEdicionMision((p) => ({ ...p, pistaClave: e.target.value })); if (erroresEdicionMision.pistaClave) setErroresEdicionMision((p) => ({ ...p, pistaClave: undefined })) }}
-                                  disabled={enviandoEdicionMision} />
-                              </CampoFormulario>
-                              <div className="acciones-formulario-trivia">
-                                <Boton variante="volver" type="button" onClick={cerrarEdicionMision} disabled={enviandoEdicionMision}>Cancelar</Boton>
-                                <Boton variante="primario" type="submit" disabled={enviandoEdicionMision}>{enviandoEdicionMision ? 'Guardando…' : 'Guardar cambios'}</Boton>
-                              </div>
-                            </form>
-                          </div>
-                        ) : (
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-                            <div>
-                              <strong>{mision.titulo}</strong>
-                              {' '}·{' '}<span>{mision.tipo}</span>
-                              {mision.descripcion && <span> — {mision.descripcion}</span>}
-                              {mision.pistaClave && <span className="opcion-check-icono"> 🔑 {mision.pistaClave}</span>}
+            {/* Formulario agregar pista */}
+            {mostrarFormPista && (
+              <div className="formulario-pregunta-panel" style={{ marginTop: 16 }}>
+                <h4 className="formulario-pregunta-titulo">Nueva pista de ayuda</h4>
+                {errorFormPista && <Alerta tono="error">{errorFormPista}</Alerta>}
+                <form onSubmit={manejarEnvioPista} noValidate>
+                  <CampoFormulario etiqueta="Contenido" htmlFor="pista-contenido"
+                    ayuda="Texto de ayuda que el Operador podrá liberar a los participantes durante la sesión.">
+                    <textarea id="pista-contenido" rows={3} maxLength={1000}
+                      value={formPistaContenido}
+                      onChange={(e) => { setFormPistaContenido(e.target.value); setErrorFormPista(null) }}
+                      disabled={enviandoPista}
+                      placeholder="Ej. La respuesta se encuentra cerca de la entrada principal." />
+                  </CampoFormulario>
+                  <div className="acciones-formulario-trivia">
+                    <Boton variante="volver" type="button" onClick={() => { setMostrarFormPista(false); setFormPistaContenido('') }} disabled={enviandoPista}>Cancelar</Boton>
+                    <Boton variante="primario" type="submit" disabled={enviandoPista}>{enviandoPista ? 'Guardando…' : 'Agregar pista'}</Boton>
+                  </div>
+                </form>
+              </div>
+            )}
+
+            {/* Lista de pistas */}
+            {busqueda.mision.pistas.length > 0 && (
+              <div style={{ marginTop: 12 }}>
+                <strong style={{ fontSize: '0.85rem' }}>Pistas de ayuda:</strong>
+                <ul className="pregunta-opciones" style={{ marginTop: 4 }}>
+                  {busqueda.mision.pistas.map((pista) => (
+                    <li key={pista.id} className="pregunta-opcion">
+                      {pistaEnEdicion === pista.id ? (
+                        <div className="formulario-pregunta-panel" style={{ marginTop: 4 }}>
+                          <h5 className="formulario-pregunta-titulo">Editar pista</h5>
+                          {errorFormEdicionPista && <Alerta tono="error">{errorFormEdicionPista}</Alerta>}
+                          <form onSubmit={(e) => manejarEnvioEdicionPista(e, pista.id)} noValidate>
+                            <CampoFormulario etiqueta="Contenido" htmlFor={`editar-pista-${pista.id}`}>
+                              <textarea id={`editar-pista-${pista.id}`} rows={3} maxLength={1000}
+                                value={formEdicionPistaContenido}
+                                onChange={(e) => { setFormEdicionPistaContenido(e.target.value); setErrorFormEdicionPista(null) }}
+                                disabled={enviandoEdicionPista} />
+                            </CampoFormulario>
+                            <div className="acciones-formulario-trivia">
+                              <Boton variante="volver" type="button" onClick={() => setPistaEnEdicion(null)} disabled={enviandoEdicionPista}>Cancelar</Boton>
+                              <Boton variante="primario" type="submit" disabled={enviandoEdicionPista}>{enviandoEdicionPista ? 'Guardando…' : 'Guardar'}</Boton>
                             </div>
+                          </form>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                          <span>🔔 {pista.contenido}</span>
+                          {esInactiva && (
                             <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
-                              <Boton variante="secundario" onClick={() => abrirEdicionMision(mision)}>Editar</Boton>
-                              <Boton variante="peligro"
-                                onClick={() => manejarEliminarMision(etapa.id, mision.id)}
-                                disabled={eliminandoMisionId === mision.id}>
-                                {eliminandoMisionId === mision.id ? 'Eliminando…' : 'Eliminar'}
+                              <Boton variante="secundario" onClick={() => { setPistaEnEdicion(pista.id); setFormEdicionPistaContenido(pista.contenido); setErrorFormEdicionPista(null) }}>
+                                Editar
+                              </Boton>
+                              <Boton variante="peligro" onClick={() => manejarEliminarPista(pista.id)} disabled={eliminandoPistaId === pista.id}>
+                                {eliminandoPistaId === pista.id ? 'Eliminando…' : 'Eliminar'}
                               </Boton>
                             </div>
-                          </div>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-
-                {/* Pistas de la etapa */}
-                {etapa.pistas && etapa.pistas.length > 0 && (
-                  <div style={{ marginTop: 8 }}>
-                    <strong style={{ fontSize: '0.85rem' }}>Pistas de ayuda:</strong>
-                    <ul className="pregunta-opciones" style={{ marginTop: 4 }}>
-                      {etapa.pistas.map((pista) => (
-                        <li key={pista.id} className="pregunta-opcion">
-                          {pistaEnEdicion === pista.id ? (
-                            <div className="formulario-pregunta-panel" style={{ marginTop: 4 }}>
-                              <h5 className="formulario-pregunta-titulo">Editar pista</h5>
-                              {errorFormEdicionPista && <Alerta tono="error">{errorFormEdicionPista}</Alerta>}
-                              <form onSubmit={(e) => manejarEnvioEdicionPista(e, etapa.id, pista.id)} noValidate>
-                                <CampoFormulario etiqueta="Contenido" htmlFor={`editar-pista-${pista.id}`}>
-                                  <textarea
-                                    id={`editar-pista-${pista.id}`}
-                                    rows={3}
-                                    maxLength={1000}
-                                    value={formEdicionPistaContenido}
-                                    onChange={(e) => { setFormEdicionPistaContenido(e.target.value); setErrorFormEdicionPista(null) }}
-                                    disabled={enviandoEdicionPista}
-                                  />
-                                </CampoFormulario>
-                                <div className="acciones-formulario-trivia">
-                                  <Boton variante="volver" type="button" onClick={cerrarEdicionPista} disabled={enviandoEdicionPista}>Cancelar</Boton>
-                                  <Boton variante="primario" type="submit" disabled={enviandoEdicionPista}>
-                                    {enviandoEdicionPista ? 'Guardando…' : 'Guardar cambios'}
-                                  </Boton>
-                                </div>
-                              </form>
-                            </div>
-                          ) : (
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                              <span>🔔 {pista.contenido}</span>
-                              {busqueda.estado === 'Inactiva' && (
-                                <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
-                                  <Boton variante="secundario" onClick={() => abrirEdicionPista(pista.id, pista.contenido)}>
-                                    Editar
-                                  </Boton>
-                                  <Boton
-                                    variante="peligro"
-                                    onClick={() => manejarEliminarPista(etapa.id, pista.id)}
-                                    disabled={eliminandoPistaId === pista.id}
-                                  >
-                                    {eliminandoPistaId === pista.id ? 'Eliminando…' : 'Eliminar'}
-                                  </Boton>
-                                </div>
-                              )}
-                            </div>
                           )}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {/* Formulario agregar pista (inline) */}
-                {etapaConFormPista === etapa.id && (
-                  <div className="formulario-pregunta-panel" style={{ marginTop: 16 }}>
-                    <h4 className="formulario-pregunta-titulo">Nueva pista para esta etapa</h4>
-                    {errorFormPista && <Alerta tono="error">{errorFormPista}</Alerta>}
-                    <form onSubmit={(e) => manejarEnvioPista(e, etapa.id)} noValidate>
-                      <CampoFormulario etiqueta="Contenido de la pista" htmlFor="pista-contenido"
-                        ayuda="Texto de ayuda que el Operador podrá liberar a los participantes durante la sesión.">
-                        <textarea
-                          id="pista-contenido"
-                          rows={3}
-                          maxLength={1000}
-                          value={formPistaContenido}
-                          onChange={(e) => { setFormPistaContenido(e.target.value); setErrorFormPista(null) }}
-                          disabled={enviandoPista}
-                          placeholder="Ej. La respuesta se encuentra cerca de la entrada principal."
-                        />
-                      </CampoFormulario>
-                      <div className="acciones-formulario-trivia">
-                        <Boton variante="volver" type="button" onClick={cerrarFormPista} disabled={enviandoPista}>
-                          Cancelar
-                        </Boton>
-                        <Boton variante="primario" type="submit" disabled={enviandoPista}>
-                          {enviandoPista ? 'Guardando…' : 'Agregar pista'}
-                        </Boton>
-                      </div>
-                    </form>
-                  </div>
-                )}
-
-                {/* Formulario editar etapa (inline) */}
-                {etapaEnEdicion === etapa.id && (
-                  <div className="formulario-pregunta-panel" style={{ marginTop: 16 }}>
-                    <h4 className="formulario-pregunta-titulo">Editar etapa</h4>
-                    {errorFormEdicionEtapa && <Alerta tono="error">{errorFormEdicionEtapa}</Alerta>}
-                    <form onSubmit={(e) => manejarEnvioEdicionEtapa(e, etapa.id)} noValidate>
-                      <CampoFormulario etiqueta="Orden" htmlFor={`editar-etapa-orden-${etapa.id}`} error={erroresEdicionEtapa.orden}>
-                        <input
-                          id={`editar-etapa-orden-${etapa.id}`}
-                          type="number"
-                          min={1}
-                          value={formEdicionEtapa.orden ?? ''}
-                          onChange={(e) => {
-                            setFormEdicionEtapa((p) => ({ ...p, orden: e.target.value }))
-                            if (erroresEdicionEtapa.orden) setErroresEdicionEtapa((p) => ({ ...p, orden: undefined }))
-                          }}
-                          disabled={enviandoEdicionEtapa}
-                        />
-                      </CampoFormulario>
-                      <CampoFormulario etiqueta="Título" htmlFor={`editar-etapa-titulo-${etapa.id}`} error={erroresEdicionEtapa.titulo}>
-                        <input
-                          id={`editar-etapa-titulo-${etapa.id}`}
-                          type="text"
-                          maxLength={200}
-                          value={formEdicionEtapa.titulo}
-                          onChange={(e) => {
-                            setFormEdicionEtapa((p) => ({ ...p, titulo: e.target.value }))
-                            if (erroresEdicionEtapa.titulo) setErroresEdicionEtapa((p) => ({ ...p, titulo: undefined }))
-                          }}
-                          disabled={enviandoEdicionEtapa}
-                        />
-                      </CampoFormulario>
-                      <CampoFormulario etiqueta="Descripción" htmlFor={`editar-etapa-desc-${etapa.id}`} error={erroresEdicionEtapa.descripcion}>
-                        <textarea
-                          id={`editar-etapa-desc-${etapa.id}`}
-                          rows={3}
-                          maxLength={1000}
-                          value={formEdicionEtapa.descripcion}
-                          onChange={(e) => {
-                            setFormEdicionEtapa((p) => ({ ...p, descripcion: e.target.value }))
-                            if (erroresEdicionEtapa.descripcion) setErroresEdicionEtapa((p) => ({ ...p, descripcion: undefined }))
-                          }}
-                          disabled={enviandoEdicionEtapa}
-                        />
-                      </CampoFormulario>
-                      <div className="acciones-formulario-trivia">
-                        <Boton variante="volver" type="button" onClick={cerrarEdicionEtapa} disabled={enviandoEdicionEtapa}>
-                          Cancelar
-                        </Boton>
-                        <Boton variante="primario" type="submit" disabled={enviandoEdicionEtapa}>
-                          {enviandoEdicionEtapa ? 'Guardando…' : 'Guardar cambios'}
-                        </Boton>
-                      </div>
-                    </form>
-                  </div>
-                )}
-
-                {/* Formulario agregar misión (inline por etapa) */}
-                {etapaConFormMision === etapa.id && (
-                  <div className="formulario-pregunta-panel" style={{ marginTop: 16 }}>
-                    <h4 className="formulario-pregunta-titulo">Nueva misión para esta etapa</h4>
-                    {errorFormMision && <Alerta tono="error">{errorFormMision}</Alerta>}
-                    <form onSubmit={(e) => manejarEnvioMision(e, etapa.id)} noValidate>
-                      <CampoFormulario etiqueta="Título" htmlFor="mision-titulo" error={erroresMision.titulo}>
-                        <input
-                          id="mision-titulo"
-                          type="text"
-                          maxLength={200}
-                          value={formMision.titulo}
-                          onChange={(e) => {
-                            setFormMision((p) => ({ ...p, titulo: e.target.value }))
-                            if (erroresMision.titulo) setErroresMision((p) => ({ ...p, titulo: undefined }))
-                          }}
-                          disabled={enviandoMision}
-                          placeholder="Ej. Encuentra el marcador rojo"
-                        />
-                      </CampoFormulario>
-                      <CampoFormulario etiqueta="Descripción" htmlFor="mision-descripcion" error={erroresMision.descripcion}>
-                        <textarea
-                          id="mision-descripcion"
-                          rows={2}
-                          maxLength={1000}
-                          value={formMision.descripcion}
-                          onChange={(e) => {
-                            setFormMision((p) => ({ ...p, descripcion: e.target.value }))
-                            if (erroresMision.descripcion) setErroresMision((p) => ({ ...p, descripcion: undefined }))
-                          }}
-                          disabled={enviandoMision}
-                          placeholder="Describe la misión"
-                        />
-                      </CampoFormulario>
-                      <CampoFormulario etiqueta="Tipo de misión" htmlFor="mision-tipo">
-                        <select
-                          id="mision-tipo"
-                          value={formMision.tipo}
-                          onChange={(e) => setFormMision((p) => ({ ...p, tipo: e.target.value }))}
-                          disabled={enviandoMision}
-                        >
-                          {TIPOS_MISION.map((t) => (
-                            <option key={t.valor} value={t.valor}>{t.etiqueta}</option>
-                          ))}
-                        </select>
-                      </CampoFormulario>
-                      <CampoFormulario etiqueta="Pista clave" htmlFor="mision-pista" error={erroresMision.pistaClave}
-                        ayuda="Palabra, frase o código que el participante debe encontrar para completar la misión.">
-                        <input
-                          id="mision-pista"
-                          type="text"
-                          maxLength={500}
-                          value={formMision.pistaClave}
-                          onChange={(e) => {
-                            setFormMision((p) => ({ ...p, pistaClave: e.target.value }))
-                            if (erroresMision.pistaClave) setErroresMision((p) => ({ ...p, pistaClave: undefined }))
-                          }}
-                          disabled={enviandoMision}
-                          placeholder="Ej. UMBRAL2024"
-                        />
-                      </CampoFormulario>
-                      <div className="acciones-formulario-trivia">
-                        <Boton variante="volver" type="button" onClick={cerrarFormMision} disabled={enviandoMision}>
-                          Cancelar
-                        </Boton>
-                        <Boton variante="primario" type="submit" disabled={enviandoMision}>
-                          {enviandoMision ? 'Guardando…' : 'Agregar misión'}
-                        </Boton>
-                      </div>
-                    </form>
-                  </div>
-                )}
+                        </div>
+                      )}
+                    </li>
+                  ))}
+                </ul>
               </div>
-            ))}
+            )}
           </div>
         )}
       </section>

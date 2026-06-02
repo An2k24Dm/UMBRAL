@@ -1,4 +1,4 @@
-using JuegosServicio.Dominio.Entidades;
+﻿using JuegosServicio.Dominio.Entidades;
 using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Dominio.Excepciones;
 
@@ -10,13 +10,10 @@ public class MisionModificarEliminarPruebas
     private static readonly DateTime FechaFija =
         new(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc);
 
-    private static BusquedaTesoro BusquedaConMision(out Guid etapaId, out Guid misionId)
+    private static BusquedaTesoro BusquedaConMision()
     {
         var busqueda = BusquedaTesoro.Crear("Búsqueda Test", "Descripción", Guid.NewGuid(), FechaFija);
-        var etapa = busqueda.AgregarEtapa("Etapa 1", "Descripción");
-        etapaId = etapa.Id;
-        var mision = busqueda.AgregarMisionAEtapa(etapaId, "Misión original", "Desc original", TipoMision.PistaTexto, "pista-original");
-        misionId = mision.Id;
+        busqueda.AsignarMision("Misión original", "Desc original", TipoMision.PalabraClave, "pista-original");
         return busqueda;
     }
 
@@ -25,14 +22,13 @@ public class MisionModificarEliminarPruebas
     [Fact]
     public void ModificarMision_ConDatosValidos_ActualizaLosCampos()
     {
-        var busqueda = BusquedaConMision(out var etapaId, out var misionId);
+        var busqueda = BusquedaConMision();
 
-        busqueda.ModificarMision(etapaId, misionId, "Nuevo título", "Nueva desc", TipoMision.Acertijo, "nueva-pista");
+        busqueda.ModificarMision("Nuevo título", "Nueva desc", TipoMision.PalabraClave, "nueva-pista");
 
-        var mision = busqueda.Etapas.First(e => e.Id == etapaId).Misiones.First(m => m.Id == misionId);
-        mision.Titulo.Should().Be("Nuevo título");
-        mision.Tipo.Should().Be(TipoMision.Acertijo);
-        mision.PistaClave.Should().Be("nueva-pista");
+        busqueda.Mision!.Titulo.Should().Be("Nuevo título");
+        busqueda.Mision.Descripcion.Should().Be("Nueva desc");
+        busqueda.Mision.PistaClave.Should().Be("nueva-pista");
     }
 
     [Theory]
@@ -40,9 +36,9 @@ public class MisionModificarEliminarPruebas
     [InlineData("   ")]
     public void ModificarMision_TituloVacioOEspacios_LanzaExcepcionDominio(string titulo)
     {
-        var busqueda = BusquedaConMision(out var etapaId, out var misionId);
+        var busqueda = BusquedaConMision();
 
-        Action accion = () => busqueda.ModificarMision(etapaId, misionId, titulo, "Desc", TipoMision.PistaTexto, "pista");
+        Action accion = () => busqueda.ModificarMision(titulo, "Desc", TipoMision.PalabraClave, "pista");
 
         accion.Should().Throw<ExcepcionDominio>();
     }
@@ -52,29 +48,19 @@ public class MisionModificarEliminarPruebas
     [InlineData("   ")]
     public void ModificarMision_PistaClaveVaciaOEspacios_LanzaExcepcionDominio(string pistaClave)
     {
-        var busqueda = BusquedaConMision(out var etapaId, out var misionId);
+        var busqueda = BusquedaConMision();
 
-        Action accion = () => busqueda.ModificarMision(etapaId, misionId, "Título", "Desc", TipoMision.PistaTexto, pistaClave);
+        Action accion = () => busqueda.ModificarMision("Título", "Desc", TipoMision.PalabraClave, pistaClave);
 
         accion.Should().Throw<ExcepcionDominio>();
     }
 
     [Fact]
-    public void ModificarMision_EtapaInexistente_LanzaExcepcionNoEncontrado()
+    public void ModificarMision_SinMisionAsignada_LanzaExcepcionNoEncontrado()
     {
-        var busqueda = BusquedaConMision(out _, out var misionId);
+        var busqueda = BusquedaTesoro.Crear("Búsqueda sin misión", "Descripción", Guid.NewGuid(), FechaFija);
 
-        Action accion = () => busqueda.ModificarMision(Guid.NewGuid(), misionId, "Título", "Desc", TipoMision.PistaTexto, "pista");
-
-        accion.Should().Throw<ExcepcionNoEncontrado>();
-    }
-
-    [Fact]
-    public void ModificarMision_MisionInexistente_LanzaExcepcionNoEncontrado()
-    {
-        var busqueda = BusquedaConMision(out var etapaId, out _);
-
-        Action accion = () => busqueda.ModificarMision(etapaId, Guid.NewGuid(), "Título", "Desc", TipoMision.PistaTexto, "pista");
+        Action accion = () => busqueda.ModificarMision("Título", "Desc", TipoMision.PalabraClave, "pista");
 
         accion.Should().Throw<ExcepcionNoEncontrado>();
     }
@@ -82,21 +68,21 @@ public class MisionModificarEliminarPruebas
     // --- EliminarMision ---
 
     [Fact]
-    public void EliminarMision_MisionExistente_ReduceConteoMisiones()
+    public void EliminarMision_ConMisionAsignada_DejaLaMisionNula()
     {
-        var busqueda = BusquedaConMision(out var etapaId, out var misionId);
+        var busqueda = BusquedaConMision();
 
-        busqueda.EliminarMision(etapaId, misionId);
+        busqueda.EliminarMision();
 
-        busqueda.Etapas.First(e => e.Id == etapaId).Misiones.Should().BeEmpty();
+        busqueda.Mision.Should().BeNull();
     }
 
     [Fact]
-    public void EliminarMision_MisionInexistente_LanzaExcepcionNoEncontrado()
+    public void EliminarMision_SinMisionAsignada_LanzaExcepcionNoEncontrado()
     {
-        var busqueda = BusquedaConMision(out var etapaId, out _);
+        var busqueda = BusquedaTesoro.Crear("Búsqueda sin misión", "Descripción", Guid.NewGuid(), FechaFija);
 
-        Action accion = () => busqueda.EliminarMision(etapaId, Guid.NewGuid());
+        Action accion = () => busqueda.EliminarMision();
 
         accion.Should().Throw<ExcepcionNoEncontrado>();
     }
@@ -104,16 +90,13 @@ public class MisionModificarEliminarPruebas
     [Fact]
     public void EliminarMision_BusquedaActiva_LanzaExcepcionDominio()
     {
-        var etapaId = Guid.NewGuid();
-        var misionId = Guid.NewGuid();
-        var mision = Mision.Reconstituir(misionId, etapaId, "Misión", "Desc", TipoMision.PistaTexto, "pista");
-        var etapa = Etapa.Reconstituir(etapaId, Guid.NewGuid(), "Etapa", "Desc", 1, new[] { mision });
+        var mision = Mision.Reconstituir(Guid.NewGuid(), Guid.NewGuid(), "Misión", "Desc", TipoMision.PalabraClave, "pista");
         var busqueda = BusquedaTesoro.Reconstituir(
             Guid.NewGuid(), "Búsqueda", "Descripción",
             Guid.NewGuid(), EstadoBusqueda.Activa, FechaFija,
-            new[] { etapa });
+            mision);
 
-        Action accion = () => busqueda.EliminarMision(etapaId, misionId);
+        Action accion = () => busqueda.EliminarMision();
 
         accion.Should().Throw<ExcepcionDominio>();
     }

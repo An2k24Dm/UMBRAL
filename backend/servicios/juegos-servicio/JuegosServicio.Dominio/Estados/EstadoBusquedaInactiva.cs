@@ -11,19 +11,13 @@ internal sealed class EstadoBusquedaInactiva : IEstadoBusqueda
 
     public void Activar(Entidades.BusquedaTesoro busqueda)
     {
-        if (busqueda.Etapas.Count == 0)
+        if (busqueda.Mision is null)
             throw new ExcepcionDominio(
-                "La búsqueda del tesoro debe tener al menos una etapa para poder activarse.");
-
-        var etapaSinMisiones = busqueda.Etapas.FirstOrDefault(e => e.Misiones.Count == 0);
-        if (etapaSinMisiones is not null)
-            throw new ExcepcionDominio(
-                $"La etapa '{etapaSinMisiones.Titulo}' no tiene misiones. " +
-                "Cada etapa debe tener al menos una misión.");
+                "La búsqueda del tesoro debe tener una misión asignada para poder activarse.");
 
         busqueda.TransicionarEstado(EstadoBusqueda.Activa);
         busqueda.AgregarEventoInterno(
-            new BusquedaActivadaEvento(busqueda.Id, busqueda.Nombre, busqueda.Etapas.Count));
+            new BusquedaActivadaEvento(busqueda.Id, busqueda.Nombre));
     }
 
     public void Desactivar(Entidades.BusquedaTesoro busqueda) =>
