@@ -3,6 +3,7 @@ using JuegosServicio.Infraestructura.Persistencia;
 using JuegosServicio.Infraestructura.ServiciosExternos;
 using JuegosServicio.Infraestructura.Tiempo;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -17,14 +18,17 @@ public static class RegistroInfraestructura
             ?? throw new InvalidOperationException("Falta la cadena de conexión 'BaseDatos'.");
 
         servicios.AddDbContext<ContextoJuegos>(opciones =>
-            opciones.UseNpgsql(cadenaConexion, p =>
-            {
-                p.MigrationsHistoryTable("__historial_migraciones", "juegos");
-                p.EnableRetryOnFailure(5, TimeSpan.FromSeconds(10), null);
-            }));
+            opciones
+                .UseNpgsql(cadenaConexion, p =>
+                {
+                    p.MigrationsHistoryTable("__historial_migraciones", "juegos");
+                    p.EnableRetryOnFailure(5, TimeSpan.FromSeconds(10), null);
+                })
+                .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning)));
 
         servicios.AddScoped<IRepositorioJuegos, RepositorioJuegos>();
         servicios.AddScoped<IRepositorioBusquedas, RepositorioBusquedas>();
+        servicios.AddScoped<IRepositorioMisiones, RepositorioMisiones>();
         servicios.AddSingleton<IProveedorFechaHora, ProveedorFechaHoraSistema>();
 
         // Cliente HTTP hacia sesiones-servicio. Se enlaza por

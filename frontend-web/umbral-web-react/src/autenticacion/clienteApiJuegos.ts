@@ -31,6 +31,8 @@ const ENDPOINTS = {
   // HU20
   desactivarTrivia: (triviaId: string) =>
     `/api/juegos/trivias/${encodeURIComponent(triviaId)}`,
+  eliminarTrivia: (triviaId: string) =>
+    `/api/juegos/trivias/${encodeURIComponent(triviaId)}/eliminar`,
   listarActivas: '/api/juegos/trivias/activas',
   // HU21
   crearBusqueda:           '/api/juegos/busquedas',
@@ -39,14 +41,6 @@ const ENDPOINTS = {
   // HU22
   detalleBusqueda: (busquedaId: string) =>
     `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}`,
-  // HU23 — misión única
-  asignarMision: (busquedaId: string) =>
-    `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}/mision`,
-  // HU25
-  modificarMision: (busquedaId: string) =>
-    `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}/mision`,
-  eliminarMision: (busquedaId: string) =>
-    `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}/mision`,
   // HU26
   activarBusqueda: (busquedaId: string) =>
     `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}/activar`,
@@ -54,15 +48,31 @@ const ENDPOINTS = {
     `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}`,
   eliminarBusqueda: (busquedaId: string) =>
     `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}/eliminar`,
-  // HU28 — pistas bajo la misión
+  // Pistas directamente bajo /busquedas/{id}/pistas
   agregarPista: (busquedaId: string) =>
-    `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}/mision/pistas`,
-  // HU30
+    `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}/pistas`,
   modificarPista: (busquedaId: string, pistaId: string) =>
-    `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}/mision/pistas/${encodeURIComponent(pistaId)}`,
-  // HU32
+    `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}/pistas/${encodeURIComponent(pistaId)}`,
   eliminarPista: (busquedaId: string, pistaId: string) =>
-    `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}/mision/pistas/${encodeURIComponent(pistaId)}`
+    `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}/pistas/${encodeURIComponent(pistaId)}`,
+  // Misiones
+  crearMision:              '/api/juegos/misiones',
+  listarMisionesBorrador:   '/api/juegos/misiones/borrador',
+  listarMisionesActivas:    '/api/juegos/misiones/activas',
+  detalleMision: (misionId: string) =>
+    `/api/juegos/misiones/${encodeURIComponent(misionId)}`,
+  modificarMision: (misionId: string) =>
+    `/api/juegos/misiones/${encodeURIComponent(misionId)}`,
+  activarMision: (misionId: string) =>
+    `/api/juegos/misiones/${encodeURIComponent(misionId)}/activar`,
+  desactivarMision: (misionId: string) =>
+    `/api/juegos/misiones/${encodeURIComponent(misionId)}`,
+  eliminarMision: (misionId: string) =>
+    `/api/juegos/misiones/${encodeURIComponent(misionId)}/eliminar`,
+  agregarEtapa: (misionId: string) =>
+    `/api/juegos/misiones/${encodeURIComponent(misionId)}/etapas`,
+  eliminarEtapa: (misionId: string, etapaId: string) =>
+    `/api/juegos/misiones/${encodeURIComponent(misionId)}/etapas/${encodeURIComponent(etapaId)}`
 }
 
 function auth(token: string) {
@@ -112,6 +122,7 @@ export interface PreguntaDetalleDto {
   id: string
   enunciado: string
   puntajeAsignado: number
+  tiempoEstimado: number
   opciones: OpcionDetalleDto[]
 }
 
@@ -122,6 +133,8 @@ export interface TriviaDetalleDto {
   tiempoLimitePorPregunta: number
   estado: string
   fechaCreacion: string
+  puntajeTotal: number
+  tiempoTotal: number
   preguntas: PreguntaDetalleDto[]
 }
 
@@ -139,11 +152,13 @@ export interface OpcionInput {
 export interface DatosAgregarPregunta {
   enunciado: string
   puntajeAsignado: number
+  tiempoEstimado: number
   opciones: OpcionInput[]
 }
 
 export interface DatosModificarPregunta {
   nuevoEnunciado: string
+  nuevoTiempoEstimado: number
   nuevasOpciones: OpcionInput[]
 }
 
@@ -167,27 +182,27 @@ export interface BusquedaTesoroResumenDto {
   nombre: string
   descripcion: string
   estado: string
-  tieneMision: boolean
+  totalPistas: number
   fechaCreacion: string
 }
 
 export interface DatosCrearBusquedaTesoro {
   nombre: string
   descripcion: string
+  tiempo: number
+  puntaje: number
+}
+
+export interface DatosModificarBusquedaTesoro {
+  nombre: string
+  descripcion: string
+  tiempo: number
+  puntaje: number
 }
 
 export interface PistaDetalleDto {
   id: string
   contenido: string
-}
-
-export interface MisionDetalleDto {
-  id: string
-  titulo: string
-  descripcion: string
-  tipo: string
-  pistaClave: string
-  pistas: PistaDetalleDto[]
 }
 
 export interface BusquedaTesoroDetalleDto {
@@ -196,7 +211,9 @@ export interface BusquedaTesoroDetalleDto {
   descripcion: string
   estado: string
   fechaCreacion: string
-  mision: MisionDetalleDto | null
+  tiempo: number
+  puntaje: number
+  pistas: PistaDetalleDto[]
 }
 
 export interface DatosAgregarPista {
@@ -207,13 +224,55 @@ export interface DatosModificarPista {
   nuevoContenido: string
 }
 
-export type TipoMision = 0 | 1 | 2 // 0 = CodigoQR, 1 = PalabraClave, 2 = Codigo
+// --- Misiones ---
 
-export interface DatosAsignarMision {
-  titulo: string
+export type NivelDificultadMision = 'Baja' | 'Media' | 'Dificil'
+
+export interface MisionResumenDto {
+  id: string
+  nombre: string
   descripcion: string
-  tipo: TipoMision
-  pistaClave: string
+  estado: string
+  dificultad: string
+  totalEtapas: number
+  fechaCreacion: string
+}
+
+export interface EtapaDetalleDto {
+  id: string
+  orden: number
+  tipoModoDeJuego: string
+  modoDeJuegoId: string
+  nombreModoDeJuego: string
+  tiempoEstimado: number
+}
+
+export interface MisionDetalleDto {
+  id: string
+  nombre: string
+  descripcion: string
+  estado: string
+  dificultad: string
+  fechaCreacion: string
+  tiempoTotal: number
+  etapas: EtapaDetalleDto[]
+}
+
+export interface DatosCrearMision {
+  nombre: string
+  descripcion: string
+  dificultad: number  // 0=Baja, 1=Media, 2=Difícil
+}
+
+export interface DatosModificarMision {
+  nombre: string
+  descripcion: string
+  dificultad: number
+}
+
+export interface DatosAgregarEtapa {
+  tipoModoDeJuego: number  // 0 = Trivia, 1 = BusquedaTesoro
+  modoDeJuegoId: string
 }
 
 // ---------------------------------------------------------------------------
@@ -312,27 +371,6 @@ export async function modificarPregunta(
 }
 
 // ---------------------------------------------------------------------------
-// HU23 — Asignar la misión única a una búsqueda del tesoro
-// ---------------------------------------------------------------------------
-export async function asignarMision(
-  busquedaId: string,
-  datos: DatosAsignarMision,
-  token: string
-): Promise<string> {
-  const respuesta = await fetch(`${URL_API}${ENDPOINTS.asignarMision(busquedaId)}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...auth(token) },
-    body: JSON.stringify(datos)
-  })
-  if (respuesta.status === 401) lanzar401('Debe iniciar sesión.')
-  if (respuesta.status === 403) throw new Error('No tiene permisos.')
-  if (respuesta.status === 404) throw new Error('Búsqueda del tesoro no encontrada.')
-  if (!respuesta.ok) throw new Error(await leerError(respuesta))
-  const cuerpo = (await respuesta.json()) as { id: string }
-  return cuerpo.id
-}
-
-// ---------------------------------------------------------------------------
 // HU22 — Obtener detalle de búsqueda del tesoro
 // ---------------------------------------------------------------------------
 export async function obtenerDetalleBusqueda(
@@ -412,6 +450,17 @@ export async function desactivarTrivia(
   if (!respuesta.ok) throw new Error(await leerError(respuesta))
 }
 
+export async function eliminarTrivia(triviaId: string, token: string): Promise<void> {
+  const respuesta = await fetch(`${URL_API}${ENDPOINTS.eliminarTrivia(triviaId)}`, {
+    method: 'DELETE',
+    headers: auth(token)
+  })
+  if (respuesta.status === 401) lanzar401('Debe iniciar sesión.')
+  if (respuesta.status === 403) throw new Error('No tiene permisos.')
+  if (respuesta.status === 404) throw new Error('Trivia no encontrada.')
+  if (!respuesta.ok) throw new Error(await leerError(respuesta))
+}
+
 // ---------------------------------------------------------------------------
 // HU20 — Listar trivias activas
 // ---------------------------------------------------------------------------
@@ -464,48 +513,21 @@ export async function activarTrivia(
 }
 
 // ---------------------------------------------------------------------------
-// HU25 — Modificar la misión única de una búsqueda
+// Modificar datos de búsqueda del tesoro
 // ---------------------------------------------------------------------------
-export interface DatosModificarMision {
-  nuevoTitulo: string
-  nuevaDescripcion: string
-  nuevoTipo: TipoMision
-  nuevaPistaClave: string
-}
-
-export async function modificarMision(
+export async function modificarBusquedaTesoro(
   busquedaId: string,
-  datos: DatosModificarMision,
+  datos: DatosModificarBusquedaTesoro,
   token: string
 ): Promise<void> {
-  const respuesta = await fetch(
-    `${URL_API}${ENDPOINTS.modificarMision(busquedaId)}`,
-    {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', ...auth(token) },
-      body: JSON.stringify(datos)
-    }
-  )
+  const respuesta = await fetch(`${URL_API}${ENDPOINTS.detalleBusqueda(busquedaId)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...auth(token) },
+    body: JSON.stringify(datos)
+  })
   if (respuesta.status === 401) lanzar401('Debe iniciar sesión.')
   if (respuesta.status === 403) throw new Error('No tiene permisos.')
-  if (respuesta.status === 404) throw new Error('Misión no encontrada.')
-  if (!respuesta.ok) throw new Error(await leerError(respuesta))
-}
-
-// ---------------------------------------------------------------------------
-// HU25 — Eliminar la misión de una búsqueda
-// ---------------------------------------------------------------------------
-export async function eliminarMision(
-  busquedaId: string,
-  token: string
-): Promise<void> {
-  const respuesta = await fetch(
-    `${URL_API}${ENDPOINTS.eliminarMision(busquedaId)}`,
-    { method: 'DELETE', headers: auth(token) }
-  )
-  if (respuesta.status === 401) lanzar401('Debe iniciar sesión.')
-  if (respuesta.status === 403) throw new Error('No tiene permisos.')
-  if (respuesta.status === 404) throw new Error('Misión no encontrada.')
+  if (respuesta.status === 404) throw new Error('Búsqueda del tesoro no encontrada.')
   if (!respuesta.ok) throw new Error(await leerError(respuesta))
 }
 
@@ -588,7 +610,109 @@ export async function eliminarBusqueda(
 }
 
 // ---------------------------------------------------------------------------
-// HU28 — Agregar pista a la misión
+// Misiones — CRUD + Etapas
+// ---------------------------------------------------------------------------
+export async function crearMision(datos: DatosCrearMision, token: string): Promise<string> {
+  const respuesta = await fetch(`${URL_API}${ENDPOINTS.crearMision}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...auth(token) },
+    body: JSON.stringify(datos)
+  })
+  if (respuesta.status === 401) lanzar401('Debe iniciar sesión.')
+  if (respuesta.status === 403) throw new Error('No tiene permisos.')
+  if (!respuesta.ok) throw new Error(await leerError(respuesta))
+  const cuerpo = (await respuesta.json()) as { id: string }
+  return cuerpo.id
+}
+
+export async function modificarMision(misionId: string, datos: DatosModificarMision, token: string): Promise<void> {
+  const respuesta = await fetch(`${URL_API}${ENDPOINTS.modificarMision(misionId)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...auth(token) },
+    body: JSON.stringify(datos)
+  })
+  if (respuesta.status === 401) lanzar401('Debe iniciar sesión.')
+  if (respuesta.status === 403) throw new Error('No tiene permisos.')
+  if (respuesta.status === 404) throw new Error('Misión no encontrada.')
+  if (!respuesta.ok) throw new Error(await leerError(respuesta))
+}
+
+export async function obtenerMisionesEnBorrador(token: string): Promise<MisionResumenDto[]> {
+  const respuesta = await fetch(`${URL_API}${ENDPOINTS.listarMisionesBorrador}`, { headers: auth(token) })
+  if (respuesta.status === 401) lanzar401('Debe iniciar sesión.')
+  if (!respuesta.ok) throw new Error(await leerError(respuesta))
+  return (await respuesta.json()) as MisionResumenDto[]
+}
+
+export async function obtenerMisionesActivas(token: string): Promise<MisionResumenDto[]> {
+  const respuesta = await fetch(`${URL_API}${ENDPOINTS.listarMisionesActivas}`, { headers: auth(token) })
+  if (respuesta.status === 401) lanzar401('Debe iniciar sesión.')
+  if (!respuesta.ok) throw new Error(await leerError(respuesta))
+  return (await respuesta.json()) as MisionResumenDto[]
+}
+
+export async function obtenerDetalleMision(misionId: string, token: string): Promise<MisionDetalleDto> {
+  const respuesta = await fetch(`${URL_API}${ENDPOINTS.detalleMision(misionId)}`, { headers: auth(token) })
+  if (respuesta.status === 401) lanzar401('Debe iniciar sesión.')
+  if (respuesta.status === 404) throw new Error('Misión no encontrada.')
+  if (!respuesta.ok) throw new Error(await leerError(respuesta))
+  return (await respuesta.json()) as MisionDetalleDto
+}
+
+export async function activarMision(misionId: string, token: string): Promise<void> {
+  const respuesta = await fetch(`${URL_API}${ENDPOINTS.activarMision(misionId)}`, {
+    method: 'PATCH', headers: auth(token)
+  })
+  if (respuesta.status === 401) lanzar401('Debe iniciar sesión.')
+  if (respuesta.status === 404) throw new Error('Misión no encontrada.')
+  if (!respuesta.ok) throw new Error(await leerError(respuesta))
+}
+
+export async function desactivarMision(misionId: string, token: string): Promise<void> {
+  const respuesta = await fetch(`${URL_API}${ENDPOINTS.desactivarMision(misionId)}`, {
+    method: 'DELETE', headers: auth(token)
+  })
+  if (respuesta.status === 401) lanzar401('Debe iniciar sesión.')
+  if (respuesta.status === 404) throw new Error('Misión no encontrada.')
+  if (!respuesta.ok) throw new Error(await leerError(respuesta))
+}
+
+export async function eliminarMision(misionId: string, token: string): Promise<void> {
+  const respuesta = await fetch(`${URL_API}${ENDPOINTS.eliminarMision(misionId)}`, {
+    method: 'DELETE', headers: auth(token)
+  })
+  if (respuesta.status === 401) lanzar401('Debe iniciar sesión.')
+  if (respuesta.status === 404) throw new Error('Misión no encontrada.')
+  if (respuesta.status === 422) throw new Error(await leerError(respuesta))
+  if (!respuesta.ok) throw new Error(await leerError(respuesta))
+}
+
+export async function agregarEtapa(
+  misionId: string, datos: DatosAgregarEtapa, token: string
+): Promise<string> {
+  const respuesta = await fetch(`${URL_API}${ENDPOINTS.agregarEtapa(misionId)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...auth(token) },
+    body: JSON.stringify(datos)
+  })
+  if (respuesta.status === 401) lanzar401('Debe iniciar sesión.')
+  if (respuesta.status === 404) throw new Error('Misión o contenido no encontrado.')
+  if (!respuesta.ok) throw new Error(await leerError(respuesta))
+  const cuerpo = (await respuesta.json()) as { id: string }
+  return cuerpo.id
+}
+
+export async function eliminarEtapa(misionId: string, etapaId: string, token: string): Promise<void> {
+  const respuesta = await fetch(`${URL_API}${ENDPOINTS.eliminarEtapa(misionId, etapaId)}`, {
+    method: 'DELETE', headers: auth(token)
+  })
+  if (respuesta.status === 401) lanzar401('Debe iniciar sesión.')
+  if (respuesta.status === 404) throw new Error('Etapa no encontrada.')
+  if (!respuesta.ok) throw new Error(await leerError(respuesta))
+}
+
+// ---------------------------------------------------------------------------
+// HU28 — Agregar pista a la búsqueda
 // ---------------------------------------------------------------------------
 export async function agregarPista(
   busquedaId: string,
@@ -602,7 +726,7 @@ export async function agregarPista(
   })
   if (respuesta.status === 401) lanzar401('Debe iniciar sesión.')
   if (respuesta.status === 403) throw new Error('No tiene permisos.')
-  if (respuesta.status === 404) throw new Error('Misión no encontrada.')
+  if (respuesta.status === 404) throw new Error('Búsqueda del tesoro no encontrada.')
   if (!respuesta.ok) throw new Error(await leerError(respuesta))
   const cuerpo = (await respuesta.json()) as { id: string }
   return cuerpo.id

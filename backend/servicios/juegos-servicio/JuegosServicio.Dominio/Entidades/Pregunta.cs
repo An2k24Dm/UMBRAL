@@ -10,6 +10,7 @@ public sealed class Pregunta
     public Guid TriviaId { get; private set; }
     public string Enunciado { get; private set; } = default!;
     public int PuntajeAsignado { get; private set; }
+    public int TiempoEstimado { get; private set; }
     public IReadOnlyList<Opcion> Opciones => _opciones.AsReadOnly();
 
     private Pregunta() { }
@@ -18,6 +19,7 @@ public sealed class Pregunta
         Guid triviaId,
         string enunciado,
         int puntaje,
+        int tiempoEstimado,
         IEnumerable<(string Texto, bool EsCorrecta)> opciones)
     {
         if (string.IsNullOrWhiteSpace(enunciado))
@@ -26,6 +28,8 @@ public sealed class Pregunta
             throw new ExcepcionDominio("El puntaje debe ser un múltiplo de 5 (5, 10, 15… 100).");
         if (puntaje > 100)
             throw new ExcepcionDominio("El puntaje máximo por pregunta es 100.");
+        if (tiempoEstimado <= 0)
+            throw new ExcepcionDominio("El tiempo estimado debe ser mayor a cero.");
 
         var listaOpciones = opciones.ToList();
         if (listaOpciones.Count < 2)
@@ -41,7 +45,8 @@ public sealed class Pregunta
             Id = preguntaId,
             TriviaId = triviaId,
             Enunciado = enunciado.Trim(),
-            PuntajeAsignado = puntaje
+            PuntajeAsignado = puntaje,
+            TiempoEstimado = tiempoEstimado
         };
 
         foreach (var (texto, esCorrecta) in listaOpciones)
@@ -50,10 +55,15 @@ public sealed class Pregunta
         return pregunta;
     }
 
-    internal void Modificar(string nuevoEnunciado, IEnumerable<(string Texto, bool EsCorrecta)> nuevasOpciones)
+    internal void Modificar(
+        string nuevoEnunciado,
+        int nuevoTiempoEstimado,
+        IEnumerable<(string Texto, bool EsCorrecta)> nuevasOpciones)
     {
         if (string.IsNullOrWhiteSpace(nuevoEnunciado))
             throw new ExcepcionDominio("El enunciado de la pregunta es obligatorio.");
+        if (nuevoTiempoEstimado <= 0)
+            throw new ExcepcionDominio("El tiempo estimado debe ser mayor a cero.");
 
         var lista = nuevasOpciones.ToList();
         if (lista.Count < 2)
@@ -64,6 +74,7 @@ public sealed class Pregunta
             throw new ExcepcionDominio("La pregunta solo puede tener una opción correcta.");
 
         Enunciado = nuevoEnunciado.Trim();
+        TiempoEstimado = nuevoTiempoEstimado;
         _opciones.Clear();
         foreach (var (texto, esCorrecta) in lista)
             _opciones.Add(Opcion.Crear(Id, texto, esCorrecta));
@@ -74,6 +85,7 @@ public sealed class Pregunta
         Guid triviaId,
         string enunciado,
         int puntaje,
+        int tiempoEstimado,
         IEnumerable<Opcion> opciones)
     {
         var pregunta = new Pregunta
@@ -81,7 +93,8 @@ public sealed class Pregunta
             Id = id,
             TriviaId = triviaId,
             Enunciado = enunciado,
-            PuntajeAsignado = puntaje
+            PuntajeAsignado = puntaje,
+            TiempoEstimado = tiempoEstimado
         };
         pregunta._opciones.AddRange(opciones);
         return pregunta;

@@ -17,7 +17,7 @@ public class TriviaActivarPruebas
     private static Trivia TriviaConPregunta()
     {
         var trivia = Trivia.Crear("Trivia Test", "Descripción", Guid.NewGuid(), 30, FechaFija);
-        trivia.AgregarPregunta("¿Capital de Francia?", 10, OpcionesValidas);
+        trivia.AgregarPregunta("¿Capital de Francia?", 10, 10, OpcionesValidas);
         return trivia;
     }
 

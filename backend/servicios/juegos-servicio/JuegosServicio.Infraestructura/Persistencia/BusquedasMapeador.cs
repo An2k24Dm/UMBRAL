@@ -16,21 +16,9 @@ public static class BusquedasMapeador
             CreadorId = busqueda.CreadorId,
             Estado = (int)busqueda.Estado,
             FechaCreacion = busqueda.FechaCreacion,
-            Mision = busqueda.Mision is null ? null : AModelo(busqueda.Mision)
-        };
-    }
-
-    public static MisionModelo AModelo(Mision mision)
-    {
-        return new MisionModelo
-        {
-            Id = mision.Id,
-            BusquedaId = mision.BusquedaId,
-            Titulo = mision.Titulo,
-            Descripcion = mision.Descripcion,
-            Tipo = (int)mision.Tipo,
-            PistaClave = mision.PistaClave,
-            Pistas = mision.Pistas.Select(AModelo).ToList()
+            Tiempo = busqueda.Tiempo,
+            Puntaje = busqueda.Puntaje,
+            Pistas = busqueda.Pistas.Select(AModelo).ToList()
         };
     }
 
@@ -39,14 +27,14 @@ public static class BusquedasMapeador
         return new PistaModelo
         {
             Id = pista.Id,
-            MisionId = pista.MisionId,
+            BusquedaId = pista.BusquedaId,
             Contenido = pista.Contenido
         };
     }
 
     public static BusquedaTesoro ADominio(BusquedaTesoroModelo modelo)
     {
-        var mision = modelo.Mision is null ? null : ADominio(modelo.Mision);
+        var pistas = modelo.Pistas.Select(ADominio);
         return BusquedaTesoro.Reconstituir(
             modelo.Id,
             modelo.Nombre,
@@ -54,24 +42,11 @@ public static class BusquedasMapeador
             modelo.CreadorId,
             (EstadoBusqueda)modelo.Estado,
             modelo.FechaCreacion,
-            mision);
-    }
-
-    public static Mision ADominio(MisionModelo modelo)
-    {
-        var pistas = modelo.Pistas.Select(ADominio);
-        return Mision.Reconstituir(
-            modelo.Id,
-            modelo.BusquedaId,
-            modelo.Titulo,
-            modelo.Descripcion,
-            (TipoMision)modelo.Tipo,
-            modelo.PistaClave,
+            modelo.Tiempo,
+            modelo.Puntaje,
             pistas);
     }
 
-    public static Pista ADominio(PistaModelo modelo)
-    {
-        return Pista.Reconstituir(modelo.Id, modelo.MisionId, modelo.Contenido);
-    }
+    public static Pista ADominio(PistaModelo modelo) =>
+        Pista.Reconstituir(modelo.Id, modelo.BusquedaId, modelo.Contenido);
 }

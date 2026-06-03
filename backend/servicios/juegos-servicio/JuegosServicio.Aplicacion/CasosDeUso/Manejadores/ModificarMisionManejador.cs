@@ -8,25 +8,20 @@ namespace JuegosServicio.Aplicacion.CasosDeUso.Manejadores;
 
 public sealed class ModificarMisionManejador : IRequestHandler<ModificarMisionComando>
 {
-    private readonly IRepositorioBusquedas _repositorio;
+    private readonly IRepositorioMisiones _repositorio;
 
-    public ModificarMisionManejador(IRepositorioBusquedas repositorio)
+    public ModificarMisionManejador(IRepositorioMisiones repositorio)
     {
         _repositorio = repositorio;
     }
 
     public async Task Handle(ModificarMisionComando comando, CancellationToken cancelacion)
     {
-        var busqueda = await _repositorio.ObtenerBusquedaPorIdAsync(comando.BusquedaId, cancelacion)
+        var mision = await _repositorio.ObtenerMisionPorIdAsync(comando.MisionId, cancelacion)
             ?? throw new ExcepcionNoEncontrado(
-                $"No se encontró la búsqueda del tesoro con ID '{comando.BusquedaId}'.");
+                $"No se encontró la misión con ID '{comando.MisionId}'.");
 
-        busqueda.ModificarMision(
-            comando.Dto.NuevoTitulo,
-            comando.Dto.NuevaDescripcion,
-            (TipoMision)comando.Dto.NuevoTipo,
-            comando.Dto.NuevaPistaClave);
-
-        await _repositorio.ModificarMisionAsync(busqueda.Mision!, cancelacion);
+        mision.Modificar(comando.Dto.Nombre, comando.Dto.Descripcion, (NivelDificultad)comando.Dto.Dificultad);
+        await _repositorio.ActualizarMisionAsync(mision, cancelacion);
     }
 }

@@ -30,6 +30,7 @@ interface OpcionForm {
 interface FormPregunta {
   enunciado: string
   puntajeAsignado: string
+  tiempoEstimado: string
   opciones: OpcionForm[]
 }
 
@@ -51,6 +52,7 @@ function opcionesVacias(): OpcionForm[] {
 const FORM_VACIO: FormPregunta = {
   enunciado: '',
   puntajeAsignado: '10',
+  tiempoEstimado: '10',
   opciones: opcionesVacias()
 }
 
@@ -147,6 +149,7 @@ export function PaginaGestionPreguntas() {
     setForm({
       enunciado: pregunta.enunciado,
       puntajeAsignado: String(pregunta.puntajeAsignado),
+      tiempoEstimado: String(pregunta.tiempoEstimado || 30),
       opciones: pregunta.opciones.map((o) => ({
         _key: nuevaKey(),
         texto: o.texto,
@@ -229,6 +232,7 @@ export function PaginaGestionPreguntas() {
           {
             enunciado: form.enunciado.trim(),
             puntajeAsignado: Number(form.puntajeAsignado),
+            tiempoEstimado: Number(form.tiempoEstimado) || 30,
             opciones: opcionesInput
           },
           token
@@ -239,6 +243,7 @@ export function PaginaGestionPreguntas() {
           editandoId,
           {
             nuevoEnunciado: form.enunciado.trim(),
+            nuevoTiempoEstimado: Number(form.tiempoEstimado) || 30,
             nuevasOpciones: opcionesInput
           },
           token
@@ -383,9 +388,19 @@ export function PaginaGestionPreguntas() {
           <div>
             <h2>Preguntas de la trivia</h2>
             <p>{trivia.descripcion} · {trivia.tiempoLimitePorPregunta}s por pregunta</p>
-            <span className={`estado-badge estado-badge-${trivia.estado.toLowerCase()}`}>
-              {trivia.estado}
-            </span>
+            <div style={{ display: 'flex', gap: 12, marginTop: 4, alignItems: 'center' }}>
+              <span className={`estado-badge estado-badge-${trivia.estado.toLowerCase()}`}>
+                {trivia.estado}
+              </span>
+              <span className="trivia-card-meta">
+                Puntaje total: <strong>{trivia.puntajeTotal ?? trivia.preguntas.reduce((s, p) => s + p.puntajeAsignado, 0)} pts</strong>
+              </span>
+              {trivia.tiempoTotal > 0 && (
+                <span className="trivia-card-meta">
+                  Tiempo total: <strong>{trivia.tiempoTotal}s</strong>
+                </span>
+              )}
+            </div>
           </div>
           <div className="cabecera-pagina-acciones">
             <Boton variante="volver" onClick={() => navegar(rutaBase)}>
@@ -520,6 +535,22 @@ export function PaginaGestionPreguntas() {
                 </select>
               </CampoFormulario>
 
+              <CampoFormulario
+                etiqueta="Tiempo estimado (segundos)"
+                htmlFor="tiempo-estimado"
+              >
+                <input
+                  id="tiempo-estimado"
+                  type="number"
+                  min={5}
+                  max={600}
+                  value={form.tiempoEstimado}
+                  onChange={(e) => setForm((p) => ({ ...p, tiempoEstimado: e.target.value }))}
+                  disabled={enviando}
+                  placeholder="Ej. 30"
+                />
+              </CampoFormulario>
+
               <div className="campo">
                 <label className="campo-etiqueta">Opciones de respuesta</label>
                 {erroresForm.opciones && (
@@ -595,6 +626,9 @@ export function PaginaGestionPreguntas() {
                   <div className="pregunta-card-info">
                     <span className="pregunta-numero">Pregunta {idx + 1}</span>
                     <span className="pregunta-puntaje">{pregunta.puntajeAsignado} pts</span>
+                    {pregunta.tiempoEstimado > 0 && (
+                      <span className="trivia-card-meta">{pregunta.tiempoEstimado}s</span>
+                    )}
                   </div>
                   <div className="pregunta-card-acciones">
                     {confirmandoEliminacion === pregunta.id ? (

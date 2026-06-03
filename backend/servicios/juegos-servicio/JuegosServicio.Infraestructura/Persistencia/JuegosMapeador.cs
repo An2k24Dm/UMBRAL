@@ -31,6 +31,7 @@ public static class JuegosMapeador
             TriviaId = pregunta.TriviaId,
             Enunciado = pregunta.Enunciado,
             PuntajeAsignado = pregunta.PuntajeAsignado,
+            TiempoEstimado = pregunta.TiempoEstimado,
             Opciones = pregunta.Opciones.Select(AModelo).ToList()
         };
     }
@@ -70,6 +71,7 @@ public static class JuegosMapeador
             modelo.TriviaId,
             modelo.Enunciado,
             modelo.PuntajeAsignado,
+            modelo.TiempoEstimado,
             opciones);
     }
 

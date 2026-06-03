@@ -23,7 +23,7 @@ public class EliminarPreguntaManejadorPruebas
     {
         var trivia = Trivia.Crear("Trivia Test", "Descripción", Guid.NewGuid(), 30, FechaFija);
         var pregunta = trivia.AgregarPregunta(
-            "Pregunta original", 10,
+            "Pregunta original", 10, 10,
             [("Opción A", true), ("Opción B", false)]);
         preguntaId = pregunta.Id;
         return trivia;

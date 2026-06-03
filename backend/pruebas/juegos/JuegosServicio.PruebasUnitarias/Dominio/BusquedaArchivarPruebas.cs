@@ -1,11 +1,10 @@
-﻿using JuegosServicio.Dominio.Entidades;
+using JuegosServicio.Dominio.Entidades;
 using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Dominio.Eventos;
 using JuegosServicio.Dominio.Excepciones;
 
 namespace JuegosServicio.PruebasUnitarias.Dominio;
 
-// Pruebas de BusquedaTesoro.Desactivar.
 public class BusquedaArchivarPruebas
 {
     private static readonly DateTime FechaFija =
@@ -14,13 +13,12 @@ public class BusquedaArchivarPruebas
     private static BusquedaTesoro BusquedaActiva()
     {
         var busqueda = BusquedaTesoro.Crear("Búsqueda Test", "Descripción", Guid.NewGuid(), FechaFija);
-        busqueda.AsignarMision("Busca el cofre", "Encuéntralo en el parque", TipoMision.PalabraClave, "cofre_norte");
         busqueda.Activar();
         return busqueda;
     }
 
     [Fact]
-    public void Archivar_BusquedaActiva_CambiaEstadoAInactiva()
+    public void Desactivar_BusquedaActiva_CambiaEstadoAInactiva()
     {
         var busqueda = BusquedaActiva();
 
@@ -30,7 +28,7 @@ public class BusquedaArchivarPruebas
     }
 
     [Fact]
-    public void Archivar_BusquedaYaInactiva_LanzaExcepcionDominio()
+    public void Desactivar_BusquedaYaInactiva_LanzaExcepcionDominio()
     {
         var busqueda = BusquedaTesoro.Crear("Búsqueda Inactiva", "Descripción", Guid.NewGuid(), FechaFija);
 
@@ -40,7 +38,7 @@ public class BusquedaArchivarPruebas
     }
 
     [Fact]
-    public void Archivar_BusquedaActiva_AgregaEventoBusquedaArchivada()
+    public void Desactivar_BusquedaActiva_AgregaEventoBusquedaArchivada()
     {
         var busqueda = BusquedaActiva();
         busqueda.LimpiarEventos();
@@ -51,7 +49,7 @@ public class BusquedaArchivarPruebas
     }
 
     [Fact]
-    public void Archivar_BusquedaYaArchivada_LanzaExcepcionDominio()
+    public void Desactivar_BusquedaYaInactivaDespuesDeDesactivar_LanzaExcepcionDominio()
     {
         var busqueda = BusquedaActiva();
         busqueda.Desactivar();

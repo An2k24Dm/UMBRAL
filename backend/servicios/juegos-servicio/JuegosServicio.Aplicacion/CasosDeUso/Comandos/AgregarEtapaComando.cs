@@ -3,4 +3,4 @@ using MediatR;
 
 namespace JuegosServicio.Aplicacion.CasosDeUso.Comandos;
 
-public sealed record AgregarMisionComando(Guid BusquedaId, AgregarMisionDto Dto) : IRequest<Guid>;
+public sealed record AgregarEtapaComando(Guid MisionId, AgregarEtapaDto Dto) : IRequest<Guid>;

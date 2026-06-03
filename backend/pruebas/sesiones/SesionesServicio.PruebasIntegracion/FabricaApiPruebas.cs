@@ -197,18 +197,9 @@ public sealed class FabricaApiPruebas : WebApplicationFactory<Program>
                 Nombre = "Búsqueda piloto",
                 Descripcion = "Demo",
                 Estado = "Activa",
-                Etapas = new List<EtapaBusquedaSesionDto>
+                Pistas = new List<PistaBusquedaSesionDto>
                 {
-                    new() {
-                        Id = Guid.NewGuid(),
-                        Nombre = "Etapa 1",
-                        Descripcion = "Bienvenida",
-                        Orden = 1,
-                        Pistas = new List<PistaBusquedaSesionDto>
-                        {
-                            new() { Id = Guid.NewGuid(), Texto = "Mira al norte", Orden = 1 }
-                        }
-                    }
+                    new() { Id = Guid.NewGuid(), Contenido = "Mira al norte" }
                 }
             });
     }

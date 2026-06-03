@@ -1,87 +1,100 @@
-﻿using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Aplicacion.CasosDeUso.Comandos;
 using JuegosServicio.Aplicacion.CasosDeUso.Manejadores;
 using JuegosServicio.Aplicacion.Puertos;
 using JuegosServicio.Commons.Dtos;
 using JuegosServicio.Dominio.Entidades;
+using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Dominio.Excepciones;
 
 namespace JuegosServicio.PruebasUnitarias.CasosDeUso;
 
-// HU25: pruebas del manejador de modificación de misión.
 public class ModificarMisionManejadorPruebas
 {
-    private readonly Mock<IRepositorioBusquedas> _repositorio = new();
+    private readonly Mock<IRepositorioMisiones> _repositorio = new();
 
     private static readonly DateTime FechaFija =
         new(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc);
 
     private ModificarMisionManejador CrearManejador() => new(_repositorio.Object);
 
-    private static BusquedaTesoro BusquedaConMision()
-    {
-        var busqueda = BusquedaTesoro.Crear("Búsqueda Test", "Descripción", Guid.NewGuid(), FechaFija);
-        busqueda.AsignarMision("Misión", "Desc", TipoMision.PalabraClave, "pista");
-        return busqueda;
-    }
+    private static Mision MisionInactiva() =>
+        Mision.Crear("Misión Original", "Descripción original", Guid.NewGuid(), FechaFija);
 
-    private static ModificarMisionDto DtoValido() => new()
-    {
-        NuevoTitulo = "Título modificado",
-        NuevaDescripcion = "Descripción modificada",
-        NuevaPistaClave = "nueva-pista"
-    };
+    private static ModificarMisionDto DtoValido(NivelDificultad dificultad = NivelDificultad.Baja) =>
+        new() { Nombre = "Misión Modificada", Descripcion = "Nueva descripción", Dificultad = (int)dificultad };
 
     public ModificarMisionManejadorPruebas()
     {
         _repositorio
-            .Setup(r => r.ModificarMisionAsync(
-                It.IsAny<Mision>(), It.IsAny<CancellationToken>()))
+            .Setup(r => r.ActualizarMisionAsync(It.IsAny<Mision>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
     }
 
     [Fact]
-    public async Task Handle_BusquedaConMision_LlamaModificarMisionAsyncUnaVez()
+    public async Task Handle_MisionInactiva_LlamaActualizarAsyncUnaVez()
     {
-        var busqueda = BusquedaConMision();
+        var mision = MisionInactiva();
         _repositorio
-            .Setup(r => r.ObtenerBusquedaPorIdAsync(busqueda.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(busqueda);
+            .Setup(r => r.ObtenerMisionPorIdAsync(mision.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(mision);
 
         await CrearManejador().Handle(
-            new ModificarMisionComando(busqueda.Id, DtoValido()),
-            CancellationToken.None);
+            new ModificarMisionComando(mision.Id, DtoValido()), CancellationToken.None);
 
         _repositorio.Verify(
-            r => r.ModificarMisionAsync(It.IsAny<Mision>(), It.IsAny<CancellationToken>()),
+            r => r.ActualizarMisionAsync(mision, It.IsAny<CancellationToken>()),
             Times.Once);
     }
 
     [Fact]
-    public async Task Handle_BusquedaInexistente_LanzaExcepcionNoEncontrado()
+    public async Task Handle_MisionInactiva_ActualizaDatosDominio()
     {
-        var busquedaId = Guid.NewGuid();
+        var mision = MisionInactiva();
         _repositorio
-            .Setup(r => r.ObtenerBusquedaPorIdAsync(busquedaId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((BusquedaTesoro?)null);
+            .Setup(r => r.ObtenerMisionPorIdAsync(mision.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(mision);
 
-        var accion = async () => await CrearManejador().Handle(
-            new ModificarMisionComando(busquedaId, DtoValido()), CancellationToken.None);
+        await CrearManejador().Handle(
+            new ModificarMisionComando(mision.Id, DtoValido(NivelDificultad.Dificil)), CancellationToken.None);
 
-        await accion.Should().ThrowAsync<ExcepcionNoEncontrado>();
+        mision.Nombre.Should().Be("Misión Modificada");
+        mision.Descripcion.Should().Be("Nueva descripción");
+        mision.Dificultad.Should().Be(NivelDificultad.Dificil);
     }
 
     [Fact]
-    public async Task Handle_SinMisionAsignada_LanzaExcepcionNoEncontrado()
+    public async Task Handle_MisionInexistente_LanzaExcepcionNoEncontrado()
     {
-        var busqueda = BusquedaTesoro.Crear("Búsqueda sin misión", "Descripción", Guid.NewGuid(), FechaFija);
+        var misionId = Guid.NewGuid();
         _repositorio
-            .Setup(r => r.ObtenerBusquedaPorIdAsync(busqueda.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(busqueda);
+            .Setup(r => r.ObtenerMisionPorIdAsync(misionId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Mision?)null);
 
-        var accion = async () => await CrearManejador().Handle(
-            new ModificarMisionComando(busqueda.Id, DtoValido()), CancellationToken.None);
+        var accion = async () => await CrearManejador()
+            .Handle(new ModificarMisionComando(misionId, DtoValido()), CancellationToken.None);
 
         await accion.Should().ThrowAsync<ExcepcionNoEncontrado>();
+        _repositorio.Verify(
+            r => r.ActualizarMisionAsync(It.IsAny<Mision>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task Handle_MisionActiva_LanzaExcepcionDominio()
+    {
+        var mision = MisionInactiva();
+        mision.AgregarEtapa(TipoModoDeJuego.Trivia, Guid.NewGuid());
+        mision.Activar();
+        _repositorio
+            .Setup(r => r.ObtenerMisionPorIdAsync(mision.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(mision);
+
+        var accion = async () => await CrearManejador()
+            .Handle(new ModificarMisionComando(mision.Id, DtoValido()), CancellationToken.None);
+
+        await accion.Should().ThrowAsync<ExcepcionDominio>();
+        _repositorio.Verify(
+            r => r.ActualizarMisionAsync(It.IsAny<Mision>(), It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 }

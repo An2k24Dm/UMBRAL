@@ -373,7 +373,7 @@ public sealed class SesionesEndpointPruebas : IClassFixture<FabricaApiPruebas>
 
         var detalle = await respuesta.Content.ReadFromJsonAsync<SesionDetalleDto>();
         detalle!.BusquedaTesoro.Should().NotBeNull();
-        detalle.BusquedaTesoro!.Etapas.Should().NotBeEmpty();
+        detalle.BusquedaTesoro!.Pistas.Should().NotBeEmpty();
         detalle.Trivia.Should().BeNull();
     }
 

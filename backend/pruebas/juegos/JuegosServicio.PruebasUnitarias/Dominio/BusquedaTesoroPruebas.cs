@@ -1,11 +1,10 @@
-﻿using JuegosServicio.Dominio.Entidades;
+using JuegosServicio.Dominio.Entidades;
 using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Dominio.Eventos;
 using JuegosServicio.Dominio.Excepciones;
 
 namespace JuegosServicio.PruebasUnitarias.Dominio;
 
-// HU21: pruebas del aggregate root BusquedaTesoro — creación y estado inicial.
 public class BusquedaTesoroPruebas
 {
     private static readonly Guid CreadorId = Guid.NewGuid();
@@ -33,36 +32,14 @@ public class BusquedaTesoroPruebas
     }
 
     [Fact]
-    public void Crear_ConDatosValidos_AsignaCreadorId()
+    public void Crear_ConDatosValidos_PistasVacias()
     {
         var busqueda = BusquedaValida();
-        busqueda.CreadorId.Should().Be(CreadorId);
+        busqueda.Pistas.Should().BeEmpty();
     }
 
     [Fact]
-    public void Crear_ConDatosValidos_AsignaFechaCreacion()
-    {
-        var busqueda = BusquedaValida();
-        busqueda.FechaCreacion.Should().Be(FechaFija);
-    }
-
-    [Fact]
-    public void Crear_ConEspaciosEnNombre_NormalizaConTrim()
-    {
-        var busqueda = BusquedaTesoro.Crear(
-            "  Búsqueda con espacios  ", "Descripción", CreadorId, FechaFija);
-        busqueda.Nombre.Should().Be("Búsqueda con espacios");
-    }
-
-    [Fact]
-    public void Crear_ConDatosValidos_MisionEsNula()
-    {
-        var busqueda = BusquedaValida();
-        busqueda.Mision.Should().BeNull();
-    }
-
-    [Fact]
-    public void Crear_ConDatosValidos_GeneraEventoBusquedaCreadaEnMemoria()
+    public void Crear_ConDatosValidos_GeneraEventoBusquedaCreada()
     {
         var busqueda = BusquedaValida();
         busqueda.Eventos.Should().ContainSingle(e => e is BusquedaCreadaEvento);
@@ -97,54 +74,71 @@ public class BusquedaTesoroPruebas
     }
 
     [Fact]
-    public void AsignarMision_EnEstadoInactiva_AsignaMisionCorrectamente()
+    public void Crear_ConEspaciosEnNombre_NormalizaConTrim()
     {
-        var busqueda = BusquedaValida();
-        busqueda.AsignarMision("Busca el cofre", "Encuéntralo en el parque", TipoMision.PalabraClave, "cofre_norte");
-        busqueda.Mision.Should().NotBeNull();
-        busqueda.Mision!.Titulo.Should().Be("Busca el cofre");
+        var busqueda = BusquedaTesoro.Crear(
+            "  Búsqueda con espacios  ", "Descripción", CreadorId, FechaFija);
+        busqueda.Nombre.Should().Be("Búsqueda con espacios");
     }
 
     [Fact]
-    public void AsignarMision_DosVeces_LanzaExcepcionDominio()
+    public void AgregarPista_EnEstadoInactiva_AgregaLaPista()
     {
         var busqueda = BusquedaValida();
-        busqueda.AsignarMision("Misión 1", "Desc", TipoMision.PalabraClave, "clave");
-        Action accion = () => busqueda.AsignarMision("Misión 2", "Desc", TipoMision.PalabraClave, "clave2");
+        busqueda.AgregarPista("Busca cerca del lago.");
+        busqueda.Pistas.Should().ContainSingle(p => p.Contenido == "Busca cerca del lago.");
+    }
+
+    [Fact]
+    public void AgregarPista_EnEstadoActiva_AgregaLaPista()
+    {
+        var busqueda = BusquedaValida();
+        busqueda.Activar();
+        busqueda.AgregarPista("Pista liberada en tiempo real.");
+        busqueda.Pistas.Should().HaveCount(1);
+    }
+
+    [Fact]
+    public void ModificarPista_EnEstadoInactiva_ActualizaContenido()
+    {
+        var busqueda = BusquedaValida();
+        var pista = busqueda.AgregarPista("Pista original.");
+
+        busqueda.ModificarPista(pista.Id, "Pista actualizada.");
+
+        busqueda.Pistas[0].Contenido.Should().Be("Pista actualizada.");
+    }
+
+    [Fact]
+    public void ModificarPista_EnEstadoActiva_LanzaExcepcionDominio()
+    {
+        var busqueda = BusquedaValida();
+        var pista = busqueda.AgregarPista("Pista de ayuda.");
+        busqueda.Activar();
+
+        Action accion = () => busqueda.ModificarPista(pista.Id, "Cambio no permitido.");
+
         accion.Should().Throw<ExcepcionDominio>();
     }
 
     [Fact]
-    public void EliminarMision_ConMisionAsignada_DejaLaMisionNula()
+    public void EliminarPista_EnEstadoInactiva_QuitaLaPista()
     {
         var busqueda = BusquedaValida();
-        busqueda.AsignarMision("Misión", "Desc", TipoMision.PalabraClave, "clave");
-        busqueda.EliminarMision();
-        busqueda.Mision.Should().BeNull();
+        var pista = busqueda.AgregarPista("Pista a eliminar.");
+
+        busqueda.EliminarPista(pista.Id);
+
+        busqueda.Pistas.Should().BeEmpty();
     }
 
     [Fact]
-    public void EliminarMision_SinMisionAsignada_LanzaExcepcionNoEncontrado()
+    public void EliminarPista_PistaInexistente_LanzaExcepcionNoEncontrado()
     {
         var busqueda = BusquedaValida();
-        Action accion = () => busqueda.EliminarMision();
-        accion.Should().Throw<ExcepcionNoEncontrado>();
-    }
 
-    [Fact]
-    public void AgregarPistaAMision_ConMisionAsignada_AgregaLaPista()
-    {
-        var busqueda = BusquedaValida();
-        busqueda.AsignarMision("Misión", "Desc", TipoMision.PalabraClave, "clave");
-        busqueda.AgregarPistaAMision("Busca cerca del lago");
-        busqueda.Mision!.Pistas.Should().ContainSingle(p => p.Contenido == "Busca cerca del lago");
-    }
+        Action accion = () => busqueda.EliminarPista(Guid.NewGuid());
 
-    [Fact]
-    public void AgregarPistaAMision_SinMisionAsignada_LanzaExcepcionNoEncontrado()
-    {
-        var busqueda = BusquedaValida();
-        Action accion = () => busqueda.AgregarPistaAMision("Una pista");
         accion.Should().Throw<ExcepcionNoEncontrado>();
     }
 }

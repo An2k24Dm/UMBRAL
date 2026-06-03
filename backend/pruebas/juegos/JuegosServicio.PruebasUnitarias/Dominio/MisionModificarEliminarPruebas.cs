@@ -1,44 +1,147 @@
-﻿using JuegosServicio.Dominio.Entidades;
+using JuegosServicio.Dominio.Dificultades;
+using JuegosServicio.Dominio.Entidades;
 using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Dominio.Excepciones;
 
 namespace JuegosServicio.PruebasUnitarias.Dominio;
 
-// HU25: pruebas de BusquedaTesoro.ModificarMision y EliminarMision.
+// Pruebas del aggregate Mision — AgregarEtapa y EliminarEtapa.
 public class MisionModificarEliminarPruebas
 {
     private static readonly DateTime FechaFija =
         new(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc);
 
-    private static BusquedaTesoro BusquedaConMision()
-    {
-        var busqueda = BusquedaTesoro.Crear("Búsqueda Test", "Descripción", Guid.NewGuid(), FechaFija);
-        busqueda.AsignarMision("Misión original", "Desc original", TipoMision.PalabraClave, "pista-original");
-        return busqueda;
-    }
+    private static Mision MisionInactiva() =>
+        Mision.Crear("Misión Test", "Descripción", Guid.NewGuid(), FechaFija);
 
-    // --- ModificarMision ---
+    // --- AgregarEtapa ---
 
     [Fact]
-    public void ModificarMision_ConDatosValidos_ActualizaLosCampos()
+    public void AgregarEtapa_EnEstadoInactiva_AgregaLaEtapa()
     {
-        var busqueda = BusquedaConMision();
+        var mision = MisionInactiva();
 
-        busqueda.ModificarMision("Nuevo título", "Nueva desc", TipoMision.PalabraClave, "nueva-pista");
+        mision.AgregarEtapa(TipoModoDeJuego.Trivia, Guid.NewGuid());
 
-        busqueda.Mision!.Titulo.Should().Be("Nuevo título");
-        busqueda.Mision.Descripcion.Should().Be("Nueva desc");
-        busqueda.Mision.PistaClave.Should().Be("nueva-pista");
+        mision.Etapas.Should().HaveCount(1);
     }
 
-    [Theory]
-    [InlineData("")]
-    [InlineData("   ")]
-    public void ModificarMision_TituloVacioOEspacios_LanzaExcepcionDominio(string titulo)
+    [Fact]
+    public void AgregarEtapa_MultipleEtapas_OrdenCorrelativo()
     {
-        var busqueda = BusquedaConMision();
+        var mision = MisionInactiva();
 
-        Action accion = () => busqueda.ModificarMision(titulo, "Desc", TipoMision.PalabraClave, "pista");
+        mision.AgregarEtapa(TipoModoDeJuego.Trivia, Guid.NewGuid());
+        mision.AgregarEtapa(TipoModoDeJuego.BusquedaTesoro, Guid.NewGuid());
+
+        mision.Etapas[0].Orden.Should().Be(1);
+        mision.Etapas[1].Orden.Should().Be(2);
+    }
+
+    [Fact]
+    public void AgregarEtapa_EnEstadoActiva_LanzaExcepcionDominio()
+    {
+        var mision = MisionInactiva();
+        mision.AgregarEtapa(TipoModoDeJuego.Trivia, Guid.NewGuid());
+        mision.Activar();
+
+        Action accion = () => mision.AgregarEtapa(TipoModoDeJuego.BusquedaTesoro, Guid.NewGuid());
+
+        accion.Should().Throw<ExcepcionDominio>();
+    }
+
+    [Fact]
+    public void AgregarEtapa_ModoDeJuegoIdVacio_LanzaExcepcionDominio()
+    {
+        var mision = MisionInactiva();
+
+        Action accion = () => mision.AgregarEtapa(TipoModoDeJuego.Trivia, Guid.Empty);
+
+        accion.Should().Throw<ExcepcionDominio>();
+    }
+
+    // --- EliminarEtapa ---
+
+    [Fact]
+    public void EliminarEtapa_EnEstadoInactiva_QuitaLaEtapa()
+    {
+        var mision = MisionInactiva();
+        var etapa = mision.AgregarEtapa(TipoModoDeJuego.Trivia, Guid.NewGuid());
+
+        mision.EliminarEtapa(etapa.Id);
+
+        mision.Etapas.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void EliminarEtapa_RenumeraOrdenes()
+    {
+        var mision = MisionInactiva();
+        mision.AgregarEtapa(TipoModoDeJuego.Trivia, Guid.NewGuid());
+        var etapa2 = mision.AgregarEtapa(TipoModoDeJuego.BusquedaTesoro, Guid.NewGuid());
+        mision.AgregarEtapa(TipoModoDeJuego.Trivia, Guid.NewGuid());
+
+        mision.EliminarEtapa(etapa2.Id);
+
+        mision.Etapas.Should().HaveCount(2);
+        mision.Etapas[0].Orden.Should().Be(1);
+        mision.Etapas[1].Orden.Should().Be(2);
+    }
+
+    [Fact]
+    public void EliminarEtapa_EnEstadoActiva_LanzaExcepcionDominio()
+    {
+        var mision = MisionInactiva();
+        var etapa = mision.AgregarEtapa(TipoModoDeJuego.Trivia, Guid.NewGuid());
+        mision.Activar();
+
+        Action accion = () => mision.EliminarEtapa(etapa.Id);
+
+        accion.Should().Throw<ExcepcionDominio>();
+    }
+
+    [Fact]
+    public void EliminarEtapa_EtapaInexistente_LanzaExcepcionNoEncontrado()
+    {
+        var mision = MisionInactiva();
+
+        Action accion = () => mision.EliminarEtapa(Guid.NewGuid());
+
+        accion.Should().Throw<ExcepcionNoEncontrado>();
+    }
+
+    // --- Modificar ---
+
+    [Fact]
+    public void Modificar_EnEstadoInactiva_ActualizaNombreYDescripcion()
+    {
+        var mision = MisionInactiva();
+
+        mision.Modificar("Nuevo nombre", "Nueva descripción", NivelDificultad.Baja);
+
+        mision.Nombre.Should().Be("Nuevo nombre");
+        mision.Descripcion.Should().Be("Nueva descripción");
+    }
+
+    [Fact]
+    public void Modificar_EnEstadoInactiva_ActualizaDificultad()
+    {
+        var mision = MisionInactiva();
+
+        mision.Modificar("Nombre", "Descripción", NivelDificultad.Dificil);
+
+        mision.Dificultad.Should().Be(NivelDificultad.Dificil);
+        mision.ObtenerDificultad().Should().BeOfType<DificultadDificil>();
+    }
+
+    [Fact]
+    public void Modificar_EnEstadoActiva_LanzaExcepcionDominio()
+    {
+        var mision = MisionInactiva();
+        mision.AgregarEtapa(TipoModoDeJuego.Trivia, Guid.NewGuid());
+        mision.Activar();
+
+        Action accion = () => mision.Modificar("Nombre", "Descripción", NivelDificultad.Media);
 
         accion.Should().Throw<ExcepcionDominio>();
     }
@@ -46,57 +149,11 @@ public class MisionModificarEliminarPruebas
     [Theory]
     [InlineData("")]
     [InlineData("   ")]
-    public void ModificarMision_PistaClaveVaciaOEspacios_LanzaExcepcionDominio(string pistaClave)
+    public void Modificar_NombreVacio_LanzaExcepcionDominio(string nombre)
     {
-        var busqueda = BusquedaConMision();
+        var mision = MisionInactiva();
 
-        Action accion = () => busqueda.ModificarMision("Título", "Desc", TipoMision.PalabraClave, pistaClave);
-
-        accion.Should().Throw<ExcepcionDominio>();
-    }
-
-    [Fact]
-    public void ModificarMision_SinMisionAsignada_LanzaExcepcionNoEncontrado()
-    {
-        var busqueda = BusquedaTesoro.Crear("Búsqueda sin misión", "Descripción", Guid.NewGuid(), FechaFija);
-
-        Action accion = () => busqueda.ModificarMision("Título", "Desc", TipoMision.PalabraClave, "pista");
-
-        accion.Should().Throw<ExcepcionNoEncontrado>();
-    }
-
-    // --- EliminarMision ---
-
-    [Fact]
-    public void EliminarMision_ConMisionAsignada_DejaLaMisionNula()
-    {
-        var busqueda = BusquedaConMision();
-
-        busqueda.EliminarMision();
-
-        busqueda.Mision.Should().BeNull();
-    }
-
-    [Fact]
-    public void EliminarMision_SinMisionAsignada_LanzaExcepcionNoEncontrado()
-    {
-        var busqueda = BusquedaTesoro.Crear("Búsqueda sin misión", "Descripción", Guid.NewGuid(), FechaFija);
-
-        Action accion = () => busqueda.EliminarMision();
-
-        accion.Should().Throw<ExcepcionNoEncontrado>();
-    }
-
-    [Fact]
-    public void EliminarMision_BusquedaActiva_LanzaExcepcionDominio()
-    {
-        var mision = Mision.Reconstituir(Guid.NewGuid(), Guid.NewGuid(), "Misión", "Desc", TipoMision.PalabraClave, "pista");
-        var busqueda = BusquedaTesoro.Reconstituir(
-            Guid.NewGuid(), "Búsqueda", "Descripción",
-            Guid.NewGuid(), EstadoBusqueda.Activa, FechaFija,
-            mision);
-
-        Action accion = () => busqueda.EliminarMision();
+        Action accion = () => mision.Modificar(nombre, "Descripción", NivelDificultad.Media);
 
         accion.Should().Throw<ExcepcionDominio>();
     }

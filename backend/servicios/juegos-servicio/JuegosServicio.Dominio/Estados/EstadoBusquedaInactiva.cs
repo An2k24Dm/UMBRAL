@@ -11,10 +11,6 @@ internal sealed class EstadoBusquedaInactiva : IEstadoBusqueda
 
     public void Activar(Entidades.BusquedaTesoro busqueda)
     {
-        if (busqueda.Mision is null)
-            throw new ExcepcionDominio(
-                "La búsqueda del tesoro debe tener una misión asignada para poder activarse.");
-
         busqueda.TransicionarEstado(EstadoBusqueda.Activa);
         busqueda.AgregarEventoInterno(
             new BusquedaActivadaEvento(busqueda.Id, busqueda.Nombre));

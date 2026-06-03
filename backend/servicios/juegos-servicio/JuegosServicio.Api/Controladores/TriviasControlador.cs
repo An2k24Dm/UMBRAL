@@ -98,7 +98,7 @@ public sealed class TriviasControlador : ControllerBase
         return NoContent();
     }
 
-    // HU20 — Archivar trivia (soft delete).
+    // HU20 — Desactivar trivia (Activa → Inactiva).
     [HttpDelete("{triviaId:guid}")]
     [Authorize(Policy = "PoliticaAdministrador")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -110,6 +110,19 @@ public sealed class TriviasControlador : ControllerBase
     {
         var operadorId = ObtenerCreadorId();
         await _mediador.Send(new DesactivarTriviaComando(triviaId, operadorId), cancelacion);
+        return NoContent();
+    }
+
+    [HttpDelete("{triviaId:guid}/eliminar")]
+    [Authorize(Policy = "PoliticaAdministrador")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> EliminarTrivia(Guid triviaId, CancellationToken cancelacion)
+    {
+        await _mediador.Send(new EliminarTriviaComando(triviaId), cancelacion);
         return NoContent();
     }
 

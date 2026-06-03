@@ -1,94 +1,147 @@
-﻿using JuegosServicio.Dominio.Entidades;
+using JuegosServicio.Dominio.Dificultades;
+using JuegosServicio.Dominio.Entidades;
 using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Dominio.Excepciones;
 
 namespace JuegosServicio.PruebasUnitarias.Dominio;
 
-// HU23: pruebas de BusquedaTesoro.AsignarMision y la entidad Mision.
+// Pruebas del aggregate Mision — creación y estado inicial.
 public class MisionPruebas
 {
+    private static readonly Guid CreadorId = Guid.NewGuid();
     private static readonly DateTime FechaFija =
         new(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc);
 
-    private static BusquedaTesoro BusquedaValida() =>
-        BusquedaTesoro.Crear("Búsqueda Test", "Descripción", Guid.NewGuid(), FechaFija);
+    private static Mision MisionValida() =>
+        Mision.Crear("Misión del Parque", "Recorre el parque completando etapas", CreadorId, FechaFija);
 
     [Fact]
-    public void AsignarMision_ConDatosValidos_RetornaMisionConIdNoVacio()
+    public void Crear_ConDatosValidos_RetornaEstadoInactiva()
     {
-        var busqueda = BusquedaValida();
+        var mision = MisionValida();
+        mision.Estado.Should().Be(EstadoMision.Inactiva);
+    }
 
-        var mision = busqueda.AsignarMision("Busca el cofre", "Descripción", TipoMision.PalabraClave, "cofre_norte");
-
+    [Fact]
+    public void Crear_ConDatosValidos_AsignaIdNoVacio()
+    {
+        var mision = MisionValida();
         mision.Id.Should().NotBe(Guid.Empty);
     }
 
     [Fact]
-    public void AsignarMision_ConDatosValidos_AsignaBusquedaId()
+    public void Crear_ConDatosValidos_EtapasVacias()
     {
-        var busqueda = BusquedaValida();
-
-        var mision = busqueda.AsignarMision("Busca el cofre", "Descripción", TipoMision.PalabraClave, "cofre_norte");
-
-        mision.BusquedaId.Should().Be(busqueda.Id);
-    }
-
-    [Fact]
-    public void AsignarMision_ConDatosValidos_GuardaMisionEnLaBusqueda()
-    {
-        var busqueda = BusquedaValida();
-
-        busqueda.AsignarMision("Busca el cofre", "Descripción", TipoMision.PalabraClave, "cofre_norte");
-
-        busqueda.Mision.Should().NotBeNull();
+        var mision = MisionValida();
+        mision.Etapas.Should().BeEmpty();
     }
 
     [Theory]
     [InlineData("")]
     [InlineData("   ")]
-    public void AsignarMision_TituloVacioOEspacios_LanzaExcepcionDominio(string titulo)
+    public void Crear_NombreVacioOEspacios_LanzaExcepcionDominio(string nombre)
     {
-        var busqueda = BusquedaValida();
+        Action accion = () => Mision.Crear(nombre, "Desc", CreadorId, FechaFija);
+        accion.Should().Throw<ExcepcionDominio>();
+    }
 
-        Action accion = () => busqueda.AsignarMision(titulo, "Descripción", TipoMision.PalabraClave, "Pista");
+    [Fact]
+    public void Crear_CreadorIdVacio_LanzaExcepcionDominio()
+    {
+        Action accion = () => Mision.Crear("Nombre", "Desc", Guid.Empty, FechaFija);
+        accion.Should().Throw<ExcepcionDominio>();
+    }
+
+    [Fact]
+    public void Activar_ConEtapas_CambiaEstadoAActiva()
+    {
+        var mision = MisionValida();
+        mision.AgregarEtapa(TipoModoDeJuego.Trivia, Guid.NewGuid());
+
+        mision.Activar();
+
+        mision.Estado.Should().Be(EstadoMision.Activa);
+    }
+
+    [Fact]
+    public void Activar_SinEtapas_LanzaExcepcionDominio()
+    {
+        var mision = MisionValida();
+
+        Action accion = () => mision.Activar();
 
         accion.Should().Throw<ExcepcionDominio>();
+    }
+
+    [Fact]
+    public void Desactivar_MisionActiva_CambiaEstadoAInactiva()
+    {
+        var mision = MisionValida();
+        mision.AgregarEtapa(TipoModoDeJuego.BusquedaTesoro, Guid.NewGuid());
+        mision.Activar();
+
+        mision.Desactivar();
+
+        mision.Estado.Should().Be(EstadoMision.Inactiva);
+    }
+
+    [Fact]
+    public void Desactivar_MisionInactiva_LanzaExcepcionDominio()
+    {
+        var mision = MisionValida();
+
+        Action accion = () => mision.Desactivar();
+
+        accion.Should().Throw<ExcepcionDominio>();
+    }
+
+    // --- Dificultad ---
+
+    [Fact]
+    public void Crear_SinEspecificarDificultad_DefaultEsMedia()
+    {
+        var mision = MisionValida();
+        mision.Dificultad.Should().Be(NivelDificultad.Media);
     }
 
     [Theory]
-    [InlineData("")]
-    [InlineData("   ")]
-    public void AsignarMision_PistaClaveVaciaOEspacios_LanzaExcepcionDominio(string pistaClave)
+    [InlineData(NivelDificultad.Baja)]
+    [InlineData(NivelDificultad.Media)]
+    [InlineData(NivelDificultad.Dificil)]
+    public void Crear_ConDificultadEspecificada_AsignaElNivelCorrecto(NivelDificultad nivel)
     {
-        var busqueda = BusquedaValida();
-
-        Action accion = () => busqueda.AsignarMision("Título", "Descripción", TipoMision.PalabraClave, pistaClave);
-
-        accion.Should().Throw<ExcepcionDominio>();
+        var mision = Mision.Crear("Misión", "Desc", CreadorId, FechaFija, nivel);
+        mision.Dificultad.Should().Be(nivel);
     }
 
     [Fact]
-    public void AsignarMision_BusquedaActiva_LanzaExcepcionDominio()
+    public void ObtenerDificultad_Baja_RetornaDificultadBaja()
     {
-        var mision = Mision.Reconstituir(Guid.NewGuid(), Guid.NewGuid(), "Misión", "Desc", TipoMision.PalabraClave, "pista");
-        var busqueda = BusquedaTesoro.Reconstituir(
-            Guid.NewGuid(), "Búsqueda Activa", "Descripción",
-            Guid.NewGuid(), EstadoBusqueda.Activa, FechaFija,
-            mision);
-
-        Action accion = () => busqueda.AsignarMision("Otra misión", "Desc", TipoMision.PalabraClave, "clave");
-
-        accion.Should().Throw<ExcepcionDominio>();
+        var mision = Mision.Crear("Misión", "Desc", CreadorId, FechaFija, NivelDificultad.Baja);
+        mision.ObtenerDificultad().Should().BeOfType<DificultadBaja>();
+        mision.ObtenerDificultad().Nombre.Should().Be("Baja");
     }
 
     [Fact]
-    public void AsignarMision_YaTieneMision_LanzaExcepcionDominio()
+    public void ObtenerDificultad_Media_RetornaDificultadMedia()
     {
-        var busqueda = BusquedaValida();
-        busqueda.AsignarMision("Primera misión", "Desc", TipoMision.PalabraClave, "clave1");
+        var mision = Mision.Crear("Misión", "Desc", CreadorId, FechaFija, NivelDificultad.Media);
+        mision.ObtenerDificultad().Should().BeOfType<DificultadMedia>();
+        mision.ObtenerDificultad().Nombre.Should().Be("Media");
+    }
 
-        Action accion = () => busqueda.AsignarMision("Segunda misión", "Desc", TipoMision.PalabraClave, "clave2");
+    [Fact]
+    public void ObtenerDificultad_Dificil_RetornaDificultadDificil()
+    {
+        var mision = Mision.Crear("Misión", "Desc", CreadorId, FechaFija, NivelDificultad.Dificil);
+        mision.ObtenerDificultad().Should().BeOfType<DificultadDificil>();
+        mision.ObtenerDificultad().Nombre.Should().Be("Difícil");
+    }
 
-        accion.Should().Throw<ExcepcionDominio>();
+    [Fact]
+    public void FabricaDificultadMision_NivelInvalido_LanzaArgumentOutOfRange()
+    {
+        Action accion = () => FabricaDificultadMision.Obtener((NivelDificultad)99);
+        accion.Should().Throw<ArgumentOutOfRangeException>();
     }
 }

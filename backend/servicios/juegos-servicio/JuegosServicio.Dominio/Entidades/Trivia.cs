@@ -2,10 +2,12 @@ using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Dominio.Estados;
 using JuegosServicio.Dominio.Eventos;
 using JuegosServicio.Dominio.Excepciones;
+using JuegosServicio.Dominio.Patrones;
 
 namespace JuegosServicio.Dominio.Entidades;
 
-public sealed class Trivia
+// Composite — hoja: modo de juego de tipo trivia.
+public sealed class Trivia : IComponenteJuego
 {
     private readonly List<Pregunta> _preguntas = new();
     private readonly List<EventoDominio> _eventos = new();
@@ -59,6 +61,7 @@ public sealed class Trivia
     public Pregunta AgregarPregunta(
         string enunciado,
         int puntaje,
+        int tiempoEstimado,
         IEnumerable<(string Texto, bool EsCorrecta)> opciones)
     {
         _estado.ValidarEdicion("agregar preguntas");
@@ -66,7 +69,7 @@ public sealed class Trivia
         if (_preguntas.Count >= 20)
             throw new ExcepcionDominio("La trivia no puede tener más de 20 preguntas.");
 
-        var pregunta = Pregunta.Crear(Id, enunciado, puntaje, opciones);
+        var pregunta = Pregunta.Crear(Id, enunciado, puntaje, tiempoEstimado, opciones);
         _preguntas.Add(pregunta);
         return pregunta;
     }
@@ -74,6 +77,7 @@ public sealed class Trivia
     public void ModificarPregunta(
         Guid preguntaId,
         string nuevoEnunciado,
+        int nuevoTiempoEstimado,
         IEnumerable<(string Texto, bool EsCorrecta)> nuevasOpciones)
     {
         _estado.ValidarEdicion("modificar preguntas");
@@ -81,7 +85,7 @@ public sealed class Trivia
         var pregunta = _preguntas.FirstOrDefault(p => p.Id == preguntaId)
             ?? throw new ExcepcionNoEncontrado($"No se encontró la pregunta con ID '{preguntaId}'.");
 
-        pregunta.Modificar(nuevoEnunciado, nuevasOpciones);
+        pregunta.Modificar(nuevoEnunciado, nuevoTiempoEstimado, nuevasOpciones);
     }
 
     public void EliminarPregunta(Guid preguntaId)
@@ -139,6 +143,10 @@ public sealed class Trivia
         trivia._preguntas.AddRange(preguntas);
         return trivia;
     }
+
+    string IComponenteJuego.ObtenerDescripcion() => $"Trivia: {Nombre} [{Estado}]";
+    IReadOnlyList<IComponenteJuego> IComponenteJuego.ObtenerHijos() =>
+        Array.Empty<IComponenteJuego>();
 
     // Métodos internos para uso exclusivo de los estados (patrón State).
     internal void TransicionarEstado(EstadoTrivia nuevoEstado)

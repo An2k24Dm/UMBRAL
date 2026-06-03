@@ -1,4 +1,3 @@
-﻿using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Aplicacion.CasosDeUso.Comandos;
 using JuegosServicio.Aplicacion.CasosDeUso.Manejadores;
 using JuegosServicio.Aplicacion.Puertos;
@@ -7,7 +6,6 @@ using JuegosServicio.Dominio.Excepciones;
 
 namespace JuegosServicio.PruebasUnitarias.CasosDeUso;
 
-// HU26: pruebas del manejador de activación de búsqueda del tesoro.
 public class ActivarBusquedaTesoroManejadorPruebas
 {
     private readonly Mock<IRepositorioBusquedas> _repositorio = new();
@@ -17,12 +15,8 @@ public class ActivarBusquedaTesoroManejadorPruebas
 
     private ActivarBusquedaTesoroManejador CrearManejador() => new(_repositorio.Object);
 
-    private static BusquedaTesoro BusquedaConMision()
-    {
-        var busqueda = BusquedaTesoro.Crear("Búsqueda Test", "Descripción", Guid.NewGuid(), FechaFija);
-        busqueda.AsignarMision("Busca el cofre", "Encuéntralo en el parque", TipoMision.PalabraClave, "cofre_norte");
-        return busqueda;
-    }
+    private static BusquedaTesoro BusquedaInactiva() =>
+        BusquedaTesoro.Crear("Búsqueda Test", "Descripción", Guid.NewGuid(), FechaFija);
 
     public ActivarBusquedaTesoroManejadorPruebas()
     {
@@ -33,9 +27,9 @@ public class ActivarBusquedaTesoroManejadorPruebas
     }
 
     [Fact]
-    public async Task Handle_BusquedaConMision_LlamaActivarAsyncUnaVez()
+    public async Task Handle_BusquedaInactiva_LlamaActivarAsyncUnaVez()
     {
-        var busqueda = BusquedaConMision();
+        var busqueda = BusquedaInactiva();
         _repositorio
             .Setup(r => r.ObtenerBusquedaPorIdAsync(busqueda.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(busqueda);
@@ -63,16 +57,19 @@ public class ActivarBusquedaTesoroManejadorPruebas
     }
 
     [Fact]
-    public async Task Handle_BusquedaSinMision_LanzaExcepcionDominio()
+    public async Task Handle_BusquedaInexistente_NoLlamaActivarAsync()
     {
-        var busquedaVacia = BusquedaTesoro.Crear("Búsqueda vacía", "Descripción", Guid.NewGuid(), FechaFija);
+        var busquedaId = Guid.NewGuid();
         _repositorio
-            .Setup(r => r.ObtenerBusquedaPorIdAsync(busquedaVacia.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(busquedaVacia);
+            .Setup(r => r.ObtenerBusquedaPorIdAsync(busquedaId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((BusquedaTesoro?)null);
 
-        var accion = async () => await CrearManejador().Handle(
-            new ActivarBusquedaTesoroComando(busquedaVacia.Id, Guid.NewGuid()), CancellationToken.None);
+        try { await CrearManejador().Handle(
+            new ActivarBusquedaTesoroComando(busquedaId, Guid.NewGuid()), CancellationToken.None); }
+        catch (ExcepcionNoEncontrado) { }
 
-        await accion.Should().ThrowAsync<ExcepcionDominio>();
+        _repositorio.Verify(
+            r => r.ActivarBusquedaTesoroAsync(It.IsAny<BusquedaTesoro>(), It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 }

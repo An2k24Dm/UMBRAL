@@ -68,6 +68,7 @@ public sealed class RepositorioJuegos : IRepositorioJuegos
         {
             modeloPregunta.Enunciado = pregunta.Enunciado;
             modeloPregunta.PuntajeAsignado = pregunta.PuntajeAsignado;
+            modeloPregunta.TiempoEstimado = pregunta.TiempoEstimado;
         }
 
         await _contexto.SaveChangesAsync(cancelacion);
@@ -104,11 +105,14 @@ public sealed class RepositorioJuegos : IRepositorioJuegos
             TiempoLimitePorPregunta = modelo.TiempoLimitePorPregunta,
             Estado = ((EstadoTrivia)modelo.Estado).ToString(),
             FechaCreacion = modelo.FechaCreacion,
+            PuntajeTotal = modelo.Preguntas.Sum(p => p.PuntajeAsignado),
+            TiempoTotal = modelo.Preguntas.Sum(p => p.TiempoEstimado),
             Preguntas = modelo.Preguntas.Select(p => new PreguntaDetalleDto
             {
                 Id = p.Id,
                 Enunciado = p.Enunciado,
                 PuntajeAsignado = p.PuntajeAsignado,
+                TiempoEstimado = p.TiempoEstimado,
                 Opciones = p.Opciones.Select(o => new OpcionDetalleDto
                 {
                     Id = o.Id,
@@ -185,6 +189,15 @@ public sealed class RepositorioJuegos : IRepositorioJuegos
             Procesado = false
         });
 
+        await _contexto.SaveChangesAsync(cancelacion);
+    }
+
+    public async Task EliminarTriviaAsync(Guid triviaId, CancellationToken cancelacion)
+    {
+        var modelo = await _contexto.Trivias.FirstOrDefaultAsync(t => t.Id == triviaId, cancelacion);
+        if (modelo is null) return;
+
+        _contexto.Trivias.Remove(modelo);
         await _contexto.SaveChangesAsync(cancelacion);
     }
 

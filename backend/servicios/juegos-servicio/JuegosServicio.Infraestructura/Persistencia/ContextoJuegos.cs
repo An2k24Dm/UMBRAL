@@ -12,8 +12,9 @@ public sealed class ContextoJuegos : DbContext
     public DbSet<OpcionModelo> Opciones => Set<OpcionModelo>();
     public DbSet<EventoSalidaModelo> EventosSalida => Set<EventoSalidaModelo>();
     public DbSet<BusquedaTesoroModelo> BusquedasTesoro => Set<BusquedaTesoroModelo>();
-    public DbSet<MisionModelo> Misiones => Set<MisionModelo>();
     public DbSet<PistaModelo> Pistas => Set<PistaModelo>();
+    public DbSet<MisionModelo> Misiones => Set<MisionModelo>();
+    public DbSet<EtapaModelo> Etapas => Set<EtapaModelo>();
 
     protected override void OnModelCreating(ModelBuilder constructor)
     {
@@ -47,6 +48,7 @@ public sealed class ContextoJuegos : DbContext
             e.Property(x => x.TriviaId).HasColumnName("trivia_id").IsRequired();
             e.Property(x => x.Enunciado).HasColumnName("enunciado").HasMaxLength(500).IsRequired();
             e.Property(x => x.PuntajeAsignado).HasColumnName("puntaje_asignado").IsRequired();
+            e.Property(x => x.TiempoEstimado).HasColumnName("tiempo_estimado").IsRequired().HasDefaultValue(10);
             e.HasMany(x => x.Opciones)
                 .WithOne(o => o.Pregunta)
                 .HasForeignKey(o => o.PreguntaId)
@@ -87,27 +89,12 @@ public sealed class ContextoJuegos : DbContext
             e.Property(x => x.CreadorId).HasColumnName("creador_id").IsRequired();
             e.Property(x => x.Estado).HasColumnName("estado").IsRequired();
             e.Property(x => x.FechaCreacion).HasColumnName("fecha_creacion").IsRequired();
+            e.Property(x => x.Tiempo).HasColumnName("tiempo").IsRequired().HasDefaultValue(0);
+            e.Property(x => x.Puntaje).HasColumnName("puntaje").IsRequired().HasDefaultValue(0);
             e.HasIndex(x => x.Nombre).IsUnique();
-            e.HasOne(x => x.Mision)
-                .WithOne(m => m.BusquedaTesoro)
-                .HasForeignKey<MisionModelo>(m => m.BusquedaId)
-                .OnDelete(DeleteBehavior.Cascade);
-        });
-
-        // ---------- Mision ----------
-        constructor.Entity<MisionModelo>(e =>
-        {
-            e.ToTable("Mision");
-            e.HasKey(x => x.Id);
-            e.Property(x => x.Id).HasColumnName("id");
-            e.Property(x => x.BusquedaId).HasColumnName("busqueda_id").IsRequired();
-            e.Property(x => x.Titulo).HasColumnName("titulo").HasMaxLength(200).IsRequired();
-            e.Property(x => x.Descripcion).HasColumnName("descripcion").HasMaxLength(1000).IsRequired();
-            e.Property(x => x.Tipo).HasColumnName("tipo").IsRequired();
-            e.Property(x => x.PistaClave).HasColumnName("pista_clave").HasMaxLength(500).IsRequired();
             e.HasMany(x => x.Pistas)
-                .WithOne(p => p.Mision)
-                .HasForeignKey(p => p.MisionId)
+                .WithOne(p => p.BusquedaTesoro)
+                .HasForeignKey(p => p.BusquedaId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
@@ -117,8 +104,40 @@ public sealed class ContextoJuegos : DbContext
             e.ToTable("Pista");
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).HasColumnName("id");
-            e.Property(x => x.MisionId).HasColumnName("mision_id").IsRequired();
+            e.Property(x => x.BusquedaId).HasColumnName("busqueda_id").IsRequired();
             e.Property(x => x.Contenido).HasColumnName("contenido").HasMaxLength(1000).IsRequired();
+        });
+
+        // ---------- Mision ----------
+        constructor.Entity<MisionModelo>(e =>
+        {
+            e.ToTable("Mision");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.Nombre).HasColumnName("nombre").HasMaxLength(200).IsRequired();
+            e.Property(x => x.Descripcion).HasColumnName("descripcion").HasMaxLength(1000).IsRequired();
+            e.Property(x => x.CreadorId).HasColumnName("creador_id").IsRequired();
+            e.Property(x => x.Estado).HasColumnName("estado").IsRequired();
+            e.Property(x => x.Dificultad).HasColumnName("dificultad").IsRequired().HasDefaultValue(1);
+            e.Property(x => x.FechaCreacion).HasColumnName("fecha_creacion").IsRequired();
+            e.HasIndex(x => x.Nombre).IsUnique();
+            e.HasMany(x => x.Etapas)
+                .WithOne(et => et.Mision)
+                .HasForeignKey(et => et.MisionId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ---------- Etapa ----------
+        constructor.Entity<EtapaModelo>(e =>
+        {
+            e.ToTable("Etapa");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.MisionId).HasColumnName("mision_id").IsRequired();
+            e.Property(x => x.Orden).HasColumnName("orden").IsRequired();
+            e.Property(x => x.TipoModoDeJuego).HasColumnName("tipo_modo_de_juego").IsRequired();
+            e.Property(x => x.ModoDeJuegoId).HasColumnName("modo_de_juego_id").IsRequired();
+            e.HasIndex(x => new { x.MisionId, x.Orden });
         });
     }
 }

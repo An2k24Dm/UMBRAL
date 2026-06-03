@@ -1,27 +1,22 @@
-﻿using JuegosServicio.Dominio.Entidades;
+using JuegosServicio.Dominio.Entidades;
 using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Dominio.Eventos;
 using JuegosServicio.Dominio.Excepciones;
 
 namespace JuegosServicio.PruebasUnitarias.Dominio;
 
-// HU26: pruebas de BusquedaTesoro.Activar.
 public class BusquedaActivarPruebas
 {
     private static readonly DateTime FechaFija =
         new(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc);
 
-    private static BusquedaTesoro BusquedaConMision()
-    {
-        var busqueda = BusquedaTesoro.Crear("Búsqueda Test", "Descripción", Guid.NewGuid(), FechaFija);
-        busqueda.AsignarMision("Busca el cofre", "Encuéntralo en el parque", TipoMision.PalabraClave, "cofre_norte");
-        return busqueda;
-    }
+    private static BusquedaTesoro BusquedaInactiva() =>
+        BusquedaTesoro.Crear("Búsqueda Test", "Descripción", Guid.NewGuid(), FechaFija);
 
     [Fact]
-    public void Activar_BusquedaConMision_CambiaEstadoAActiva()
+    public void Activar_BusquedaInactiva_CambiaEstadoAActiva()
     {
-        var busqueda = BusquedaConMision();
+        var busqueda = BusquedaInactiva();
 
         busqueda.Activar();
 
@@ -29,9 +24,9 @@ public class BusquedaActivarPruebas
     }
 
     [Fact]
-    public void Activar_BusquedaConMision_AgregaEventoBusquedaActivada()
+    public void Activar_BusquedaInactiva_AgregaEventoBusquedaActivada()
     {
-        var busqueda = BusquedaConMision();
+        var busqueda = BusquedaInactiva();
         busqueda.LimpiarEventos();
 
         busqueda.Activar();
@@ -40,19 +35,9 @@ public class BusquedaActivarPruebas
     }
 
     [Fact]
-    public void Activar_BusquedaSinMision_LanzaExcepcionDominio()
-    {
-        var busqueda = BusquedaTesoro.Crear("Búsqueda vacía", "Descripción", Guid.NewGuid(), FechaFija);
-
-        Action accion = () => busqueda.Activar();
-
-        accion.Should().Throw<ExcepcionDominio>();
-    }
-
-    [Fact]
     public void Activar_BusquedaYaActiva_LanzaExcepcionDominio()
     {
-        var busqueda = BusquedaConMision();
+        var busqueda = BusquedaInactiva();
         busqueda.Activar();
 
         Action accion = () => busqueda.Activar();
@@ -61,12 +46,14 @@ public class BusquedaActivarPruebas
     }
 
     [Fact]
-    public void Activar_BusquedaActiva_NoPermiteAsignarMision()
+    public void Activar_BusquedaActiva_NoPermiteModificarPistas()
     {
-        var busqueda = BusquedaConMision();
+        var busqueda = BusquedaInactiva();
+        busqueda.AgregarPista("pista de ayuda");
         busqueda.Activar();
+        var pistaId = busqueda.Pistas[0].Id;
 
-        Action accion = () => busqueda.AsignarMision("Otra misión", "Desc", TipoMision.PalabraClave, "clave");
+        Action accion = () => busqueda.ModificarPista(pistaId, "nuevo contenido");
 
         accion.Should().Throw<ExcepcionDominio>();
     }

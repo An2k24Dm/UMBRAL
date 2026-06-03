@@ -1,105 +1,138 @@
+using JuegosServicio.Dominio.Dificultades;
 using JuegosServicio.Dominio.Enums;
+using JuegosServicio.Dominio.Estados;
 using JuegosServicio.Dominio.Excepciones;
-using JuegosServicio.Dominio.Patrones;
 
 namespace JuegosServicio.Dominio.Entidades;
 
-// Composite — nodo: misión única de una BusquedaTesoro. Sus hojas son las Pistas de ayuda.
-public sealed class Mision : IComponenteJuego
+// Aggregate root: secuencia ordenada de etapas (modos de juego) que
+// se asigna a una sesión para guiar a los participantes.
+public sealed class Mision
 {
-    private readonly List<Pista> _pistas = new();
+    private readonly List<Etapa> _etapas = new();
+    private IEstadoMision _estado = default!;
+    private IDificultadMision _dificultad = default!;
 
     public Guid Id { get; private set; }
-    public Guid BusquedaId { get; private set; }
-    public string Titulo { get; private set; } = default!;
+    public string Nombre { get; private set; } = default!;
     public string Descripcion { get; private set; } = default!;
-    public TipoMision Tipo { get; private set; }
-    public string PistaClave { get; private set; } = default!;
+    public Guid CreadorId { get; private set; }
+    public EstadoMision Estado { get; private set; }
+    public NivelDificultad Dificultad { get; private set; }
+    public DateTime FechaCreacion { get; private set; }
 
-    public IReadOnlyList<Pista> Pistas => _pistas.AsReadOnly();
+    public IDificultadMision ObtenerDificultad() => _dificultad;
+
+    public IReadOnlyList<Etapa> Etapas => _etapas.AsReadOnly();
 
     private Mision() { }
 
-    string IComponenteJuego.ObtenerDescripcion() => $"Misión: {Titulo} [{Tipo}]";
-    IReadOnlyList<IComponenteJuego> IComponenteJuego.ObtenerHijos() =>
-        _pistas.Cast<IComponenteJuego>().ToList().AsReadOnly();
-
-    internal static Mision Crear(Guid busquedaId, string titulo, string descripcion, TipoMision tipo, string pistaClave)
+    public static Mision Crear(
+        string nombre,
+        string descripcion,
+        Guid creadorId,
+        DateTime fechaCreacion,
+        NivelDificultad dificultad = NivelDificultad.Media)
     {
-        if (string.IsNullOrWhiteSpace(titulo))
-            throw new ExcepcionDominio("El título de la misión es obligatorio.");
+        if (string.IsNullOrWhiteSpace(nombre))
+            throw new ExcepcionDominio("El nombre de la misión es obligatorio.");
         if (string.IsNullOrWhiteSpace(descripcion))
             throw new ExcepcionDominio("La descripción de la misión es obligatoria.");
-        if (string.IsNullOrWhiteSpace(pistaClave))
-            throw new ExcepcionDominio("La pista clave de la misión es obligatoria.");
+        if (creadorId == Guid.Empty)
+            throw new ExcepcionDominio("El identificador del creador es obligatorio.");
 
-        return new Mision
+        var mision = new Mision
         {
             Id = Guid.NewGuid(),
-            BusquedaId = busquedaId,
-            Titulo = titulo.Trim(),
+            Nombre = nombre.Trim(),
             Descripcion = descripcion.Trim(),
-            Tipo = tipo,
-            PistaClave = pistaClave.Trim()
+            CreadorId = creadorId,
+            Estado = EstadoMision.Inactiva,
+            Dificultad = dificultad,
+            FechaCreacion = fechaCreacion
         };
+        mision._estado = FabricaEstadoMision.Obtener(EstadoMision.Inactiva);
+        mision._dificultad = FabricaDificultadMision.Obtener(dificultad);
+        return mision;
     }
 
-    internal void Modificar(string nuevoTitulo, string nuevaDescripcion, TipoMision nuevoTipo, string nuevaPistaClave)
+    public Etapa AgregarEtapa(TipoModoDeJuego tipo, Guid modoDeJuegoId)
     {
-        if (string.IsNullOrWhiteSpace(nuevoTitulo))
-            throw new ExcepcionDominio("El título de la misión es obligatorio.");
-        if (string.IsNullOrWhiteSpace(nuevaDescripcion))
+        if (_estado.Estado == EstadoMision.Activa)
+            throw new ExcepcionDominio("No se pueden agregar etapas a una misión activa.");
+        if (modoDeJuegoId == Guid.Empty)
+            throw new ExcepcionDominio("El identificador del modo de juego es obligatorio.");
+
+        var orden = _etapas.Count + 1;
+        var etapa = Etapa.Crear(Id, orden, tipo, modoDeJuegoId);
+        _etapas.Add(etapa);
+        return etapa;
+    }
+
+    public void EliminarEtapa(Guid etapaId)
+    {
+        if (_estado.Estado == EstadoMision.Activa)
+            throw new ExcepcionDominio("No se pueden eliminar etapas de una misión activa.");
+
+        var etapa = _etapas.FirstOrDefault(e => e.Id == etapaId)
+            ?? throw new ExcepcionNoEncontrado($"No se encontró la etapa con ID '{etapaId}'.");
+
+        _etapas.Remove(etapa);
+        RenumerarEtapas();
+    }
+
+    public void Modificar(string nombre, string descripcion, NivelDificultad dificultad)
+    {
+        if (_estado.Estado == EstadoMision.Activa)
+            throw new ExcepcionDominio("No se puede modificar una misión activa.");
+        if (string.IsNullOrWhiteSpace(nombre))
+            throw new ExcepcionDominio("El nombre de la misión es obligatorio.");
+        if (string.IsNullOrWhiteSpace(descripcion))
             throw new ExcepcionDominio("La descripción de la misión es obligatoria.");
-        if (string.IsNullOrWhiteSpace(nuevaPistaClave))
-            throw new ExcepcionDominio("La pista clave de la misión es obligatoria.");
-
-        Titulo = nuevoTitulo.Trim();
-        Descripcion = nuevaDescripcion.Trim();
-        Tipo = nuevoTipo;
-        PistaClave = nuevaPistaClave.Trim();
+        Nombre = nombre.Trim();
+        Descripcion = descripcion.Trim();
+        Dificultad = dificultad;
+        _dificultad = FabricaDificultadMision.Obtener(dificultad);
     }
 
-    // Las pistas se pueden agregar en cualquier estado (Activa o Inactiva) para liberarlas en tiempo real.
-    internal Pista AgregarPista(string contenido)
-    {
-        var pista = Pista.Crear(Id, contenido);
-        _pistas.Add(pista);
-        return pista;
-    }
-
-    internal void ModificarPista(Guid pistaId, string nuevoContenido)
-    {
-        var pista = _pistas.FirstOrDefault(p => p.Id == pistaId)
-            ?? throw new ExcepcionNoEncontrado($"No se encontró la pista con ID '{pistaId}'.");
-        pista.Modificar(nuevoContenido);
-    }
-
-    internal void EliminarPista(Guid pistaId)
-    {
-        var pista = _pistas.FirstOrDefault(p => p.Id == pistaId)
-            ?? throw new ExcepcionNoEncontrado($"No se encontró la pista con ID '{pistaId}'.");
-        _pistas.Remove(pista);
-    }
+    public void Activar() => _estado.Activar(this);
+    public void Desactivar() => _estado.Desactivar(this);
 
     public static Mision Reconstituir(
         Guid id,
-        Guid busquedaId,
-        string titulo,
+        string nombre,
         string descripcion,
-        TipoMision tipo,
-        string pistaClave,
-        IEnumerable<Pista>? pistas = null)
+        Guid creadorId,
+        EstadoMision estado,
+        NivelDificultad dificultad,
+        DateTime fechaCreacion,
+        IEnumerable<Etapa>? etapas = null)
     {
         var mision = new Mision
         {
             Id = id,
-            BusquedaId = busquedaId,
-            Titulo = titulo,
+            Nombre = nombre,
             Descripcion = descripcion,
-            Tipo = tipo,
-            PistaClave = pistaClave
+            CreadorId = creadorId,
+            Estado = estado,
+            Dificultad = dificultad,
+            FechaCreacion = fechaCreacion
         };
-        if (pistas is not null) mision._pistas.AddRange(pistas);
+        mision._estado = FabricaEstadoMision.Obtener(estado);
+        mision._dificultad = FabricaDificultadMision.Obtener(dificultad);
+        if (etapas is not null) mision._etapas.AddRange(etapas);
         return mision;
+    }
+
+    internal void TransicionarEstado(EstadoMision nuevoEstado)
+    {
+        Estado = nuevoEstado;
+        _estado = FabricaEstadoMision.Obtener(nuevoEstado);
+    }
+
+    private void RenumerarEtapas()
+    {
+        for (int i = 0; i < _etapas.Count; i++)
+            _etapas[i].ActualizarOrden(i + 1);
     }
 }

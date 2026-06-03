@@ -158,7 +158,7 @@ export function PaginaListaBusquedas() {
                 <div className="trivia-card-cabecera">
                   <span className="trivia-card-nombre">{b.nombre}</span>
                   <span className="trivia-card-meta">
-                    {b.tieneMision ? 'Con misión' : 'Sin misión'}
+                    {b.totalPistas} {b.totalPistas === 1 ? 'pista' : 'pistas'}
                     &nbsp;·&nbsp;{formatearFecha(b.fechaCreacion)}
                   </span>
                 </div>

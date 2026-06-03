@@ -25,8 +25,7 @@ public sealed class ModificarPreguntaManejador : IRequestHandler<ModificarPregun
         var dto = comando.Datos;
         var nuevasOpciones = dto.NuevasOpciones.Select(o => (o.Texto, o.EsCorrecta));
 
-        // La validación de estado Borrador y la búsqueda de pregunta ocurren en el dominio.
-        trivia.ModificarPregunta(comando.PreguntaId, dto.NuevoEnunciado, nuevasOpciones);
+        trivia.ModificarPregunta(comando.PreguntaId, dto.NuevoEnunciado, dto.NuevoTiempoEstimado, nuevasOpciones);
 
         var preguntaModificada = trivia.Preguntas.First(p => p.Id == comando.PreguntaId);
         await _repositorio.ModificarPreguntaAsync(trivia.Id, preguntaModificada, cancelacion);

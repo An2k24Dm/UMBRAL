@@ -98,16 +98,7 @@ export interface DetalleTriviaSesionDto {
 
 export interface PistaBusquedaSesionDto {
   id: string
-  texto: string
-  orden: number
-}
-
-export interface EtapaBusquedaSesionDto {
-  id: string
-  nombre: string
-  descripcion: string
-  orden: number
-  pistas: PistaBusquedaSesionDto[]
+  contenido: string
 }
 
 export interface DetalleBusquedaSesionDto {
@@ -115,7 +106,7 @@ export interface DetalleBusquedaSesionDto {
   nombre: string
   descripcion: string
   estado: string
-  etapas: EtapaBusquedaSesionDto[]
+  pistas: PistaBusquedaSesionDto[]
 }
 
 export interface SesionDetalleDto {

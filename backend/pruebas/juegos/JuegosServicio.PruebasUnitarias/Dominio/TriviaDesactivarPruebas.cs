@@ -14,7 +14,7 @@ public class TriviaDesactivarPruebas
     private static Trivia TriviaActiva()
     {
         var trivia = Trivia.Crear("Trivia Test", "Descripción", Guid.NewGuid(), 30, FechaFija);
-        trivia.AgregarPregunta("¿Pregunta?", 10, [("Sí", true), ("No", false)]);
+        trivia.AgregarPregunta("¿Pregunta?", 10, 10, [("Sí", true), ("No", false)]);
         trivia.Activar();
         return trivia;
     }

@@ -22,6 +22,7 @@ function obtenerEnlaces(rol: Rol): EnlaceNavegacion[] {
       { destino: '/administrador/usuarios/internos', etiqueta: 'Operadores y Administradores' },
       { destino: '/administrador/trivias', etiqueta: 'Trivias' },
       { destino: '/administrador/busquedas', etiqueta: 'Búsquedas del tesoro' },
+      { destino: '/administrador/misiones', etiqueta: 'Misiones' },
       { destino: '/administrador/sesiones', etiqueta: 'Sesiones' },
       { destino: '/administrador/perfil', etiqueta: 'Mi perfil' }
     ]
@@ -29,6 +30,8 @@ function obtenerEnlaces(rol: Rol): EnlaceNavegacion[] {
   if (rol === 'Operador') {
     return [
       { destino: '/operador', etiqueta: 'Dashboard' },
+      { destino: '/operador/busquedas', etiqueta: 'Búsquedas del tesoro' },
+      { destino: '/operador/misiones', etiqueta: 'Misiones' },
       { destino: '/operador/sesiones', etiqueta: 'Sesiones' },
       { destino: '/operador/usuarios/participantes', etiqueta: 'Participantes' },
       { destino: '/operador/perfil', etiqueta: 'Mi perfil' }
