@@ -1,6 +1,5 @@
 using JuegosServicio.Aplicacion.Puertos;
 using JuegosServicio.Infraestructura.Persistencia;
-using JuegosServicio.Infraestructura.ServiciosExternos;
 using JuegosServicio.Infraestructura.Tiempo;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -30,14 +29,6 @@ public static class RegistroInfraestructura
         servicios.AddScoped<IRepositorioBusquedas, RepositorioBusquedas>();
         servicios.AddScoped<IRepositorioMisiones, RepositorioMisiones>();
         servicios.AddSingleton<IProveedorFechaHora, ProveedorFechaHoraSistema>();
-
-        // Cliente HTTP hacia sesiones-servicio. Se enlaza por
-        // HttpClientFactory para reutilizar conexiones y permitir
-        // sustituirlo en pruebas mediante un HttpMessageHandler doble.
-        servicios.Configure<OpcionesSesionesServicio>(
-            configuracion.GetSection(OpcionesSesionesServicio.Seccion));
-        servicios.AddHttpClient<IClienteSesiones, ClienteSesionesHttp>();
-
         return servicios;
     }
 }

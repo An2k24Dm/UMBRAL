@@ -28,10 +28,11 @@ function obtenerEnlaces(rol: Rol): EnlaceNavegacion[] {
     ]
   }
   if (rol === 'Operador') {
+    // El Operador no gestiona contenido administrativo (Trivias,
+    // Búsquedas del tesoro, Misiones). Solo administra sesiones,
+    // consulta participantes y gestiona su perfil.
     return [
       { destino: '/operador', etiqueta: 'Dashboard' },
-      { destino: '/operador/busquedas', etiqueta: 'Búsquedas del tesoro' },
-      { destino: '/operador/misiones', etiqueta: 'Misiones' },
       { destino: '/operador/sesiones', etiqueta: 'Sesiones' },
       { destino: '/operador/usuarios/participantes', etiqueta: 'Participantes' },
       { destino: '/operador/perfil', etiqueta: 'Mi perfil' }

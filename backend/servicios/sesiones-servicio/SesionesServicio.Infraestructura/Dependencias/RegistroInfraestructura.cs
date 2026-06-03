@@ -33,9 +33,8 @@ public static class RegistroInfraestructura
         servicios.AddScoped<IUnidadTrabajoSesiones, UnidadTrabajoSesiones>();
 
         servicios.AddSingleton<IProveedorFechaHora, ProveedorFechaHoraSistema>();
+        servicios.AddSingleton<IGeneradorCodigoAcceso, GeneradorCodigoAccesoAleatorio>();
 
-        // Configuración global de Mapster. Registramos la config aquí para
-        // que cualquier consumidor que use Adapt<T>() comparta las reglas.
         var configMapster = TypeAdapterConfig.GlobalSettings;
         ConfiguracionMapsterSesiones.Configurar(configMapster);
         servicios.AddSingleton(configMapster);
@@ -45,11 +44,9 @@ public static class RegistroInfraestructura
         servicios.Configure<OpcionesIdentidadServicio>(
             configuracion.GetSection(OpcionesIdentidadServicio.Seccion));
 
-        servicios.AddHttpClient<IClienteContenidoJuegos, ClienteContenidoJuegosHttp>();
+        servicios.AddHttpClient<IClienteJuegosMisiones, ClienteJuegosMisionesHttp>();
         servicios.AddHttpClient<IClienteIdentidadUsuarios, ClienteIdentidadUsuariosHttp>();
 
-        // HU34/5.1 — Servicio en segundo plano para pasar sesiones
-        // Programadas vencidas a EnPreparacion.
         servicios.Configure<OpcionesPreparacionSesiones>(
             configuracion.GetSection(OpcionesPreparacionSesiones.Seccion));
         servicios.AddScoped<ProcesadorPreparacionSesiones>();

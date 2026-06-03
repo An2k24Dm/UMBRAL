@@ -70,7 +70,7 @@ export function PaginaCrearBusqueda() {
         },
         token
       )
-      navegar(`${rutaBase}/${id}/etapas`)
+      navegar(`${rutaBase}/${id}/mision`)
     } catch (e) {
       setErrorGeneral(e instanceof Error ? e.message : 'No fue posible crear la búsqueda del tesoro.')
       setEnviando(false)

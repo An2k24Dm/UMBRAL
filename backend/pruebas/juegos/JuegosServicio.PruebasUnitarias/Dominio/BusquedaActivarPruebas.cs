@@ -10,13 +10,22 @@ public class BusquedaActivarPruebas
     private static readonly DateTime FechaFija =
         new(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc);
 
+    // Búsqueda Inactiva sin pistas. Para los tests que necesitan
+    // activarla, hay que agregar al menos una pista antes (regla nueva).
     private static BusquedaTesoro BusquedaInactiva() =>
         BusquedaTesoro.Crear("Búsqueda Test", "Descripción", Guid.NewGuid(), FechaFija);
 
-    [Fact]
-    public void Activar_BusquedaInactiva_CambiaEstadoAActiva()
+    private static BusquedaTesoro BusquedaInactivaConUnaPista()
     {
         var busqueda = BusquedaInactiva();
+        busqueda.AgregarPista("Pista única");
+        return busqueda;
+    }
+
+    [Fact]
+    public void Activar_BusquedaInactivaConPistas_CambiaEstadoAActiva()
+    {
+        var busqueda = BusquedaInactivaConUnaPista();
 
         busqueda.Activar();
 
@@ -24,9 +33,21 @@ public class BusquedaActivarPruebas
     }
 
     [Fact]
-    public void Activar_BusquedaInactiva_AgregaEventoBusquedaActivada()
+    public void Activar_BusquedaSinPistas_LanzaExcepcionDominio()
     {
         var busqueda = BusquedaInactiva();
+
+        Action accion = () => busqueda.Activar();
+
+        accion.Should()
+            .Throw<ExcepcionDominio>()
+            .WithMessage("La búsqueda del tesoro debe tener al menos una pista para poder activarse.");
+    }
+
+    [Fact]
+    public void Activar_BusquedaInactivaConPistas_AgregaEventoBusquedaActivada()
+    {
+        var busqueda = BusquedaInactivaConUnaPista();
         busqueda.LimpiarEventos();
 
         busqueda.Activar();
@@ -37,7 +58,7 @@ public class BusquedaActivarPruebas
     [Fact]
     public void Activar_BusquedaYaActiva_LanzaExcepcionDominio()
     {
-        var busqueda = BusquedaInactiva();
+        var busqueda = BusquedaInactivaConUnaPista();
         busqueda.Activar();
 
         Action accion = () => busqueda.Activar();

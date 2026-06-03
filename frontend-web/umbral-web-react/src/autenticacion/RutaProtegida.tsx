@@ -8,6 +8,15 @@ interface Props {
   children: ReactNode
 }
 
+// Dashboard al que mandamos a un usuario autenticado cuando intenta
+// abrir una ruta que su rol no puede ver. Evita lanzarlo al login con
+// la sesión todavía activa.
+const DASHBOARD_POR_ROL: Record<Rol, string> = {
+  Administrador: '/administrador',
+  Operador: '/operador',
+  Participante: '/iniciar-sesion',
+}
+
 export function RutaProtegida({ rolesPermitidos, children }: Props) {
   const { token, usuario, cargandoSesion } = usarAutenticacion()
 
@@ -27,8 +36,12 @@ export function RutaProtegida({ rolesPermitidos, children }: Props) {
     return <Navigate to="/iniciar-sesion" replace />
   }
 
+  // Si está autenticado pero su rol no puede ver esta ruta, lo
+  // redirigimos al dashboard de SU rol en lugar de mandarlo al login.
+  // Así, si el Operador escribe /administrador/trivias en la barra de
+  // direcciones, vuelve a /operador sin perder la sesión.
   if (rolesPermitidos && !rolesPermitidos.includes(usuario.rol)) {
-    return <Navigate to="/iniciar-sesion" replace />
+    return <Navigate to={DASHBOARD_POR_ROL[usuario.rol]} replace />
   }
 
   return <>{children}</>

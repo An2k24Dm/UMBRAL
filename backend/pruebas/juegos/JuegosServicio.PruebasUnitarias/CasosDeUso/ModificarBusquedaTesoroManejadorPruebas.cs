@@ -83,6 +83,7 @@ public class ModificarBusquedaTesoroManejadorPruebas
     public async Task Handle_BusquedaActiva_LanzaExcepcionDominio()
     {
         var busqueda = BusquedaInactiva();
+        busqueda.AgregarPista("Pista única"); // requerida para activar
         busqueda.Activar();
         _repositorio
             .Setup(r => r.ObtenerBusquedaPorIdAsync(busqueda.Id, It.IsAny<CancellationToken>()))

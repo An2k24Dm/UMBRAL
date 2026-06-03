@@ -41,6 +41,29 @@ public static class RegistroSeguridad
                             }
                         }
                         return Task.CompletedTask;
+                    },
+                    OnForbidden = async ctx =>
+                    {
+                        ctx.Response.StatusCode = StatusCodes.Status403Forbidden;
+                        ctx.Response.ContentType = "application/json";
+                        var cuerpo = System.Text.Json.JsonSerializer.Serialize(new
+                        {
+                            codigo = "ACCESO_DENEGADO",
+                            mensaje = "No tienes permisos para realizar esta acción."
+                        });
+                        await ctx.Response.WriteAsync(cuerpo);
+                    },
+                    OnChallenge = async ctx =>
+                    {
+                        ctx.HandleResponse();
+                        ctx.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                        ctx.Response.ContentType = "application/json";
+                        var cuerpo = System.Text.Json.JsonSerializer.Serialize(new
+                        {
+                            codigo = "NO_AUTENTICADO",
+                            mensaje = "Debe iniciar sesión para realizar esta acción."
+                        });
+                        await ctx.Response.WriteAsync(cuerpo);
                     }
                 };
             });

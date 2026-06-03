@@ -7,21 +7,29 @@ using JuegosServicio.Dominio.Excepciones;
 
 namespace JuegosServicio.PruebasUnitarias.CasosDeUso;
 
-// HU26 + regla "no desactivar si hay sesiones vigentes": pruebas del manejador de desactivación.
+// Pruebas del manejador de desactivación.
+//
+// El manejador ya NO consulta sesiones-servicio: el endpoint viejo
+// `/contenidos/{tipo}/{id}/existe-vigente` fue eliminado al cambiar el
+// modelo a Sesion → Mision → Etapa. La protección contra contenido en
+// uso vive ahora en el dominio (no se modifica/agrega/elimina si está
+// activo) y en el manejador de Eliminar.
 public class DesactivarBusquedaTesoroManejadorPruebas
 {
     private readonly Mock<IRepositorioBusquedas> _repositorio = new();
-    private readonly Mock<IClienteSesiones> _clienteSesiones = new();
 
     private static readonly DateTime FechaFija =
         new(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc);
 
     private DesactivarBusquedaTesoroManejador CrearManejador() =>
-        new(_repositorio.Object, _clienteSesiones.Object);
+        new(_repositorio.Object);
 
-    private static BusquedaTesoro BusquedaActiva()
+    private static BusquedaTesoro BusquedaActivaConUnaPista()
     {
         var busqueda = BusquedaTesoro.Crear("Búsqueda Test", "Descripción", Guid.NewGuid(), FechaFija);
+        // La regla nueva exige al menos una pista antes de activar; de
+        // lo contrario `Activar` lanza ExcepcionDominio.
+        busqueda.AgregarPista("Pista única");
         busqueda.Activar();
         return busqueda;
     }
@@ -32,17 +40,12 @@ public class DesactivarBusquedaTesoroManejadorPruebas
             .Setup(r => r.DesactivarBusquedaTesoroAsync(
                 It.IsAny<BusquedaTesoro>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
-
-        _clienteSesiones
-            .Setup(c => c.ExisteSesionVigentePorContenidoAsync(
-                TipoJuego.BusquedaTesoro, It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(false);
     }
 
     [Fact]
-    public async Task Handle_BusquedaSinSesionesVigentes_DesactivaCorrectamente()
+    public async Task Handle_BusquedaActiva_DesactivaYPersiste()
     {
-        var busqueda = BusquedaActiva();
+        var busqueda = BusquedaActivaConUnaPista();
         _repositorio
             .Setup(r => r.ObtenerBusquedaPorIdAsync(busqueda.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(busqueda);
@@ -50,62 +53,14 @@ public class DesactivarBusquedaTesoroManejadorPruebas
         await CrearManejador().Handle(
             new DesactivarBusquedaTesoroComando(busqueda.Id, Guid.NewGuid()), CancellationToken.None);
 
-        _clienteSesiones.Verify(c => c.ExisteSesionVigentePorContenidoAsync(
-            TipoJuego.BusquedaTesoro, busqueda.Id, It.IsAny<CancellationToken>()), Times.Once);
+        busqueda.Estado.Should().Be(EstadoBusqueda.Inactiva);
         _repositorio.Verify(
             r => r.DesactivarBusquedaTesoroAsync(busqueda, It.IsAny<CancellationToken>()),
             Times.Once);
     }
 
     [Fact]
-    public async Task Handle_BusquedaConSesionVigente_LanzaExcepcion_YNoPersiste()
-    {
-        var busqueda = BusquedaActiva();
-        _repositorio
-            .Setup(r => r.ObtenerBusquedaPorIdAsync(busqueda.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(busqueda);
-        _clienteSesiones
-            .Setup(c => c.ExisteSesionVigentePorContenidoAsync(
-                TipoJuego.BusquedaTesoro, busqueda.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
-
-        var accion = async () => await CrearManejador().Handle(
-            new DesactivarBusquedaTesoroComando(busqueda.Id, Guid.NewGuid()), CancellationToken.None);
-
-        await accion.Should().ThrowAsync<ContenidoConSesionesVigentesExcepcion>();
-        _repositorio.Verify(
-            r => r.DesactivarBusquedaTesoroAsync(It.IsAny<BusquedaTesoro>(), It.IsAny<CancellationToken>()),
-            Times.Never);
-        busqueda.Estado.Should().Be(EstadoBusqueda.Activa);
-    }
-
-    [Fact]
-    public async Task Handle_ConsultaSesiones_AntesDeDesactivar()
-    {
-        var busqueda = BusquedaActiva();
-        _repositorio
-            .Setup(r => r.ObtenerBusquedaPorIdAsync(busqueda.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(busqueda);
-
-        var orden = new List<string>();
-        _clienteSesiones
-            .Setup(c => c.ExisteSesionVigentePorContenidoAsync(
-                TipoJuego.BusquedaTesoro, busqueda.Id, It.IsAny<CancellationToken>()))
-            .Callback(() => orden.Add("cliente"))
-            .ReturnsAsync(false);
-        _repositorio
-            .Setup(r => r.DesactivarBusquedaTesoroAsync(busqueda, It.IsAny<CancellationToken>()))
-            .Callback(() => orden.Add("repositorio"))
-            .Returns(Task.CompletedTask);
-
-        await CrearManejador().Handle(
-            new DesactivarBusquedaTesoroComando(busqueda.Id, Guid.NewGuid()), CancellationToken.None);
-
-        orden.Should().Equal("cliente", "repositorio");
-    }
-
-    [Fact]
-    public async Task Handle_BusquedaInexistente_LanzaExcepcionNoEncontrado_YNoConsultaSesiones()
+    public async Task Handle_BusquedaInexistente_LanzaExcepcionNoEncontrado()
     {
         var busquedaId = Guid.NewGuid();
         _repositorio
@@ -116,14 +71,12 @@ public class DesactivarBusquedaTesoroManejadorPruebas
             new DesactivarBusquedaTesoroComando(busquedaId, Guid.NewGuid()), CancellationToken.None);
 
         await accion.Should().ThrowAsync<ExcepcionNoEncontrado>();
-        _clienteSesiones.Verify(c => c.ExisteSesionVigentePorContenidoAsync(
-            It.IsAny<TipoJuego>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
     public async Task Handle_BusquedaYaInactiva_LanzaExcepcionDominio()
     {
-        var busqueda = BusquedaActiva();
+        var busqueda = BusquedaActivaConUnaPista();
         busqueda.Desactivar();
         _repositorio
             .Setup(r => r.ObtenerBusquedaPorIdAsync(busqueda.Id, It.IsAny<CancellationToken>()))

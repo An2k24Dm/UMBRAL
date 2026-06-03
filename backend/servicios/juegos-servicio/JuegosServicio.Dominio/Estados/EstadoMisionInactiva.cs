@@ -1,3 +1,4 @@
+using JuegosServicio.Dominio.Abstract;
 using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Dominio.Excepciones;
 

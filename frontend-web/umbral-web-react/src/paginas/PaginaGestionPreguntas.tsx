@@ -406,7 +406,9 @@ export function PaginaGestionPreguntas() {
             <Boton variante="volver" onClick={() => navegar(rutaBase)}>
               Volver
             </Boton>
-            {modoForm === 'oculto' && !mostrarFormTrivia && !confirmandoArchivado && (
+            {/* Modificar datos solo en Inactiva: el dominio rechaza el
+                cambio en Activa, así que evitamos inducir el error. */}
+            {trivia.estado === 'Inactiva' && modoForm === 'oculto' && !mostrarFormTrivia && !confirmandoArchivado && (
               <Boton variante="fantasma" onClick={abrirFormTrivia}>
                 Modificar datos
               </Boton>
@@ -433,13 +435,22 @@ export function PaginaGestionPreguntas() {
                 </Boton>
               )
             )}
-            {modoForm === 'oculto' && !mostrarFormTrivia && !confirmandoArchivado && (
+            {/* Agregar pregunta solo en Inactiva: en Activa el dominio
+                rechaza el cambio. */}
+            {trivia.estado === 'Inactiva' && modoForm === 'oculto' && !mostrarFormTrivia && !confirmandoArchivado && (
               <Boton variante="primario" onClick={abrirFormAgregar}>
                 + Agregar pregunta
               </Boton>
             )}
           </div>
         </div>
+
+        {trivia.estado === 'Activa' && (
+          <div className="ayuda-modo-sesion" role="note">
+            <span className="ayuda-modo-sesion-icono" aria-hidden="true">ⓘ</span>
+            <span>Esta trivia está activa y no puede modificarse.</span>
+          </div>
+        )}
 
         {errorActivacion && <Alerta tono="error">{errorActivacion}</Alerta>}
         {errorArchivado && <Alerta tono="error">{errorArchivado}</Alerta>}

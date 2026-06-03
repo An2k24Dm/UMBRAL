@@ -190,13 +190,19 @@ export function PaginaGestionEtapas() {
                 {activando ? 'Activando…' : 'Activar búsqueda'}
               </Boton>
             )}
-            {busqueda.estado === 'Activa' && !mostrarFormPista && (
-              <Boton variante="secundario" onClick={() => setMostrarFormPista(true)}>
-                + Agregar pista (tiempo real)
-              </Boton>
-            )}
+            {/* Una búsqueda Activa no acepta nuevas pistas. La regla
+                la garantiza el backend (dominio); aquí solo ocultamos
+                el botón para no inducir error. Si está Activa mostramos
+                una nota informativa más abajo. */}
           </div>
         </div>
+
+        {busqueda.estado === 'Activa' && (
+          <div className="ayuda-modo-sesion" role="note">
+            <span className="ayuda-modo-sesion-icono" aria-hidden="true">ⓘ</span>
+            <span>Esta búsqueda del tesoro está activa y no puede modificarse.</span>
+          </div>
+        )}
 
         {errorCarga && <Alerta tono="error">{errorCarga}</Alerta>}
         {errorActivacion && <Alerta tono="error">{errorActivacion}</Alerta>}

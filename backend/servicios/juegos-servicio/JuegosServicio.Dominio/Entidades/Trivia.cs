@@ -1,8 +1,8 @@
+using JuegosServicio.Dominio.Abstract;
 using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Dominio.Estados;
 using JuegosServicio.Dominio.Eventos;
 using JuegosServicio.Dominio.Excepciones;
-using JuegosServicio.Dominio.Patrones;
 
 namespace JuegosServicio.Dominio.Entidades;
 
@@ -104,6 +104,8 @@ public sealed class Trivia : IComponenteJuego
 
     public void ModificarDatos(string nuevoNombre, string nuevaDescripcion, int nuevoTiempo)
     {
+        _estado.ValidarEdicion("modificar la trivia");
+
         if (string.IsNullOrWhiteSpace(nuevoNombre))
             throw new ExcepcionDominio("El nombre de la trivia es obligatorio.");
         if (string.IsNullOrWhiteSpace(nuevaDescripcion))

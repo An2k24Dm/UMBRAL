@@ -1,23 +1,20 @@
-// Apunta al api-gateway, que enruta /api/sesiones hacia el microservicio
-// sesiones-servicio. Conserva el patrón de los otros clientes
-// (clienteApi.ts / clienteApiJuegos.ts) para no introducir disonancia.
-
-import { dispatchSesionInvalida } from './eventosSesion'
+import { manejar401 } from './eventosSesion'
 
 const URL_API = import.meta.env.VITE_API_URL ?? 'http://localhost:5000'
 
-// Helper compartido: ante un 401, avisamos al ProveedorAutenticacion
-// para que limpie la sesión y deja el mensaje legible para la UI.
-function lanzar401(mensaje: string): never {
-  dispatchSesionInvalida()
-  throw new Error(mensaje)
+// Helper local que admite las dos formas históricas del repo:
+//   lanzar401('msg')           → manejar401 lee el token de localStorage.
+//   lanzar401(token, 'msg')    → manejar401 usa el token explícito.
+function lanzar401(arg1?: string | null, arg2?: string): never {
+  const tieneAmbos = typeof arg2 === 'string'
+  const token = tieneAmbos ? (arg1 ?? null) : null
+  const mensaje = tieneAmbos ? arg2 : (arg1 ?? 'Debe iniciar sesión.')
+  manejar401(token, mensaje)
 }
 
 const ENDPOINTS = {
   raiz: '/api/sesiones',
-  porId: (id: string) => `/api/sesiones/${encodeURIComponent(id)}`,
-  triviasActivas: '/api/juegos/trivias/activas',
-  busquedasActivas: '/api/juegos/busquedas/activas'
+  porId: (id: string) => `/api/sesiones/${encodeURIComponent(id)}`
 }
 
 function auth(token: string) {
@@ -30,10 +27,10 @@ async function leerError(respuesta: Response): Promise<string> {
 }
 
 // ---------------------------------------------------------------------------
-// Tipos
+// Tipos del nuevo modelo
 // ---------------------------------------------------------------------------
-export type TipoJuegoSesion = 'Trivia' | 'BusquedaTesoro'
-export type ModoSesionApi = 'Individual' | 'Grupo'
+export type ModoSesionApi = 'Individual' | 'Grupal'
+
 export type EstadoSesionApi =
   | 'Programada'
   | 'EnPreparacion'
@@ -42,120 +39,109 @@ export type EstadoSesionApi =
   | 'Finalizada'
   | 'Cancelada'
 
+// Cuerpo del POST /api/sesiones según el ERS actual. NO incluye
+// tiempoEjecucionMinutos: el backend ya no lo modela.
 export interface CrearSesionSolicitud {
   nombre: string
-  tipoJuego: TipoJuegoSesion
-  contenidoJuegoId: string
+  descripcion: string
   modo: ModoSesionApi
   fechaProgramada: string
+  misionesIds: string[]
 }
 
-export interface SesionRespuestaDto {
+export interface CrearSesionRespuestaDto {
   id: string
   nombre: string
-  tipoJuego: string
-  contenidoJuegoId: string
+  descripcion: string
   modo: string
   estado: string
   fechaProgramada: string
-  creadaPorUsuarioId: string
+  codigoAcceso: string
+  operadorCreadorId: string
   fechaCreacion: string
+  misionesIds: string[]
 }
 
 export interface SesionListadoDto {
   id: string
   nombre: string
-  tipoJuego: string
-  contenidoJuegoId: string
+  descripcion: string
   modo: string
   estado: string
   fechaProgramada: string
-  creadaPorUsuarioId: string
-  numeroGrupos: number
+  codigoAcceso: string
+  operadorCreadorId: string
+  fechaCreacion: string
+  cantidadMisiones: number
+  cantidadParticipantes: number
+  cantidadEquipos: number
 }
 
-// HU34/5.2 — DTOs del contenido enriquecido en el detalle.
-export interface OpcionTriviaSesionDto {
+export interface SesionMisionDto {
   id: string
-  texto: string
-  esCorrecta: boolean
+  misionId: string
+  orden: number
 }
 
-export interface PreguntaTriviaSesionDto {
+export interface ParticipanteEquipoDto {
   id: string
-  enunciado: string
-  puntajeAsignado: number
-  opciones: OpcionTriviaSesionDto[]
+  participanteId: string
+  fechaUnion: string
 }
 
-export interface DetalleTriviaSesionDto {
-  id: string
-  nombre: string
-  descripcion: string
-  estado: string
-  preguntas: PreguntaTriviaSesionDto[]
-}
-
-export interface PistaBusquedaSesionDto {
-  id: string
-  contenido: string
-}
-
-export interface DetalleBusquedaSesionDto {
+export interface EquipoSesionDto {
   id: string
   nombre: string
-  descripcion: string
-  estado: string
-  pistas: PistaBusquedaSesionDto[]
+  puntajeActual: number
+  fechaCreacion: string
+  participantes: ParticipanteEquipoDto[]
+}
+
+export interface ParticipanteSesionDto {
+  id: string
+  participanteId: string
+  fechaUnion: string
 }
 
 export interface SesionDetalleDto {
   id: string
   nombre: string
-  tipoJuego: string
-  contenidoJuegoId: string
+  descripcion: string
   modo: string
   estado: string
   fechaProgramada: string
-  creadaPorUsuarioId: string
+  codigoAcceso: string
+  operadorCreadorId: string
   fechaCreacion: string
-  trivia: DetalleTriviaSesionDto | null
-  busquedaTesoro: DetalleBusquedaSesionDto | null
-}
-
-export interface ContenidoJuegoActivoDto {
-  id: string
-  nombre: string
-  tipoJuego: string
-  estado: string
-  estaActivo: boolean
+  fechaInicioUtc: string | null
+  fechaFinalizacionUtc: string | null
+  misiones: SesionMisionDto[]
+  equipos: EquipoSesionDto[]
+  participantesIndividuales: ParticipanteSesionDto[]
 }
 
 // ---------------------------------------------------------------------------
-// HU33 — Crear sesión
+// Crear sesión (solo Operador)
 // ---------------------------------------------------------------------------
 export async function crearSesion(
   datos: CrearSesionSolicitud,
   token: string
-): Promise<SesionRespuestaDto> {
+): Promise<CrearSesionRespuestaDto> {
   const respuesta = await fetch(`${URL_API}${ENDPOINTS.raiz}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...auth(token) },
     body: JSON.stringify(datos)
   })
-  if (respuesta.status === 401) lanzar401('Debe iniciar sesión.')
+  if (respuesta.status === 401) lanzar401(token, 'Debe iniciar sesión.')
   if (respuesta.status === 403) throw new Error('No tiene permisos para crear sesiones.')
   if (!respuesta.ok) throw new Error(await leerError(respuesta))
-  return (await respuesta.json()) as SesionRespuestaDto
+  return (await respuesta.json()) as CrearSesionRespuestaDto
 }
 
 // ---------------------------------------------------------------------------
-// HU34 — Listar sesiones con visibilidad por rol y filtros opcionales.
-// El backend aplica la regla; el frontend sólo envía los filtros tal
-// como los pide el usuario.
+// Listado de sesiones (Administrador ve todo, Operador ve propias)
 // ---------------------------------------------------------------------------
 export interface FiltrosListadoSesiones {
-  tipoJuego?: TipoJuegoSesion | ''
   estado?: EstadoSesionApi | ''
 }
 
@@ -164,22 +150,19 @@ export async function listarSesiones(
   filtros: FiltrosListadoSesiones = {}
 ): Promise<SesionListadoDto[]> {
   const params = new URLSearchParams()
-  if (filtros.tipoJuego) params.set('tipoJuego', filtros.tipoJuego)
   if (filtros.estado) params.set('estado', filtros.estado)
   const cadena = params.toString()
   const url = cadena ? `${ENDPOINTS.raiz}?${cadena}` : ENDPOINTS.raiz
 
   const respuesta = await fetch(`${URL_API}${url}`, { headers: auth(token) })
-  if (respuesta.status === 401) lanzar401('Debe iniciar sesión.')
+  if (respuesta.status === 401) lanzar401(token, 'Debe iniciar sesión.')
   if (respuesta.status === 403) throw new Error('No tiene permisos.')
   if (!respuesta.ok) throw new Error(await leerError(respuesta))
   return (await respuesta.json()) as SesionListadoDto[]
 }
 
 // ---------------------------------------------------------------------------
-// HU34/5.2 — Obtener detalle de sesión con contenido enriquecido.
-// 403 indica que el usuario no tiene permiso para esa sesión (regla
-// de visibilidad). 404 indica que la sesión no existe.
+// Detalle de sesión
 // ---------------------------------------------------------------------------
 export async function obtenerSesion(
   id: string, token: string
@@ -187,30 +170,9 @@ export async function obtenerSesion(
   const respuesta = await fetch(`${URL_API}${ENDPOINTS.porId(id)}`, {
     headers: auth(token)
   })
-  if (respuesta.status === 401) lanzar401('Debe iniciar sesión.')
+  if (respuesta.status === 401) lanzar401(token, 'Debe iniciar sesión.')
   if (respuesta.status === 403) throw new Error('No tiene permiso para ver esta sesión.')
   if (respuesta.status === 404) throw new Error('Sesión no encontrada.')
   if (!respuesta.ok) throw new Error(await leerError(respuesta))
   return (await respuesta.json()) as SesionDetalleDto
-}
-
-// ---------------------------------------------------------------------------
-// HU33 — Listado de contenido activo (Trivias / Búsquedas) para el
-// formulario de creación. Reutiliza los endpoints de juegos-servicio.
-// ---------------------------------------------------------------------------
-export interface ContenidoActivoResumen {
-  id: string
-  nombre: string
-}
-
-export async function listarContenidoActivo(
-  tipoJuego: TipoJuegoSesion, token: string
-): Promise<ContenidoActivoResumen[]> {
-  const url = tipoJuego === 'Trivia' ? ENDPOINTS.triviasActivas : ENDPOINTS.busquedasActivas
-  const respuesta = await fetch(`${URL_API}${url}`, { headers: auth(token) })
-  if (respuesta.status === 401) lanzar401('Debe iniciar sesión.')
-  if (respuesta.status === 403) throw new Error('No tiene permisos.')
-  if (!respuesta.ok) throw new Error(await leerError(respuesta))
-  const cuerpo = (await respuesta.json()) as Array<{ id: string; nombre: string }>
-  return cuerpo.map(c => ({ id: c.id, nombre: c.nombre }))
 }
