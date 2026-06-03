@@ -90,12 +90,17 @@ public class BusquedaTesoroPruebas
     }
 
     [Fact]
-    public void AgregarPista_EnEstadoActiva_AgregaLaPista()
+    public void AgregarPista_EnEstadoActiva_LanzaExcepcionDominio()
     {
+        // Regla nueva del ERS: no se pueden agregar pistas a una
+        // búsqueda activa. La invariante vive en el estado.
         var busqueda = BusquedaValida();
+        busqueda.AgregarPista("Pista inicial."); // requerida para activar
         busqueda.Activar();
-        busqueda.AgregarPista("Pista liberada en tiempo real.");
-        busqueda.Pistas.Should().HaveCount(1);
+
+        Action accion = () => busqueda.AgregarPista("Otra pista que no debería entrar.");
+
+        accion.Should().Throw<ExcepcionDominio>();
     }
 
     [Fact]
@@ -113,7 +118,7 @@ public class BusquedaTesoroPruebas
     public void ModificarPista_EnEstadoActiva_LanzaExcepcionDominio()
     {
         var busqueda = BusquedaValida();
-        var pista = busqueda.AgregarPista("Pista de ayuda.");
+        var pista = busqueda.AgregarPista("Pista de ayuda."); // habilita activar
         busqueda.Activar();
 
         Action accion = () => busqueda.ModificarPista(pista.Id, "Cambio no permitido.");

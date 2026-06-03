@@ -1,16 +1,20 @@
+using JuegosServicio.Dominio.Abstract;
 using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Dominio.Eventos;
 using JuegosServicio.Dominio.Excepciones;
 
 namespace JuegosServicio.Dominio.Estados;
 
-// Patrón State — comportamiento de BusquedaTesoro cuando está Inactiva.
 internal sealed class EstadoBusquedaInactiva : IEstadoBusqueda
 {
     public EstadoBusqueda Estado => EstadoBusqueda.Inactiva;
 
     public void Activar(Entidades.BusquedaTesoro busqueda)
     {
+        if (busqueda.Pistas.Count == 0)
+            throw new ExcepcionDominio(
+                "La búsqueda del tesoro debe tener al menos una pista para poder activarse.");
+
         busqueda.TransicionarEstado(EstadoBusqueda.Activa);
         busqueda.AgregarEventoInterno(
             new BusquedaActivadaEvento(busqueda.Id, busqueda.Nombre));

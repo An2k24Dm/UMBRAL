@@ -2,23 +2,55 @@ using SesionesServicio.Dominio.Enums;
 
 namespace SesionesServicio.Infraestructura.Persistencia;
 
-// Modelo de persistencia: refleja la fila de la tabla "Sesion" en
-// PostgreSQL. Se mantiene separado del agregado de dominio para no
-// acoplar las reglas de negocio a EF Core; el mapeo entre uno y otro
-// vive en SesionesMapeador / ConfiguracionMapsterSesiones.
-//
-// La columna creada_por_rol NO existe a propósito: el rol del creador
-// es información de identidad y se consulta en línea a
-// identidad-servicio cuando la regla de visibilidad lo necesita.
+// Modelo de persistencia raíz. Una sola tabla Sesion con la columna
+// `tipo_sesion` como discriminador ("Individual" / "Grupal"). El
+// mapeador construye la subclase de dominio adecuada al rehidratar.
 public sealed class SesionModelo
 {
     public Guid Id { get; set; }
+    public string TipoSesion { get; set; } = string.Empty;
     public string Nombre { get; set; } = string.Empty;
-    public TipoJuego TipoJuego { get; set; }
-    public Guid ContenidoJuegoId { get; set; }
-    public ModoSesion Modo { get; set; }
+    public string Descripcion { get; set; } = string.Empty;
     public EstadoSesion Estado { get; set; }
     public DateTime FechaProgramada { get; set; }
-    public Guid CreadaPorUsuarioId { get; set; }
+    public string CodigoAcceso { get; set; } = string.Empty;
+    public Guid OperadorCreadorId { get; set; }
     public DateTime FechaCreacion { get; set; }
+    public DateTime? FechaInicioUtc { get; set; }
+    public DateTime? FechaFinalizacionUtc { get; set; }
+
+    public List<SesionMisionModelo> Misiones { get; set; } = new();
+    public List<EquipoModelo> Equipos { get; set; } = new();
+    public List<ParticipanteModelo> Participantes { get; set; } = new();
+}
+
+public sealed class SesionMisionModelo
+{
+    public Guid Id { get; set; }
+    public Guid SesionId { get; set; }
+    public Guid MisionId { get; set; }
+    public int Orden { get; set; }
+}
+
+public sealed class EquipoModelo
+{
+    public Guid Id { get; set; }
+    public Guid SesionId { get; set; }
+    public string Nombre { get; set; } = string.Empty;
+    public Guid LiderParticipanteId { get; set; }
+    public int Puntaje { get; set; }
+    public DateTime FechaCreacion { get; set; }
+}
+
+// Tabla unificada Participante: cubre tanto al participante individual
+// (EquipoId = null) como al integrante de un equipo (EquipoId con valor).
+public sealed class ParticipanteModelo
+{
+    public Guid Id { get; set; }
+    public Guid SesionId { get; set; }
+    public Guid ParticipanteIdentidadId { get; set; }
+    public Guid? EquipoId { get; set; }
+    public int Puntaje { get; set; }
+    public DateTime FechaUnionSesion { get; set; }
+    public DateTime? FechaUnionEquipo { get; set; }
 }

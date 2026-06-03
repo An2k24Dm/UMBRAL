@@ -7,8 +7,6 @@ namespace SesionesServicio.Infraestructura.Persistencia.Repositorios;
 
 public sealed class RepositorioSesiones : IRepositorioSesiones
 {
-    // Estados que cuentan como "vigentes" para bloquear la desactivación
-    // de contenido en juegos-servicio. Finalizada y Cancelada NO entran.
     private static readonly EstadoSesion[] EstadosVigentes =
     {
         EstadoSesion.Programada,
@@ -34,37 +32,58 @@ public sealed class RepositorioSesiones : IRepositorioSesiones
     public async Task ActualizarAsync(Sesion sesion, CancellationToken cancelacion)
     {
         var existente = await _contexto.Sesiones
+            .Include(s => s.Misiones)
+            .Include(s => s.Equipos)
+            .Include(s => s.Participantes)
             .FirstOrDefaultAsync(s => s.Id == sesion.Id, cancelacion);
 
         var actualizado = SesionesMapeador.HaciaModelo(sesion);
+
         if (existente is null)
         {
-            _contexto.Sesiones.Attach(actualizado);
-            _contexto.Entry(actualizado).State = EntityState.Modified;
+            _contexto.Sesiones.Add(actualizado);
             return;
         }
 
         _contexto.Entry(existente).CurrentValues.SetValues(actualizado);
+
+        // Reemplazo de colecciones hijas (alcance actual: la población
+        // de equipos/participantes se hace siempre completa).
+        _contexto.Participantes.RemoveRange(existente.Participantes);
+        _contexto.Equipos.RemoveRange(existente.Equipos);
+        _contexto.SesionMisiones.RemoveRange(existente.Misiones);
+
+        existente.Misiones = actualizado.Misiones;
+        existente.Equipos = actualizado.Equipos;
+        existente.Participantes = actualizado.Participantes;
     }
 
     public async Task<Sesion?> ObtenerPorIdAsync(Guid id, CancellationToken cancelacion)
     {
         var modelo = await _contexto.Sesiones
             .AsNoTracking()
+            .Include(s => s.Misiones)
+            .Include(s => s.Equipos)
+            .Include(s => s.Participantes)
             .FirstOrDefaultAsync(s => s.Id == id, cancelacion);
         return modelo is null ? null : SesionesMapeador.HaciaDominio(modelo);
     }
 
     public async Task<IReadOnlyList<Sesion>> ListarAsync(
-        TipoJuego? tipoJuego, EstadoSesion? estado, CancellationToken cancelacion)
+        EstadoSesion? estado, Guid? operadorCreadorId, CancellationToken cancelacion)
     {
-        var consulta = _contexto.Sesiones.AsNoTracking().AsQueryable();
-
-        if (tipoJuego.HasValue)
-            consulta = consulta.Where(s => s.TipoJuego == tipoJuego.Value);
+        var consulta = _contexto.Sesiones
+            .AsNoTracking()
+            .Include(s => s.Misiones)
+            .Include(s => s.Equipos)
+            .Include(s => s.Participantes)
+            .AsQueryable();
 
         if (estado.HasValue)
             consulta = consulta.Where(s => s.Estado == estado.Value);
+
+        if (operadorCreadorId.HasValue)
+            consulta = consulta.Where(s => s.OperadorCreadorId == operadorCreadorId.Value);
 
         var modelos = await consulta
             .OrderByDescending(s => s.FechaProgramada)
@@ -78,6 +97,7 @@ public sealed class RepositorioSesiones : IRepositorioSesiones
     {
         var modelos = await _contexto.Sesiones
             .AsNoTracking()
+            .Include(s => s.Misiones)
             .Where(s => s.Estado == EstadoSesion.Programada
                         && s.FechaProgramada <= fechaActualUtc)
             .OrderBy(s => s.FechaProgramada)
@@ -86,18 +106,17 @@ public sealed class RepositorioSesiones : IRepositorioSesiones
         return modelos.Select(SesionesMapeador.HaciaDominio).ToList();
     }
 
-    public Task<bool> ExisteSesionVigentePorContenidoAsync(
-        TipoJuego tipoJuego, Guid contenidoJuegoId, CancellationToken cancelacion)
+    public Task<bool> ExisteSesionVigentePorMisionAsync(
+        Guid misionId, CancellationToken cancelacion)
     {
-        // AnyAsync genera "SELECT 1 ... LIMIT 1": no materializa filas
-        // ni cuenta totales, sólo informa existencia. EstadosVigentes
-        // se traduce a un IN (...) en PostgreSQL.
-        return _contexto.Sesiones
+        return _contexto.SesionMisiones
             .AsNoTracking()
-            .AnyAsync(s =>
-                s.TipoJuego == tipoJuego &&
-                s.ContenidoJuegoId == contenidoJuegoId &&
-                EstadosVigentes.Contains(s.Estado),
+            .AnyAsync(sm => sm.MisionId == misionId
+                            && EstadosVigentes.Contains(
+                                _contexto.Sesiones
+                                    .Where(s => s.Id == sm.SesionId)
+                                    .Select(s => s.Estado)
+                                    .FirstOrDefault()),
                 cancelacion);
     }
 }

@@ -1,5 +1,5 @@
+using JuegosServicio.Dominio.Abstract;
 using JuegosServicio.Dominio.Excepciones;
-using JuegosServicio.Dominio.Patrones;
 
 namespace JuegosServicio.Dominio.Entidades;
 

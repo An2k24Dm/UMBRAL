@@ -8,9 +8,7 @@ namespace SesionesServicio.Api.Middlewares;
 
 // Centraliza el mapeo Excepción → respuesta HTTP. Las excepciones
 // "esperadas" del dominio/aplicación se traducen a 4xx con un cuerpo
-// { codigo, mensaje[, errores] } consistente con el resto de los
-// microservicios del proyecto. Cualquier excepción no controlada se
-// reduce a un 500 con cuerpo genérico para no filtrar internos.
+// { codigo, mensaje[, errores] } consistente con el resto del proyecto.
 public sealed class ManejadorErroresMiddleware
 {
     private static readonly JsonSerializerOptions OpcionesJson = new()
@@ -47,15 +45,30 @@ public sealed class ManejadorErroresMiddleware
         {
             await EscribirCodigoAsync(contexto, HttpStatusCode.BadRequest, "SESION_INVALIDA", ex.Message);
         }
-        catch (ContenidoJuegoNoEncontradoExcepcion ex)
+        catch (MisionNoEncontradaExcepcion ex)
         {
             await EscribirCodigoAsync(contexto, HttpStatusCode.NotFound,
-                "CONTENIDO_NO_ENCONTRADO", ex.Message);
+                "MISION_NO_ENCONTRADA", ex.Message);
         }
-        catch (ContenidoJuegoNoActivoExcepcion ex)
+        catch (MisionNoActivaExcepcion ex)
         {
             await EscribirCodigoAsync(contexto, HttpStatusCode.Conflict,
-                "CONTENIDO_NO_ACTIVO", ex.Message);
+                "MISION_NO_ACTIVA", ex.Message);
+        }
+        catch (MisionSinEtapasExcepcion ex)
+        {
+            await EscribirCodigoAsync(contexto, HttpStatusCode.Conflict,
+                "MISION_SIN_ETAPAS", ex.Message);
+        }
+        catch (EquipoInvalidoExcepcion ex)
+        {
+            await EscribirCodigoAsync(contexto, HttpStatusCode.Conflict,
+                "EQUIPO_INVALIDO", ex.Message);
+        }
+        catch (ParticipacionInvalidaExcepcion ex)
+        {
+            await EscribirCodigoAsync(contexto, HttpStatusCode.Conflict,
+                "PARTICIPACION_INVALIDA", ex.Message);
         }
         catch (UsuarioNoAutorizadoCrearSesionExcepcion ex)
         {
@@ -72,10 +85,10 @@ public sealed class ManejadorErroresMiddleware
             await EscribirCodigoAsync(contexto, HttpStatusCode.Forbidden,
                 "ACCESO_SESION_NO_PERMITIDO", ex.Message);
         }
-        catch (ContenidoSesionNoDisponibleExcepcion ex)
+        catch (TransicionEstadoSesionInvalidaExcepcion ex)
         {
             await EscribirCodigoAsync(contexto, HttpStatusCode.Conflict,
-                "CONTENIDO_SESION_NO_DISPONIBLE", ex.Message);
+                "TRANSICION_INVALIDA", ex.Message);
         }
         catch (JsonException ex)
         {

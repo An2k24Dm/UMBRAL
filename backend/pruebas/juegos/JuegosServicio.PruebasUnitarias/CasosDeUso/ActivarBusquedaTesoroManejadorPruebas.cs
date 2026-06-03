@@ -15,8 +15,33 @@ public class ActivarBusquedaTesoroManejadorPruebas
 
     private ActivarBusquedaTesoroManejador CrearManejador() => new(_repositorio.Object);
 
-    private static BusquedaTesoro BusquedaInactiva() =>
-        BusquedaTesoro.Crear("Búsqueda Test", "Descripción", Guid.NewGuid(), FechaFija);
+    // Búsqueda Inactiva con al menos una pista: la nueva regla del
+    // ERS exige una pista antes de activar.
+    private static BusquedaTesoro BusquedaInactiva()
+    {
+        var busqueda = BusquedaTesoro.Crear("Búsqueda Test", "Descripción", Guid.NewGuid(), FechaFija);
+        busqueda.AgregarPista("Pista única");
+        return busqueda;
+    }
+
+    [Fact]
+    public async Task Handle_BusquedaSinPistas_LanzaExcepcionDominio_YNoActiva()
+    {
+        var busqueda = BusquedaTesoro.Crear("Sin pistas", "Descripción", Guid.NewGuid(), FechaFija);
+        _repositorio
+            .Setup(r => r.ObtenerBusquedaPorIdAsync(busqueda.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(busqueda);
+
+        var accion = async () => await CrearManejador().Handle(
+            new ActivarBusquedaTesoroComando(busqueda.Id, Guid.NewGuid()), CancellationToken.None);
+
+        await accion.Should()
+            .ThrowAsync<ExcepcionDominio>()
+            .WithMessage("La búsqueda del tesoro debe tener al menos una pista para poder activarse.");
+        _repositorio.Verify(
+            r => r.ActivarBusquedaTesoroAsync(It.IsAny<BusquedaTesoro>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
 
     public ActivarBusquedaTesoroManejadorPruebas()
     {

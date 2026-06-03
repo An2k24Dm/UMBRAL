@@ -1,21 +1,17 @@
 using SesionesServicio.Aplicacion.CasosDeUso.Comandos;
 using SesionesServicio.Dominio.Enums;
+using SesionesServicio.Dominio.Politicas;
 
 namespace SesionesServicio.Aplicacion.Validaciones;
 
-// HU33 — valida exclusivamente el contenido del DTO. Las reglas que
-// requieren acceso a sistemas externos (existencia y estado del
-// contenido, identidad/rol del usuario actual) viven en el manejador
-// porque dependen de puertos inyectados.
-//
-// HU34 — la regla "FechaProgramada debe ser futura" NO vive aquí. Es
-// una política de dominio (PoliticaProgramacionSesion); el manejador
-// la invoca con la hora actual obtenida de IProveedorFechaHora. Acá
-// sólo verificamos que el campo venga informado (no `default`).
+// Valida el DTO de creación de sesión. Reglas que dependen de sistemas
+// externos (existencia de misión, rol del usuario, fecha futura via
+// política) viven en el manejador.
 public sealed class ValidadorCrearSesion : ValidadorBase<CrearSesionComando>
 {
     private const int LongitudMinimaNombre = 3;
     private const int LongitudMaximaNombre = 150;
+    private const int LongitudMaximaDescripcion = 1000;
 
     protected override void ValidarSolicitud(
         CrearSesionComando comando, ResultadoValidacion resultado)
@@ -37,24 +33,43 @@ public sealed class ValidadorCrearSesion : ValidadorBase<CrearSesionComando>
                     $"El nombre debe tener entre {LongitudMinimaNombre} y {LongitudMaximaNombre} caracteres.");
         }
 
-        if (!Enum.TryParse<TipoJuego>(dto.TipoJuego, ignoreCase: true, out var tipoJuegoParseado)
-            || !Enum.IsDefined(typeof(TipoJuego), tipoJuegoParseado))
+        if (string.IsNullOrWhiteSpace(dto.Descripcion))
+            resultado.Agregar("descripcion", "La descripción es obligatoria.");
+        else if (dto.Descripcion.Trim().Length > LongitudMaximaDescripcion)
             resultado.Agregar(
-                "tipoJuego",
-                "El tipo de juego es obligatorio y debe ser Trivia o BusquedaTesoro.");
-
-        if (dto.ContenidoJuegoId == Guid.Empty)
-            resultado.Agregar("contenidoJuegoId", "Debe indicarse el contenido del juego.");
+                "descripcion",
+                $"La descripción no puede superar los {LongitudMaximaDescripcion} caracteres.");
 
         if (!Enum.TryParse<ModoSesion>(dto.Modo, ignoreCase: true, out var modoParseado)
             || !Enum.IsDefined(typeof(ModoSesion), modoParseado))
             resultado.Agregar(
                 "modo",
-                "El modo es obligatorio y debe ser Individual o Grupo.");
+                "El modo es obligatorio y debe ser Individual o Grupal.");
 
         if (dto.FechaProgramada == default)
             resultado.Agregar(
                 "fechaProgramada",
                 "La fecha programada es obligatoria.");
+
+        var misiones = dto.MisionesIds ?? new List<Guid>();
+        if (misiones.Count < PoliticaCapacidadSesion.MinimoMisionesPorSesion)
+        {
+            resultado.Agregar(
+                "misionesIds",
+                $"Debe seleccionar al menos {PoliticaCapacidadSesion.MinimoMisionesPorSesion} misión.");
+        }
+        else if (misiones.Count > PoliticaCapacidadSesion.MaximoMisionesPorSesion)
+        {
+            resultado.Agregar(
+                "misionesIds",
+                $"No puede seleccionar más de {PoliticaCapacidadSesion.MaximoMisionesPorSesion} misiones.");
+        }
+        else
+        {
+            if (misiones.Any(id => id == Guid.Empty))
+                resultado.Agregar("misionesIds", "Hay misiones con identificador vacío.");
+            if (misiones.Distinct().Count() != misiones.Count)
+                resultado.Agregar("misionesIds", "No se pueden repetir misiones.");
+        }
     }
 }

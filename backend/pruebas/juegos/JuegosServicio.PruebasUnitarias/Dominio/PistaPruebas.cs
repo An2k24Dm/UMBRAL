@@ -56,15 +56,16 @@ public class PistaPruebas
     }
 
     [Fact]
-    public void AgregarPista_BusquedaActiva_PermiteAgregarPista()
+    public void AgregarPista_BusquedaActiva_LanzaExcepcionDominio()
     {
+        // Cambio de regla: una búsqueda activa no acepta pistas nuevas.
         var busqueda = BusquedaInactiva();
+        busqueda.AgregarPista("Pista inicial que habilita activar.");
         busqueda.Activar();
 
-        var pista = busqueda.AgregarPista("Mira cerca de la fuente.");
+        Action accion = () => busqueda.AgregarPista("Mira cerca de la fuente.");
 
-        pista.Id.Should().NotBe(Guid.Empty);
-        busqueda.Pistas.Should().HaveCount(1);
+        accion.Should().Throw<ExcepcionDominio>();
     }
 
     [Fact]

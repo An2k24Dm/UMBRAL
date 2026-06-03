@@ -195,6 +195,13 @@ export function PaginaGestionMision() {
           </div>
         </div>
 
+        {!esInactiva && (
+          <div className="ayuda-modo-sesion" role="note">
+            <span className="ayuda-modo-sesion-icono" aria-hidden="true">ⓘ</span>
+            <span>La misión está activa y no puede modificarse.</span>
+          </div>
+        )}
+
         {errorCarga && <Alerta tono="error">{errorCarga}</Alerta>}
         {errorActivacion && <Alerta tono="error">{errorActivacion}</Alerta>}
 

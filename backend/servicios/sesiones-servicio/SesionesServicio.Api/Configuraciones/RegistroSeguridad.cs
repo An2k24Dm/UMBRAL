@@ -32,9 +32,6 @@ public static class RegistroSeguridad
                 {
                     OnTokenValidated = ctx =>
                     {
-                        // Aplana realm_access.roles a claims 'roles' para
-                        // que [Authorize(Roles=...)] y IUsuarioActual.Roles
-                        // funcionen.
                         if (ctx.Principal?.Identity is System.Security.Claims.ClaimsIdentity identidad)
                         {
                             var realm = ctx.Principal.FindFirst("realm_access")?.Value;
@@ -54,6 +51,29 @@ public static class RegistroSeguridad
                             }
                         }
                         return Task.CompletedTask;
+                    },
+                    OnForbidden = async ctx =>
+                    {
+                        ctx.Response.StatusCode = StatusCodes.Status403Forbidden;
+                        ctx.Response.ContentType = "application/json";
+                        var cuerpo = System.Text.Json.JsonSerializer.Serialize(new
+                        {
+                            codigo = "ACCESO_DENEGADO",
+                            mensaje = "No tienes permisos para realizar esta acción."
+                        });
+                        await ctx.Response.WriteAsync(cuerpo);
+                    },
+                    OnChallenge = async ctx =>
+                    {
+                        ctx.HandleResponse();
+                        ctx.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                        ctx.Response.ContentType = "application/json";
+                        var cuerpo = System.Text.Json.JsonSerializer.Serialize(new
+                        {
+                            codigo = "NO_AUTENTICADO",
+                            mensaje = "Debe iniciar sesión para realizar esta acción."
+                        });
+                        await ctx.Response.WriteAsync(cuerpo);
                     }
                 };
             });
@@ -62,6 +82,10 @@ public static class RegistroSeguridad
         {
             opcAuth.AddPolicy("PoliticaAdministradorUOperador",
                 p => p.RequireRole("Administrador", "Operador"));
+            opcAuth.AddPolicy("PoliticaSoloOperador",
+                p => p.RequireRole("Operador"));
+            opcAuth.AddPolicy("PoliticaSoloAdministrador",
+                p => p.RequireRole("Administrador"));
         });
 
         return servicios;

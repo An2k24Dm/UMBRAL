@@ -1,7 +1,7 @@
+using JuegosServicio.Dominio.Abstract;
 using JuegosServicio.Dominio.Estados;
 using JuegosServicio.Dominio.Eventos;
 using JuegosServicio.Dominio.Excepciones;
-using JuegosServicio.Dominio.Patrones;
 
 namespace JuegosServicio.Dominio.Entidades;
 
@@ -63,10 +63,9 @@ public sealed class BusquedaTesoro : IComponenteJuego
         return busqueda;
     }
 
-    // Las pistas se pueden agregar en cualquier estado para liberarlas
-    // en tiempo real durante la sesión.
     public Pista AgregarPista(string contenido)
     {
+        _estado.ValidarEdicion("agregar pistas");
         var pista = Pista.Crear(Id, contenido);
         _pistas.Add(pista);
         return pista;

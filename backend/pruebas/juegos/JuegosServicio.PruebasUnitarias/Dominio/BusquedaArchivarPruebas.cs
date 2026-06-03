@@ -13,6 +13,10 @@ public class BusquedaArchivarPruebas
     private static BusquedaTesoro BusquedaActiva()
     {
         var busqueda = BusquedaTesoro.Crear("Búsqueda Test", "Descripción", Guid.NewGuid(), FechaFija);
+        // Regla nueva: una búsqueda solo puede activarse si tiene al
+        // menos una pista. Las pruebas que necesitan una búsqueda
+        // activa parten de ese fixture.
+        busqueda.AgregarPista("Pista única");
         busqueda.Activar();
         return busqueda;
     }

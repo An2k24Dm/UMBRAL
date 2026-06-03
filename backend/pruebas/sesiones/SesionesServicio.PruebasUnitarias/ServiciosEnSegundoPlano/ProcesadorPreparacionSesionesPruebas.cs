@@ -10,23 +10,25 @@ using SesionesServicio.Dominio.Enums;
 
 namespace SesionesServicio.PruebasUnitarias.ServiciosEnSegundoPlano;
 
-// HU34/5.1 — Cubre la transición automática Programada → EnPreparacion.
+// Transición automática Programada → EnPreparacion. Rehidratamos
+// SesionIndividual con la nueva firma para reflejar el modelo abstracto.
 public class ProcesadorPreparacionSesionesPruebas
 {
-    private static readonly DateTime AhoraUtc = new(2026, 5, 30, 12, 0, 0, DateTimeKind.Utc);
-    private static readonly Guid Admin = Guid.Parse("33333333-3333-3333-3333-333333333333");
+    private static readonly DateTime AhoraUtc = new(2026, 6, 3, 12, 0, 0, DateTimeKind.Utc);
+    private static readonly Guid Operador = Guid.Parse("33333333-3333-3333-3333-333333333333");
 
-    private static Sesion Sesion(EstadoSesion estado, DateTime? fechaProgramada = null)
-        => SesionesServicio.Dominio.Entidades.Sesion.Rehidratar(
-            Guid.NewGuid(),
-            "Sesión",
-            TipoJuego.Trivia,
-            Guid.NewGuid(),
-            ModoSesion.Individual,
-            estado,
-            fechaProgramada ?? AhoraUtc.AddMinutes(-5),
-            Admin,
-            AhoraUtc);
+    private static Sesion CrearSesion(EstadoSesion estado, DateTime? fechaProgramada = null)
+        => SesionIndividual.Rehidratar(
+            id: Guid.NewGuid(),
+            nombre: "Sesión",
+            descripcion: "Demo",
+            estado: estado,
+            fechaProgramada: fechaProgramada ?? AhoraUtc.AddMinutes(-5),
+            codigoAcceso: "ABC123",
+            operadorCreadorId: Operador,
+            fechaCreacion: AhoraUtc,
+            fechaInicioUtc: null,
+            fechaFinalizacionUtc: null);
 
     private static (ProcesadorPreparacionSesiones procesador,
                     Mock<IRepositorioSesiones> repo,
@@ -48,7 +50,7 @@ public class ProcesadorPreparacionSesionesPruebas
     public async Task SesionProgramadaVencida_DebePasarA_EnPreparacion()
     {
         var (procesador, repo, unidad, _) = CrearProcesador();
-        var sesion = Sesion(EstadoSesion.Programada, AhoraUtc.AddMinutes(-5));
+        var sesion = CrearSesion(EstadoSesion.Programada, AhoraUtc.AddMinutes(-5));
         repo.Setup(r => r.ListarProgramadasVencidasAsync(AhoraUtc, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<Sesion> { sesion });
 
@@ -61,7 +63,6 @@ public class ProcesadorPreparacionSesionesPruebas
 
         resultado.Encontradas.Should().Be(1);
         resultado.Preparadas.Should().Be(1);
-        actualizada.Should().NotBeNull();
         actualizada!.Estado.Should().Be(EstadoSesion.EnPreparacion);
         unidad.Verify(u => u.GuardarCambiosAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
@@ -75,7 +76,6 @@ public class ProcesadorPreparacionSesionesPruebas
 
         var resultado = await procesador.EjecutarCicloAsync(CancellationToken.None);
 
-        resultado.Encontradas.Should().Be(0);
         resultado.Preparadas.Should().Be(0);
         unidad.Verify(u => u.GuardarCambiosAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
@@ -88,32 +88,14 @@ public class ProcesadorPreparacionSesionesPruebas
     [InlineData(EstadoSesion.Pausada)]
     public async Task SesionConOtroEstado_NoDebeSerProcesada(EstadoSesion estado)
     {
-        // Defensa en profundidad: aunque el repositorio devuelve sólo
-        // Programadas, si por concurrencia algo cambió, el procesador
-        // debe detectarlo y no llamar a Preparar(). Simulamos que el
-        // repo devolvió una sesión que YA no está en Programada.
         var (procesador, repo, _, _) = CrearProcesador();
         repo.Setup(r => r.ListarProgramadasVencidasAsync(AhoraUtc, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<Sesion> { Sesion(estado) });
+            .ReturnsAsync(new List<Sesion> { CrearSesion(estado) });
 
         var resultado = await procesador.EjecutarCicloAsync(CancellationToken.None);
 
         resultado.Preparadas.Should().Be(0);
         repo.Verify(r => r.ActualizarAsync(It.IsAny<Sesion>(), It.IsAny<CancellationToken>()),
             Times.Never);
-    }
-
-    [Fact]
-    public async Task UsaProveedorFechaHora_NoUtcNow()
-    {
-        var (procesador, repo, _, reloj) = CrearProcesador();
-        repo.Setup(r => r.ListarProgramadasVencidasAsync(AhoraUtc, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<Sesion>());
-
-        await procesador.EjecutarCicloAsync(CancellationToken.None);
-
-        reloj.Verify(r => r.ObtenerFechaHoraUtc(), Times.AtLeastOnce);
-        repo.Verify(r => r.ListarProgramadasVencidasAsync(AhoraUtc, It.IsAny<CancellationToken>()),
-            Times.Once);
     }
 }

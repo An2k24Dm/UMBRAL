@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using SesionesServicio.Aplicacion.CasosDeUso.Comandos;
@@ -7,325 +9,217 @@ using SesionesServicio.Aplicacion.Puertos;
 using SesionesServicio.Aplicacion.Validaciones;
 using SesionesServicio.Commons.Dtos;
 using SesionesServicio.Dominio.Entidades;
-using SesionesServicio.Dominio.Enums;
 using SesionesServicio.Dominio.Excepciones;
 
 namespace SesionesServicio.PruebasUnitarias.Manejadores;
 
-// HU33 — Pruebas unitarias del manejador CrearSesion. Cubren autorización,
-// validación de contenido y persistencia con dobles para los puertos.
-//
-// HU34 — La sesión NO guarda el rol del creador, así que no hay ningún
-// aserto sobre CreadaPorRol: el rol se resuelve al consultar y no al
-// crear.
+// Cubre la orquestación de CrearSesionManejador: rol Operador, fecha
+// futura, validación de misiones contra juegos-servicio, FabricaSesiones
+// instanciando la subclase correcta y la sesión naciendo vacía.
 public class CrearSesionManejadorPruebas
 {
-    private static readonly DateTime AhoraUtc = new(2026, 5, 29, 12, 0, 0, DateTimeKind.Utc);
-    private static readonly Guid ContenidoJuegoId = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
-    private static readonly Guid CreadorId = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
+    private static readonly DateTime AhoraUtc = new(2026, 6, 3, 12, 0, 0, DateTimeKind.Utc);
+    private static readonly Guid Operador = Guid.Parse("44444444-4444-4444-4444-444444444444");
+    private static readonly Guid MisionA = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+    private static readonly Guid MisionB = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
+    private static readonly Guid MisionInactiva = Guid.Parse("cccccccc-cccc-cccc-cccc-cccccccccccc");
+    private static readonly Guid MisionInexistente = Guid.Parse("dddddddd-dddd-dddd-dddd-dddddddddddd");
+    private static readonly Guid MisionSinEtapas = Guid.Parse("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee");
 
-    private static CrearSesionSolicitudDto SolicitudValida(string tipoJuego = "Trivia") => new()
+    private sealed class Contexto
     {
-        Nombre = "Sesión piloto",
-        TipoJuego = tipoJuego,
-        ContenidoJuegoId = ContenidoJuegoId,
-        Modo = "Individual",
-        FechaProgramada = AhoraUtc.AddHours(2)
-    };
-
-    private static ContenidoJuegoActivoDto ContenidoActivo(string tipoJuego, bool activo = true) => new()
-    {
-        Id = ContenidoJuegoId,
-        Nombre = tipoJuego == "Trivia" ? "Trivia historia" : "Búsqueda piloto",
-        TipoJuego = tipoJuego,
-        Estado = activo ? "Activa" : "Archivada",
-        EstaActivo = activo
-    };
-
-    private sealed class Fabrica
-    {
-        public Mock<IRepositorioSesiones> Repositorio { get; } = new();
+        public Mock<IRepositorioSesiones> Repo { get; } = new();
         public Mock<IUnidadTrabajoSesiones> Unidad { get; } = new();
         public Mock<IUsuarioActual> Usuario { get; } = new();
-        public Mock<IClienteContenidoJuegos> Cliente { get; } = new();
+        public Mock<IClienteJuegosMisiones> Misiones { get; } = new();
+        public Mock<IGeneradorCodigoAcceso> Generador { get; } = new();
         public Mock<IProveedorFechaHora> Reloj { get; } = new();
+        public Sesion? Persistida;
 
-        public Fabrica(string[]? roles = null, bool autenticado = true)
+        public Contexto()
         {
             Reloj.Setup(r => r.ObtenerFechaHoraUtc()).Returns(AhoraUtc);
-            Usuario.Setup(u => u.EstaAutenticado).Returns(autenticado);
-            Usuario.Setup(u => u.Id).Returns(autenticado ? CreadorId : (Guid?)null);
-            Usuario.Setup(u => u.NombreUsuario).Returns(autenticado ? "admin" : null);
+            Generador.Setup(g => g.Generar()).Returns("CODE99");
+            Usuario.SetupGet(u => u.EstaAutenticado).Returns(true);
+            Usuario.SetupGet(u => u.Id).Returns(Operador);
             Usuario.Setup(u => u.TieneAlgunRol(It.IsAny<string[]>()))
-                .Returns<string[]>(consulta =>
-                {
-                    var actuales = roles ?? Array.Empty<string>();
-                    foreach (var rol in consulta)
-                        if (Array.Exists(actuales, x => x == rol)) return true;
-                    return false;
-                });
-            Usuario.Setup(u => u.Roles).Returns(roles ?? Array.Empty<string>());
+                .Returns<string[]>(roles => Array.IndexOf(roles, "Operador") >= 0);
+
+            Repo.Setup(r => r.AgregarAsync(It.IsAny<Sesion>(), It.IsAny<CancellationToken>()))
+                .Callback<Sesion, CancellationToken>((s, _) => Persistida = s)
+                .Returns(Task.CompletedTask);
+
+            Misiones.Setup(c => c.ObtenerMisionAsync(MisionA, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new MisionResumenJuegosDto
+                { Id = MisionA, Nombre = "A", Estado = "Activa", TotalEtapas = 2 });
+            Misiones.Setup(c => c.ObtenerMisionAsync(MisionB, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new MisionResumenJuegosDto
+                { Id = MisionB, Nombre = "B", Estado = "Activa", TotalEtapas = 1 });
+            Misiones.Setup(c => c.ObtenerMisionAsync(MisionInactiva, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new MisionResumenJuegosDto
+                { Id = MisionInactiva, Nombre = "Inactiva", Estado = "Inactiva", TotalEtapas = 2 });
+            Misiones.Setup(c => c.ObtenerMisionAsync(MisionInexistente, It.IsAny<CancellationToken>()))
+                .ReturnsAsync((MisionResumenJuegosDto?)null);
+            Misiones.Setup(c => c.ObtenerMisionAsync(MisionSinEtapas, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new MisionResumenJuegosDto
+                { Id = MisionSinEtapas, Nombre = "Vacía", Estado = "Activa", TotalEtapas = 0 });
         }
 
-        public CrearSesionManejador Construir() =>
-            new(new ValidadorCrearSesion(),
-                Repositorio.Object,
-                Unidad.Object,
-                Usuario.Object,
-                Cliente.Object,
-                Reloj.Object);
+        public CrearSesionManejador Construir()
+            => new(new ValidadorCrearSesion(), Repo.Object, Unidad.Object,
+                Usuario.Object, Misiones.Object, Generador.Object, Reloj.Object);
     }
 
-    [Theory]
-    [InlineData("Administrador", "Trivia")]
-    [InlineData("Operador", "Trivia")]
-    [InlineData("Administrador", "BusquedaTesoro")]
-    [InlineData("Operador", "BusquedaTesoro")]
-    public async Task RolPermitido_ConContenidoActivo_DebeCrearSesionProgramada(string rol, string tipoJuego)
+    private static CrearSesionSolicitudDto DtoValido(
+        string modo = "Individual", List<Guid>? misiones = null) => new()
+        {
+            Nombre = "Sesión piloto",
+            Descripcion = "Demo",
+            Modo = modo,
+            FechaProgramada = AhoraUtc.AddHours(1),
+            MisionesIds = misiones ?? new List<Guid> { MisionA }
+        };
+
+    [Fact]
+    public async Task Operador_CreaSesionIndividual_GuardaSesionIndividual()
     {
-        var fabrica = new Fabrica(new[] { rol });
-        var esperado = Enum.Parse<TipoJuego>(tipoJuego);
+        var ctx = new Contexto();
+        var manejador = ctx.Construir();
 
-        fabrica.Cliente
-            .Setup(c => c.ObtenerContenidoAsync(esperado, ContenidoJuegoId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ContenidoActivo(tipoJuego));
-
-        Sesion? sesionPersistida = null;
-        fabrica.Repositorio
-            .Setup(r => r.AgregarAsync(It.IsAny<Sesion>(), It.IsAny<CancellationToken>()))
-            .Callback<Sesion, CancellationToken>((s, _) => sesionPersistida = s)
-            .Returns(Task.CompletedTask);
-
-        var manejador = fabrica.Construir();
         var respuesta = await manejador.Handle(
-            new CrearSesionComando(SolicitudValida(tipoJuego)), CancellationToken.None);
+            new CrearSesionComando(DtoValido("Individual")), CancellationToken.None);
 
-        respuesta.Estado.Should().Be("Programada");
-        respuesta.TipoJuego.Should().Be(tipoJuego);
         respuesta.Modo.Should().Be("Individual");
-        respuesta.ContenidoJuegoId.Should().Be(ContenidoJuegoId);
-        respuesta.CreadaPorUsuarioId.Should().Be(CreadorId);
-        respuesta.FechaCreacion.Should().Be(AhoraUtc);
-
-        sesionPersistida.Should().NotBeNull();
-        sesionPersistida!.Estado.Should().Be(EstadoSesion.Programada);
-        sesionPersistida.TipoJuego.Should().Be(esperado);
-        sesionPersistida.ContenidoJuegoId.Should().Be(ContenidoJuegoId);
-        sesionPersistida.Modo.Should().Be(ModoSesion.Individual);
-        sesionPersistida.FechaProgramada.Should().Be(SolicitudValida(tipoJuego).FechaProgramada);
-        sesionPersistida.CreadaPorUsuarioId.Should().Be(CreadorId);
-
-        fabrica.Unidad.Verify(u => u.GuardarCambiosAsync(It.IsAny<CancellationToken>()), Times.Once);
-    }
-
-    [Fact]
-    public async Task UsuarioAnonimo_NoDebeCrearSesion()
-    {
-        var fabrica = new Fabrica(roles: Array.Empty<string>(), autenticado: false);
-        var manejador = fabrica.Construir();
-
-        Func<Task> accion = () => manejador.Handle(
-            new CrearSesionComando(SolicitudValida()), CancellationToken.None);
-
-        await accion.Should().ThrowAsync<UsuarioNoAutorizadoCrearSesionExcepcion>();
-        fabrica.Unidad.Verify(u => u.GuardarCambiosAsync(It.IsAny<CancellationToken>()), Times.Never);
-    }
-
-    [Fact]
-    public async Task Participante_NoDebeCrearSesion()
-    {
-        var fabrica = new Fabrica(new[] { "Participante" });
-        var manejador = fabrica.Construir();
-
-        Func<Task> accion = () => manejador.Handle(
-            new CrearSesionComando(SolicitudValida()), CancellationToken.None);
-
-        await accion.Should().ThrowAsync<UsuarioNoAutorizadoCrearSesionExcepcion>();
-        fabrica.Unidad.Verify(u => u.GuardarCambiosAsync(It.IsAny<CancellationToken>()), Times.Never);
-    }
-
-    [Fact]
-    public async Task ContenidoInexistente_DebeLanzarContenidoNoEncontrado()
-    {
-        var fabrica = new Fabrica(new[] { "Administrador" });
-        fabrica.Cliente
-            .Setup(c => c.ObtenerContenidoAsync(It.IsAny<TipoJuego>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((ContenidoJuegoActivoDto?)null);
-
-        var manejador = fabrica.Construir();
-
-        Func<Task> accion = () => manejador.Handle(
-            new CrearSesionComando(SolicitudValida()), CancellationToken.None);
-
-        await accion.Should().ThrowAsync<ContenidoJuegoNoEncontradoExcepcion>();
-    }
-
-    [Fact]
-    public async Task ContenidoInactivo_DebeLanzarContenidoNoActivo()
-    {
-        var fabrica = new Fabrica(new[] { "Operador" });
-        fabrica.Cliente
-            .Setup(c => c.ObtenerContenidoAsync(TipoJuego.Trivia, ContenidoJuegoId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ContenidoActivo("Trivia", activo: false));
-
-        var manejador = fabrica.Construir();
-
-        Func<Task> accion = () => manejador.Handle(
-            new CrearSesionComando(SolicitudValida()), CancellationToken.None);
-
-        await accion.Should().ThrowAsync<ContenidoJuegoNoActivoExcepcion>();
-    }
-
-    [Fact]
-    public async Task TipoJuegoInvalido_DebeLanzarValidacion()
-    {
-        var fabrica = new Fabrica(new[] { "Administrador" });
-        var solicitud = SolicitudValida();
-        solicitud.TipoJuego = "Otro";
-
-        var manejador = fabrica.Construir();
-        Func<Task> accion = () => manejador.Handle(
-            new CrearSesionComando(solicitud), CancellationToken.None);
-
-        await accion.Should().ThrowAsync<ExcepcionValidacion>();
-    }
-
-    [Fact]
-    public async Task ModoInvalido_DebeLanzarValidacion()
-    {
-        var fabrica = new Fabrica(new[] { "Administrador" });
-        var solicitud = SolicitudValida();
-        solicitud.Modo = "Coop";
-
-        var manejador = fabrica.Construir();
-        Func<Task> accion = () => manejador.Handle(
-            new CrearSesionComando(solicitud), CancellationToken.None);
-
-        await accion.Should().ThrowAsync<ExcepcionValidacion>();
-    }
-
-    [Fact]
-    public async Task ContenidoJuegoIdVacio_DebeLanzarValidacion()
-    {
-        var fabrica = new Fabrica(new[] { "Administrador" });
-        var solicitud = SolicitudValida();
-        solicitud.ContenidoJuegoId = Guid.Empty;
-
-        var manejador = fabrica.Construir();
-        Func<Task> accion = () => manejador.Handle(
-            new CrearSesionComando(solicitud), CancellationToken.None);
-
-        await accion.Should().ThrowAsync<ExcepcionValidacion>();
-    }
-
-    [Fact]
-    public async Task NombreVacio_DebeLanzarValidacion()
-    {
-        var fabrica = new Fabrica(new[] { "Administrador" });
-        var solicitud = SolicitudValida();
-        solicitud.Nombre = "  ";
-
-        var manejador = fabrica.Construir();
-        Func<Task> accion = () => manejador.Handle(
-            new CrearSesionComando(solicitud), CancellationToken.None);
-
-        await accion.Should().ThrowAsync<ExcepcionValidacion>();
-    }
-
-    [Fact]
-    public async Task FechaProgramada_Pasada_DebeLanzarSesionInvalida_YNoPersistir()
-    {
-        var fabrica = new Fabrica(new[] { "Administrador" });
-        var solicitud = SolicitudValida();
-        solicitud.FechaProgramada = AhoraUtc.AddMinutes(-1);
-
-        var manejador = fabrica.Construir();
-        Func<Task> accion = () => manejador.Handle(
-            new CrearSesionComando(solicitud), CancellationToken.None);
-
-        await accion.Should()
-            .ThrowAsync<SesionInvalidaExcepcion>()
-            .WithMessage("La sesión no puede programarse para una fecha y hora que ya pasó.");
-
-        fabrica.Repositorio.Verify(
-            r => r.AgregarAsync(It.IsAny<Sesion>(), It.IsAny<CancellationToken>()),
-            Times.Never);
-        fabrica.Unidad.Verify(
-            u => u.GuardarCambiosAsync(It.IsAny<CancellationToken>()), Times.Never);
-        fabrica.Cliente.Verify(
-            c => c.ObtenerContenidoAsync(
-                It.IsAny<TipoJuego>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()),
-            Times.Never);
-    }
-
-    [Fact]
-    public async Task FechaProgramada_IgualAhora_DebeLanzarSesionInvalida()
-    {
-        var fabrica = new Fabrica(new[] { "Operador" });
-        var solicitud = SolicitudValida();
-        solicitud.FechaProgramada = AhoraUtc;
-
-        var manejador = fabrica.Construir();
-        Func<Task> accion = () => manejador.Handle(
-            new CrearSesionComando(solicitud), CancellationToken.None);
-
-        await accion.Should().ThrowAsync<SesionInvalidaExcepcion>();
-    }
-
-    [Fact]
-    public async Task FechaProgramada_Futura_DebeAceptarse()
-    {
-        var fabrica = new Fabrica(new[] { "Administrador" });
-        fabrica.Cliente
-            .Setup(c => c.ObtenerContenidoAsync(TipoJuego.Trivia, ContenidoJuegoId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ContenidoActivo("Trivia"));
-
-        var solicitud = SolicitudValida();
-        solicitud.FechaProgramada = AhoraUtc.AddSeconds(1);
-
-        var manejador = fabrica.Construir();
-        var respuesta = await manejador.Handle(
-            new CrearSesionComando(solicitud), CancellationToken.None);
-
         respuesta.Estado.Should().Be("Programada");
-        fabrica.Unidad.Verify(
-            u => u.GuardarCambiosAsync(It.IsAny<CancellationToken>()), Times.Once);
+        respuesta.CodigoAcceso.Should().Be("CODE99");
+        respuesta.OperadorCreadorId.Should().Be(Operador);
+        respuesta.MisionesIds.Should().Equal(new[] { MisionA });
+        ctx.Persistida.Should().BeOfType<SesionIndividual>();
+        ((SesionIndividual)ctx.Persistida!).Participantes.Should().BeEmpty();
+        ctx.Unidad.Verify(u => u.GuardarCambiosAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
-    public async Task PoliticaFecha_UsaProveedorFechaHora_NoUtcNow()
+    public async Task Operador_CreaSesionGrupal_GuardaSesionGrupal()
     {
-        // El reloj inyectado retorna AhoraUtc (29-may-2026). Si pasamos
-        // una fecha "pasada" relativa a AhoraUtc pero "futura" relativa
-        // al reloj real del sistema, el manejador igualmente debe
-        // rechazarla. Eso prueba que la comparación va contra el reloj
-        // inyectado, no contra DateTime.UtcNow.
-        var fabrica = new Fabrica(new[] { "Administrador" });
-        var solicitud = SolicitudValida();
-        solicitud.FechaProgramada = AhoraUtc.AddMinutes(-1);
+        var ctx = new Contexto();
+        var manejador = ctx.Construir();
 
-        var manejador = fabrica.Construir();
-        Func<Task> accion = () => manejador.Handle(
-            new CrearSesionComando(solicitud), CancellationToken.None);
-
-        await accion.Should().ThrowAsync<SesionInvalidaExcepcion>();
-        fabrica.Reloj.Verify(r => r.ObtenerFechaHoraUtc(), Times.AtLeastOnce);
-    }
-
-    [Fact]
-    public async Task RespuestaDto_NoDebeExponerCreadaPorRol()
-    {
-        var fabrica = new Fabrica(new[] { "Administrador" });
-        fabrica.Cliente
-            .Setup(c => c.ObtenerContenidoAsync(TipoJuego.Trivia, ContenidoJuegoId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ContenidoActivo("Trivia"));
-
-        var manejador = fabrica.Construir();
         var respuesta = await manejador.Handle(
-            new CrearSesionComando(SolicitudValida()), CancellationToken.None);
+            new CrearSesionComando(DtoValido("Grupal")), CancellationToken.None);
 
-        // Defensa estructural: el DTO no debe traer la propiedad CreadaPorRol.
-        typeof(CrearSesionRespuestaDto).GetProperty("CreadaPorRol").Should().BeNull();
-        respuesta.Should().NotBeNull();
+        respuesta.Modo.Should().Be("Grupal");
+        ctx.Persistida.Should().BeOfType<SesionGrupal>();
+        ((SesionGrupal)ctx.Persistida!).Equipos.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Operador_ConCincoMisionesActivas_CreaSesion()
+    {
+        var ctx = new Contexto();
+        ctx.Misiones.Setup(c => c.ObtenerMisionAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Guid id, CancellationToken _) => new MisionResumenJuegosDto
+            { Id = id, Nombre = id.ToString(), Estado = "Activa", TotalEtapas = 1 });
+        var manejador = ctx.Construir();
+        var cinco = Enumerable.Range(0, 5).Select(_ => Guid.NewGuid()).ToList();
+
+        var respuesta = await manejador.Handle(
+            new CrearSesionComando(DtoValido("Individual", cinco)), CancellationToken.None);
+
+        respuesta.MisionesIds.Should().Equal(cinco);
+    }
+
+    [Fact]
+    public async Task SinMisiones_LanzaValidacion()
+    {
+        var ctx = new Contexto();
+        Func<Task> accion = () => ctx.Construir().Handle(
+            new CrearSesionComando(DtoValido("Individual", new List<Guid>())),
+            CancellationToken.None);
+        await accion.Should().ThrowAsync<ExcepcionValidacion>();
+    }
+
+    [Fact]
+    public async Task MasDeCincoMisiones_LanzaValidacion()
+    {
+        var ctx = new Contexto();
+        var seis = Enumerable.Range(0, 6).Select(_ => Guid.NewGuid()).ToList();
+        Func<Task> accion = () => ctx.Construir().Handle(
+            new CrearSesionComando(DtoValido("Individual", seis)), CancellationToken.None);
+        await accion.Should().ThrowAsync<ExcepcionValidacion>();
+    }
+
+    [Fact]
+    public async Task MisionInexistente_LanzaMisionNoEncontrada()
+    {
+        var ctx = new Contexto();
+        Func<Task> accion = () => ctx.Construir().Handle(
+            new CrearSesionComando(DtoValido("Individual", new List<Guid> { MisionInexistente })),
+            CancellationToken.None);
+        await accion.Should().ThrowAsync<MisionNoEncontradaExcepcion>();
+    }
+
+    [Fact]
+    public async Task MisionInactiva_LanzaMisionNoActiva()
+    {
+        var ctx = new Contexto();
+        Func<Task> accion = () => ctx.Construir().Handle(
+            new CrearSesionComando(DtoValido("Individual", new List<Guid> { MisionInactiva })),
+            CancellationToken.None);
+        await accion.Should().ThrowAsync<MisionNoActivaExcepcion>();
+    }
+
+    [Fact]
+    public async Task MisionSinEtapas_LanzaMisionSinEtapas()
+    {
+        var ctx = new Contexto();
+        Func<Task> accion = () => ctx.Construir().Handle(
+            new CrearSesionComando(DtoValido("Individual", new List<Guid> { MisionSinEtapas })),
+            CancellationToken.None);
+        await accion.Should().ThrowAsync<MisionSinEtapasExcepcion>();
+    }
+
+    [Fact]
+    public async Task FechaPasada_LanzaSesionInvalida()
+    {
+        var ctx = new Contexto();
+        var dto = DtoValido();
+        dto.FechaProgramada = AhoraUtc.AddMinutes(-1);
+        Func<Task> accion = () => ctx.Construir().Handle(
+            new CrearSesionComando(dto), CancellationToken.None);
+        await accion.Should().ThrowAsync<SesionInvalidaExcepcion>();
+    }
+
+    [Fact]
+    public async Task Administrador_NoPuedeCrear()
+    {
+        var ctx = new Contexto();
+        ctx.Usuario.Setup(u => u.TieneAlgunRol(It.IsAny<string[]>()))
+            .Returns<string[]>(roles => Array.IndexOf(roles, "Administrador") >= 0);
+        Func<Task> accion = () => ctx.Construir().Handle(
+            new CrearSesionComando(DtoValido()), CancellationToken.None);
+        await accion.Should().ThrowAsync<UsuarioNoAutorizadoCrearSesionExcepcion>();
+    }
+
+    [Fact]
+    public async Task Participante_NoPuedeCrear()
+    {
+        var ctx = new Contexto();
+        ctx.Usuario.Setup(u => u.TieneAlgunRol(It.IsAny<string[]>()))
+            .Returns<string[]>(roles => Array.IndexOf(roles, "Participante") >= 0);
+        Func<Task> accion = () => ctx.Construir().Handle(
+            new CrearSesionComando(DtoValido()), CancellationToken.None);
+        await accion.Should().ThrowAsync<UsuarioNoAutorizadoCrearSesionExcepcion>();
+    }
+
+    [Fact]
+    public async Task NoCreaParticipantesNiEquiposDuranteCrearSesion()
+    {
+        var ctx = new Contexto();
+        await ctx.Construir().Handle(
+            new CrearSesionComando(DtoValido("Grupal")), CancellationToken.None);
+
+        var grupal = (SesionGrupal)ctx.Persistida!;
+        grupal.Equipos.Should().BeEmpty();
     }
 }

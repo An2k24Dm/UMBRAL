@@ -69,6 +69,8 @@ public class EliminarBusquedaTesoroManejadorPruebas
     public async Task Handle_BusquedaActiva_LanzaExcepcionDominio()
     {
         var busqueda = BusquedaInactiva();
+        // La regla nueva exige una pista para activar.
+        busqueda.AgregarPista("Pista única");
         busqueda.Activar();
         _repositorio
             .Setup(r => r.ObtenerBusquedaPorIdAsync(busqueda.Id, It.IsAny<CancellationToken>()))

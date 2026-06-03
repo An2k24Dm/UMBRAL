@@ -55,11 +55,13 @@ namespace JuegosServicio.Infraestructura.Persistencia.Migraciones
                         .HasColumnName("nombre");
 
                     b.Property<int>("Puntaje")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
                         .HasDefaultValue(0)
                         .HasColumnName("puntaje");
 
                     b.Property<int>("Tiempo")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
                         .HasDefaultValue(0)
                         .HasColumnName("tiempo");
@@ -149,6 +151,12 @@ namespace JuegosServicio.Infraestructura.Persistencia.Migraciones
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)")
                         .HasColumnName("descripcion");
+
+                    b.Property<int>("Dificultad")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1)
+                        .HasColumnName("dificultad");
 
                     b.Property<int>("Estado")
                         .HasColumnType("integer")
@@ -242,6 +250,7 @@ namespace JuegosServicio.Infraestructura.Persistencia.Migraciones
                         .HasColumnName("puntaje_asignado");
 
                     b.Property<int>("TiempoEstimado")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
                         .HasDefaultValue(10)
                         .HasColumnName("tiempo_estimado");
