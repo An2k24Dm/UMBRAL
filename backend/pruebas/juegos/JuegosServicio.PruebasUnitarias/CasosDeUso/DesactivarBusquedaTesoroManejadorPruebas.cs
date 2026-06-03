@@ -22,7 +22,6 @@ public class DesactivarBusquedaTesoroManejadorPruebas
     private static BusquedaTesoro BusquedaActiva()
     {
         var busqueda = BusquedaTesoro.Crear("Búsqueda Test", "Descripción", Guid.NewGuid(), FechaFija);
-        busqueda.AsignarMision("Busca el cofre", "Encuéntralo en el parque", TipoMision.PalabraClave, "cofre_norte");
         busqueda.Activar();
         return busqueda;
     }

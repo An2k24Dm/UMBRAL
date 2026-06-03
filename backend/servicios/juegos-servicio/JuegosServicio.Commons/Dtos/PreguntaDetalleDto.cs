@@ -5,6 +5,7 @@ public sealed class PreguntaDetalleDto
     public Guid Id { get; set; }
     public string Enunciado { get; set; } = default!;
     public int PuntajeAsignado { get; set; }
+    public int TiempoEstimado { get; set; }
     public List<OpcionDetalleDto> Opciones { get; set; } = new();
 }
 

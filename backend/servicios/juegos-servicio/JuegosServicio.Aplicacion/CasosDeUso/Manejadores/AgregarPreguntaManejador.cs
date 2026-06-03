@@ -25,7 +25,7 @@ public sealed class AgregarPreguntaManejador : IRequestHandler<AgregarPreguntaCo
         var dto = comando.Datos;
         var opciones = dto.Opciones.Select(o => (o.Texto, o.EsCorrecta));
 
-        var pregunta = trivia.AgregarPregunta(dto.Enunciado, dto.PuntajeAsignado, opciones);
+        var pregunta = trivia.AgregarPregunta(dto.Enunciado, dto.PuntajeAsignado, dto.TiempoEstimado, opciones);
 
         await _repositorio.AgregarPreguntaAsync(trivia.Id, pregunta, cancelacion);
 

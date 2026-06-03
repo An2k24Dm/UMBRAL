@@ -1,94 +1,78 @@
-﻿using JuegosServicio.Dominio.Entidades;
-using JuegosServicio.Dominio.Enums;
+using JuegosServicio.Dominio.Entidades;
 using JuegosServicio.Dominio.Excepciones;
 
 namespace JuegosServicio.PruebasUnitarias.Dominio;
 
-// HU28: pruebas de BusquedaTesoro.AgregarPistaAMision y la entidad Pista.
+// Pruebas de BusquedaTesoro.AgregarPista y la entidad Pista.
 public class PistaPruebas
 {
     private static readonly DateTime FechaFija =
         new(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc);
 
-    private static BusquedaTesoro BusquedaConMision()
-    {
-        var busqueda = BusquedaTesoro.Crear("Búsqueda Test", "Descripción", Guid.NewGuid(), FechaFija);
-        busqueda.AsignarMision("Busca el cofre", "Primera misión", TipoMision.PalabraClave, "cofre_norte");
-        return busqueda;
-    }
+    private static BusquedaTesoro BusquedaInactiva() =>
+        BusquedaTesoro.Crear("Búsqueda Test", "Descripción", Guid.NewGuid(), FechaFija);
 
     [Fact]
-    public void AgregarPistaAMision_ConContenidoValido_RetornaPistaConIdNoVacio()
+    public void AgregarPista_ConContenidoValido_RetornaPistaConIdNoVacio()
     {
-        var busqueda = BusquedaConMision();
+        var busqueda = BusquedaInactiva();
 
-        var pista = busqueda.AgregarPistaAMision("Busca el árbol más alto del parque.");
+        var pista = busqueda.AgregarPista("Busca el árbol más alto del parque.");
 
         pista.Id.Should().NotBe(Guid.Empty);
     }
 
     [Fact]
-    public void AgregarPistaAMision_ConContenidoValido_AsignaMisionId()
+    public void AgregarPista_ConContenidoValido_AsignaBusquedaId()
     {
-        var busqueda = BusquedaConMision();
+        var busqueda = BusquedaInactiva();
 
-        var pista = busqueda.AgregarPistaAMision("Pista de prueba.");
+        var pista = busqueda.AgregarPista("Pista de prueba.");
 
-        pista.MisionId.Should().Be(busqueda.Mision!.Id);
+        pista.BusquedaId.Should().Be(busqueda.Id);
     }
 
     [Fact]
-    public void AgregarPistaAMision_VariosPistas_AparecenEnListaDePistas()
+    public void AgregarPista_VariasPistas_AparecenEnListaDePistas()
     {
-        var busqueda = BusquedaConMision();
+        var busqueda = BusquedaInactiva();
 
-        busqueda.AgregarPistaAMision("Pista 1.");
-        busqueda.AgregarPistaAMision("Pista 2.");
+        busqueda.AgregarPista("Pista 1.");
+        busqueda.AgregarPista("Pista 2.");
 
-        busqueda.Mision!.Pistas.Should().HaveCount(2);
+        busqueda.Pistas.Should().HaveCount(2);
     }
 
     [Theory]
     [InlineData("")]
     [InlineData("   ")]
-    public void AgregarPistaAMision_ContenidoVacioOEspacios_LanzaExcepcionDominio(string contenido)
+    public void AgregarPista_ContenidoVacioOEspacios_LanzaExcepcionDominio(string contenido)
     {
-        var busqueda = BusquedaConMision();
+        var busqueda = BusquedaInactiva();
 
-        Action accion = () => busqueda.AgregarPistaAMision(contenido);
+        Action accion = () => busqueda.AgregarPista(contenido);
 
         accion.Should().Throw<ExcepcionDominio>();
     }
 
     [Fact]
-    public void AgregarPistaAMision_SinMisionAsignada_LanzaExcepcionNoEncontrado()
+    public void AgregarPista_BusquedaActiva_PermiteAgregarPista()
     {
-        var busqueda = BusquedaTesoro.Crear("Búsqueda sin misión", "Descripción", Guid.NewGuid(), FechaFija);
-
-        Action accion = () => busqueda.AgregarPistaAMision("Una pista.");
-
-        accion.Should().Throw<ExcepcionNoEncontrado>();
-    }
-
-    [Fact]
-    public void AgregarPistaAMision_BusquedaActiva_PermiteAgregarPista()
-    {
-        // Las pistas son ayudas en tiempo real: se pueden agregar aunque la búsqueda esté activa.
-        var busqueda = BusquedaConMision();
+        var busqueda = BusquedaInactiva();
         busqueda.Activar();
 
-        var pista = busqueda.AgregarPistaAMision("Mira cerca de la fuente.");
+        var pista = busqueda.AgregarPista("Mira cerca de la fuente.");
 
         pista.Id.Should().NotBe(Guid.Empty);
-        busqueda.Mision!.Pistas.Should().HaveCount(1);
+        busqueda.Pistas.Should().HaveCount(1);
     }
 
     [Fact]
-    public void AgregarPistaAMision_ConEspaciosEnContenido_NormalizaConTrim()
+    public void AgregarPista_ConEspaciosEnContenido_NormalizaConTrim()
     {
-        var busqueda = BusquedaConMision();
+        var busqueda = BusquedaInactiva();
 
-        var pista = busqueda.AgregarPistaAMision("  Mira hacia el norte  ");
+        var pista = busqueda.AgregarPista("  Mira hacia el norte  ");
 
         pista.Contenido.Should().Be("Mira hacia el norte");
     }

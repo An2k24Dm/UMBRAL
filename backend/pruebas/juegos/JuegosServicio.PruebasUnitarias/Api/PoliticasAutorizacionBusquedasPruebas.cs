@@ -6,21 +6,14 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace JuegosServicio.PruebasUnitarias.Api;
 
-// HU34 — Mismo control reflexivo que para Trivias, aplicado al
-// BusquedasControlador. Cubre cada endpoint de gestión y los dos de
-// consulta que el Operador necesita para crear y ver sesiones de
-// Búsqueda del Tesoro.
 public class PoliticasAutorizacionBusquedasPruebas
 {
-    private static AuthorizeAttribute? ObtenerAuthorize(MethodInfo metodo) =>
-        metodo.GetCustomAttribute<AuthorizeAttribute>(inherit: false);
-
-    private static string PoliticaDe(string nombreMetodo)
+    private static string PoliticaDe(Type controlador, string nombreMetodo)
     {
-        var metodo = typeof(BusquedasControlador).GetMethod(nombreMetodo)
+        var metodo = controlador.GetMethod(nombreMetodo)
             ?? throw new InvalidOperationException(
-                $"No se encontró el método {nombreMetodo} en BusquedasControlador.");
-        var atributo = ObtenerAuthorize(metodo)
+                $"No se encontró el método {nombreMetodo} en {controlador.Name}.");
+        var atributo = metodo.GetCustomAttribute<AuthorizeAttribute>(inherit: false)
             ?? throw new InvalidOperationException(
                 $"El método {nombreMetodo} no tiene [Authorize].");
         return atributo.Policy ?? string.Empty;
@@ -30,37 +23,54 @@ public class PoliticasAutorizacionBusquedasPruebas
     public void BusquedasControlador_ANivelDeClase_NoDebeRestringirAAdministrador()
     {
         var atributos = typeof(BusquedasControlador)
-            .GetCustomAttributes<AuthorizeAttribute>(inherit: false)
-            .ToList();
-
+            .GetCustomAttributes<AuthorizeAttribute>(inherit: false).ToList();
         atributos.Should().HaveCount(1);
-        atributos[0].Policy.Should().BeNullOrEmpty(
-            "el [Authorize] a nivel de clase sólo debe exigir autenticación; " +
-            "las políticas por rol viven en cada método");
+        atributos[0].Policy.Should().BeNullOrEmpty();
     }
 
     [Theory]
     [InlineData(nameof(BusquedasControlador.ObtenerBusquedasActivas))]
     [InlineData(nameof(BusquedasControlador.ObtenerDetalleBusqueda))]
-    public void ConsultasParaSesionesUsanPoliticaOperador(string metodo)
-    {
-        PoliticaDe(metodo).Should().Be("PoliticaOperador");
-    }
+    public void BusquedasConsultasUsanPoliticaOperador(string metodo) =>
+        PoliticaDe(typeof(BusquedasControlador), metodo).Should().Be("PoliticaOperador");
 
     [Theory]
     [InlineData(nameof(BusquedasControlador.CrearBusqueda))]
     [InlineData(nameof(BusquedasControlador.ObtenerBusquedasEnBorrador))]
+    [InlineData(nameof(BusquedasControlador.ModificarBusqueda))]
     [InlineData(nameof(BusquedasControlador.ActivarBusqueda))]
     [InlineData(nameof(BusquedasControlador.DesactivarBusqueda))]
     [InlineData(nameof(BusquedasControlador.EliminarBusqueda))]
-    [InlineData(nameof(BusquedasControlador.AsignarMision))]
-    [InlineData(nameof(BusquedasControlador.ModificarMision))]
-    [InlineData(nameof(BusquedasControlador.EliminarMision))]
     [InlineData(nameof(BusquedasControlador.AgregarPista))]
     [InlineData(nameof(BusquedasControlador.ModificarPista))]
     [InlineData(nameof(BusquedasControlador.EliminarPista))]
-    public void GestionDelCatalogoUsaPoliticaAdministrador(string metodo)
+    public void BusquedasGestionUsaPoliticaAdministrador(string metodo) =>
+        PoliticaDe(typeof(BusquedasControlador), metodo).Should().Be("PoliticaAdministrador");
+
+    [Fact]
+    public void MisionesControlador_ANivelDeClase_NoDebeRestringirAAdministrador()
     {
-        PoliticaDe(metodo).Should().Be("PoliticaAdministrador");
+        var atributos = typeof(MisionesControlador)
+            .GetCustomAttributes<AuthorizeAttribute>(inherit: false).ToList();
+        atributos.Should().HaveCount(1);
+        atributos[0].Policy.Should().BeNullOrEmpty();
     }
+
+    [Theory]
+    [InlineData(nameof(MisionesControlador.ObtenerMisionesActivas))]
+    [InlineData(nameof(MisionesControlador.ObtenerDetalleMision))]
+    public void MisionesConsultasUsanPoliticaOperador(string metodo) =>
+        PoliticaDe(typeof(MisionesControlador), metodo).Should().Be("PoliticaOperador");
+
+    [Theory]
+    [InlineData(nameof(MisionesControlador.CrearMision))]
+    [InlineData(nameof(MisionesControlador.ObtenerMisionesEnBorrador))]
+    [InlineData(nameof(MisionesControlador.ModificarMision))]
+    [InlineData(nameof(MisionesControlador.ActivarMision))]
+    [InlineData(nameof(MisionesControlador.DesactivarMision))]
+    [InlineData(nameof(MisionesControlador.EliminarMision))]
+    [InlineData(nameof(MisionesControlador.AgregarEtapa))]
+    [InlineData(nameof(MisionesControlador.EliminarEtapa))]
+    public void MisionesGestionUsaPoliticaAdministrador(string metodo) =>
+        PoliticaDe(typeof(MisionesControlador), metodo).Should().Be("PoliticaAdministrador");
 }

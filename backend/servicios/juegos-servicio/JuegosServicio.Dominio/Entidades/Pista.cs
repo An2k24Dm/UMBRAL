@@ -7,12 +7,12 @@ namespace JuegosServicio.Dominio.Entidades;
 public sealed class Pista : IComponenteJuego
 {
     public Guid Id { get; private set; }
-    public Guid MisionId { get; private set; }
+    public Guid BusquedaId { get; private set; }
     public string Contenido { get; private set; } = default!;
 
     private Pista() { }
 
-    internal static Pista Crear(Guid misionId, string contenido)
+    internal static Pista Crear(Guid busquedaId, string contenido)
     {
         if (string.IsNullOrWhiteSpace(contenido))
             throw new ExcepcionDominio("El contenido de la pista es obligatorio.");
@@ -20,7 +20,7 @@ public sealed class Pista : IComponenteJuego
         return new Pista
         {
             Id = Guid.NewGuid(),
-            MisionId = misionId,
+            BusquedaId = busquedaId,
             Contenido = contenido.Trim()
         };
     }
@@ -33,10 +33,8 @@ public sealed class Pista : IComponenteJuego
         Contenido = nuevoContenido.Trim();
     }
 
-    public static Pista Reconstituir(Guid id, Guid misionId, string contenido)
-    {
-        return new Pista { Id = id, MisionId = misionId, Contenido = contenido };
-    }
+    public static Pista Reconstituir(Guid id, Guid busquedaId, string contenido) =>
+        new() { Id = id, BusquedaId = busquedaId, Contenido = contenido };
 
     string IComponenteJuego.ObtenerDescripcion() => $"Pista: {Contenido}";
     IReadOnlyList<IComponenteJuego> IComponenteJuego.ObtenerHijos() =>

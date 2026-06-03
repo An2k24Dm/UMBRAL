@@ -93,23 +93,11 @@ public sealed class ClienteContenidoJuegosHttp : IClienteContenidoJuegos
             Nombre = bruto.Nombre ?? string.Empty,
             Descripcion = bruto.Descripcion ?? string.Empty,
             Estado = bruto.Estado ?? string.Empty,
-            Etapas = bruto.Etapas?
-                .OrderBy(e => e.Orden)
-                .Select(e => new EtapaBusquedaSesionDto
-                {
-                    Id = e.Id,
-                    // juegos-servicio expone el campo como "Titulo".
-                    Nombre = e.Titulo ?? string.Empty,
-                    Descripcion = e.Descripcion ?? string.Empty,
-                    Orden = e.Orden,
-                    Pistas = e.Pistas?.Select((p, indice) => new PistaBusquedaSesionDto
-                    {
-                        Id = p.Id,
-                        // juegos-servicio expone el campo como "Contenido".
-                        Texto = p.Contenido ?? string.Empty,
-                        Orden = indice + 1
-                    }).ToList() ?? new List<PistaBusquedaSesionDto>()
-                }).ToList() ?? new List<EtapaBusquedaSesionDto>()
+            Pistas = bruto.Pistas?.Select(p => new PistaBusquedaSesionDto
+            {
+                Id = p.Id,
+                Contenido = p.Contenido ?? string.Empty
+            }).ToList() ?? new List<PistaBusquedaSesionDto>()
         };
     }
 
@@ -164,15 +152,6 @@ public sealed class ClienteContenidoJuegosHttp : IClienteContenidoJuegos
         public string? Nombre { get; set; }
         public string? Descripcion { get; set; }
         public string? Estado { get; set; }
-        public List<EtapaDetalleRespuesta>? Etapas { get; set; }
-    }
-
-    private sealed class EtapaDetalleRespuesta
-    {
-        public Guid Id { get; set; }
-        public string? Titulo { get; set; }
-        public string? Descripcion { get; set; }
-        public int Orden { get; set; }
         public List<PistaDetalleRespuesta>? Pistas { get; set; }
     }
 

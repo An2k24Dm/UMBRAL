@@ -1,10 +1,8 @@
-﻿using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Dominio.Entidades;
 using JuegosServicio.Dominio.Excepciones;
 
 namespace JuegosServicio.PruebasUnitarias.Dominio;
 
-// HU32: pruebas de BusquedaTesoro.EliminarPista.
 public class PistaEliminarPruebas
 {
     private static readonly DateTime FechaFija =
@@ -13,8 +11,7 @@ public class PistaEliminarPruebas
     private static BusquedaTesoro BusquedaConPista(out Guid pistaId)
     {
         var busqueda = BusquedaTesoro.Crear("Búsqueda Test", "Descripción", Guid.NewGuid(), FechaFija);
-        busqueda.AsignarMision("Misión", "Desc", TipoMision.PalabraClave, "clave");
-        var pista = busqueda.AgregarPistaAMision("Pista de prueba.");
+        var pista = busqueda.AgregarPista("Pista de prueba.");
         pistaId = pista.Id;
         return busqueda;
     }
@@ -26,18 +23,18 @@ public class PistaEliminarPruebas
 
         busqueda.EliminarPista(pistaId);
 
-        busqueda.Mision!.Pistas.Should().BeEmpty();
+        busqueda.Pistas.Should().BeEmpty();
     }
 
     [Fact]
     public void EliminarPista_VariasPistas_SoloEliminaLaIndicada()
     {
         var busqueda = BusquedaConPista(out var pistaId);
-        busqueda.AgregarPistaAMision("Segunda pista.");
+        busqueda.AgregarPista("Segunda pista.");
 
         busqueda.EliminarPista(pistaId);
 
-        busqueda.Mision!.Pistas.Should().HaveCount(1);
+        busqueda.Pistas.Should().HaveCount(1);
     }
 
     [Fact]

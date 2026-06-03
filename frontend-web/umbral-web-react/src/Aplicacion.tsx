@@ -13,6 +13,8 @@ import { PaginaGestionPreguntas } from './paginas/PaginaGestionPreguntas'
 import { PaginaListaBusquedas } from './paginas/PaginaListaBusquedas'
 import { PaginaCrearBusqueda } from './paginas/PaginaCrearBusqueda'
 import { PaginaGestionEtapas } from './paginas/PaginaGestionEtapas'
+import { PaginaListaMisiones } from './paginas/PaginaListaMisiones'
+import { PaginaGestionMision } from './paginas/PaginaGestionMision'
 import { PaginaSesiones } from './paginas/PaginaSesiones'
 import { PaginaCrearSesion } from './paginas/PaginaCrearSesion'
 import { PaginaDetalleSesion } from './paginas/PaginaDetalleSesion'
@@ -29,222 +31,47 @@ export function Aplicacion() {
       <Route path="/iniciar-sesion" element={<PaginaInicioSesion />} />
 
       {/* ----- Administrador ----- */}
-      <Route
-        path="/administrador"
-        element={
-          <RutaProtegida rolesPermitidos={['Administrador']}>
-            <PaginaAdministrador />
-          </RutaProtegida>
-        }
-      />
-      <Route
-        path="/administrador/usuarios/registrar"
-        element={
-          <RutaProtegida rolesPermitidos={['Administrador']}>
-            <PaginaRegistrarUsuario />
-          </RutaProtegida>
-        }
-      />
-      <Route
-        path="/administrador/perfil"
-        element={
-          <RutaProtegida rolesPermitidos={['Administrador']}>
-            <PaginaPerfilUsuarioAutenticado />
-          </RutaProtegida>
-        }
-      />
-      <Route
-        path="/administrador/usuarios/participantes"
-        element={
-          <RutaProtegida rolesPermitidos={['Administrador']}>
-            <PaginaListaParticipantes rutaBaseDetalle="/administrador/usuarios/participantes" />
-          </RutaProtegida>
-        }
-      />
-      {/* HU07 — detalle de un Participante: usa el endpoint
-          /api/usuarios/participantes/{id}. */}
-      <Route
-        path="/administrador/usuarios/participantes/:id"
-        element={
-          <RutaProtegida rolesPermitidos={['Administrador']}>
-            <PaginaDetalleUsuario
-              rolesPermitidosVista={['Participante']}
-              obtenerUsuario={obtenerDetalleParticipante}
-            />
-          </RutaProtegida>
-        }
-      />
-      <Route
-        path="/administrador/usuarios/internos"
-        element={
-          <RutaProtegida rolesPermitidos={['Administrador']}>
-            <PaginaListaUsuariosInternos />
-          </RutaProtegida>
-        }
-      />
-      {/* HU08 — detalle de Operadores y Administradores: usa el endpoint
-          /api/usuarios/internos/{id} que excluye Participantes.
-          HU09 — habilitamos modo edición sólo para Operadores. La pantalla
-          ignora la edición si el detalle resulta ser Administrador. */}
-      <Route
-        path="/administrador/usuarios/internos/:id"
-        element={
-          <RutaProtegida rolesPermitidos={['Administrador']}>
-            <PaginaDetalleUsuario
-              rolesPermitidosVista={['Operador', 'Administrador']}
-              obtenerUsuario={obtenerDetalleUsuarioInterno}
-              permiteEditarOperador
-            />
-          </RutaProtegida>
-        }
-      />
+      <Route path="/administrador" element={<RutaProtegida rolesPermitidos={['Administrador']}><PaginaAdministrador /></RutaProtegida>} />
+      <Route path="/administrador/usuarios/registrar" element={<RutaProtegida rolesPermitidos={['Administrador']}><PaginaRegistrarUsuario /></RutaProtegida>} />
+      <Route path="/administrador/perfil" element={<RutaProtegida rolesPermitidos={['Administrador']}><PaginaPerfilUsuarioAutenticado /></RutaProtegida>} />
+      <Route path="/administrador/usuarios/participantes" element={<RutaProtegida rolesPermitidos={['Administrador']}><PaginaListaParticipantes rutaBaseDetalle="/administrador/usuarios/participantes" /></RutaProtegida>} />
+      <Route path="/administrador/usuarios/participantes/:id" element={<RutaProtegida rolesPermitidos={['Administrador']}><PaginaDetalleUsuario rolesPermitidosVista={['Participante']} obtenerUsuario={obtenerDetalleParticipante} /></RutaProtegida>} />
+      <Route path="/administrador/usuarios/internos" element={<RutaProtegida rolesPermitidos={['Administrador']}><PaginaListaUsuariosInternos /></RutaProtegida>} />
+      <Route path="/administrador/usuarios/internos/:id" element={<RutaProtegida rolesPermitidos={['Administrador']}><PaginaDetalleUsuario rolesPermitidosVista={['Operador', 'Administrador']} obtenerUsuario={obtenerDetalleUsuarioInterno} permiteEditarOperador /></RutaProtegida>} />
 
+      {/* Búsquedas del tesoro */}
       <Route path="/administrador/busquedas/activas" element={<Navigate to="/administrador/busquedas" replace />} />
+      <Route path="/administrador/busquedas" element={<RutaProtegida rolesPermitidos={['Administrador']}><PaginaListaBusquedas /></RutaProtegida>} />
+      <Route path="/administrador/busquedas/crear" element={<RutaProtegida rolesPermitidos={['Administrador']}><PaginaCrearBusqueda /></RutaProtegida>} />
+      <Route path="/administrador/busquedas/:busquedaId/mision" element={<RutaProtegida rolesPermitidos={['Administrador']}><PaginaGestionEtapas /></RutaProtegida>} />
 
-      {/* HU21/22/23 — Búsquedas del tesoro accesibles también por el Administrador. */}
-      <Route
-        path="/administrador/busquedas"
-        element={
-          <RutaProtegida rolesPermitidos={['Administrador']}>
-            <PaginaListaBusquedas />
-          </RutaProtegida>
-        }
-      />
-      <Route
-        path="/administrador/busquedas/crear"
-        element={
-          <RutaProtegida rolesPermitidos={['Administrador']}>
-            <PaginaCrearBusqueda />
-          </RutaProtegida>
-        }
-      />
-      <Route
-        path="/administrador/busquedas/:busquedaId/mision"
-        element={
-          <RutaProtegida rolesPermitidos={['Administrador']}>
-            <PaginaGestionEtapas />
-          </RutaProtegida>
-        }
-      />
+      {/* Misiones */}
+      <Route path="/administrador/misiones" element={<RutaProtegida rolesPermitidos={['Administrador']}><PaginaListaMisiones /></RutaProtegida>} />
+      <Route path="/administrador/misiones/:misionId" element={<RutaProtegida rolesPermitidos={['Administrador']}><PaginaGestionMision /></RutaProtegida>} />
+      <Route path="/operador/misiones" element={<RutaProtegida rolesPermitidos={['Operador']}><PaginaListaMisiones /></RutaProtegida>} />
+      <Route path="/operador/misiones/:misionId" element={<RutaProtegida rolesPermitidos={['Operador']}><PaginaGestionMision /></RutaProtegida>} />
 
-      {/* HU15/18/19/20 — Trivias accesibles también por el Administrador. */}
-      <Route
-        path="/administrador/trivias"
-        element={
-          <RutaProtegida rolesPermitidos={['Administrador']}>
-            <PaginaListaTrivias />
-          </RutaProtegida>
-        }
-      />
+      {/* Trivias */}
+      <Route path="/administrador/trivias" element={<RutaProtegida rolesPermitidos={['Administrador']}><PaginaListaTrivias /></RutaProtegida>} />
       <Route path="/administrador/trivias/activas" element={<Navigate to="/administrador/trivias" replace />} />
-      <Route
-        path="/administrador/trivias/crear"
-        element={
-          <RutaProtegida rolesPermitidos={['Administrador']}>
-            <PaginaCrearTrivia />
-          </RutaProtegida>
-        }
-      />
-      <Route
-        path="/administrador/trivias/:triviaId/preguntas"
-        element={
-          <RutaProtegida rolesPermitidos={['Administrador']}>
-            <PaginaGestionPreguntas />
-          </RutaProtegida>
-        }
-      />
+      <Route path="/administrador/trivias/crear" element={<RutaProtegida rolesPermitidos={['Administrador']}><PaginaCrearTrivia /></RutaProtegida>} />
+      <Route path="/administrador/trivias/:triviaId/preguntas" element={<RutaProtegida rolesPermitidos={['Administrador']}><PaginaGestionPreguntas /></RutaProtegida>} />
 
       {/* ----- Operador ----- */}
-      <Route
-        path="/operador"
-        element={
-          <RutaProtegida rolesPermitidos={['Operador']}>
-            <PaginaOperador />
-          </RutaProtegida>
-        }
-      />
-      <Route
-        path="/operador/perfil"
-        element={
-          <RutaProtegida rolesPermitidos={['Operador']}>
-            <PaginaPerfilUsuarioAutenticado />
-          </RutaProtegida>
-        }
-      />
-      <Route
-        path="/operador/usuarios/participantes"
-        element={
-          <RutaProtegida rolesPermitidos={['Operador']}>
-            <PaginaListaParticipantes rutaBaseDetalle="/operador/usuarios/participantes" />
-          </RutaProtegida>
-        }
-      />
-      {/* HU07 — detalle de un Participante consultado por el Operador. */}
-      <Route
-        path="/operador/usuarios/participantes/:id"
-        element={
-          <RutaProtegida rolesPermitidos={['Operador']}>
-            <PaginaDetalleUsuario
-              rolesPermitidosVista={['Participante']}
-              obtenerUsuario={obtenerDetalleParticipante}
-            />
-          </RutaProtegida>
-        }
-      />
+      <Route path="/operador" element={<RutaProtegida rolesPermitidos={['Operador']}><PaginaOperador /></RutaProtegida>} />
+      <Route path="/operador/perfil" element={<RutaProtegida rolesPermitidos={['Operador']}><PaginaPerfilUsuarioAutenticado /></RutaProtegida>} />
+      <Route path="/operador/usuarios/participantes" element={<RutaProtegida rolesPermitidos={['Operador']}><PaginaListaParticipantes rutaBaseDetalle="/operador/usuarios/participantes" /></RutaProtegida>} />
+      <Route path="/operador/usuarios/participantes/:id" element={<RutaProtegida rolesPermitidos={['Operador']}><PaginaDetalleUsuario rolesPermitidosVista={['Participante']} obtenerUsuario={obtenerDetalleParticipante} /></RutaProtegida>} />
+      <Route path="/operador/busquedas" element={<RutaProtegida rolesPermitidos={['Operador']}><PaginaListaBusquedas /></RutaProtegida>} />
+      <Route path="/operador/busquedas/:busquedaId/mision" element={<RutaProtegida rolesPermitidos={['Operador']}><PaginaGestionEtapas /></RutaProtegida>} />
 
-      {/* HU33 — Sesiones en vivo (Administrador). */}
-      <Route
-        path="/administrador/sesiones"
-        element={
-          <RutaProtegida rolesPermitidos={['Administrador']}>
-            <PaginaSesiones />
-          </RutaProtegida>
-        }
-      />
-      <Route
-        path="/administrador/sesiones/crear"
-        element={
-          <RutaProtegida rolesPermitidos={['Administrador']}>
-            <PaginaCrearSesion />
-          </RutaProtegida>
-        }
-      />
-      {/* HU34 — Detalle de sesión (Administrador). */}
-      <Route
-        path="/administrador/sesiones/:id"
-        element={
-          <RutaProtegida rolesPermitidos={['Administrador']}>
-            <PaginaDetalleSesion />
-          </RutaProtegida>
-        }
-      />
-
-      {/* HU33 — Sesiones en vivo (Operador). */}
-      <Route
-        path="/operador/sesiones"
-        element={
-          <RutaProtegida rolesPermitidos={['Operador']}>
-            <PaginaSesiones />
-          </RutaProtegida>
-        }
-      />
-      <Route
-        path="/operador/sesiones/crear"
-        element={
-          <RutaProtegida rolesPermitidos={['Operador']}>
-            <PaginaCrearSesion />
-          </RutaProtegida>
-        }
-      />
-      {/* HU34 — Detalle de sesión (Operador). */}
-      <Route
-        path="/operador/sesiones/:id"
-        element={
-          <RutaProtegida rolesPermitidos={['Operador']}>
-            <PaginaDetalleSesion />
-          </RutaProtegida>
-        }
-      />
+      {/* Sesiones */}
+      <Route path="/administrador/sesiones" element={<RutaProtegida rolesPermitidos={['Administrador']}><PaginaSesiones /></RutaProtegida>} />
+      <Route path="/administrador/sesiones/crear" element={<RutaProtegida rolesPermitidos={['Administrador']}><PaginaCrearSesion /></RutaProtegida>} />
+      <Route path="/administrador/sesiones/:id" element={<RutaProtegida rolesPermitidos={['Administrador']}><PaginaDetalleSesion /></RutaProtegida>} />
+      <Route path="/operador/sesiones" element={<RutaProtegida rolesPermitidos={['Operador']}><PaginaSesiones /></RutaProtegida>} />
+      <Route path="/operador/sesiones/crear" element={<RutaProtegida rolesPermitidos={['Operador']}><PaginaCrearSesion /></RutaProtegida>} />
+      <Route path="/operador/sesiones/:id" element={<RutaProtegida rolesPermitidos={['Operador']}><PaginaDetalleSesion /></RutaProtegida>} />
 
       <Route path="*" element={<Navigate to="/iniciar-sesion" replace />} />
     </Routes>

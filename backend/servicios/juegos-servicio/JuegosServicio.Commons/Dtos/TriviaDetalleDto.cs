@@ -8,5 +8,7 @@ public sealed class TriviaDetalleDto
     public int TiempoLimitePorPregunta { get; set; }
     public string Estado { get; set; } = default!;
     public DateTime FechaCreacion { get; set; }
+    public int PuntajeTotal { get; set; }
+    public int TiempoTotal { get; set; }
     public List<PreguntaDetalleDto> Preguntas { get; set; } = new();
 }

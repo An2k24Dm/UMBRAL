@@ -204,42 +204,21 @@ export function PaginaDetalleSesion() {
                 </span>
               </div>
 
-              <div className="detalle-subtitulo">
-                <div>
-                  <h3>Etapas</h3>
-                  <p>{sesion.busquedaTesoro.etapas.length} etapa(s)</p>
-                </div>
-              </div>
-
-              {sesion.busquedaTesoro.etapas.length === 0 ? (
-                <p className="detalle-mensaje-vacio">
-                  Esta búsqueda no tiene etapas cargadas.
-                </p>
+              {sesion.busquedaTesoro.pistas.length === 0 ? (
+                <p className="detalle-mensaje-vacio">Esta búsqueda no tiene pistas registradas.</p>
               ) : (
-                <div className="lista-etapas">
-                  {sesion.busquedaTesoro.etapas.map((e, indice) => (
-                    <article key={e.id} className="etapa-card">
-                      <div className="etapa-card-cabecera">
-                        <span className="etapa-numero">Etapa {e.orden || indice + 1}</span>
-                        <span className="etapa-nombre">{e.nombre}</span>
-                      </div>
-                      {e.descripcion && (
-                        <p className="etapa-descripcion">{e.descripcion}</p>
-                      )}
-                      {e.pistas.length === 0 ? (
-                        <p className="detalle-mensaje-vacio">Sin pistas registradas.</p>
-                      ) : (
-                        <ul className="lista-pistas">
-                          {e.pistas.map((p, idxPista) => (
-                            <li key={p.id} className="pista-item">
-                              <span className="pista-orden">{p.orden || idxPista + 1}</span>
-                              <span>{p.texto}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </article>
-                  ))}
+                <div style={{ marginTop: 12 }}>
+                  <strong style={{ fontSize: '0.85rem' }}>
+                    Pistas de ayuda ({sesion.busquedaTesoro.pistas.length}):
+                  </strong>
+                  <ul className="lista-pistas" style={{ marginTop: 8 }}>
+                    {sesion.busquedaTesoro.pistas.map((p, idx) => (
+                      <li key={p.id} className="pista-item">
+                        <span className="pista-orden">{idx + 1}</span>
+                        <span>{p.contenido}</span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               )}
             </section>

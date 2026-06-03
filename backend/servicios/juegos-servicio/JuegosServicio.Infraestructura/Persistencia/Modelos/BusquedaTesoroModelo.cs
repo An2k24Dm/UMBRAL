@@ -8,6 +8,8 @@ public sealed class BusquedaTesoroModelo
     public Guid CreadorId { get; set; }
     public int Estado { get; set; }
     public DateTime FechaCreacion { get; set; }
+    public int Tiempo { get; set; }
+    public int Puntaje { get; set; }
 
-    public MisionModelo? Mision { get; set; }
+    public List<PistaModelo> Pistas { get; set; } = new();
 }

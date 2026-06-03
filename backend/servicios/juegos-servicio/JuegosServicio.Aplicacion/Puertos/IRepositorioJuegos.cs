@@ -16,6 +16,7 @@ public interface IRepositorioJuegos
     Task ActivarTriviaAsync(Trivia trivia, CancellationToken cancelacion);
     Task ModificarDatosTriviaAsync(Trivia trivia, CancellationToken cancelacion);
     Task DesactivarTriviaAsync(Trivia trivia, CancellationToken cancelacion);
+    Task EliminarTriviaAsync(Guid triviaId, CancellationToken cancelacion);
 
     Task<List<TriviaResumenDto>> ObtenerTriviasEnBorradorAsync(Guid? creadorId, CancellationToken cancelacion);
     Task<TriviaDetalleDto?> ObtenerDetalleTriviaAsync(Guid triviaId, CancellationToken cancelacion);

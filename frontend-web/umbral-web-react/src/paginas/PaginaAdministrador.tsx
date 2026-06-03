@@ -44,9 +44,15 @@ export function PaginaAdministrador() {
           />
           <TarjetaResumen
             titulo="Búsquedas del tesoro"
-            descripcion="Crear y gestionar búsquedas del tesoro con etapas y misiones."
+            descripcion="Crear y gestionar búsquedas del tesoro con pistas de ayuda."
             destino="/administrador/busquedas"
             textoAccion="Gestionar búsquedas"
+          />
+          <TarjetaResumen
+            titulo="Misiones"
+            descripcion="Crear y gestionar misiones: secuencias ordenadas de trivias y búsquedas del tesoro."
+            destino="/administrador/misiones"
+            textoAccion="Gestionar misiones"
           />
           <TarjetaResumen
             titulo="Sesiones"

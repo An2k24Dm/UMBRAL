@@ -33,8 +33,7 @@ public sealed class RepositorioBusquedas : IRepositorioBusquedas
     public async Task<BusquedaTesoro?> ObtenerBusquedaPorIdAsync(Guid busquedaId, CancellationToken cancelacion)
     {
         var modelo = await _contexto.BusquedasTesoro
-            .Include(b => b.Mision)
-                .ThenInclude(m => m!.Pistas)
+            .Include(b => b.Pistas)
             .AsNoTracking()
             .FirstOrDefaultAsync(b => b.Id == busquedaId, cancelacion);
 
@@ -56,43 +55,73 @@ public sealed class RepositorioBusquedas : IRepositorioBusquedas
                 Nombre = b.Nombre,
                 Descripcion = b.Descripcion,
                 Estado = ((EstadoBusqueda)b.Estado).ToString(),
-                TieneMision = b.Mision != null,
+                TotalPistas = b.Pistas.Count,
                 FechaCreacion = b.FechaCreacion
             })
             .ToListAsync(cancelacion);
     }
 
-    public async Task AsignarMisionAsync(Guid busquedaId, Mision mision, CancellationToken cancelacion)
+    public async Task<List<BusquedaTesoroResumenDto>> ObtenerBusquedasActivasAsync(CancellationToken cancelacion)
     {
-        var modelo = BusquedasMapeador.AModelo(mision);
-        _contexto.Misiones.Add(modelo);
-        await _contexto.SaveChangesAsync(cancelacion);
+        var estadoActiva = (int)EstadoBusqueda.Activa;
+
+        return await _contexto.BusquedasTesoro
+            .AsNoTracking()
+            .Where(b => b.Estado == estadoActiva)
+            .OrderBy(b => b.Nombre)
+            .Select(b => new BusquedaTesoroResumenDto
+            {
+                Id = b.Id,
+                Nombre = b.Nombre,
+                Descripcion = b.Descripcion,
+                Estado = nameof(EstadoBusqueda.Activa),
+                TotalPistas = b.Pistas.Count,
+                FechaCreacion = b.FechaCreacion
+            })
+            .ToListAsync(cancelacion);
     }
 
-    public async Task ModificarMisionAsync(Mision mision, CancellationToken cancelacion)
+    public async Task<BusquedaTesoroDetalleDto?> ObtenerDetalleBusquedaAsync(
+        Guid busquedaId, CancellationToken cancelacion)
     {
-        var modelo = await _contexto.Misiones
-            .FirstOrDefaultAsync(m => m.Id == mision.Id, cancelacion);
+        var modelo = await _contexto.BusquedasTesoro
+            .Include(b => b.Pistas)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(b => b.Id == busquedaId, cancelacion);
+
+        if (modelo is null) return null;
+
+        return new BusquedaTesoroDetalleDto
+        {
+            Id = modelo.Id,
+            Nombre = modelo.Nombre,
+            Descripcion = modelo.Descripcion,
+            Estado = ((EstadoBusqueda)modelo.Estado).ToString(),
+            FechaCreacion = modelo.FechaCreacion,
+            Tiempo = modelo.Tiempo,
+            Puntaje = modelo.Puntaje,
+            Pistas = modelo.Pistas.Select(p => new PistaDetalleDto
+            {
+                Id = p.Id,
+                Contenido = p.Contenido
+            }).ToList()
+        };
+    }
+
+    public async Task ActualizarBusquedaAsync(BusquedaTesoro busqueda, CancellationToken cancelacion)
+    {
+        var modelo = await _contexto.BusquedasTesoro
+            .FirstOrDefaultAsync(b => b.Id == busqueda.Id, cancelacion);
         if (modelo is null) return;
 
-        modelo.Titulo = mision.Titulo;
-        modelo.Descripcion = mision.Descripcion;
-        modelo.Tipo = (int)mision.Tipo;
-        modelo.PistaClave = mision.PistaClave;
+        modelo.Nombre = busqueda.Nombre;
+        modelo.Descripcion = busqueda.Descripcion;
+        modelo.Tiempo = busqueda.Tiempo;
+        modelo.Puntaje = busqueda.Puntaje;
         await _contexto.SaveChangesAsync(cancelacion);
     }
 
-    public async Task EliminarMisionAsync(Guid busquedaId, CancellationToken cancelacion)
-    {
-        var modelo = await _contexto.Misiones
-            .FirstOrDefaultAsync(m => m.BusquedaId == busquedaId, cancelacion);
-        if (modelo is null) return;
-
-        _contexto.Misiones.Remove(modelo);
-        await _contexto.SaveChangesAsync(cancelacion);
-    }
-
-    public async Task AgregarPistaAsync(Guid misionId, Pista pista, CancellationToken cancelacion)
+    public async Task AgregarPistaAsync(Pista pista, CancellationToken cancelacion)
     {
         var modelo = BusquedasMapeador.AModelo(pista);
         _contexto.Pistas.Add(modelo);
@@ -131,25 +160,11 @@ public sealed class RepositorioBusquedas : IRepositorioBusquedas
         {
             Id = Guid.NewGuid(),
             Tipo = "BusquedaTesoroActivada",
-            Datos = System.Text.Json.JsonSerializer.Serialize(new
-            {
-                BusquedaId = busqueda.Id,
-                busqueda.Nombre
-            }),
+            Datos = System.Text.Json.JsonSerializer.Serialize(new { BusquedaId = busqueda.Id, busqueda.Nombre }),
             FechaCreacion = DateTime.UtcNow,
             Procesado = false
         });
 
-        await _contexto.SaveChangesAsync(cancelacion);
-    }
-
-    public async Task EliminarBusquedaTesoroAsync(Guid busquedaId, CancellationToken cancelacion)
-    {
-        var modelo = await _contexto.BusquedasTesoro
-            .FirstOrDefaultAsync(b => b.Id == busquedaId, cancelacion);
-        if (modelo is null) return;
-
-        _contexto.BusquedasTesoro.Remove(modelo);
         await _contexto.SaveChangesAsync(cancelacion);
     }
 
@@ -173,57 +188,13 @@ public sealed class RepositorioBusquedas : IRepositorioBusquedas
         await _contexto.SaveChangesAsync(cancelacion);
     }
 
-    public async Task<List<BusquedaTesoroResumenDto>> ObtenerBusquedasActivasAsync(CancellationToken cancelacion)
-    {
-        var estadoActiva = (int)EstadoBusqueda.Activa;
-
-        return await _contexto.BusquedasTesoro
-            .AsNoTracking()
-            .Where(b => b.Estado == estadoActiva)
-            .OrderBy(b => b.Nombre)
-            .Select(b => new BusquedaTesoroResumenDto
-            {
-                Id = b.Id,
-                Nombre = b.Nombre,
-                Descripcion = b.Descripcion,
-                Estado = nameof(EstadoBusqueda.Activa),
-                TieneMision = b.Mision != null,
-                FechaCreacion = b.FechaCreacion
-            })
-            .ToListAsync(cancelacion);
-    }
-
-    public async Task<BusquedaTesoroDetalleDto?> ObtenerDetalleBusquedaAsync(
-        Guid busquedaId, CancellationToken cancelacion)
+    public async Task EliminarBusquedaTesoroAsync(Guid busquedaId, CancellationToken cancelacion)
     {
         var modelo = await _contexto.BusquedasTesoro
-            .Include(b => b.Mision)
-                .ThenInclude(m => m!.Pistas)
-            .AsNoTracking()
             .FirstOrDefaultAsync(b => b.Id == busquedaId, cancelacion);
+        if (modelo is null) return;
 
-        if (modelo is null) return null;
-
-        return new BusquedaTesoroDetalleDto
-        {
-            Id = modelo.Id,
-            Nombre = modelo.Nombre,
-            Descripcion = modelo.Descripcion,
-            Estado = ((EstadoBusqueda)modelo.Estado).ToString(),
-            FechaCreacion = modelo.FechaCreacion,
-            Mision = modelo.Mision is null ? null : new MisionDetalleDto
-            {
-                Id = modelo.Mision.Id,
-                Titulo = modelo.Mision.Titulo,
-                Descripcion = modelo.Mision.Descripcion,
-                Tipo = ((TipoMision)modelo.Mision.Tipo).ToString(),
-                PistaClave = modelo.Mision.PistaClave,
-                Pistas = modelo.Mision.Pistas.Select(p => new PistaDetalleDto
-                {
-                    Id = p.Id,
-                    Contenido = p.Contenido
-                }).ToList()
-            }
-        };
+        _contexto.BusquedasTesoro.Remove(modelo);
+        await _contexto.SaveChangesAsync(cancelacion);
     }
 }

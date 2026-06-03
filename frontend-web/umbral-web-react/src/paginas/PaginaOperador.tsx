@@ -26,9 +26,15 @@ export function PaginaOperador() {
           />
           <TarjetaResumen
             titulo="Búsquedas del tesoro"
-            descripcion="Crear y gestionar búsquedas del tesoro: agregar etapas y misiones."
+            descripcion="Crear y gestionar búsquedas del tesoro con pistas de ayuda."
             destino="/operador/busquedas"
             textoAccion="Gestionar búsquedas"
+          />
+          <TarjetaResumen
+            titulo="Misiones"
+            descripcion="Consultar las misiones activas: secuencias de trivias y búsquedas del tesoro."
+            destino="/operador/misiones"
+            textoAccion="Ver misiones"
           />
           <TarjetaResumen
             titulo="Sesiones"

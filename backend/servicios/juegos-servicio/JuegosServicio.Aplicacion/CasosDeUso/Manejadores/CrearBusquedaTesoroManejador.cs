@@ -32,7 +32,9 @@ public sealed class CrearBusquedaTesoroManejador : IRequestHandler<CrearBusqueda
             comando.Dto.Nombre,
             comando.Dto.Descripcion,
             comando.CreadorId,
-            _reloj.ObtenerFechaHoraUtc());
+            _reloj.ObtenerFechaHoraUtc(),
+            comando.Dto.Tiempo,
+            comando.Dto.Puntaje);
 
         await _repositorio.CrearBusquedaTesoroAsync(busqueda, cancelacion);
 

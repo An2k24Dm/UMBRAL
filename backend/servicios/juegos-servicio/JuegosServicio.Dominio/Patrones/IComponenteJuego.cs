@@ -1,9 +1,8 @@
 namespace JuegosServicio.Dominio.Patrones;
 
-// Patrón Composite — contrato común para todos los nodos del árbol de una
-// Búsqueda del Tesoro: BusquedaTesoro (raíz), Mision (nodo compuesto) y
-// Pista (hoja). Permite recorrer la jerarquía uniformemente sin
-// distinguir entre compuestos y hojas.
+// Patrón Composite — contrato común para los modos de juego (hojas) y las
+// etapas (nodos) de una Misión. Permite recorrer la jerarquía
+// Misión → Etapa → (Trivia | BusquedaTesoro) de forma uniforme.
 public interface IComponenteJuego
 {
     Guid Id { get; }

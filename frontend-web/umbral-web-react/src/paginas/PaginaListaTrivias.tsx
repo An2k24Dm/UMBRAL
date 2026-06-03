@@ -8,6 +8,7 @@ import {
   obtenerTriviasActivas,
   desactivarTrivia,
   activarTrivia,
+  eliminarTrivia,
   type TriviaResumenDto
 } from '../autenticacion/clienteApiJuegos'
 import { usarAutenticacion } from '../autenticacion/ProveedorAutenticacion'
@@ -77,6 +78,16 @@ export function PaginaListaTrivias() {
     setMensajeError(null)
     try { await desactivarTrivia(triviaId, token); await cargar() }
     catch (err) { setMensajeError(err instanceof Error ? err.message : 'No fue posible desactivar la trivia.') }
+    finally { setProcesandoId(null) }
+  }
+
+  async function manejarEliminar(e: React.MouseEvent, triviaId: string) {
+    e.stopPropagation()
+    if (!token) return
+    setProcesandoId(triviaId)
+    setMensajeError(null)
+    try { await eliminarTrivia(triviaId, token); await cargar() }
+    catch (err) { setMensajeError(err instanceof Error ? err.message : 'No fue posible eliminar la trivia.') }
     finally { setProcesandoId(null) }
   }
 
@@ -159,9 +170,14 @@ export function PaginaListaTrivias() {
                 </div>
                 <div className="acciones-formulario-trivia" style={{ marginTop: 8 }}>
                   {t.estado === 'Inactiva' ? (
-                    <Boton variante="secundario" onClick={(e) => manejarActivar(e, t.id)} disabled={procesandoId === t.id}>
-                      {procesandoId === t.id ? 'Activando…' : 'Activar'}
-                    </Boton>
+                    <>
+                      <Boton variante="secundario" onClick={(e) => manejarActivar(e, t.id)} disabled={procesandoId === t.id}>
+                        {procesandoId === t.id ? 'Activando…' : 'Activar'}
+                      </Boton>
+                      <Boton variante="peligro" onClick={(e) => manejarEliminar(e, t.id)} disabled={procesandoId === t.id}>
+                        {procesandoId === t.id ? 'Eliminando…' : 'Eliminar'}
+                      </Boton>
+                    </>
                   ) : (
                     <Boton variante="peligro" onClick={(e) => manejarDesactivar(e, t.id)} disabled={procesandoId === t.id}>
                       {procesandoId === t.id ? 'Desactivando…' : 'Desactivar'}

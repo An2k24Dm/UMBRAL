@@ -22,7 +22,7 @@ public sealed class ModificarPistaManejador : IRequestHandler<ModificarPistaComa
 
         busqueda.ModificarPista(comando.PistaId, comando.Dto.NuevoContenido);
 
-        var pista = busqueda.Mision!.Pistas.First(p => p.Id == comando.PistaId);
+        var pista = busqueda.Pistas.First(p => p.Id == comando.PistaId);
         await _repositorio.ModificarPistaAsync(pista, cancelacion);
     }
 }

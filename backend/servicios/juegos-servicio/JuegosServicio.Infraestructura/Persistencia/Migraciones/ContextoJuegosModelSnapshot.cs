@@ -54,12 +54,52 @@ namespace JuegosServicio.Infraestructura.Persistencia.Migraciones
                         .HasColumnType("character varying(200)")
                         .HasColumnName("nombre");
 
+                    b.Property<int>("Puntaje")
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("puntaje");
+
+                    b.Property<int>("Tiempo")
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("tiempo");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Nombre")
                         .IsUnique();
 
                     b.ToTable("BusquedaTesoro", "juegos");
+                });
+
+            modelBuilder.Entity("JuegosServicio.Infraestructura.Persistencia.Modelos.EtapaModelo", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("MisionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("mision_id");
+
+                    b.Property<Guid>("ModoDeJuegoId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("modo_de_juego_id");
+
+                    b.Property<int>("Orden")
+                        .HasColumnType("integer")
+                        .HasColumnName("orden");
+
+                    b.Property<int>("TipoModoDeJuego")
+                        .HasColumnType("integer")
+                        .HasColumnName("tipo_modo_de_juego");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MisionId", "Orden");
+
+                    b.ToTable("Etapa", "juegos");
                 });
 
             modelBuilder.Entity("JuegosServicio.Infraestructura.Persistencia.Modelos.EventoSalidaModelo", b =>
@@ -100,9 +140,9 @@ namespace JuegosServicio.Infraestructura.Persistencia.Migraciones
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
-                    b.Property<Guid>("BusquedaId")
+                    b.Property<Guid>("CreadorId")
                         .HasColumnType("uuid")
-                        .HasColumnName("busqueda_id");
+                        .HasColumnName("creador_id");
 
                     b.Property<string>("Descripcion")
                         .IsRequired()
@@ -110,25 +150,23 @@ namespace JuegosServicio.Infraestructura.Persistencia.Migraciones
                         .HasColumnType("character varying(1000)")
                         .HasColumnName("descripcion");
 
-                    b.Property<string>("PistaClave")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("pista_clave");
-
-                    b.Property<int>("Tipo")
+                    b.Property<int>("Estado")
                         .HasColumnType("integer")
-                        .HasColumnName("tipo");
+                        .HasColumnName("estado");
 
-                    b.Property<string>("Titulo")
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("fecha_creacion");
+
+                    b.Property<string>("Nombre")
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)")
-                        .HasColumnName("titulo");
+                        .HasColumnName("nombre");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("BusquedaId")
+                    b.HasIndex("Nombre")
                         .IsUnique();
 
                     b.ToTable("Mision", "juegos");
@@ -169,19 +207,19 @@ namespace JuegosServicio.Infraestructura.Persistencia.Migraciones
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<Guid>("BusquedaId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("busqueda_id");
+
                     b.Property<string>("Contenido")
                         .IsRequired()
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)")
                         .HasColumnName("contenido");
 
-                    b.Property<Guid>("MisionId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("mision_id");
-
                     b.HasKey("Id");
 
-                    b.HasIndex("MisionId");
+                    b.HasIndex("BusquedaId");
 
                     b.ToTable("Pista", "juegos");
                 });
@@ -202,6 +240,11 @@ namespace JuegosServicio.Infraestructura.Persistencia.Migraciones
                     b.Property<int>("PuntajeAsignado")
                         .HasColumnType("integer")
                         .HasColumnName("puntaje_asignado");
+
+                    b.Property<int>("TiempoEstimado")
+                        .HasColumnType("integer")
+                        .HasDefaultValue(10)
+                        .HasColumnName("tiempo_estimado");
 
                     b.Property<Guid>("TriviaId")
                         .HasColumnType("uuid")
@@ -257,15 +300,15 @@ namespace JuegosServicio.Infraestructura.Persistencia.Migraciones
                     b.ToTable("Trivia", "juegos");
                 });
 
-            modelBuilder.Entity("JuegosServicio.Infraestructura.Persistencia.Modelos.MisionModelo", b =>
+            modelBuilder.Entity("JuegosServicio.Infraestructura.Persistencia.Modelos.EtapaModelo", b =>
                 {
-                    b.HasOne("JuegosServicio.Infraestructura.Persistencia.Modelos.BusquedaTesoroModelo", "BusquedaTesoro")
-                        .WithOne("Mision")
-                        .HasForeignKey("JuegosServicio.Infraestructura.Persistencia.Modelos.MisionModelo", "BusquedaId")
+                    b.HasOne("JuegosServicio.Infraestructura.Persistencia.Modelos.MisionModelo", "Mision")
+                        .WithMany("Etapas")
+                        .HasForeignKey("MisionId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("BusquedaTesoro");
+                    b.Navigation("Mision");
                 });
 
             modelBuilder.Entity("JuegosServicio.Infraestructura.Persistencia.Modelos.OpcionModelo", b =>
@@ -281,13 +324,13 @@ namespace JuegosServicio.Infraestructura.Persistencia.Migraciones
 
             modelBuilder.Entity("JuegosServicio.Infraestructura.Persistencia.Modelos.PistaModelo", b =>
                 {
-                    b.HasOne("JuegosServicio.Infraestructura.Persistencia.Modelos.MisionModelo", "Mision")
+                    b.HasOne("JuegosServicio.Infraestructura.Persistencia.Modelos.BusquedaTesoroModelo", "BusquedaTesoro")
                         .WithMany("Pistas")
-                        .HasForeignKey("MisionId")
+                        .HasForeignKey("BusquedaId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Mision");
+                    b.Navigation("BusquedaTesoro");
                 });
 
             modelBuilder.Entity("JuegosServicio.Infraestructura.Persistencia.Modelos.PreguntaModelo", b =>
@@ -303,12 +346,12 @@ namespace JuegosServicio.Infraestructura.Persistencia.Migraciones
 
             modelBuilder.Entity("JuegosServicio.Infraestructura.Persistencia.Modelos.BusquedaTesoroModelo", b =>
                 {
-                    b.Navigation("Mision");
+                    b.Navigation("Pistas");
                 });
 
             modelBuilder.Entity("JuegosServicio.Infraestructura.Persistencia.Modelos.MisionModelo", b =>
                 {
-                    b.Navigation("Pistas");
+                    b.Navigation("Etapas");
                 });
 
             modelBuilder.Entity("JuegosServicio.Infraestructura.Persistencia.Modelos.PreguntaModelo", b =>

@@ -64,7 +64,9 @@ export function PaginaCrearBusqueda() {
       const id = await crearBusquedaTesoro(
         {
           nombre: datos.nombre.trim(),
-          descripcion: datos.descripcion.trim()
+          descripcion: datos.descripcion.trim(),
+          tiempo: 0,
+          puntaje: 0
         },
         token
       )

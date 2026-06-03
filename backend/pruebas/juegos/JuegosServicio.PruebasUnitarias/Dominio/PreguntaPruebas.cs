@@ -25,7 +25,7 @@ public class PreguntaPruebas
     {
         var trivia = TriviaEnBorrador();
 
-        var pregunta = trivia.AgregarPregunta("¿Capital de Francia?", 10, OpcionesValidas());
+        var pregunta = trivia.AgregarPregunta("¿Capital de Francia?", 10, 10, OpcionesValidas());
 
         pregunta.Id.Should().NotBe(Guid.Empty);
     }
@@ -35,7 +35,7 @@ public class PreguntaPruebas
     {
         var trivia = TriviaEnBorrador();
 
-        var pregunta = trivia.AgregarPregunta("¿Capital de Francia?", 10, OpcionesValidas());
+        var pregunta = trivia.AgregarPregunta("¿Capital de Francia?", 10, 10, OpcionesValidas());
 
         pregunta.TriviaId.Should().Be(trivia.Id);
     }
@@ -45,8 +45,8 @@ public class PreguntaPruebas
     {
         var trivia = TriviaEnBorrador();
 
-        trivia.AgregarPregunta("Pregunta 1", 10, OpcionesValidas());
-        trivia.AgregarPregunta("Pregunta 2", 5, OpcionesValidas());
+        trivia.AgregarPregunta("Pregunta 1", 10, 10, OpcionesValidas());
+        trivia.AgregarPregunta("Pregunta 2", 5, 10, OpcionesValidas());
 
         trivia.Preguntas.Should().HaveCount(2);
     }
@@ -56,7 +56,7 @@ public class PreguntaPruebas
     {
         var trivia = TriviaEnBorrador();
 
-        var pregunta = trivia.AgregarPregunta("¿Capital de Francia?", 10, OpcionesValidas());
+        var pregunta = trivia.AgregarPregunta("¿Capital de Francia?", 10, 10, OpcionesValidas());
 
         pregunta.Opciones.Should().HaveCount(3);
     }
@@ -66,7 +66,7 @@ public class PreguntaPruebas
     {
         var trivia = TriviaEnBorrador();
 
-        var pregunta = trivia.AgregarPregunta("¿Capital de Francia?", 10, OpcionesValidas());
+        var pregunta = trivia.AgregarPregunta("¿Capital de Francia?", 10, 10, OpcionesValidas());
 
         pregunta.Opciones.Should().ContainSingle(o => o.EsCorrecta);
         pregunta.Opciones.First(o => o.EsCorrecta).Texto.Should().Be("París");
@@ -79,7 +79,7 @@ public class PreguntaPruebas
     {
         var trivia = TriviaEnBorrador();
 
-        Action accion = () => trivia.AgregarPregunta(enunciado, 10, OpcionesValidas());
+        Action accion = () => trivia.AgregarPregunta(enunciado, 10, 10, OpcionesValidas());
 
         accion.Should().Throw<ExcepcionDominio>();
     }
@@ -95,7 +95,7 @@ public class PreguntaPruebas
     {
         var trivia = TriviaEnBorrador();
 
-        Action accion = () => trivia.AgregarPregunta("¿Pregunta?", puntaje, OpcionesValidas());
+        Action accion = () => trivia.AgregarPregunta("¿Pregunta?", puntaje, 10, OpcionesValidas());
 
         accion.Should().Throw<ExcepcionDominio>();
     }
@@ -105,7 +105,7 @@ public class PreguntaPruebas
     {
         var trivia = TriviaEnBorrador();
 
-        Action accion = () => trivia.AgregarPregunta("¿Pregunta?", 105, OpcionesValidas());
+        Action accion = () => trivia.AgregarPregunta("¿Pregunta?", 105, 10, OpcionesValidas());
 
         accion.Should().Throw<ExcepcionDominio>();
     }
@@ -118,7 +118,7 @@ public class PreguntaPruebas
     {
         var trivia = TriviaEnBorrador();
 
-        Action accion = () => trivia.AgregarPregunta("¿Pregunta?", puntaje, OpcionesValidas());
+        Action accion = () => trivia.AgregarPregunta("¿Pregunta?", puntaje, 10, OpcionesValidas());
 
         accion.Should().NotThrow();
     }
@@ -129,7 +129,7 @@ public class PreguntaPruebas
         var trivia = TriviaEnBorrador();
         var soloUna = new[] { ("París", true) };
 
-        Action accion = () => trivia.AgregarPregunta("¿Pregunta?", 10, soloUna);
+        Action accion = () => trivia.AgregarPregunta("¿Pregunta?", 10, 10, soloUna);
 
         accion.Should().Throw<ExcepcionDominio>();
     }
@@ -140,7 +140,7 @@ public class PreguntaPruebas
         var trivia = TriviaEnBorrador();
         var sinCorrecta = new[] { ("París", false), ("Madrid", false) };
 
-        Action accion = () => trivia.AgregarPregunta("¿Pregunta?", 10, sinCorrecta);
+        Action accion = () => trivia.AgregarPregunta("¿Pregunta?", 10, 10, sinCorrecta);
 
         accion.Should().Throw<ExcepcionDominio>();
     }
@@ -152,7 +152,7 @@ public class PreguntaPruebas
         var trivia = TriviaEnBorrador();
         var dosCorrectas = new[] { ("París", true), ("Madrid", true), ("Roma", false) };
 
-        Action accion = () => trivia.AgregarPregunta("¿Pregunta?", 10, dosCorrectas);
+        Action accion = () => trivia.AgregarPregunta("¿Pregunta?", 10, 10, dosCorrectas);
 
         accion.Should().Throw<ExcepcionDominio>();
     }
@@ -163,9 +163,9 @@ public class PreguntaPruebas
     {
         var trivia = TriviaEnBorrador();
         for (var i = 1; i <= 20; i++)
-            trivia.AgregarPregunta($"Pregunta {i}", 5, OpcionesValidas());
+            trivia.AgregarPregunta($"Pregunta {i}", 5, 10, OpcionesValidas());
 
-        Action accion = () => trivia.AgregarPregunta("Pregunta 21", 5, OpcionesValidas());
+        Action accion = () => trivia.AgregarPregunta("Pregunta 21", 5, 10, OpcionesValidas());
 
         accion.Should().Throw<ExcepcionDominio>();
     }
@@ -175,9 +175,9 @@ public class PreguntaPruebas
     {
         var trivia = TriviaEnBorrador();
         for (var i = 1; i <= 19; i++)
-            trivia.AgregarPregunta($"Pregunta {i}", 5, OpcionesValidas());
+            trivia.AgregarPregunta($"Pregunta {i}", 5, 10, OpcionesValidas());
 
-        Action accion = () => trivia.AgregarPregunta("Pregunta 20", 5, OpcionesValidas());
+        Action accion = () => trivia.AgregarPregunta("Pregunta 20", 5, 10, OpcionesValidas());
 
         accion.Should().NotThrow();
     }
@@ -186,10 +186,10 @@ public class PreguntaPruebas
     public void AgregarPregunta_TriviaNoEnBorrador_LanzaExcepcionDominio()
     {
         var trivia = TriviaEnBorrador();
-        trivia.AgregarPregunta("Pregunta inicial", 10, OpcionesValidas());
+        trivia.AgregarPregunta("Pregunta inicial", 10, 10, OpcionesValidas());
         trivia.Activar();
 
-        Action accion = () => trivia.AgregarPregunta("Nueva pregunta", 10, OpcionesValidas());
+        Action accion = () => trivia.AgregarPregunta("Nueva pregunta", 10, 10, OpcionesValidas());
 
         accion.Should().Throw<ExcepcionDominio>();
     }

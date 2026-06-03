@@ -1,10 +1,8 @@
-﻿using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Dominio.Entidades;
 using JuegosServicio.Dominio.Excepciones;
 
 namespace JuegosServicio.PruebasUnitarias.Dominio;
 
-// HU30: pruebas de BusquedaTesoro.ModificarPista.
 public class PistaModificarPruebas
 {
     private static readonly DateTime FechaFija =
@@ -13,8 +11,7 @@ public class PistaModificarPruebas
     private static BusquedaTesoro BusquedaConPista(out Guid pistaId)
     {
         var busqueda = BusquedaTesoro.Crear("Búsqueda Test", "Descripción", Guid.NewGuid(), FechaFija);
-        busqueda.AsignarMision("Misión", "Desc", TipoMision.PalabraClave, "clave");
-        var pista = busqueda.AgregarPistaAMision("Pista original.");
+        var pista = busqueda.AgregarPista("Pista original.");
         pistaId = pista.Id;
         return busqueda;
     }
@@ -26,8 +23,8 @@ public class PistaModificarPruebas
 
         busqueda.ModificarPista(pistaId, "Nuevo contenido de pista.");
 
-        var pista = busqueda.Mision!.Pistas.First(p => p.Id == pistaId);
-        pista.Contenido.Should().Be("Nuevo contenido de pista.");
+        busqueda.Pistas.First(p => p.Id == pistaId).Contenido
+            .Should().Be("Nuevo contenido de pista.");
     }
 
     [Fact]
@@ -37,8 +34,8 @@ public class PistaModificarPruebas
 
         busqueda.ModificarPista(pistaId, "  Contenido con espacios  ");
 
-        var pista = busqueda.Mision!.Pistas.First(p => p.Id == pistaId);
-        pista.Contenido.Should().Be("Contenido con espacios");
+        busqueda.Pistas.First(p => p.Id == pistaId).Contenido
+            .Should().Be("Contenido con espacios");
     }
 
     [Theory]
