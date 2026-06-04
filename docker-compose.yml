@@ -70,7 +70,7 @@ services:
   identidad-servicio:
     build:
       context: ./backend/servicios/identidad-servicio
-      dockerfile: IdentidadServicio.Api/Dockerfile
+      dockerfile: IdentidadServicio.Presentacion/Dockerfile
     container_name: umbral-identidad-servicio
     environment:
       ASPNETCORE_ENVIRONMENT: Development
@@ -117,7 +117,7 @@ services:
   juegos-servicio:
     build:
       context: ./backend/servicios/juegos-servicio
-      dockerfile: JuegosServicio.Api/Dockerfile
+      dockerfile: JuegosServicio.Presentacion/Dockerfile
     container_name: umbral-juegos-servicio
     environment:
       ASPNETCORE_ENVIRONMENT: Development
@@ -161,7 +161,7 @@ services:
   sesiones-servicio:
     build:
       context: ./backend/servicios/sesiones-servicio
-      dockerfile: SesionesServicio.Api/Dockerfile
+      dockerfile: SesionesServicio.Presentacion/Dockerfile
     container_name: umbral-sesiones-servicio
     environment:
       ASPNETCORE_ENVIRONMENT: Development

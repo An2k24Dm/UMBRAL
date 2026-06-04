@@ -8,7 +8,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "IdentidadServicio.Aplicacio
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "IdentidadServicio.Infraestructura", "IdentidadServicio.Infraestructura\IdentidadServicio.Infraestructura.csproj", "{44444444-4444-4444-4444-444444444444}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "IdentidadServicio.Api", "IdentidadServicio.Api\IdentidadServicio.Api.csproj", "{55555555-5555-5555-5555-555555555555}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "IdentidadServicio.Presentacion", "IdentidadServicio.Presentacion\IdentidadServicio.Presentacion.csproj", "{55555555-5555-5555-5555-555555555555}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

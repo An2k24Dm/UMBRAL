@@ -368,7 +368,7 @@ Si necesitas crear una nueva, ejecuta desde la raíz:
 ```powershell
 dotnet ef migrations add NombreMigracion `
   --project backend\servicios\identidad-servicio\IdentidadServicio.Infraestructura `
-  --startup-project backend\servicios\identidad-servicio\IdentidadServicio.Api `
+  --startup-project backend\servicios\identidad-servicio\IdentidadServicio.Presentacion `
   --context ContextoIdentidad `
   --output-dir Persistencia\Migraciones
 ```
@@ -378,7 +378,7 @@ dotnet ef migrations add NombreMigracion `
 ```powershell
 dotnet ef migrations add NombreMigracion `
   --project backend\servicios\juegos-servicio\JuegosServicio.Infraestructura `
-  --startup-project backend\servicios\juegos-servicio\JuegosServicio.Api `
+  --startup-project backend\servicios\juegos-servicio\JuegosServicio.Presentacion `
   --context ContextoJuegos `
   --output-dir Persistencia\Migraciones
 ```

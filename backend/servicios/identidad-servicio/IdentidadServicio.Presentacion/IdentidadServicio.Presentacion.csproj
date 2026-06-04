@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>IdentidadServicio.Presentacion</RootNamespace>
+    <UserSecretsId>identidad-servicio-umbral</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.0">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.7.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\IdentidadServicio.Aplicacion\IdentidadServicio.Aplicacion.csproj" />
+    <ProjectReference Include="..\IdentidadServicio.Infraestructura\IdentidadServicio.Infraestructura.csproj" />
+    <ProjectReference Include="..\IdentidadServicio.Commons\IdentidadServicio.Commons.csproj" />
+    <ProjectReference Include="..\IdentidadServicio.Dominio\IdentidadServicio.Dominio.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,26 +1,17 @@
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useAutenticacion } from '../../autenticacion/ContextoAutenticacion'
 import { BotonMovil } from '../../componentes/BotonMovil'
 import { PantallaBase } from '../../componentes/PantallaBase'
-import RutaProtegidaMovil from '../../componentes/RutaProtegidaMovil'
 import { TarjetaMovil } from '../../componentes/TarjetaMovil'
+import { TarjetaOpcionMenu } from '../../componentes/participante/TarjetaOpcionMenu'
 import { tema } from '../../estilos/tema'
-
-// Menú principal de la app móvil del Participante. Hub de navegación tras el login.
-export default function PantallaMenuParticipante() {
-  return (
-    <RutaProtegidaMovil>
-      <ContenidoMenu />
-    </RutaProtegidaMovil>
-  )
-}
 
 interface OpcionMenu {
   clave: string
   titulo: string
   descripcion: string
-  ruta: '/participante/perfil'
+  ruta: '/participante/perfil' | '/participante/sesiones'
 }
 
 const OPCIONES: OpcionMenu[] = [
@@ -30,9 +21,15 @@ const OPCIONES: OpcionMenu[] = [
     descripcion: 'Consulta tus datos personales de Participante.',
     ruta: '/participante/perfil',
   },
+  {
+    clave: 'sesiones',
+    titulo: 'Sesiones',
+    descripcion: 'Consulta las sesiones disponibles para participar.',
+    ruta: '/participante/sesiones',
+  },
 ]
 
-function ContenidoMenu() {
+export default function PantallaMenuParticipante() {
   const { usuario, cerrarSesion } = useAutenticacion()
   const enrutador = useRouter()
 
@@ -62,19 +59,12 @@ function ContenidoMenu() {
       </TarjetaMovil>
 
       {OPCIONES.map((opcion) => (
-        <TouchableOpacity
+        <TarjetaOpcionMenu
           key={opcion.clave}
-          activeOpacity={0.7}
-          onPress={() => alSeleccionar(opcion)}
-          style={estilos.tarjetaOpcion}
-        >
-          <View style={estilos.opcionIndicador} />
-          <View style={estilos.opcionCuerpo}>
-            <Text style={estilos.opcionTitulo}>{opcion.titulo}</Text>
-            <Text style={estilos.opcionDescripcion}>{opcion.descripcion}</Text>
-          </View>
-          <Text style={estilos.opcionFlecha}>›</Text>
-        </TouchableOpacity>
+          titulo={opcion.titulo}
+          descripcion={opcion.descripcion}
+          alPresionar={() => alSeleccionar(opcion)}
+        />
       ))}
 
       <BotonMovil
@@ -120,39 +110,5 @@ const estilos = StyleSheet.create({
     fontSize: tema.tipografia.tamanos.base,
     marginTop: tema.espacios.sm,
     lineHeight: 20,
-  },
-  tarjetaOpcion: {
-    flexDirection: 'row',
-    backgroundColor: tema.colores.fondoTarjeta,
-    borderRadius: tema.radios.tarjeta,
-    borderWidth: 1,
-    borderColor: tema.colores.bordeTarjeta,
-    padding: tema.espacios.md,
-    marginBottom: tema.espacios.md,
-    alignItems: 'center',
-  },
-  opcionIndicador: {
-    width: 4,
-    height: 40,
-    borderRadius: tema.radios.pastilla,
-    backgroundColor: tema.colores.primario,
-    marginRight: tema.espacios.md,
-  },
-  opcionCuerpo: { flex: 1 },
-  opcionTitulo: {
-    color: tema.colores.texto,
-    fontWeight: tema.tipografia.pesos.bold,
-    fontSize: tema.tipografia.tamanos.lg,
-  },
-  opcionDescripcion: {
-    color: tema.colores.textoTenue,
-    fontSize: tema.tipografia.tamanos.sm,
-    marginTop: tema.espacios.xs,
-    lineHeight: 18,
-  },
-  opcionFlecha: {
-    color: tema.colores.textoTenue,
-    fontSize: tema.tipografia.tamanos.h4,
-    marginLeft: tema.espacios.sm,
   },
 })

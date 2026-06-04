@@ -327,7 +327,7 @@ Registra en el contenedor de DI:
 
 ---
 
-## Capa 5: API (`JuegosServicio.Api`)
+## Capa 5: API (`JuegosServicio.Presentacion`)
 
 > El punto de entrada HTTP. Recibe requests, los convierte en comandos/consultas, y devuelve respuestas.
 
@@ -479,7 +479,7 @@ cd backend/servicios/juegos-servicio
 
 dotnet ef migrations add InicialJuegos `
   --project JuegosServicio.Infraestructura `
-  --startup-project JuegosServicio.Api
+  --startup-project JuegosServicio.Presentacion
 
 # Luego volver a la raíz y levantar todo
 cd ../../..

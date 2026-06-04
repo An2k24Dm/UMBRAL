@@ -12,6 +12,8 @@ export default function DiseñoRaiz() {
         <Stack.Screen name="registro" />
         <Stack.Screen name="participante/menu" />
         <Stack.Screen name="participante/perfil" />
+        <Stack.Screen name="participante/sesiones/index" />
+        <Stack.Screen name="participante/sesiones/[id]" />
       </Stack>
     </ProveedorAutenticacion>
   )

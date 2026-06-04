@@ -9,7 +9,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "servicios", "servicios", "{
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "identidad-servicio", "identidad-servicio", "{54E066B5-4F24-4BC8-BF21-AE2FA4FC72E4}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IdentidadServicio.Api", "backend\servicios\identidad-servicio\IdentidadServicio.Api\IdentidadServicio.Api.csproj", "{B0035A92-12F4-42F6-8605-0CBD71E4FC42}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IdentidadServicio.Presentacion", "backend\servicios\identidad-servicio\IdentidadServicio.Presentacion\IdentidadServicio.Presentacion.csproj", "{B0035A92-12F4-42F6-8605-0CBD71E4FC42}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IdentidadServicio.Aplicacion", "backend\servicios\identidad-servicio\IdentidadServicio.Aplicacion\IdentidadServicio.Aplicacion.csproj", "{2BA61C6F-808A-4048-9AE3-3E92669A7EE5}"
 EndProject
@@ -21,7 +21,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IdentidadServicio.Infraestr
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "juegos-servicio", "juegos-servicio", "{59C1DA34-355E-4C2F-BA7A-689E9AC8F66B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "JuegosServicio.Api", "backend\servicios\juegos-servicio\JuegosServicio.Api\JuegosServicio.Api.csproj", "{C37A545C-3253-447F-B4E5-819A835C641A}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "JuegosServicio.Presentacion", "backend\servicios\juegos-servicio\JuegosServicio.Presentacion\JuegosServicio.Presentacion.csproj", "{C37A545C-3253-447F-B4E5-819A835C641A}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "JuegosServicio.Aplicacion", "backend\servicios\juegos-servicio\JuegosServicio.Aplicacion\JuegosServicio.Aplicacion.csproj", "{FE29D240-AB9B-414E-95C5-3BCDB116CEF9}"
 EndProject
@@ -49,7 +49,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "JuegosServicio.PruebasUnita
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "sesiones-servicio", "sesiones-servicio", "{9FAFF5CF-E582-9F49-9CAE-648C87FAF763}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SesionesServicio.Api", "backend\servicios\sesiones-servicio\SesionesServicio.Api\SesionesServicio.Api.csproj", "{032D6384-87B9-4BB0-9147-137EE70B66EC}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SesionesServicio.Presentacion", "backend\servicios\sesiones-servicio\SesionesServicio.Presentacion\SesionesServicio.Presentacion.csproj", "{032D6384-87B9-4BB0-9147-137EE70B66EC}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SesionesServicio.Aplicacion", "backend\servicios\sesiones-servicio\SesionesServicio.Aplicacion\SesionesServicio.Aplicacion.csproj", "{D0E48F43-5220-44E3-B3CC-761E2A7B8CF9}"
 EndProject

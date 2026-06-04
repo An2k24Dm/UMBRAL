@@ -31,4 +31,16 @@ public interface IRepositorioSesiones
     Task<bool> ExisteSesionVigentePorMisionAsync(
         Guid misionId,
         CancellationToken cancelacion);
+
+    // Sesiones que el Participante puede ver y eventualmente unirse.
+    // Filtro de estado fijo: Programada, EnPreparacion y Activa (las
+    // únicas en las que tiene sentido que un Participante entre).
+    // Filtros opcionales:
+    //   * busqueda: subcadena del nombre, case-insensitive.
+    //   * tipoSesion: "Individual" / "Grupal" / null (todas).
+    // Orden: fechaProgramada ascendente (primero las más próximas).
+    Task<IReadOnlyList<Sesion>> ListarDisponiblesParaParticipanteAsync(
+        string? busqueda,
+        string? tipoSesion,
+        CancellationToken cancelacion);
 }

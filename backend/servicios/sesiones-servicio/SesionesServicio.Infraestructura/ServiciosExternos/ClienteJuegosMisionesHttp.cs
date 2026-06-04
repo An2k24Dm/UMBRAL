@@ -8,11 +8,6 @@ using SesionesServicio.Commons.Dtos;
 
 namespace SesionesServicio.Infraestructura.ServiciosExternos;
 
-// Adaptador HTTP hacia juegos-servicio para consultar misiones. Reenvía
-// el token Bearer del usuario actual para que la autorización por roles
-// del microservicio destino se aplique de forma transparente.
-//
-// Endpoint contractual: GET /api/juegos/misiones/{misionId}
 public sealed class ClienteJuegosMisionesHttp : IClienteJuegosMisiones
 {
     private static readonly JsonSerializerOptions OpcionesJson = new()
@@ -56,6 +51,33 @@ public sealed class ClienteJuegosMisionesHttp : IClienteJuegosMisiones
         };
     }
 
+    public async Task<MisionConEtapasJuegosDto?> ObtenerMisionConEtapasAsync(
+        Guid misionId, CancellationToken cancelacion)
+    {
+        var bruto = await EnviarAsync<MisionDetalleRespuesta>(
+            $"api/juegos/misiones/participante/{misionId}", cancelacion);
+        if (bruto is null) return null;
+
+        return new MisionConEtapasJuegosDto
+        {
+            Id = bruto.Id,
+            Nombre = bruto.Nombre ?? string.Empty,
+            Descripcion = bruto.Descripcion ?? string.Empty,
+            Estado = bruto.Estado ?? string.Empty,
+            Dificultad = bruto.Dificultad ?? string.Empty,
+            Etapas = (bruto.Etapas ?? new List<EtapaRespuesta>())
+                .Select(e => new EtapaJuegosDto
+                {
+                    Id = e.Id,
+                    Orden = e.Orden,
+                    TipoModoDeJuego = e.TipoModoDeJuego ?? string.Empty,
+                    ModoDeJuegoId = e.ModoDeJuegoId,
+                    NombreModoDeJuego = e.NombreModoDeJuego ?? string.Empty,
+                    TiempoEstimado = e.TiempoEstimado
+                }).ToList()
+        };
+    }
+
     private async Task<T?> EnviarAsync<T>(string ruta, CancellationToken cancelacion)
         where T : class
     {
@@ -67,15 +89,17 @@ public sealed class ClienteJuegosMisionesHttp : IClienteJuegosMisiones
 
         using var respuesta = await _cliente.SendAsync(solicitud, cancelacion);
 
-        if (respuesta.StatusCode == HttpStatusCode.NotFound) return null;
+        if (respuesta.StatusCode == HttpStatusCode.NotFound
+            || respuesta.StatusCode == HttpStatusCode.Forbidden)
+        {
+            return null;
+        }
 
         respuesta.EnsureSuccessStatusCode();
 
         return await respuesta.Content.ReadFromJsonAsync<T>(OpcionesJson, cancelacion);
     }
 
-    // Espejo liviano del MisionDetalleDto de juegos-servicio. Sólo lee
-    // los campos que sesiones-servicio necesita.
     private sealed class MisionDetalleRespuesta
     {
         public Guid Id { get; set; }
@@ -89,5 +113,10 @@ public sealed class ClienteJuegosMisionesHttp : IClienteJuegosMisiones
     private sealed class EtapaRespuesta
     {
         public Guid Id { get; set; }
+        public int Orden { get; set; }
+        public string? TipoModoDeJuego { get; set; }
+        public Guid ModoDeJuegoId { get; set; }
+        public string? NombreModoDeJuego { get; set; }
+        public int TiempoEstimado { get; set; }
     }
 }

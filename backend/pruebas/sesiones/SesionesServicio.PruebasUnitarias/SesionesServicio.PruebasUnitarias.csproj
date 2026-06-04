@@ -18,7 +18,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\servicios\sesiones-servicio\SesionesServicio.Api\SesionesServicio.Api.csproj" />
+    <ProjectReference Include="..\..\..\servicios\sesiones-servicio\SesionesServicio.Presentacion\SesionesServicio.Presentacion.csproj" />
     <ProjectReference Include="..\..\..\servicios\sesiones-servicio\SesionesServicio.Aplicacion\SesionesServicio.Aplicacion.csproj" />
     <ProjectReference Include="..\..\..\servicios\sesiones-servicio\SesionesServicio.Dominio\SesionesServicio.Dominio.csproj" />
     <ProjectReference Include="..\..\..\servicios\sesiones-servicio\SesionesServicio.Commons\SesionesServicio.Commons.csproj" />
