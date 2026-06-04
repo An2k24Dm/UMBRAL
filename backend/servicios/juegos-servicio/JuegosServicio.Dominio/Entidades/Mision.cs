@@ -1,7 +1,6 @@
 using JuegosServicio.Dominio.Abstract;
 using JuegosServicio.Dominio.Dificultades;
 using JuegosServicio.Dominio.Enums;
-using JuegosServicio.Dominio.Estados;
 using JuegosServicio.Dominio.Excepciones;
 
 namespace JuegosServicio.Dominio.Entidades;
@@ -11,7 +10,6 @@ namespace JuegosServicio.Dominio.Entidades;
 public sealed class Mision
 {
     private readonly List<Etapa> _etapas = new();
-    private IEstadoMision _estado = default!;
     private IDificultadMision _dificultad = default!;
 
     public Guid Id { get; private set; }
@@ -52,14 +50,13 @@ public sealed class Mision
             Dificultad = dificultad,
             FechaCreacion = fechaCreacion
         };
-        mision._estado = FabricaEstadoMision.Obtener(EstadoMision.Inactiva);
         mision._dificultad = FabricaDificultadMision.Obtener(dificultad);
         return mision;
     }
 
     public Etapa AgregarEtapa(TipoModoDeJuego tipo, Guid modoDeJuegoId)
     {
-        if (_estado.Estado == EstadoMision.Activa)
+        if (Estado == EstadoMision.Activa)
             throw new ExcepcionDominio("No se pueden agregar etapas a una misión activa.");
         if (modoDeJuegoId == Guid.Empty)
             throw new ExcepcionDominio("El identificador del modo de juego es obligatorio.");
@@ -72,7 +69,7 @@ public sealed class Mision
 
     public void EliminarEtapa(Guid etapaId)
     {
-        if (_estado.Estado == EstadoMision.Activa)
+        if (Estado == EstadoMision.Activa)
             throw new ExcepcionDominio("No se pueden eliminar etapas de una misión activa.");
 
         var etapa = _etapas.FirstOrDefault(e => e.Id == etapaId)
@@ -84,7 +81,7 @@ public sealed class Mision
 
     public void Modificar(string nombre, string descripcion, NivelDificultad dificultad)
     {
-        if (_estado.Estado == EstadoMision.Activa)
+        if (Estado == EstadoMision.Activa)
             throw new ExcepcionDominio("No se puede modificar una misión activa.");
         if (string.IsNullOrWhiteSpace(nombre))
             throw new ExcepcionDominio("El nombre de la misión es obligatorio.");
@@ -96,8 +93,21 @@ public sealed class Mision
         _dificultad = FabricaDificultadMision.Obtener(dificultad);
     }
 
-    public void Activar() => _estado.Activar(this);
-    public void Desactivar() => _estado.Desactivar(this);
+    public void Activar()
+    {
+        if (Estado == EstadoMision.Activa)
+            throw new ExcepcionDominio("La misión ya está activa.");
+        if (_etapas.Count == 0)
+            throw new ExcepcionDominio("La misión debe tener al menos una etapa para poder activarse.");
+        Estado = EstadoMision.Activa;
+    }
+
+    public void Desactivar()
+    {
+        if (Estado == EstadoMision.Inactiva)
+            throw new ExcepcionDominio("La misión ya está inactiva.");
+        Estado = EstadoMision.Inactiva;
+    }
 
     public static Mision Reconstituir(
         Guid id,
@@ -119,16 +129,9 @@ public sealed class Mision
             Dificultad = dificultad,
             FechaCreacion = fechaCreacion
         };
-        mision._estado = FabricaEstadoMision.Obtener(estado);
         mision._dificultad = FabricaDificultadMision.Obtener(dificultad);
         if (etapas is not null) mision._etapas.AddRange(etapas);
         return mision;
-    }
-
-    internal void TransicionarEstado(EstadoMision nuevoEstado)
-    {
-        Estado = nuevoEstado;
-        _estado = FabricaEstadoMision.Obtener(nuevoEstado);
     }
 
     private void RenumerarEtapas()
