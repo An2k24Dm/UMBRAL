@@ -10,14 +10,20 @@ import { usarAutenticacion } from '../autenticacion/ProveedorAutenticacion'
 interface Errores {
   nombre?: string
   descripcion?: string
+  tiempo?: string
+  puntaje?: string
 }
 
 interface Datos {
   nombre: string
   descripcion: string
+  tiempo: string
+  puntaje: string
 }
 
-const ESTADO_INICIAL: Datos = { nombre: '', descripcion: '' }
+const PUNTAJE_OPCIONES = Array.from({ length: 20 }, (_, i) => (i + 1) * 5)
+
+const ESTADO_INICIAL: Datos = { nombre: '', descripcion: '', tiempo: '5', puntaje: '5' }
 
 function validar(datos: Datos): Errores {
   const errores: Errores = {}
@@ -30,6 +36,14 @@ function validar(datos: Datos): Errores {
     errores.descripcion = 'La descripción es obligatoria.'
   } else if (datos.descripcion.trim().length > 1000) {
     errores.descripcion = 'La descripción no puede superar 1000 caracteres.'
+  }
+  const tiempo = Number(datos.tiempo)
+  if (isNaN(tiempo) || tiempo < 5) {
+    errores.tiempo = 'El tiempo debe ser al menos 5 segundos.'
+  }
+  const puntaje = Number(datos.puntaje)
+  if (isNaN(puntaje) || puntaje < 5) {
+    errores.puntaje = 'El puntaje debe ser al menos 5 puntos.'
   }
   return errores
 }
@@ -65,8 +79,8 @@ export function PaginaCrearBusqueda() {
         {
           nombre: datos.nombre.trim(),
           descripcion: datos.descripcion.trim(),
-          tiempo: 0,
-          puntaje: 0
+          tiempo: Number(datos.tiempo),
+          puntaje: Number(datos.puntaje)
         },
         token
       )
@@ -112,6 +126,33 @@ export function PaginaCrearBusqueda() {
               disabled={enviando}
               placeholder="Describe brevemente de qué trata esta búsqueda del tesoro"
             />
+          </CampoFormulario>
+
+          <CampoFormulario etiqueta="Tiempo estimado (segundos)" htmlFor="tiempo" error={errores.tiempo}>
+            <input
+              id="tiempo"
+              type="number"
+              min={5}
+              step={5}
+              max={3600}
+              value={datos.tiempo}
+              onChange={(e) => manejarCambio('tiempo', e.target.value)}
+              disabled={enviando}
+              placeholder="Ej. 60"
+            />
+          </CampoFormulario>
+
+          <CampoFormulario etiqueta="Puntaje" htmlFor="puntaje" error={errores.puntaje}>
+            <select
+              id="puntaje"
+              value={datos.puntaje}
+              onChange={(e) => manejarCambio('puntaje', e.target.value)}
+              disabled={enviando}
+            >
+              {PUNTAJE_OPCIONES.map((pts) => (
+                <option key={pts} value={String(pts)}>{pts} pts</option>
+              ))}
+            </select>
           </CampoFormulario>
 
           <div className="acciones-formulario-trivia">

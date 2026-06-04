@@ -1,5 +1,5 @@
 using JuegosServicio.Dominio.Abstract;
-using JuegosServicio.Dominio.Estados;
+using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Dominio.Eventos;
 using JuegosServicio.Dominio.Excepciones;
 
@@ -12,13 +12,12 @@ public sealed class BusquedaTesoro : IComponenteJuego
 {
     private readonly List<Pista> _pistas = new();
     private readonly List<EventoDominio> _eventos = new();
-    private IEstadoBusqueda _estado = default!;
 
     public Guid Id { get; private set; }
     public string Nombre { get; private set; } = default!;
     public string Descripcion { get; private set; } = default!;
     public Guid CreadorId { get; private set; }
-    public Enums.EstadoBusqueda Estado { get; private set; }
+    public EstadoBusqueda Estado { get; private set; }
     public DateTime FechaCreacion { get; private set; }
     public int Tiempo { get; private set; }
     public int Puntaje { get; private set; }
@@ -53,19 +52,19 @@ public sealed class BusquedaTesoro : IComponenteJuego
             Nombre = nombre.Trim(),
             Descripcion = descripcion.Trim(),
             CreadorId = creadorId,
-            Estado = Enums.EstadoBusqueda.Inactiva,
+            Estado = EstadoBusqueda.Inactiva,
             FechaCreacion = fechaCreacion,
             Tiempo = tiempo,
             Puntaje = puntaje
         };
-        busqueda._estado = FabricaEstadoBusqueda.Obtener(Enums.EstadoBusqueda.Inactiva);
         busqueda._eventos.Add(new BusquedaCreadaEvento(busqueda.Id, busqueda.Nombre));
         return busqueda;
     }
 
     public Pista AgregarPista(string contenido)
     {
-        _estado.ValidarEdicion("agregar pistas");
+        if (Estado == EstadoBusqueda.Activa)
+            throw new ExcepcionDominio("No se pueden agregar pistas a una búsqueda que está activa.");
         var pista = Pista.Crear(Id, contenido);
         _pistas.Add(pista);
         return pista;
@@ -73,20 +72,23 @@ public sealed class BusquedaTesoro : IComponenteJuego
 
     public void ModificarPista(Guid pistaId, string nuevoContenido)
     {
-        _estado.ValidarEdicion("modificar pistas");
+        if (Estado == EstadoBusqueda.Activa)
+            throw new ExcepcionDominio("No se pueden modificar pistas a una búsqueda que está activa.");
         ObtenerPista(pistaId).Modificar(nuevoContenido);
     }
 
     public void EliminarPista(Guid pistaId)
     {
-        _estado.ValidarEdicion("eliminar pistas");
+        if (Estado == EstadoBusqueda.Activa)
+            throw new ExcepcionDominio("No se pueden eliminar pistas a una búsqueda que está activa.");
         var pista = ObtenerPista(pistaId);
         _pistas.Remove(pista);
     }
 
     public void Modificar(string nombre, string descripcion, int tiempo, int puntaje)
     {
-        _estado.ValidarEdicion("modificar la búsqueda");
+        if (Estado == EstadoBusqueda.Activa)
+            throw new ExcepcionDominio("No se puede modificar una búsqueda que está activa.");
         if (string.IsNullOrWhiteSpace(nombre))
             throw new ExcepcionDominio("El nombre de la búsqueda del tesoro es obligatorio.");
         if (string.IsNullOrWhiteSpace(descripcion))
@@ -101,8 +103,25 @@ public sealed class BusquedaTesoro : IComponenteJuego
         Puntaje = puntaje;
     }
 
-    public void Activar() => _estado.Activar(this);
-    public void Desactivar() => _estado.Desactivar(this);
+    public void Activar()
+    {
+        if (Estado == EstadoBusqueda.Activa)
+            throw new ExcepcionDominio("La búsqueda del tesoro ya está activa.");
+        if (_pistas.Count == 0)
+            throw new ExcepcionDominio("La búsqueda del tesoro debe tener al menos una pista para poder activarse.");
+
+        Estado = EstadoBusqueda.Activa;
+        _eventos.Add(new BusquedaActivadaEvento(Id, Nombre));
+    }
+
+    public void Desactivar()
+    {
+        if (Estado == EstadoBusqueda.Inactiva)
+            throw new ExcepcionDominio("La búsqueda del tesoro ya está inactiva.");
+
+        Estado = EstadoBusqueda.Inactiva;
+        _eventos.Add(new BusquedaArchivadaEvento(Id));
+    }
 
     string IComponenteJuego.ObtenerDescripcion() => $"Búsqueda: {Nombre} [{Estado}]";
     IReadOnlyList<IComponenteJuego> IComponenteJuego.ObtenerHijos() =>
@@ -115,7 +134,7 @@ public sealed class BusquedaTesoro : IComponenteJuego
         string nombre,
         string descripcion,
         Guid creadorId,
-        Enums.EstadoBusqueda estado,
+        EstadoBusqueda estado,
         DateTime fechaCreacion,
         int tiempo = 0,
         int puntaje = 0,
@@ -132,18 +151,9 @@ public sealed class BusquedaTesoro : IComponenteJuego
             Tiempo = tiempo,
             Puntaje = puntaje
         };
-        busqueda._estado = FabricaEstadoBusqueda.Obtener(estado);
         if (pistas is not null) busqueda._pistas.AddRange(pistas);
         return busqueda;
     }
-
-    internal void TransicionarEstado(Enums.EstadoBusqueda nuevoEstado)
-    {
-        Estado = nuevoEstado;
-        _estado = FabricaEstadoBusqueda.Obtener(nuevoEstado);
-    }
-
-    internal void AgregarEventoInterno(EventoDominio evento) => _eventos.Add(evento);
 
     private Pista ObtenerPista(Guid pistaId) =>
         _pistas.FirstOrDefault(p => p.Id == pistaId)

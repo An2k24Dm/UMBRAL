@@ -15,6 +15,8 @@ import {
 } from '../autenticacion/clienteApiJuegos'
 import { usarAutenticacion } from '../autenticacion/ProveedorAutenticacion'
 
+const PUNTAJE_OPCIONES = Array.from({ length: 20 }, (_, i) => (i + 1) * 5)
+
 export function PaginaGestionEtapas() {
   const { busquedaId } = useParams<{ busquedaId: string }>()
   const { token, usuario } = usarAutenticacion()
@@ -29,7 +31,7 @@ export function PaginaGestionEtapas() {
   const [errorActivacion, setErrorActivacion] = useState<string | null>(null)
 
   const [mostrarFormEditar, setMostrarFormEditar] = useState(false)
-  const [formEditar, setFormEditar] = useState({ nombre: '', descripcion: '', tiempo: '0', puntaje: '0' })
+  const [formEditar, setFormEditar] = useState({ nombre: '', descripcion: '', tiempo: '5', puntaje: '5' })
   const [errorFormEditar, setErrorFormEditar] = useState<string | null>(null)
   const [enviandoEditar, setEnviandoEditar] = useState(false)
 
@@ -76,8 +78,8 @@ export function PaginaGestionEtapas() {
     setFormEditar({
       nombre: busqueda.nombre,
       descripcion: busqueda.descripcion,
-      tiempo: String(busqueda.tiempo ?? 0),
-      puntaje: String(busqueda.puntaje ?? 0)
+      tiempo: String(Math.max(busqueda.tiempo ?? 5, 5)),
+      puntaje: String(Math.max(busqueda.puntaje ?? 5, 5))
     })
     setErrorFormEditar(null)
     setMostrarFormEditar(true)
@@ -225,16 +227,20 @@ export function PaginaGestionEtapas() {
                   disabled={enviandoEditar} />
               </CampoFormulario>
               <CampoFormulario etiqueta="Tiempo estimado (segundos)" htmlFor="edit-busqueda-tiempo">
-                <input id="edit-busqueda-tiempo" type="number" min={0}
+                <input id="edit-busqueda-tiempo" type="number" min={5} step={5} max={3600}
                   value={formEditar.tiempo}
                   onChange={(e) => setFormEditar(p => ({ ...p, tiempo: e.target.value }))}
-                  disabled={enviandoEditar} placeholder="0 = sin límite" />
+                  disabled={enviandoEditar} placeholder="Ej. 60" />
               </CampoFormulario>
               <CampoFormulario etiqueta="Puntaje" htmlFor="edit-busqueda-puntaje">
-                <input id="edit-busqueda-puntaje" type="number" min={0}
+                <select id="edit-busqueda-puntaje"
                   value={formEditar.puntaje}
                   onChange={(e) => setFormEditar(p => ({ ...p, puntaje: e.target.value }))}
-                  disabled={enviandoEditar} />
+                  disabled={enviandoEditar}>
+                  {PUNTAJE_OPCIONES.map((pts) => (
+                    <option key={pts} value={String(pts)}>{pts} pts</option>
+                  ))}
+                </select>
               </CampoFormulario>
               <div className="acciones-formulario-trivia">
                 <Boton variante="volver" type="button"
