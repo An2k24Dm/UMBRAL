@@ -119,4 +119,43 @@ public sealed class RepositorioSesiones : IRepositorioSesiones
                                     .FirstOrDefault()),
                 cancelacion);
     }
+
+    private static readonly EstadoSesion[] EstadosDisponiblesParticipante =
+    {
+        EstadoSesion.Programada,
+        EstadoSesion.EnPreparacion,
+        EstadoSesion.Activa
+    };
+
+    public async Task<IReadOnlyList<Sesion>> ListarDisponiblesParaParticipanteAsync(
+        string? busqueda, string? tipoSesion, CancellationToken cancelacion)
+    {
+        var consulta = _contexto.Sesiones
+            .AsNoTracking()
+            .Include(s => s.Misiones)
+            .Include(s => s.Equipos)
+            .Include(s => s.Participantes)
+            .Where(s => EstadosDisponiblesParticipante.Contains(s.Estado));
+
+        if (!string.IsNullOrWhiteSpace(tipoSesion))
+        {
+            // Discriminador TPH lógico: la columna `tipo_sesion` guarda
+            // "Individual" o "Grupal". Comparación case-insensitive
+            // se evalúa en BD vía ILIKE bajo Npgsql.
+            consulta = consulta.Where(s =>
+                EF.Functions.ILike(s.TipoSesion, tipoSesion));
+        }
+
+        if (!string.IsNullOrWhiteSpace(busqueda))
+        {
+            var patron = $"%{busqueda.Trim()}%";
+            consulta = consulta.Where(s => EF.Functions.ILike(s.Nombre, patron));
+        }
+
+        var modelos = await consulta
+            .OrderBy(s => s.FechaProgramada)
+            .ToListAsync(cancelacion);
+
+        return modelos.Select(SesionesMapeador.HaciaDominio).ToList();
+    }
 }

@@ -4,18 +4,6 @@ using IdentidadServicio.Dominio.Enums;
 
 namespace IdentidadServicio.Aplicacion.Validaciones;
 
-// HU02 — validador del registro administrativo de Operador / Administrador.
-//
-// Se concentra en las reglas particulares de este caso de uso:
-//  * El TipoUsuario debe ser Administrador u Operador (Participante se
-//    registra solo desde la app móvil mediante HU03).
-//  * Contraseña obligatoria (la creación arma la cuenta en Keycloak).
-// Todas las reglas comunes a un usuario del sistema (nombre, apellido, correo,
-// nombre de usuario, fecha de nacimiento, teléfono, dirección, sexo) se
-// delegan en IReglasValidacionUsuario para no duplicarlas con HU03.
-//
-// La comprobación de duplicados (correo / nombreUsuario / teléfono) vive en
-// el manejador del caso de uso, porque requiere acceso al repositorio.
 public sealed class ValidadorCrearUsuario : ValidadorBase<CrearUsuarioComando>
 {
     private readonly IReglasValidacionUsuario _reglas;
@@ -30,8 +18,6 @@ public sealed class ValidadorCrearUsuario : ValidadorBase<CrearUsuarioComando>
     {
         var dto = comando.Datos;
 
-        // Normaliza el teléfono in-situ para que el manejador y la persistencia
-        // reciban la forma canónica (solo dígitos, sin espacios ni guiones).
         dto.DatosContacto ??= new DatosContactoDto();
         dto.DatosContacto.Telefono = _reglas.NormalizarTelefono(dto.DatosContacto.Telefono);
 

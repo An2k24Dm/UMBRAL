@@ -12,4 +12,10 @@ public interface IClienteJuegosMisiones
 {
     Task<MisionResumenJuegosDto?> ObtenerMisionAsync(
         Guid misionId, CancellationToken cancelacion);
+
+    // Devuelve la misión con sus etapas reales. Lo consume el detalle
+    // móvil de sesión, que necesita orden + tipo + nombre + tiempo
+    // estimado de cada etapa para mostrar al Participante.
+    Task<MisionConEtapasJuegosDto?> ObtenerMisionConEtapasAsync(
+        Guid misionId, CancellationToken cancelacion);
 }

@@ -1,5 +1,5 @@
 using System.Reflection;
-using IdentidadServicio.Api.Controladores;
+using IdentidadServicio.Presentacion.Controladores;
 using Microsoft.AspNetCore.Authorization;
 
 namespace IdentidadServicio.PruebasUnitarias.Api;

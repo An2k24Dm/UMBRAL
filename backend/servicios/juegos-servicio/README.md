@@ -257,7 +257,7 @@ cd backend/servicios/juegos-servicio
 
 dotnet ef migrations add InicialJuegos `
   --project JuegosServicio.Infraestructura `
-  --startup-project JuegosServicio.Api `
+  --startup-project JuegosServicio.Presentacion `
   --output-dir Persistencia/Migraciones
 ```
 
@@ -387,7 +387,7 @@ juegos-servicio/
 │   └── Dependencias/
 │       └── RegistroInfraestructura.cs
 │
-└── JuegosServicio.Api/                   ← ASP.NET Core 8
+└── JuegosServicio.Presentacion/                   ← ASP.NET Core 8
     ├── Controladores/
     │   └── TriviasControlador.cs         ← 5 endpoints HU15/16/17
     ├── Middlewares/

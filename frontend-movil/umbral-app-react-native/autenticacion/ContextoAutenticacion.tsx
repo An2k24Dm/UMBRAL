@@ -7,12 +7,12 @@ import {
   useState,
   type ReactNode
 } from 'react'
-import {
-  ErrorInicioSesion,
-  iniciarSesionApi,
-  type ResultadoInicioSesion,
-  type UsuarioAutenticado
-} from './clienteApi'
+import { iniciarSesionApi } from '../servicios/autenticacionApi'
+import { ErrorInicioSesion } from '../tipos/errores'
+import type {
+  ResultadoInicioSesion,
+  UsuarioAutenticado
+} from '../tipos/autenticacion'
 import {
   eliminarSesion,
   guardarSesion,
