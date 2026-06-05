@@ -10,19 +10,25 @@ namespace JuegosServicio.Aplicacion.CasosDeUso.Manejadores;
 public sealed class ModificarMisionManejador : IRequestHandler<ModificarMisionComando>
 {
     private readonly IRepositorioMisiones _repositorio;
+    private readonly IClienteSesiones _clienteSesiones;
     private readonly IValidador<ModificarMisionComando> _validador;
 
     public ModificarMisionManejador(
         IRepositorioMisiones repositorio,
+        IClienteSesiones clienteSesiones,
         IValidador<ModificarMisionComando> validador)
     {
         _repositorio = repositorio;
+        _clienteSesiones = clienteSesiones;
         _validador = validador;
     }
 
     public async Task Handle(ModificarMisionComando comando, CancellationToken cancelacion)
     {
         _validador.Validar(comando).LanzarSiHayErrores();
+
+        if (await _clienteSesiones.ExisteSesionVigentePorMisionAsync(comando.MisionId, cancelacion))
+            throw new MisionConSesionesVigentesExcepcion();
 
         var mision = await _repositorio.ObtenerMisionPorIdAsync(comando.MisionId, cancelacion)
             ?? throw new ExcepcionNoEncontrado(

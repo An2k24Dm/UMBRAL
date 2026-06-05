@@ -10,17 +10,22 @@ namespace JuegosServicio.PruebasUnitarias.CasosDeUso;
 public class EliminarMisionManejadorPruebas
 {
     private readonly Mock<IRepositorioMisiones> _repositorio = new();
+    private readonly Mock<IClienteSesiones> _clienteSesiones = new();
 
     private static readonly DateTime FechaFija =
         new(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc);
 
-    private EliminarMisionManejador CrearManejador() => new(_repositorio.Object);
+    private EliminarMisionManejador CrearManejador() =>
+        new(_repositorio.Object, _clienteSesiones.Object);
 
     private static Mision MisionInactiva() =>
         Mision.Crear("Misión Test", "Descripción", Guid.NewGuid(), FechaFija);
 
     public EliminarMisionManejadorPruebas()
     {
+        _clienteSesiones.Setup(c => c.ExisteSesionVigentePorMisionAsync(
+            It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
         _repositorio
             .Setup(r => r.EliminarMisionAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);

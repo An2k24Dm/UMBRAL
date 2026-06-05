@@ -111,6 +111,9 @@ const MENSAJE_CONTENIDO_CON_SESIONES_VIGENTES =
 const MENSAJE_CONTENIDO_USADO_EN_MISION_ACTIVA =
   "No se puede modificar este contenido porque está siendo usado en una misión activa.";
 
+const MENSAJE_MISION_CON_SESIONES_VIGENTES =
+  "No se puede realizar esta operación porque la misión tiene sesiones activas.";
+
 // ---------------------------------------------------------------------------
 // Tipos
 // ---------------------------------------------------------------------------
@@ -721,6 +724,11 @@ export async function modificarMision(
   if (respuesta.status === 401) lanzar401("Debe iniciar sesión.");
   if (respuesta.status === 403) throw new Error("No tiene permisos.");
   if (respuesta.status === 404) throw new Error("Misión no encontrada.");
+  if (respuesta.status === 422) {
+    const err = await leerErrorEstructurado(respuesta);
+    if (err?.codigo === "MISION_CON_SESIONES_VIGENTES") throw new Error(MENSAJE_MISION_CON_SESIONES_VIGENTES);
+    throw new Error(err?.mensaje ?? "No se puede realizar esta operación.");
+  }
   if (!respuesta.ok) throw new Error(await leerError(respuesta));
 }
 
@@ -791,6 +799,11 @@ export async function desactivarMision(
   );
   if (respuesta.status === 401) lanzar401("Debe iniciar sesión.");
   if (respuesta.status === 404) throw new Error("Misión no encontrada.");
+  if (respuesta.status === 422) {
+    const err = await leerErrorEstructurado(respuesta);
+    if (err?.codigo === "MISION_CON_SESIONES_VIGENTES") throw new Error(MENSAJE_MISION_CON_SESIONES_VIGENTES);
+    throw new Error(err?.mensaje ?? "No se puede realizar esta operación.");
+  }
   if (!respuesta.ok) throw new Error(await leerError(respuesta));
 }
 
@@ -807,7 +820,11 @@ export async function eliminarMision(
   );
   if (respuesta.status === 401) lanzar401("Debe iniciar sesión.");
   if (respuesta.status === 404) throw new Error("Misión no encontrada.");
-  if (respuesta.status === 422) throw new Error(await leerError(respuesta));
+  if (respuesta.status === 422) {
+    const err = await leerErrorEstructurado(respuesta);
+    if (err?.codigo === "MISION_CON_SESIONES_VIGENTES") throw new Error(MENSAJE_MISION_CON_SESIONES_VIGENTES);
+    throw new Error(err?.mensaje ?? "No se puede realizar esta operación.");
+  }
   if (!respuesta.ok) throw new Error(await leerError(respuesta));
 }
 

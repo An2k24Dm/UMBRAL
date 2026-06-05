@@ -12,12 +12,14 @@ namespace JuegosServicio.PruebasUnitarias.CasosDeUso;
 public class ModificarMisionManejadorPruebas
 {
     private readonly Mock<IRepositorioMisiones> _repositorio = new();
+    private readonly Mock<IClienteSesiones> _clienteSesiones = new();
     private readonly Mock<IValidador<ModificarMisionComando>> _validador = new();
 
     private static readonly DateTime FechaFija =
         new(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc);
 
-    private ModificarMisionManejador CrearManejador() => new(_repositorio.Object, _validador.Object);
+    private ModificarMisionManejador CrearManejador() =>
+        new(_repositorio.Object, _clienteSesiones.Object, _validador.Object);
 
     private static Mision MisionInactiva() =>
         Mision.Crear("Misión Original", "Descripción original", Guid.NewGuid(), FechaFija);
@@ -27,6 +29,9 @@ public class ModificarMisionManejadorPruebas
 
     public ModificarMisionManejadorPruebas()
     {
+        _clienteSesiones.Setup(c => c.ExisteSesionVigentePorMisionAsync(
+            It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
         _validador.Setup(v => v.Validar(It.IsAny<ModificarMisionComando>()))
                   .Returns(ResultadoValidacion.Exitoso());
         _repositorio

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SesionesServicio.Aplicacion.CasosDeUso.Comandos;
 using SesionesServicio.Aplicacion.CasosDeUso.Consultas;
+using SesionesServicio.Aplicacion.Puertos;
 using SesionesServicio.Commons.Dtos;
 using SesionesServicio.Dominio.Enums;
 
@@ -14,10 +15,12 @@ namespace SesionesServicio.Presentacion.Controladores;
 public sealed class SesionesControlador : ControllerBase
 {
     private readonly IMediator _mediador;
+    private readonly IRepositorioSesiones _repositorio;
 
-    public SesionesControlador(IMediator mediador)
+    public SesionesControlador(IMediator mediador, IRepositorioSesiones repositorio)
     {
         _mediador = mediador;
+        _repositorio = repositorio;
     }
 
     // Crear sesión. Sólo Operador.
@@ -83,5 +86,19 @@ public sealed class SesionesControlador : ControllerBase
                 mensaje = "La sesión solicitada no existe."
             });
         return Ok(resultado);
+    }
+
+    // Endpoint interno usado por juegos-servicio para verificar si una
+    // misión tiene sesiones vigentes antes de desactivarla o eliminarla.
+    [HttpGet("misiones/{misionId:guid}/existe-vigente")]
+    [Authorize(Policy = "PoliticaAdministradorUOperador")]
+    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> ExisteSesionVigentePorMision(
+        Guid misionId, CancellationToken cancelacion)
+    {
+        var existe = await _repositorio.ExisteSesionVigentePorMisionAsync(misionId, cancelacion);
+        return Ok(new { existe });
     }
 }

@@ -47,6 +47,11 @@ public sealed class ManejadorErroresMiddleware
             await EscribirCodigoAsync(contexto, HttpStatusCode.UnprocessableEntity,
                 "CONTENIDO_USADO_EN_MISION_ACTIVA", ex.Message);
         }
+        catch (MisionConSesionesVigentesExcepcion ex)
+        {
+            await EscribirCodigoAsync(contexto, HttpStatusCode.UnprocessableEntity,
+                "MISION_CON_SESIONES_VIGENTES", ex.Message);
+        }
         catch (ContenidoConSesionesVigentesExcepcion ex)
         {
             // Subclase específica de ExcepcionDominio: usamos un código
