@@ -18,7 +18,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\servicios\identidad-servicio\IdentidadServicio.Api\IdentidadServicio.Api.csproj" />
+    <ProjectReference Include="..\..\..\servicios\identidad-servicio\IdentidadServicio.Presentacion\IdentidadServicio.Presentacion.csproj" />
     <ProjectReference Include="..\..\..\servicios\identidad-servicio\IdentidadServicio.Aplicacion\IdentidadServicio.Aplicacion.csproj" />
     <ProjectReference Include="..\..\..\servicios\identidad-servicio\IdentidadServicio.Dominio\IdentidadServicio.Dominio.csproj" />
     <ProjectReference Include="..\..\..\servicios\identidad-servicio\IdentidadServicio.Commons\IdentidadServicio.Commons.csproj" />

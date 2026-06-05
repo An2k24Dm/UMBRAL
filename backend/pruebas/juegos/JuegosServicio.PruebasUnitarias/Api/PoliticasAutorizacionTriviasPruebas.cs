@@ -1,7 +1,7 @@
 using System;
 using System.Linq;
 using System.Reflection;
-using JuegosServicio.Api.Controladores;
+using JuegosServicio.Presentacion.Controladores;
 using Microsoft.AspNetCore.Authorization;
 
 namespace JuegosServicio.PruebasUnitarias.Api;
