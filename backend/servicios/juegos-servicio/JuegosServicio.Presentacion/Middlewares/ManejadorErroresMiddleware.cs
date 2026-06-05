@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.Json;
+using JuegosServicio.Aplicacion.Validaciones;
 using JuegosServicio.Dominio.Excepciones;
 
 namespace JuegosServicio.Presentacion.Middlewares;
@@ -27,10 +28,24 @@ public sealed class ManejadorErroresMiddleware
         {
             await _siguiente(contexto);
         }
+        catch (ExcepcionValidacion ex)
+        {
+            await EscribirJsonAsync(contexto, HttpStatusCode.BadRequest, new
+            {
+                codigo = "VALIDACION",
+                mensaje = ex.Message,
+                errores = ex.Errores.Select(e => new { campo = e.Campo, mensaje = e.Mensaje })
+            });
+        }
         catch (ExcepcionNoEncontrado ex)
         {
             await EscribirCodigoAsync(contexto, HttpStatusCode.NotFound,
                 "NO_ENCONTRADO", ex.Message);
+        }
+        catch (ContenidoUsadoEnMisionActivaExcepcion ex)
+        {
+            await EscribirCodigoAsync(contexto, HttpStatusCode.UnprocessableEntity,
+                "CONTENIDO_USADO_EN_MISION_ACTIVA", ex.Message);
         }
         catch (ContenidoConSesionesVigentesExcepcion ex)
         {

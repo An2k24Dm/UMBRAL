@@ -8,6 +8,7 @@ public interface IRepositorioMisiones
 {
     Task<bool> ExisteMisionConNombreAsync(string nombre, CancellationToken cancelacion);
     Task<bool> EsContenidoUsadoEnEtapaAsync(TipoModoDeJuego tipo, Guid contenidoId, CancellationToken cancelacion);
+    Task<bool> EsContenidoUsadoEnMisionActivaAsync(TipoModoDeJuego tipo, Guid contenidoId, CancellationToken cancelacion);
     Task CrearMisionAsync(Mision mision, CancellationToken cancelacion);
     Task<Mision?> ObtenerMisionPorIdAsync(Guid misionId, CancellationToken cancelacion);
     Task<List<MisionResumenDto>> ObtenerMisionesEnBorradorAsync(Guid? creadorId, CancellationToken cancelacion);

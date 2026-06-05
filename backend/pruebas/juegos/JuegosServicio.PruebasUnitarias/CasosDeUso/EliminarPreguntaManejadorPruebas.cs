@@ -2,6 +2,7 @@ using JuegosServicio.Aplicacion.CasosDeUso.Comandos;
 using JuegosServicio.Aplicacion.CasosDeUso.Manejadores;
 using JuegosServicio.Aplicacion.Puertos;
 using JuegosServicio.Dominio.Entidades;
+using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Dominio.Excepciones;
 using Microsoft.Extensions.Logging;
 
@@ -11,13 +12,14 @@ namespace JuegosServicio.PruebasUnitarias.CasosDeUso;
 public class EliminarPreguntaManejadorPruebas
 {
     private readonly Mock<IRepositorioJuegos> _repositorio = new();
+    private readonly Mock<IRepositorioMisiones> _repositorioMisiones = new();
     private readonly Mock<ILogger<EliminarPreguntaManejador>> _registro = new();
 
     private static readonly DateTime FechaFija =
         new(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc);
 
     private EliminarPreguntaManejador CrearManejador() =>
-        new(_repositorio.Object, _registro.Object);
+        new(_repositorio.Object, _repositorioMisiones.Object, _registro.Object);
 
     private static Trivia TriviaConPregunta(out Guid preguntaId)
     {
@@ -31,6 +33,9 @@ public class EliminarPreguntaManejadorPruebas
 
     public EliminarPreguntaManejadorPruebas()
     {
+        _repositorioMisiones.Setup(r => r.EsContenidoUsadoEnMisionActivaAsync(
+            It.IsAny<TipoModoDeJuego>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
         _repositorio
             .Setup(r => r.EliminarPreguntaAsync(
                 It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))

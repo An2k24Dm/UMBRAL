@@ -1,5 +1,6 @@
 using JuegosServicio.Aplicacion.CasosDeUso.Comandos;
 using JuegosServicio.Aplicacion.Puertos;
+using JuegosServicio.Aplicacion.Validaciones;
 using JuegosServicio.Dominio.Entidades;
 using JuegosServicio.Dominio.Excepciones;
 using MediatR;
@@ -11,20 +12,25 @@ public sealed class CrearTriviaManejador : IRequestHandler<CrearTriviaComando, G
 {
     private readonly IRepositorioJuegos _repositorio;
     private readonly IProveedorFechaHora _reloj;
+    private readonly IValidador<CrearTriviaComando> _validador;
     private readonly ILogger<CrearTriviaManejador> _registro;
 
     public CrearTriviaManejador(
         IRepositorioJuegos repositorio,
         IProveedorFechaHora reloj,
+        IValidador<CrearTriviaComando> validador,
         ILogger<CrearTriviaManejador> registro)
     {
         _repositorio = repositorio;
         _reloj = reloj;
+        _validador = validador;
         _registro = registro;
     }
 
     public async Task<Guid> Handle(CrearTriviaComando comando, CancellationToken cancelacion)
     {
+        _validador.Validar(comando).LanzarSiHayErrores();
+
         var dto = comando.Datos;
 
         if (await _repositorio.ExisteTriviaConNombreAsync(dto.Nombre, cancelacion))

@@ -1,5 +1,6 @@
 using JuegosServicio.Aplicacion.CasosDeUso.Comandos;
 using JuegosServicio.Aplicacion.Puertos;
+using JuegosServicio.Aplicacion.Validaciones;
 using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Dominio.Excepciones;
 using MediatR;
@@ -11,19 +12,24 @@ public sealed class AgregarEtapaManejador : IRequestHandler<AgregarEtapaComando,
     private readonly IRepositorioMisiones _repositorioMisiones;
     private readonly IRepositorioBusquedas _repositorioBusquedas;
     private readonly IRepositorioJuegos _repositorioJuegos;
+    private readonly IValidador<AgregarEtapaComando> _validador;
 
     public AgregarEtapaManejador(
         IRepositorioMisiones repositorioMisiones,
         IRepositorioBusquedas repositorioBusquedas,
-        IRepositorioJuegos repositorioJuegos)
+        IRepositorioJuegos repositorioJuegos,
+        IValidador<AgregarEtapaComando> validador)
     {
         _repositorioMisiones = repositorioMisiones;
         _repositorioBusquedas = repositorioBusquedas;
         _repositorioJuegos = repositorioJuegos;
+        _validador = validador;
     }
 
     public async Task<Guid> Handle(AgregarEtapaComando comando, CancellationToken cancelacion)
     {
+        _validador.Validar(comando).LanzarSiHayErrores();
+
         var mision = await _repositorioMisiones.ObtenerMisionPorIdAsync(comando.MisionId, cancelacion)
             ?? throw new ExcepcionNoEncontrado(
                 $"No se encontró la misión con ID '{comando.MisionId}'.");

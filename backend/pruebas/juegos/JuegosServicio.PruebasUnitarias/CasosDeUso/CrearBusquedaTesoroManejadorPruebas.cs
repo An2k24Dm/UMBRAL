@@ -1,6 +1,7 @@
 using JuegosServicio.Aplicacion.CasosDeUso.Comandos;
 using JuegosServicio.Aplicacion.CasosDeUso.Manejadores;
 using JuegosServicio.Aplicacion.Puertos;
+using JuegosServicio.Aplicacion.Validaciones;
 using JuegosServicio.Commons.Dtos;
 using JuegosServicio.Dominio.Entidades;
 using JuegosServicio.Dominio.Excepciones;
@@ -14,12 +15,13 @@ public class CrearBusquedaTesoroManejadorPruebas
     private readonly Mock<IRepositorioBusquedas> _repositorio = new();
     private readonly Mock<IProveedorFechaHora> _reloj = new();
     private readonly Mock<ILogger<CrearBusquedaTesoroManejador>> _registro = new();
+    private readonly Mock<IValidador<CrearBusquedaTesoroComando>> _validador = new();
 
     private static readonly DateTime FechaFija =
         new(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc);
 
     private CrearBusquedaTesoroManejador CrearManejador() =>
-        new(_repositorio.Object, _reloj.Object, _registro.Object);
+        new(_repositorio.Object, _reloj.Object, _validador.Object, _registro.Object);
 
     private CrearBusquedaTesoroComando ComandoValido(string nombre = "Búsqueda del Parque") =>
         new(new CrearBusquedaTesoroDto
@@ -30,6 +32,8 @@ public class CrearBusquedaTesoroManejadorPruebas
 
     public CrearBusquedaTesoroManejadorPruebas()
     {
+        _validador.Setup(v => v.Validar(It.IsAny<CrearBusquedaTesoroComando>()))
+                  .Returns(ResultadoValidacion.Exitoso());
         _reloj.Setup(r => r.ObtenerFechaHoraUtc()).Returns(FechaFija);
         _repositorio
             .Setup(r => r.ExisteBusquedaConNombreAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
