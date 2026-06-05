@@ -1,8 +1,10 @@
 using JuegosServicio.Aplicacion.CasosDeUso.Comandos;
 using JuegosServicio.Aplicacion.CasosDeUso.Manejadores;
 using JuegosServicio.Aplicacion.Puertos;
+using JuegosServicio.Aplicacion.Validaciones;
 using JuegosServicio.Commons.Dtos;
 using JuegosServicio.Dominio.Entidades;
+using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Dominio.Excepciones;
 
 namespace JuegosServicio.PruebasUnitarias.CasosDeUso;
@@ -10,11 +12,14 @@ namespace JuegosServicio.PruebasUnitarias.CasosDeUso;
 public class ModificarBusquedaTesoroManejadorPruebas
 {
     private readonly Mock<IRepositorioBusquedas> _repositorio = new();
+    private readonly Mock<IRepositorioMisiones> _repositorioMisiones = new();
+    private readonly Mock<IValidador<ModificarBusquedaTesoroComando>> _validador = new();
 
     private static readonly DateTime FechaFija =
         new(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc);
 
-    private ModificarBusquedaTesoroManejador CrearManejador() => new(_repositorio.Object);
+    private ModificarBusquedaTesoroManejador CrearManejador() =>
+        new(_repositorio.Object, _repositorioMisiones.Object, _validador.Object);
 
     private static BusquedaTesoro BusquedaInactiva() =>
         BusquedaTesoro.Crear("Búsqueda Original", "Descripción original", Guid.NewGuid(), FechaFija);
@@ -24,6 +29,11 @@ public class ModificarBusquedaTesoroManejadorPruebas
 
     public ModificarBusquedaTesoroManejadorPruebas()
     {
+        _repositorioMisiones.Setup(r => r.EsContenidoUsadoEnMisionActivaAsync(
+            It.IsAny<TipoModoDeJuego>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+        _validador.Setup(v => v.Validar(It.IsAny<ModificarBusquedaTesoroComando>()))
+                  .Returns(ResultadoValidacion.Exitoso());
         _repositorio
             .Setup(r => r.ActualizarBusquedaAsync(It.IsAny<BusquedaTesoro>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);

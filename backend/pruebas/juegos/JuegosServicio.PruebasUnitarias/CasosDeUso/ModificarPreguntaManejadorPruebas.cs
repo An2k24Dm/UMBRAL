@@ -3,6 +3,7 @@ using JuegosServicio.Aplicacion.CasosDeUso.Manejadores;
 using JuegosServicio.Aplicacion.Puertos;
 using JuegosServicio.Commons.Dtos;
 using JuegosServicio.Dominio.Entidades;
+using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Dominio.Excepciones;
 using Microsoft.Extensions.Logging;
 
@@ -12,13 +13,14 @@ namespace JuegosServicio.PruebasUnitarias.CasosDeUso;
 public class ModificarPreguntaManejadorPruebas
 {
     private readonly Mock<IRepositorioJuegos> _repositorio = new();
+    private readonly Mock<IRepositorioMisiones> _repositorioMisiones = new();
     private readonly Mock<ILogger<ModificarPreguntaManejador>> _registro = new();
 
     private static readonly DateTime FechaFija =
         new(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc);
 
     private ModificarPreguntaManejador CrearManejador() =>
-        new(_repositorio.Object, _registro.Object);
+        new(_repositorio.Object, _repositorioMisiones.Object, _registro.Object);
 
     private static Trivia TriviaConPregunta(out Guid preguntaId)
     {
@@ -28,6 +30,17 @@ public class ModificarPreguntaManejadorPruebas
             [("Opción A", true), ("Opción B", false)]);
         preguntaId = pregunta.Id;
         return trivia;
+    }
+
+    public ModificarPreguntaManejadorPruebas()
+    {
+        _repositorioMisiones.Setup(r => r.EsContenidoUsadoEnMisionActivaAsync(
+            It.IsAny<TipoModoDeJuego>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+        _repositorio
+            .Setup(r => r.ModificarPreguntaAsync(
+                It.IsAny<Guid>(), It.IsAny<Pregunta>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
     }
 
     private static ModificarPreguntaComando ComandoValido(Guid triviaId, Guid preguntaId) =>
@@ -40,14 +53,6 @@ public class ModificarPreguntaManejadorPruebas
                 new OpcionDto { Texto = "Madrid", EsCorrecta = false }
             ]
         });
-
-    public ModificarPreguntaManejadorPruebas()
-    {
-        _repositorio
-            .Setup(r => r.ModificarPreguntaAsync(
-                It.IsAny<Guid>(), It.IsAny<Pregunta>(), It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
-    }
 
     [Fact]
     public async Task Handle_TriviaYPreguntaExistentes_LlamaModificarPreguntaAsyncUnaVez()

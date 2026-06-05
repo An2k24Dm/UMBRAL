@@ -1,8 +1,10 @@
 using JuegosServicio.Aplicacion.CasosDeUso.Comandos;
 using JuegosServicio.Aplicacion.CasosDeUso.Manejadores;
 using JuegosServicio.Aplicacion.Puertos;
+using JuegosServicio.Aplicacion.Validaciones;
 using JuegosServicio.Commons.Dtos;
 using JuegosServicio.Dominio.Entidades;
+using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Dominio.Excepciones;
 
 namespace JuegosServicio.PruebasUnitarias.CasosDeUso;
@@ -11,11 +13,14 @@ namespace JuegosServicio.PruebasUnitarias.CasosDeUso;
 public class ModificarTriviaManejadorPruebas
 {
     private readonly Mock<IRepositorioJuegos> _repositorio = new();
+    private readonly Mock<IRepositorioMisiones> _repositorioMisiones = new();
+    private readonly Mock<IValidador<ModificarTriviaComando>> _validador = new();
 
     private static readonly DateTime FechaFija =
         new(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc);
 
-    private ModificarTriviaManejador CrearManejador() => new(_repositorio.Object);
+    private ModificarTriviaManejador CrearManejador() =>
+        new(_repositorio.Object, _repositorioMisiones.Object, _validador.Object);
 
     private static Trivia TriviaEnBorrador() =>
         Trivia.Crear("Trivia Original", "Descripción original", Guid.NewGuid(), 30, FechaFija);
@@ -30,6 +35,11 @@ public class ModificarTriviaManejadorPruebas
 
     public ModificarTriviaManejadorPruebas()
     {
+        _repositorioMisiones.Setup(r => r.EsContenidoUsadoEnMisionActivaAsync(
+            It.IsAny<TipoModoDeJuego>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+        _validador.Setup(v => v.Validar(It.IsAny<ModificarTriviaComando>()))
+                  .Returns(ResultadoValidacion.Exitoso());
         _repositorio
             .Setup(r => r.ModificarDatosTriviaAsync(It.IsAny<Trivia>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);

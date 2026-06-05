@@ -1,5 +1,6 @@
 using JuegosServicio.Aplicacion.CasosDeUso.Comandos;
 using JuegosServicio.Aplicacion.Puertos;
+using JuegosServicio.Aplicacion.Validaciones;
 using JuegosServicio.Dominio.Entidades;
 using JuegosServicio.Dominio.Excepciones;
 using MediatR;
@@ -11,20 +12,25 @@ public sealed class CrearBusquedaTesoroManejador : IRequestHandler<CrearBusqueda
 {
     private readonly IRepositorioBusquedas _repositorio;
     private readonly IProveedorFechaHora _reloj;
+    private readonly IValidador<CrearBusquedaTesoroComando> _validador;
     private readonly ILogger<CrearBusquedaTesoroManejador> _registro;
 
     public CrearBusquedaTesoroManejador(
         IRepositorioBusquedas repositorio,
         IProveedorFechaHora reloj,
+        IValidador<CrearBusquedaTesoroComando> validador,
         ILogger<CrearBusquedaTesoroManejador> registro)
     {
         _repositorio = repositorio;
         _reloj = reloj;
+        _validador = validador;
         _registro = registro;
     }
 
     public async Task<Guid> Handle(CrearBusquedaTesoroComando comando, CancellationToken cancelacion)
     {
+        _validador.Validar(comando).LanzarSiHayErrores();
+
         if (await _repositorio.ExisteBusquedaConNombreAsync(comando.Dto.Nombre, cancelacion))
             throw new ExcepcionDominio($"Ya existe una búsqueda del tesoro con el nombre '{comando.Dto.Nombre}'.");
 

@@ -1,5 +1,6 @@
 using JuegosServicio.Aplicacion.CasosDeUso.Comandos;
 using JuegosServicio.Aplicacion.Puertos;
+using JuegosServicio.Aplicacion.Validaciones;
 using JuegosServicio.Dominio.Entidades;
 using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Dominio.Excepciones;
@@ -11,17 +12,23 @@ public sealed class CrearMisionManejador : IRequestHandler<CrearMisionComando, G
 {
     private readonly IRepositorioMisiones _repositorio;
     private readonly IProveedorFechaHora _fechaHora;
+    private readonly IValidador<CrearMisionComando> _validador;
 
-    public CrearMisionManejador(IRepositorioMisiones repositorio, IProveedorFechaHora fechaHora)
+    public CrearMisionManejador(
+        IRepositorioMisiones repositorio,
+        IProveedorFechaHora fechaHora,
+        IValidador<CrearMisionComando> validador)
     {
         _repositorio = repositorio;
         _fechaHora = fechaHora;
+        _validador = validador;
     }
 
     public async Task<Guid> Handle(CrearMisionComando comando, CancellationToken cancelacion)
     {
-        var existe = await _repositorio.ExisteMisionConNombreAsync(comando.Dto.Nombre, cancelacion);
-        if (existe)
+        _validador.Validar(comando).LanzarSiHayErrores();
+
+        if (await _repositorio.ExisteMisionConNombreAsync(comando.Dto.Nombre, cancelacion))
             throw new ExcepcionDominio($"Ya existe una misión con el nombre '{comando.Dto.Nombre}'.");
 
         var mision = Mision.Crear(

@@ -108,6 +108,9 @@ async function leerErrorEstructurado(
 const MENSAJE_CONTENIDO_CON_SESIONES_VIGENTES =
   "No se puede desactivar este contenido porque tiene sesiones programadas o en ejecución.";
 
+const MENSAJE_CONTENIDO_USADO_EN_MISION_ACTIVA =
+  "No se puede modificar este contenido porque está siendo usado en una misión activa.";
+
 // ---------------------------------------------------------------------------
 // Tipos
 // ---------------------------------------------------------------------------
@@ -358,6 +361,11 @@ export async function agregarPregunta(
   if (respuesta.status === 401) lanzar401("Debe iniciar sesión.");
   if (respuesta.status === 403) throw new Error("No tiene permisos.");
   if (respuesta.status === 404) throw new Error("Trivia no encontrada.");
+  if (respuesta.status === 422) {
+    const err = await leerErrorEstructurado(respuesta);
+    if (err?.codigo === "CONTENIDO_USADO_EN_MISION_ACTIVA") throw new Error(MENSAJE_CONTENIDO_USADO_EN_MISION_ACTIVA);
+    throw new Error(err?.mensaje ?? "No se puede realizar esta operación.");
+  }
   if (!respuesta.ok) throw new Error(await leerError(respuesta));
   const cuerpo = (await respuesta.json()) as { id: string };
   return cuerpo.id;
@@ -383,6 +391,11 @@ export async function modificarPregunta(
   if (respuesta.status === 401) lanzar401("Debe iniciar sesión.");
   if (respuesta.status === 403) throw new Error("No tiene permisos.");
   if (respuesta.status === 404) throw new Error("Pregunta no encontrada.");
+  if (respuesta.status === 422) {
+    const err = await leerErrorEstructurado(respuesta);
+    if (err?.codigo === "CONTENIDO_USADO_EN_MISION_ACTIVA") throw new Error(MENSAJE_CONTENIDO_USADO_EN_MISION_ACTIVA);
+    throw new Error(err?.mensaje ?? "No se puede realizar esta operación.");
+  }
   if (!respuesta.ok) throw new Error(await leerError(respuesta));
 }
 
@@ -529,6 +542,11 @@ export async function modificarTrivia(
   if (respuesta.status === 401) lanzar401("Debe iniciar sesión.");
   if (respuesta.status === 403) throw new Error("No tiene permisos.");
   if (respuesta.status === 404) throw new Error("Trivia no encontrada.");
+  if (respuesta.status === 422) {
+    const err = await leerErrorEstructurado(respuesta);
+    if (err?.codigo === "CONTENIDO_USADO_EN_MISION_ACTIVA") throw new Error(MENSAJE_CONTENIDO_USADO_EN_MISION_ACTIVA);
+    throw new Error(err?.mensaje ?? "No se puede realizar esta operación.");
+  }
   if (!respuesta.ok) throw new Error(await leerError(respuesta));
 }
 
@@ -572,6 +590,11 @@ export async function modificarBusquedaTesoro(
   if (respuesta.status === 403) throw new Error("No tiene permisos.");
   if (respuesta.status === 404)
     throw new Error("Búsqueda del tesoro no encontrada.");
+  if (respuesta.status === 422) {
+    const err = await leerErrorEstructurado(respuesta);
+    if (err?.codigo === "CONTENIDO_USADO_EN_MISION_ACTIVA") throw new Error(MENSAJE_CONTENIDO_USADO_EN_MISION_ACTIVA);
+    throw new Error(err?.mensaje ?? "No se puede realizar esta operación.");
+  }
   if (!respuesta.ok) throw new Error(await leerError(respuesta));
 }
 
@@ -846,6 +869,11 @@ export async function agregarPista(
   if (respuesta.status === 403) throw new Error("No tiene permisos.");
   if (respuesta.status === 404)
     throw new Error("Búsqueda del tesoro no encontrada.");
+  if (respuesta.status === 422) {
+    const err = await leerErrorEstructurado(respuesta);
+    if (err?.codigo === "CONTENIDO_USADO_EN_MISION_ACTIVA") throw new Error(MENSAJE_CONTENIDO_USADO_EN_MISION_ACTIVA);
+    throw new Error(err?.mensaje ?? "No se puede realizar esta operación.");
+  }
   if (!respuesta.ok) throw new Error(await leerError(respuesta));
   const cuerpo = (await respuesta.json()) as { id: string };
   return cuerpo.id;
@@ -871,6 +899,11 @@ export async function modificarPista(
   if (respuesta.status === 401) lanzar401("Debe iniciar sesión.");
   if (respuesta.status === 403) throw new Error("No tiene permisos.");
   if (respuesta.status === 404) throw new Error("Pista no encontrada.");
+  if (respuesta.status === 422) {
+    const err = await leerErrorEstructurado(respuesta);
+    if (err?.codigo === "CONTENIDO_USADO_EN_MISION_ACTIVA") throw new Error(MENSAJE_CONTENIDO_USADO_EN_MISION_ACTIVA);
+    throw new Error(err?.mensaje ?? "No se puede realizar esta operación.");
+  }
   if (!respuesta.ok) throw new Error(await leerError(respuesta));
 }
 
@@ -889,6 +922,11 @@ export async function eliminarPista(
   if (respuesta.status === 401) lanzar401("Debe iniciar sesión.");
   if (respuesta.status === 403) throw new Error("No tiene permisos.");
   if (respuesta.status === 404) throw new Error("Pista no encontrada.");
+  if (respuesta.status === 422) {
+    const err = await leerErrorEstructurado(respuesta);
+    if (err?.codigo === "CONTENIDO_USADO_EN_MISION_ACTIVA") throw new Error(MENSAJE_CONTENIDO_USADO_EN_MISION_ACTIVA);
+    throw new Error(err?.mensaje ?? "No se puede realizar esta operación.");
+  }
   if (!respuesta.ok) throw new Error(await leerError(respuesta));
 }
 
@@ -907,5 +945,10 @@ export async function eliminarPregunta(
   if (respuesta.status === 401) lanzar401("Debe iniciar sesión.");
   if (respuesta.status === 403) throw new Error("No tiene permisos.");
   if (respuesta.status === 404) throw new Error("Pregunta no encontrada.");
+  if (respuesta.status === 422) {
+    const err = await leerErrorEstructurado(respuesta);
+    if (err?.codigo === "CONTENIDO_USADO_EN_MISION_ACTIVA") throw new Error(MENSAJE_CONTENIDO_USADO_EN_MISION_ACTIVA);
+    throw new Error(err?.mensaje ?? "No se puede realizar esta operación.");
+  }
   if (!respuesta.ok) throw new Error(await leerError(respuesta));
 }

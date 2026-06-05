@@ -22,6 +22,16 @@ public sealed class RepositorioMisiones : IRepositorioMisiones
             .AnyAsync(e => e.TipoModoDeJuego == (int)tipo && e.ModoDeJuegoId == contenidoId, cancelacion);
     }
 
+    public async Task<bool> EsContenidoUsadoEnMisionActivaAsync(
+        TipoModoDeJuego tipo, Guid contenidoId, CancellationToken cancelacion)
+    {
+        var estadoActiva = (int)EstadoMision.Activa;
+        return await _contexto.Etapas.AsNoTracking()
+            .AnyAsync(e => e.TipoModoDeJuego == (int)tipo
+                        && e.ModoDeJuegoId == contenidoId
+                        && e.Mision.Estado == estadoActiva, cancelacion);
+    }
+
     public async Task<bool> ExisteMisionConNombreAsync(string nombre, CancellationToken cancelacion)
     {
         var normalizado = nombre.Trim();

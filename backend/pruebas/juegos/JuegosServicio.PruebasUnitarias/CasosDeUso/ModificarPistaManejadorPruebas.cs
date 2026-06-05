@@ -3,6 +3,7 @@ using JuegosServicio.Aplicacion.CasosDeUso.Manejadores;
 using JuegosServicio.Aplicacion.Puertos;
 using JuegosServicio.Commons.Dtos;
 using JuegosServicio.Dominio.Entidades;
+using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Dominio.Excepciones;
 
 namespace JuegosServicio.PruebasUnitarias.CasosDeUso;
@@ -10,11 +11,12 @@ namespace JuegosServicio.PruebasUnitarias.CasosDeUso;
 public class ModificarPistaManejadorPruebas
 {
     private readonly Mock<IRepositorioBusquedas> _repositorio = new();
+    private readonly Mock<IRepositorioMisiones> _repositorioMisiones = new();
 
     private static readonly DateTime FechaFija =
         new(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc);
 
-    private ModificarPistaManejador CrearManejador() => new(_repositorio.Object);
+    private ModificarPistaManejador CrearManejador() => new(_repositorio.Object, _repositorioMisiones.Object);
 
     private static BusquedaTesoro BusquedaConPista(out Guid pistaId)
     {
@@ -29,6 +31,9 @@ public class ModificarPistaManejadorPruebas
 
     public ModificarPistaManejadorPruebas()
     {
+        _repositorioMisiones.Setup(r => r.EsContenidoUsadoEnMisionActivaAsync(
+            It.IsAny<TipoModoDeJuego>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
         _repositorio
             .Setup(r => r.ModificarPistaAsync(It.IsAny<Pista>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);

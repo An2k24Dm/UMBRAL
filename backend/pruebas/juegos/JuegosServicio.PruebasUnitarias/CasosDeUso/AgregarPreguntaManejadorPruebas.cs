@@ -1,8 +1,10 @@
 using JuegosServicio.Aplicacion.CasosDeUso.Comandos;
 using JuegosServicio.Aplicacion.CasosDeUso.Manejadores;
 using JuegosServicio.Aplicacion.Puertos;
+using JuegosServicio.Aplicacion.Validaciones;
 using JuegosServicio.Commons.Dtos;
 using JuegosServicio.Dominio.Entidades;
+using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Dominio.Excepciones;
 using Microsoft.Extensions.Logging;
 
@@ -12,13 +14,15 @@ namespace JuegosServicio.PruebasUnitarias.CasosDeUso;
 public class AgregarPreguntaManejadorPruebas
 {
     private readonly Mock<IRepositorioJuegos> _repositorio = new();
+    private readonly Mock<IRepositorioMisiones> _repositorioMisiones = new();
     private readonly Mock<ILogger<AgregarPreguntaManejador>> _registro = new();
+    private readonly Mock<IValidador<AgregarPreguntaComando>> _validador = new();
 
     private static readonly DateTime FechaFija =
         new(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc);
 
     private AgregarPreguntaManejador CrearManejador() =>
-        new(_repositorio.Object, _registro.Object);
+        new(_repositorio.Object, _repositorioMisiones.Object, _validador.Object, _registro.Object);
 
     private static Trivia TriviaEnBorrador() => Trivia.Crear(
         "Trivia de Geografía", "Descripción", Guid.NewGuid(), 30, FechaFija);
@@ -37,6 +41,11 @@ public class AgregarPreguntaManejadorPruebas
 
     public AgregarPreguntaManejadorPruebas()
     {
+        _repositorioMisiones.Setup(r => r.EsContenidoUsadoEnMisionActivaAsync(
+            It.IsAny<TipoModoDeJuego>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+        _validador.Setup(v => v.Validar(It.IsAny<AgregarPreguntaComando>()))
+                  .Returns(ResultadoValidacion.Exitoso());
         _repositorio
             .Setup(r => r.AgregarPreguntaAsync(
                 It.IsAny<Guid>(), It.IsAny<Pregunta>(), It.IsAny<CancellationToken>()))
