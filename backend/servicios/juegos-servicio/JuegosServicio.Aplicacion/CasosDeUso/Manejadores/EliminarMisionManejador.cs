@@ -9,10 +9,14 @@ namespace JuegosServicio.Aplicacion.CasosDeUso.Manejadores;
 public sealed class EliminarMisionManejador : IRequestHandler<EliminarMisionComando>
 {
     private readonly IRepositorioMisiones _repositorio;
+    private readonly IClienteSesiones _clienteSesiones;
 
-    public EliminarMisionManejador(IRepositorioMisiones repositorio)
+    public EliminarMisionManejador(
+        IRepositorioMisiones repositorio,
+        IClienteSesiones clienteSesiones)
     {
         _repositorio = repositorio;
+        _clienteSesiones = clienteSesiones;
     }
 
     public async Task Handle(EliminarMisionComando comando, CancellationToken cancelacion)
@@ -23,6 +27,9 @@ public sealed class EliminarMisionManejador : IRequestHandler<EliminarMisionComa
 
         if (mision.Estado != EstadoMision.Inactiva)
             throw new ExcepcionDominio("Solo se pueden eliminar misiones en estado Inactiva.");
+
+        if (await _clienteSesiones.ExisteSesionVigentePorMisionAsync(comando.MisionId, cancelacion))
+            throw new MisionConSesionesVigentesExcepcion();
 
         await _repositorio.EliminarMisionAsync(comando.MisionId, cancelacion);
     }
