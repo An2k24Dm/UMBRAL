@@ -8,6 +8,6 @@ public sealed class UsuarioModelo
     public int Rol { get; set; }
     public int Estado { get; set; }
     public DateTime FechaRegistro { get; set; }
-
+    public bool DebeCambiarContrasena { get; set; }
     public PersonaModelo? Persona { get; set; }
 }

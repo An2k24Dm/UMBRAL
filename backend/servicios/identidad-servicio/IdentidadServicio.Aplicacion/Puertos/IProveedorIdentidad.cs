@@ -13,18 +13,25 @@ public interface IProveedorIdentidad
         string idKeycloak,
         DatosActualizacionUsuarioIdentidad datos,
         CancellationToken cancelacion);
+    // Asigna una nueva contraseña al usuario en Keycloak. UMBRAL siempre
+    // guarda la credencial como NO temporal: el control de "obligar a
+    // cambiarla en el próximo login" se hace contra una bandera propia en
+    // la BD de identidad, no contra Keycloak. Esto evita el rechazo de
+    // Direct Access Grants ("Account is not fully set up") cuando hay
+    // required actions pendientes.
     Task CambiarContrasenaAsync(
         string idKeycloak,
         string nuevaContrasena,
-        bool temporal,
         CancellationToken cancelacion);
 }
+
 public sealed record DatosCreacionUsuarioIdentidad(
     string NombreUsuario,
     string Correo,
     string Contrasena,
     string Nombre,
     string Apellido);
+
 public sealed record DatosActualizacionUsuarioIdentidad(
     string? NombreUsuario,
     string? Correo,

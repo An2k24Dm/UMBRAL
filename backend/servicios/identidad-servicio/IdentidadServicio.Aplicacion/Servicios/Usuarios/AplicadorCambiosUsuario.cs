@@ -11,9 +11,6 @@ public sealed class AplicadorCambiosUsuario
     public ResultadoCambiosUsuario Aplicar(
         Usuario usuario, ModificarPerfilUsuarioDto dto)
     {
-        // Snapshot de los valores actuales — se usa para detectar cambios y
-        // para construir el payload parcial hacia Keycloak con los valores
-        // nuevos exactos.
         var nombreUsuarioOriginal = usuario.NombreUsuario.Valor;
         var correoOriginal = usuario.Correo.Valor;
         var nombreOriginal = usuario.NombrePersona.Nombre;
@@ -123,9 +120,17 @@ public sealed class AplicadorCambiosUsuario
             }
         }
 
-        // ---------- Contraseña (NUNCA toca dominio ni persistencia) ----------
-        var cambiaContrasena = dto.NuevaContrasena is not null;
-        var nuevaContrasena = cambiaContrasena ? dto.NuevaContrasena : null;
+        // El cambio de contraseña SOLO aplica al flujo del Participante
+        // editando su propio perfil (HU10). Para Operador/Administrador
+        // (HU09) se usa el endpoint dedicado de reseteo administrativo.
+        var cambiaContrasena = false;
+        string? nuevaContrasena = null;
+        if (dto is Commons.Dtos.ModificarParticipanteSolicitudDto dtoParticipanteContrasena &&
+            dtoParticipanteContrasena.NuevaContrasena is not null)
+        {
+            cambiaContrasena = true;
+            nuevaContrasena = dtoParticipanteContrasena.NuevaContrasena;
+        }
 
         var datosKeycloak = new DatosActualizacionUsuarioIdentidad(
             NombreUsuario: nombreUsuarioKeycloak,

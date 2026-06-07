@@ -100,39 +100,6 @@ public class AplicadorCambiosUsuarioPruebas
     }
 
     [Fact]
-    public void SoloContrasena_NoTocaDominio_MarcaCambiaContrasena()
-    {
-        var op = OperadorOriginal();
-        var resultado = Crear().Aplicar(op, new ModificarOperadorSolicitudDto
-        {
-            NuevaContrasena = "Abc1*",
-            ConfirmacionContrasena = "Abc1*"
-        });
-
-        resultado.HuboCambiosDatosUsuario.Should().BeFalse();
-        resultado.CambiaContrasena.Should().BeTrue();
-        resultado.NuevaContrasena.Should().Be("Abc1*");
-        resultado.RequiereGuardarBaseDatos.Should().BeFalse();
-        resultado.RequiereSincronizarKeycloak.Should().BeTrue();
-        // El dominio queda intacto.
-        op.NombrePersona.Nombre.Should().Be("Olivia");
-        op.Correo.Valor.Should().Be("operador@umbral.com");
-    }
-
-    [Fact]
-    public void Contrasena_NoApareceEnCamposActualizadosConSuValor()
-    {
-        var op = OperadorOriginal();
-        var resultado = Crear().Aplicar(op, new ModificarOperadorSolicitudDto
-        {
-            NuevaContrasena = "Sup3r*",
-            ConfirmacionContrasena = "Sup3r*"
-        });
-
-        resultado.CamposActualizados.Should().NotContain(c => c.Contains("Sup3r*"));
-    }
-
-    [Fact]
     public void NoModificaEstadoRolFechaRegistro()
     {
         var op = OperadorOriginal();

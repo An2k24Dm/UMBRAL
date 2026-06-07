@@ -21,7 +21,6 @@ const ESTADO_INICIAL: DatosNuevoUsuario = {
   tipoUsuario: 'Operador',
   nombreUsuario: '',
   correo: '',
-  contrasena: '',
   nombre: '',
   apellido: '',
   sexo: 'Femenino',
@@ -31,14 +30,12 @@ const ESTADO_INICIAL: DatosNuevoUsuario = {
 }
 
 const CODIGOS_TELEFONO = ['0414', '0412', '0424', '0416', '0426', '0212']
-const CARACTERES_ESPECIALES = '!@#$%^&*_-.?'
 
 type Errores = Partial<Record<keyof DatosNuevoUsuario | 'general', string>>
 
 const MAPA_CAMPOS_BACKEND: Record<string, keyof DatosNuevoUsuario> = {
   nombreUsuario: 'nombreUsuario',
   correo: 'correo',
-  contrasena: 'contrasena',
   nombre: 'nombre',
   apellido: 'apellido',
   sexo: 'sexo',
@@ -73,16 +70,6 @@ function validarLocal(datos: DatosNuevoUsuario): Errores {
   if (!datos.correo.trim()) e.correo = 'El correo es obligatorio.'
   else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(datos.correo.trim()))
     e.correo = 'El correo no tiene un formato válido.'
-
-  if (!datos.contrasena) e.contrasena = 'La contraseña es obligatoria.'
-  else {
-    if (datos.contrasena.length < 5 || datos.contrasena.length > 10)
-      e.contrasena = 'La contraseña debe tener entre 5 y 10 caracteres.'
-    else if (!/\d/.test(datos.contrasena))
-      e.contrasena = 'La contraseña debe contener al menos un número.'
-    else if (![...datos.contrasena].some((c) => CARACTERES_ESPECIALES.includes(c)))
-      e.contrasena = 'La contraseña debe contener al menos un carácter especial.'
-  }
 
   if (!datos.nombre.trim()) e.nombre = 'El nombre es obligatorio.'
   else if (!/^[A-Za-zÁÉÍÓÚáéíóúÑñÜü\s]{2,50}$/.test(datos.nombre.trim()))
@@ -166,8 +153,8 @@ export function PaginaRegistrarUsuario() {
       setCodigoGenerado(codigo)
       setExito(
         codigo
-          ? `Usuario ${respuesta.nombreUsuario} registrado correctamente con rol ${respuesta.rol}. Código generado: ${codigo}`
-          : `Usuario ${respuesta.nombreUsuario} registrado correctamente con rol ${respuesta.rol}.`
+          ? `Usuario ${respuesta.nombreUsuario} creado correctamente con rol ${respuesta.rol}. Código generado: ${codigo}. Se envió una contraseña temporal a su correo electrónico.`
+          : `Usuario ${respuesta.nombreUsuario} creado correctamente con rol ${respuesta.rol}. Se envió una contraseña temporal a su correo electrónico.`
       )
       setDatos({ ...ESTADO_INICIAL, tipoUsuario: datos.tipoUsuario })
       setErrores({})
@@ -258,17 +245,6 @@ export function PaginaRegistrarUsuario() {
               type="email"
               value={datos.correo}
               onChange={(e) => actualizar('correo', e.target.value)}
-              required
-            />
-          </CampoFormulario>
-
-          <CampoFormulario etiqueta="Contraseña" htmlFor="contrasena" error={errores.contrasena}>
-            <input
-              id="contrasena"
-              type="password"
-              value={datos.contrasena}
-              maxLength={10}
-              onChange={(e) => actualizar('contrasena', e.target.value)}
               required
             />
           </CampoFormulario>

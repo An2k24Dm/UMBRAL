@@ -10,9 +10,6 @@ import type {
 } from './tipos'
 import { manejar401 } from './eventosSesion'
 
-// Helper local que admite las dos formas históricas del repo:
-//   lanzar401('msg')          → manejar401 lee el token de localStorage.
-//   lanzar401(token, 'msg')   → manejar401 usa el token explícito.
 function lanzar401(arg1?: string | null, arg2?: string): never {
   const tieneAmbos = typeof arg2 === 'string'
   const token = tieneAmbos ? (arg1 ?? null) : null
@@ -23,40 +20,28 @@ function lanzar401(arg1?: string | null, arg2?: string): never {
 const URL_API = import.meta.env.VITE_API_URL ?? 'http://localhost:5000'
 
 const ENDPOINTS = {
-  // HU01 — ya implementado.
   iniciarSesion: '/api/autenticacion/login-web',
-  // HU05, HU06 — perfil del usuario autenticado.
   perfilActual: '/api/autenticacion/perfil-actual',
-  // HU02 — registro de Operador/Administrador.
+  cambiarContrasenaObligatoria: '/api/autenticacion/cambiar-contrasena-obligatoria',
   registrarUsuario: '/api/usuarios',
-  // HU07 — listado de Participantes.
   listarParticipantes: '/api/usuarios/participantes',
-  // HU07 — detalle/perfil completo de un Participante seleccionado.
   detalleParticipante: (id: string) =>
     `/api/usuarios/participantes/${encodeURIComponent(id)}`,
-  // HU08 — listado de Operadores y Administradores.
   listarUsuariosInternos: '/api/usuarios/internos',
-  // HU08 — detalle de un usuario interno (Operador / Administrador).
   detalleUsuarioInterno: (id: string) =>
     `/api/usuarios/internos/${encodeURIComponent(id)}`,
-  // HU09 — modificación parcial de un Operador (sólo Administrador).
   modificarOperador: (id: string) =>
     `/api/usuarios/operadores/${encodeURIComponent(id)}`,
-  // HU13 — eliminación permanente de un Operador (sólo Administrador).
+  resetearContrasenaUsuarioInterno: (id: string) =>
+    `/api/usuarios/internos/${encodeURIComponent(id)}/resetear-contrasena`,
   eliminarOperador: (id: string) =>
     `/api/usuarios/operadores/${encodeURIComponent(id)}`,
-  // HU12 — desactivación temporal de un Operador (sólo Administrador).
   desactivarOperador: (id: string) =>
     `/api/usuarios/operadores/${encodeURIComponent(id)}/desactivar`,
-  // HU12 (extensión) — desactivación temporal de un Participante
-  // (Administrador u Operador Activo).
   desactivarParticipante: (id: string) =>
     `/api/usuarios/participantes/${encodeURIComponent(id)}/desactivar`,
-  // Reactivación de un Operador previamente desactivado (sólo Administrador).
   activarOperador: (id: string) =>
     `/api/usuarios/operadores/${encodeURIComponent(id)}/activar`,
-  // Reactivación de un Participante previamente desactivado (Administrador
-  // u Operador Activo).
   activarParticipante: (id: string) =>
     `/api/usuarios/participantes/${encodeURIComponent(id)}/activar`
 }
@@ -103,25 +88,62 @@ export async function iniciarSesion(
   return (await respuesta.json()) as ResultadoInicioSesion
 }
 
-// ---------------------------------------------------------------------------
-// HU06 — perfil del usuario autenticado
-// ---------------------------------------------------------------------------
+export interface RespuestaCambiarContrasenaObligatoria {
+  mensaje: string
+  rutaRedireccion: string
+}
+
+export async function cambiarContrasenaObligatoria(
+  nuevaContrasena: string,
+  confirmacionContrasena: string,
+  token: string
+): Promise<RespuestaCambiarContrasenaObligatoria> {
+  const respuesta = await fetch(
+    `${URL_API}${ENDPOINTS.cambiarContrasenaObligatoria}`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...autorizacion(token)
+      },
+      body: JSON.stringify({ nuevaContrasena, confirmacionContrasena })
+    }
+  )
+
+  if (respuesta.status === 401) lanzar401(token, 'Debe iniciar sesión.')
+  if (respuesta.status === 403) {
+    const cuerpo = (await respuesta.json().catch(() => null)) as
+      | { mensaje?: string }
+      | null
+    throw new Error(cuerpo?.mensaje ?? 'No tiene permisos para esta acción.')
+  }
+
+  if (!respuesta.ok) {
+    const cuerpoError = (await respuesta.json().catch(() => null)) as
+      | { mensaje?: string; errores?: ErrorCampo[] }
+      | null
+    if (cuerpoError?.errores && cuerpoError.errores.length > 0) {
+      throw new ErrorValidacionRegistro(
+        cuerpoError.mensaje ?? 'Revise los campos marcados.',
+        cuerpoError.errores
+      )
+    }
+    throw new Error(cuerpoError?.mensaje ?? 'No fue posible cambiar la contraseña.')
+  }
+
+  return (await respuesta.json()) as RespuestaCambiarContrasenaObligatoria
+}
+
 export async function obtenerPerfilActual(token: string): Promise<UsuarioDetalle> {
   return pedirJson<UsuarioDetalle>(`${URL_API}${ENDPOINTS.perfilActual}`, token)
 }
 
-// ---------------------------------------------------------------------------
-// HU02 — registrar Operador/Administrador
-// ---------------------------------------------------------------------------
 export type TipoUsuarioRegistro = 'Administrador' | 'Operador'
 
-// Los códigos OP-### / AD-### los genera el backend (HU02). El frontend nunca
-// los envía: solo los muestra como campo no editable y los recibe en la respuesta.
 export interface DatosNuevoUsuario {
   tipoUsuario: TipoUsuarioRegistro
   nombreUsuario: string
   correo: string
-  contrasena: string
   nombre: string
   apellido: string
   sexo: string
@@ -162,7 +184,6 @@ export async function registrarUsuario(
     tipoUsuario: datos.tipoUsuario,
     nombreUsuario: datos.nombreUsuario,
     correo: datos.correo,
-    contrasena: datos.contrasena,
     nombre: datos.nombre,
     apellido: datos.apellido,
     sexo: datos.sexo,
@@ -294,10 +315,9 @@ export interface ModificarOperadorPayload {
     direccion?: string
     telefono?: string
   }
-  // HU09 — cambio administrativo de contraseña. Ambos campos viajan
-  // únicamente si el Administrador escribió valores en el formulario.
-  nuevaContrasena?: string
-  confirmacionContrasena?: string
+  // La contraseña ya NO se cambia desde el endpoint de modificación. El
+  // reseteo se hace con el endpoint dedicado `resetearContrasenaUsuario`,
+  // que genera contraseña temporal y la envía por correo.
 }
 
 export interface ModificarOperadorRespuesta {
@@ -441,6 +461,46 @@ export function activarParticipanteApi(
     token,
     'No fue posible activar el participante.'
   )
+}
+
+// Reseteo administrativo de contraseña para Operador o Administrador.
+// El backend genera la nueva contraseña temporal, la asigna en Keycloak
+// con temporary:true (forzando UPDATE_PASSWORD en el próximo login) y la
+// envía por correo al usuario. La respuesta NUNCA contiene la contraseña.
+export interface RespuestaResetearContrasena {
+  idUsuario: string
+  correoDestino: string
+  mensaje: string
+}
+
+export async function resetearContrasenaUsuario(
+  id: string,
+  token: string
+): Promise<RespuestaResetearContrasena> {
+  const respuesta = await fetch(
+    `${URL_API}${ENDPOINTS.resetearContrasenaUsuarioInterno(id)}`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...autorizacion(token)
+      },
+      body: '{}'
+    }
+  )
+
+  if (respuesta.status === 401) lanzar401(token, 'Debe iniciar sesión como administrador.')
+  if (respuesta.status === 403) throw new Error('No tiene permisos para resetear contraseñas.')
+  if (respuesta.status === 404) throw new Error('El usuario solicitado no existe.')
+
+  if (!respuesta.ok) {
+    const cuerpo = (await respuesta.json().catch(() => null)) as
+      | { mensaje?: string }
+      | null
+    throw new Error(cuerpo?.mensaje ?? 'No fue posible enviar la contraseña temporal.')
+  }
+
+  return (await respuesta.json()) as RespuestaResetearContrasena
 }
 
 export async function modificarOperador(

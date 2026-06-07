@@ -9,7 +9,6 @@ internal static class ValidadorReglasModificacionPerfilUsuario
         IReglasValidacionUsuario reglas,
         ResultadoValidacion resultado)
     {
-        // Si llegó DatosContacto con teléfono, normalizamos a la forma canónica.
         if (dto.DatosContacto is not null)
             dto.DatosContacto.Telefono = reglas.NormalizarTelefono(dto.DatosContacto.Telefono);
 
@@ -36,25 +35,5 @@ internal static class ValidadorReglasModificacionPerfilUsuario
 
         if (dto.DatosContacto?.Direccion is not null)
             reglas.ValidarDireccion(dto.DatosContacto.Direccion, resultado);
-
-        ValidarCambioContrasena(dto, reglas, resultado);
-    }
-
-    private static void ValidarCambioContrasena(
-        ModificarPerfilUsuarioDto dto,
-        IReglasValidacionUsuario reglas,
-        ResultadoValidacion resultado)
-    {
-        var solicita = dto.NuevaContrasena is not null || dto.ConfirmacionContrasena is not null;
-        if (!solicita) return;
-
-        reglas.ValidarContrasena(dto.NuevaContrasena, resultado);
-
-        if (!string.Equals(dto.NuevaContrasena, dto.ConfirmacionContrasena, StringComparison.Ordinal))
-        {
-            resultado.Agregar(
-                MensajesValidacionUsuario.CampoConfirmacionContrasena,
-                MensajesValidacionUsuario.ContrasenasNoCoinciden);
-        }
     }
 }

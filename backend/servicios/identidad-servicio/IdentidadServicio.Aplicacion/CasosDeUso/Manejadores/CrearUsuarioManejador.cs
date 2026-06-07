@@ -1,7 +1,9 @@
 using IdentidadServicio.Aplicacion.CasosDeUso.Comandos;
 using IdentidadServicio.Aplicacion.Estrategias;
 using IdentidadServicio.Aplicacion.Fabricas;
+using IdentidadServicio.Aplicacion.Generadores;
 using IdentidadServicio.Aplicacion.Puertos;
+using IdentidadServicio.Aplicacion.Servicios.Usuarios;
 using IdentidadServicio.Aplicacion.Validaciones;
 using IdentidadServicio.Commons.Dtos;
 using IdentidadServicio.Dominio.Entidades;
@@ -10,47 +12,47 @@ using Microsoft.Extensions.Logging;
 
 namespace IdentidadServicio.Aplicacion.CasosDeUso.Manejadores;
 
-// HU02 — registro administrativo de Operador o Administrador desde el panel.
-//
-// Tras el refactor de repositorios, el manejador depende SOLO de los puertos
-// que necesita:
-//  * IRepositorioUnicidadUsuario — duplicados antes de tocar Keycloak.
-//  * IRepositorioOperadores / IRepositorioAdministradores — alta del agregado
-//    concreto. La estrategia decide qué tipo de agregado crear; el manejador
-//    decide en qué repositorio persistirlo por pattern matching.
-//  * IUnidadTrabajoIdentidad — confirma el SaveChanges al cierre del flujo.
 public sealed class CrearUsuarioManejador
     : IRequestHandler<CrearUsuarioComando, CrearUsuarioRespuestaDto>
 {
     private readonly IRepositorioUnicidadUsuario _unicidad;
     private readonly IRepositorioOperadores _repositorioOperadores;
     private readonly IRepositorioAdministradores _repositorioAdministradores;
+    private readonly IRepositorioControlContrasenaTemporal _controlContrasena;
     private readonly IUnidadTrabajoIdentidad _unidadTrabajo;
     private readonly IProveedorIdentidad _proveedor;
     private readonly IProveedorFechaHora _reloj;
     private readonly FabricaEstrategiaCreacionUsuario _fabrica;
     private readonly IValidador<CrearUsuarioComando> _validador;
+    private readonly IGeneradorContrasenaTemporal _generadorContrasena;
+    private readonly IServicioCorreo _correo;
     private readonly ILogger<CrearUsuarioManejador> _registro;
 
     public CrearUsuarioManejador(
         IRepositorioUnicidadUsuario unicidad,
         IRepositorioOperadores repositorioOperadores,
         IRepositorioAdministradores repositorioAdministradores,
+        IRepositorioControlContrasenaTemporal controlContrasena,
         IUnidadTrabajoIdentidad unidadTrabajo,
         IProveedorIdentidad proveedor,
         IProveedorFechaHora reloj,
         FabricaEstrategiaCreacionUsuario fabrica,
         IValidador<CrearUsuarioComando> validador,
+        IGeneradorContrasenaTemporal generadorContrasena,
+        IServicioCorreo correo,
         ILogger<CrearUsuarioManejador> registro)
     {
         _unicidad = unicidad;
         _repositorioOperadores = repositorioOperadores;
         _repositorioAdministradores = repositorioAdministradores;
+        _controlContrasena = controlContrasena;
         _unidadTrabajo = unidadTrabajo;
         _proveedor = proveedor;
         _reloj = reloj;
         _fabrica = fabrica;
         _validador = validador;
+        _generadorContrasena = generadorContrasena;
+        _correo = correo;
         _registro = registro;
     }
 
@@ -59,22 +61,20 @@ public sealed class CrearUsuarioManejador
     {
         var dto = comando.Datos;
 
-        // 1) Validación de formato (sincrónica, sin acceso a base de datos).
         _validador.Validar(comando).LanzarSiHayErrores();
 
-        // 2) Duplicados (asincrónicos contra IRepositorioUnicidadUsuario).
         await ValidarDuplicadosAsync(dto, cancelacion);
 
-        // 3) Estrategia para el TipoUsuario.
         var estrategia = _fabrica.Obtener(dto.TipoUsuario);
 
         var fechaRegistro = _reloj.ObtenerFechaHoraUtc();
 
-        // 4) Alta en Keycloak antes de tocar la base: si falla, compensamos.
+        var contrasenaTemporal = _generadorContrasena.Generar();
+
         var datosIdentidad = new DatosCreacionUsuarioIdentidad(
             NombreUsuario: dto.NombreUsuario.Trim(),
             Correo: dto.Correo.Trim().ToLowerInvariant(),
-            Contrasena: dto.Contrasena,
+            Contrasena: contrasenaTemporal,
             Nombre: dto.Nombre.Trim(),
             Apellido: dto.Apellido.Trim());
 
@@ -85,8 +85,6 @@ public sealed class CrearUsuarioManejador
             await _proveedor.AsignarRolAsync(
                 idKeycloak, estrategia.ObtenerRol().ToString(), cancelacion);
 
-            // 5) Mapeo a DatosCreacionUsuario. HU02 nunca lleva Alias: ese
-            //    campo es exclusivo de HU03.
             var datosCreacion = new DatosCreacionUsuario
             {
                 TipoUsuario = dto.TipoUsuario,
@@ -103,16 +101,18 @@ public sealed class CrearUsuarioManejador
             var usuario = await estrategia.CrearUsuarioDominioAsync(
                 datosCreacion, fechaRegistro, cancelacion);
 
-            // 6) Persistencia: el manejador escoge el repo concreto en función
-            //    del tipo de agregado devuelto por la estrategia. Esto evita
-            //    una fachada gigante o un Strategy de persistencia adicional.
             await PersistirAsync(usuario, idKeycloak, cancelacion);
             await _unidadTrabajo.GuardarCambiosAsync(cancelacion);
 
+            await _controlContrasena.MarcarDebeCambiarPorIdAsync(usuario.Id, cancelacion);
+
             var codigo = ObtenerCodigo(usuario);
 
+            await EnviarCorreoCreacionAsync(usuario, contrasenaTemporal, cancelacion);
+
             _registro.LogInformation(
-                "Usuario {NombreUsuario} ({Correo}) creado con rol {Rol} y código {Codigo}.",
+                "Usuario {NombreUsuario} ({Correo}) creado con rol {Rol} y código {Codigo}. " +
+                "Se envió contraseña temporal por correo.",
                 usuario.NombreUsuario.Valor, usuario.Correo.Valor, usuario.Rol, codigo);
 
             return new CrearUsuarioRespuestaDto
@@ -124,8 +124,8 @@ public sealed class CrearUsuarioManejador
                 Estado = usuario.Estado.ToString(),
                 Codigo = codigo,
                 Mensaje = codigo is null
-                    ? $"{usuario.Rol} registrado correctamente."
-                    : $"{usuario.Rol} registrado correctamente. Código generado: {codigo}"
+                    ? $"{usuario.Rol} creado correctamente. Se envió una contraseña temporal a su correo electrónico."
+                    : $"{usuario.Rol} creado correctamente. Código generado: {codigo}. Se envió una contraseña temporal a su correo electrónico."
             };
         }
         catch
@@ -151,9 +151,6 @@ public sealed class CrearUsuarioManejador
         _ => null
     };
 
-    // HU02 — duplicados antes de tocar Keycloak. Se agregan todos los errores
-    // detectados para que el frontend pueda resaltar los campos en conflicto
-    // en una sola pasada.
     private async Task ValidarDuplicadosAsync(
         CrearUsuarioDto dto, CancellationToken cancelacion)
     {
@@ -173,6 +170,33 @@ public sealed class CrearUsuarioManejador
                 MensajesValidacionUsuario.TelefonoDuplicado);
 
         resultado.LanzarSiHayErrores();
+    }
+
+    private async Task EnviarCorreoCreacionAsync(
+        Usuario usuario, string contrasenaTemporal, CancellationToken cancelacion)
+    {
+        try
+        {
+            var cuerpo = MensajesContrasenaTemporal.CuerpoCreacion(
+                nombreCompleto: $"{usuario.NombrePersona.Nombre} {usuario.NombrePersona.Apellido}".Trim(),
+                nombreUsuario: usuario.NombreUsuario.Valor,
+                correoAcceso: usuario.Correo.Valor,
+                contrasenaTemporal: contrasenaTemporal,
+                rol: usuario.Rol.ToString());
+
+            await _correo.EnviarAsync(
+                usuario.Correo.Valor,
+                MensajesContrasenaTemporal.AsuntoCreacion,
+                cuerpo,
+                cancelacion);
+        }
+        catch (Exception ex)
+        {
+            _registro.LogError(ex,
+                "No fue posible enviar el correo de creación al usuario {Id}. " +
+                "Use el endpoint de reseteo para reintentar.",
+                usuario.Id);
+        }
     }
 
     private async Task CompensarKeycloakAsync(string idKeycloak)

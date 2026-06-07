@@ -148,7 +148,6 @@ public class ModificarParticipanteEndpointPruebas : IClassFixture<FabricaApiPrue
         _fabrica.MockProveedor.Verify(p => p.CambiarContrasenaAsync(
             FabricaApiPruebas.IdKeycloakParticipanteSembrado,
             contrasena,
-            false,
             It.IsAny<CancellationToken>()), Times.Once);
     }
 

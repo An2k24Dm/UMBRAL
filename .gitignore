@@ -28,3 +28,4 @@ dist/
 .idea/
 .vscode/
 .env*.local
+.env

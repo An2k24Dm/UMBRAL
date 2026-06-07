@@ -32,6 +32,7 @@ public class ValidadorModificarParticipantePruebas
         resultado.EsValido.Should().BeTrue();
     }
 
+    // HU10 — el Participante SÍ puede cambiar su propia contraseña.
     [Fact]
     public void Contrasena_AmbosCamposNulos_NoSeValida()
     {

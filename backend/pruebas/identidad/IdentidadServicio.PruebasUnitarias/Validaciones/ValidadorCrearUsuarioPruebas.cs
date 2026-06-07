@@ -33,7 +33,6 @@ public class ValidadorCrearUsuarioPruebas
         TipoUsuario = RolUsuario.Operador,
         NombreUsuario = "operador02",
         Correo = "operador02@gmail.com",
-        Contrasena = "Abc1*",
         Nombre = "Angelo",
         Apellido = "Di Martino",
         Sexo = "Masculino",
@@ -99,47 +98,9 @@ public class ValidadorCrearUsuarioPruebas
         TieneError(Validar(dto), "correo", MensajesValidacionUsuario.CorreoFormato).Should().BeTrue();
     }
 
-    // ---------- Contraseña ----------
-
-    [Fact]
-    public void Falla_Si_ContrasenaVacia()
-    {
-        var dto = DtoOperadorValido(); dto.Contrasena = "";
-        TieneError(Validar(dto), "contrasena", MensajesValidacionUsuario.ContrasenaObligatoria)
-            .Should().BeTrue();
-    }
-
-    [Fact]
-    public void Falla_Si_ContrasenaCorta()
-    {
-        var dto = DtoOperadorValido(); dto.Contrasena = "A1*";
-        TieneError(Validar(dto), "contrasena", MensajesValidacionUsuario.ContrasenaLongitud)
-            .Should().BeTrue();
-    }
-
-    [Fact]
-    public void Falla_Si_ContrasenaLarga()
-    {
-        var dto = DtoOperadorValido(); dto.Contrasena = "Abcdef1234*";
-        TieneError(Validar(dto), "contrasena", MensajesValidacionUsuario.ContrasenaLongitud)
-            .Should().BeTrue();
-    }
-
-    [Fact]
-    public void Falla_Si_ContrasenaSinNumero()
-    {
-        var dto = DtoOperadorValido(); dto.Contrasena = "Abcd*";
-        TieneError(Validar(dto), "contrasena", MensajesValidacionUsuario.ContrasenaSinNumero)
-            .Should().BeTrue();
-    }
-
-    [Fact]
-    public void Falla_Si_ContrasenaSinEspecial()
-    {
-        var dto = DtoOperadorValido(); dto.Contrasena = "Abcd1";
-        TieneError(Validar(dto), "contrasena", MensajesValidacionUsuario.ContrasenaSinEspecial)
-            .Should().BeTrue();
-    }
+    // ---------- Contraseña: el endpoint de creación ya NO la recibe. La
+    // contraseña se genera en el backend y se envía por correo. Por eso
+    // ya no hay validaciones de contraseña aquí. ----------
 
     // ---------- Nombre / Apellido ----------
 

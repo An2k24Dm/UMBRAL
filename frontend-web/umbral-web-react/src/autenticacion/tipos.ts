@@ -15,6 +15,7 @@ export interface ResultadoInicioSesion {
   tipoToken: string
   usuario: UsuarioAutenticado
   rutaRedireccion: string
+  requiereCambioContrasena?: boolean
 }
 
 export interface RespuestaError {
@@ -22,14 +23,8 @@ export interface RespuestaError {
   mensaje: string
 }
 
-// ---------------------------------------------------------------------------
-// Tipos compartidos para HU06, HU07, HU08
-// ---------------------------------------------------------------------------
-
 export type EstadoUsuario = 'Activo' | 'Inactivo' | string
 
-// Participante listado (HU07). El backend debería entregar al menos estos
-// campos; los opcionales se renderizan como "No disponible" si vienen vacíos.
 export interface UsuarioListadoParticipante {
   id: string
   alias?: string | null
@@ -40,8 +35,6 @@ export interface UsuarioListadoParticipante {
   sexo?: string | null
 }
 
-// Operador/Administrador listado (HU08). La columna "Código" puede llegar
-// como codigoOperador o codigoAdministrador según el rol.
 export interface UsuarioListadoInterno {
   id: string
   codigoOperador?: string | null

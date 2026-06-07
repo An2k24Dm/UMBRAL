@@ -12,25 +12,14 @@ import {
   activarParticipanteApi,
   desactivarOperadorApi,
   desactivarParticipanteApi,
-  eliminarOperador
+  eliminarOperador,
+  resetearContrasenaUsuario
 } from '../autenticacion/clienteApi'
 import type { UsuarioDetalle } from '../autenticacion/tipos'
 
-// Vista de detalle/perfil completo de un usuario seleccionado desde una lista.
-// - Administrador: detalle de Participantes (HU07), Operadores y Administradores (HU08).
-// - Operador: detalle restringido a Participantes (validación final en backend).
-//
-// HU09 — Si la prop `permiteEditarOperador` está activa y el usuario consultado
-// es un Operador, se muestra el botón "Editar" que cambia esta pantalla a modo
-// formulario. El cambio de rol del Operador NO está permitido y por eso el
-// formulario nunca expone el campo Rol como editable.
-
 interface Props {
-  // Restringe a nivel de UI qué roles puede consultar el usuario actual.
   rolesPermitidosVista?: Array<'Participante' | 'Operador' | 'Administrador'>
-  // Fuente de datos del detalle. Cada ruta inyecta el endpoint específico.
   obtenerUsuario: (id: string, token: string) => Promise<UsuarioDetalle>
-  // HU09 — habilita el modo edición sólo en la ruta del Administrador.
   permiteEditarOperador?: boolean
 }
 
@@ -47,29 +36,18 @@ export function PaginaDetalleUsuario({
   const [usuario, setUsuario] = useState<UsuarioDetalle | null>(null)
   const [modoEdicion, setModoEdicion] = useState(false)
   const [mensajeExito, setMensajeExito] = useState<string | null>(null)
-
-  // HU13 — estado del modal de confirmación de eliminación de Operador.
-  // El botón sólo se ofrece a Administradores autenticados sobre un detalle
-  // de Operador (NO Administrador, NO Participante). El backend repite la
-  // validación: el frontend sólo decide visibilidad.
   const [modalEliminarAbierto, setModalEliminarAbierto] = useState(false)
   const [eliminando, setEliminando] = useState(false)
   const [errorEliminar, setErrorEliminar] = useState<string | null>(null)
-
-  // HU12 — estado del modal de desactivación. Reutilizado para Operador
-  // (sólo Administrador puede invocar) y Participante (Administrador u
-  // Operador Activo). El backend decide la autorización final; el
-  // frontend sólo decide la visibilidad del botón.
   const [modalDesactivarAbierto, setModalDesactivarAbierto] = useState(false)
   const [desactivando, setDesactivando] = useState(false)
   const [errorDesactivar, setErrorDesactivar] = useState<string | null>(null)
-
-  // Reactivación — simétrico al modal de desactivación pero sólo aparece
-  // si la cuenta objetivo está Inactiva. Mismo conjunto de roles
-  // permitidos para invocar; el backend valida.
   const [modalActivarAbierto, setModalActivarAbierto] = useState(false)
   const [activando, setActivando] = useState(false)
   const [errorActivar, setErrorActivar] = useState<string | null>(null)
+  const [modalResetearAbierto, setModalResetearAbierto] = useState(false)
+  const [reseteando, setReseteando] = useState(false)
+  const [errorResetear, setErrorResetear] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelado = false
@@ -230,6 +208,40 @@ export function PaginaDetalleUsuario({
     }
   }
 
+  const mostrarBotonResetearContrasena =
+    estado === 'listo' &&
+    !modoEdicion &&
+    permiteEditarOperador &&
+    usuarioAutenticado?.rol === 'Administrador' &&
+    (usuario?.rol === 'Operador' || usuario?.rol === 'Administrador')
+
+  const abrirModalResetear = () => {
+    setErrorResetear(null)
+    setModalResetearAbierto(true)
+  }
+  const cerrarModalResetear = () => {
+    if (reseteando) return
+    setModalResetearAbierto(false)
+    setErrorResetear(null)
+  }
+
+  const confirmarResetearContrasena = async () => {
+    if (!usuario || !token || reseteando) return
+    setReseteando(true)
+    setErrorResetear(null)
+    try {
+      const respuesta = await resetearContrasenaUsuario(usuario.id, token)
+      setMensajeExito(respuesta.mensaje)
+      setModalResetearAbierto(false)
+    } catch (e) {
+      setErrorResetear(
+        e instanceof Error ? e.message : 'No fue posible enviar la contraseña temporal.'
+      )
+    } finally {
+      setReseteando(false)
+    }
+  }
+
   const confirmarEliminar = async () => {
     if (!usuario || !token || eliminando) return
     setEliminando(true)
@@ -295,6 +307,18 @@ export function PaginaDetalleUsuario({
               data-testid="boton-desactivar-usuario"
             >
               Desactivar {usuario?.rol === 'Operador' ? 'operador' : 'participante'}
+            </Boton>
+          )}
+          {/* Reseteo administrativo de contraseña. Visible para Administrador
+              sobre Operador o Administrador. El backend genera la contraseña
+              temporal y la envía por correo al usuario. */}
+          {mostrarBotonResetearContrasena && (
+            <Boton
+              variante="secundario"
+              onClick={abrirModalResetear}
+              data-testid="boton-resetear-contrasena"
+            >
+              Resetear contraseña
             </Boton>
           )}
           {/* HU13 — botón destructivo de eliminación. Sólo visible para
@@ -401,6 +425,25 @@ export function PaginaDetalleUsuario({
             pero suspenderá temporalmente su acceso a la aplicación móvil.
           </p>
         )}
+      </ModalConfirmacion>
+
+      {/* Modal de confirmación del reseteo administrativo de contraseña.
+          El backend genera la contraseña temporal y la envía por correo
+          al usuario. El frontend NUNCA recibe ni muestra la contraseña. */}
+      <ModalConfirmacion
+        abierto={modalResetearAbierto}
+        titulo="Resetear contraseña"
+        textoConfirmar="Enviar contraseña temporal"
+        procesando={reseteando}
+        mensajeError={errorResetear}
+        onConfirmar={confirmarResetearContrasena}
+        onCancelar={cerrarModalResetear}
+      >
+        <p>
+          ¿Deseas enviar una nueva contraseña temporal al correo de este
+          usuario? Se generará una contraseña de un solo uso y el usuario
+          deberá <strong>cambiarla al iniciar sesión</strong>.
+        </p>
       </ModalConfirmacion>
 
       {/* HU13 — modal de confirmación de eliminación de Operador. El

@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
@@ -53,6 +54,11 @@ public sealed class OpcionesKeycloak
 
 public sealed class KeycloakProveedorIdentidad : IProveedorIdentidad
 {
+    private static readonly JsonSerializerOptions OpcionesJson = new()
+    {
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+    };
+
     private readonly HttpClient _cliente;
     private readonly OpcionesKeycloak _opciones;
     private readonly ILogger<KeycloakProveedorIdentidad> _registro;
@@ -83,7 +89,9 @@ public sealed class KeycloakProveedorIdentidad : IProveedorIdentidad
         using var respuesta = await _cliente.PostAsync(_opciones.UrlToken, contenido, cancelacion);
         if (respuesta.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.BadRequest)
         {
-            _registro.LogWarning("Keycloak rechazó credenciales de {Nombre}.", nombreUsuario);
+            _registro.LogWarning(
+                "Keycloak rechazó credenciales de {Nombre}. Estado={Estado}.",
+                nombreUsuario, (int)respuesta.StatusCode);
             return null;
         }
         respuesta.EnsureSuccessStatusCode();
@@ -104,21 +112,23 @@ public sealed class KeycloakProveedorIdentidad : IProveedorIdentidad
     {
         var tokenAdmin = await ObtenerTokenAdminAsync(cancelacion);
 
+        var cuerpoUsuario = new
+        {
+            username = datos.NombreUsuario,
+            email = datos.Correo,
+            firstName = datos.Nombre,
+            lastName = datos.Apellido,
+            enabled = true,
+            emailVerified = true,
+            credentials = new[]
+            {
+                new { type = "password", value = datos.Contrasena, temporary = false }
+            }
+        };
+
         using var solicitud = new HttpRequestMessage(HttpMethod.Post, _opciones.UrlAdminUsuarios)
         {
-            Content = JsonContent.Create(new
-            {
-                username = datos.NombreUsuario,
-                email = datos.Correo,
-                firstName = datos.Nombre,
-                lastName = datos.Apellido,
-                enabled = true,
-                emailVerified = true,
-                credentials = new[]
-                {
-                    new { type = "password", value = datos.Contrasena, temporary = false }
-                }
-            })
+            Content = JsonContent.Create(cuerpoUsuario, options: OpcionesJson)
         };
         solicitud.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokenAdmin);
 
@@ -214,7 +224,6 @@ public sealed class KeycloakProveedorIdentidad : IProveedorIdentidad
     public async Task CambiarContrasenaAsync(
         string idKeycloak,
         string nuevaContrasena,
-        bool temporal,
         CancellationToken cancelacion)
     {
         if (string.IsNullOrWhiteSpace(idKeycloak))
@@ -225,16 +234,18 @@ public sealed class KeycloakProveedorIdentidad : IProveedorIdentidad
                 "La nueva contraseña es obligatoria.", nameof(nuevaContrasena));
 
         var tokenAdmin = await ObtenerTokenAdminAsync(cancelacion);
+        
+        var cuerpoCredencial = new
+        {
+            type = "password",
+            value = nuevaContrasena,
+            temporary = false
+        };
 
         using var solicitud = new HttpRequestMessage(
             HttpMethod.Put, _opciones.UrlAdminCambiarContrasena(idKeycloak))
         {
-            Content = JsonContent.Create(new
-            {
-                type = "password",
-                value = nuevaContrasena,
-                temporary = temporal
-            })
+            Content = JsonContent.Create(cuerpoCredencial, options: OpcionesJson)
         };
         solicitud.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokenAdmin);
 
@@ -242,12 +253,18 @@ public sealed class KeycloakProveedorIdentidad : IProveedorIdentidad
         if (!respuesta.IsSuccessStatusCode)
         {
             var detalle = await respuesta.Content.ReadAsStringAsync(cancelacion);
-            // Nunca se loguea la contraseña: solo id, status y cuerpo.
+            // Nunca se loguea la contraseña: solo id, status y cuerpo del error.
             _registro.LogError(
-                "Keycloak rechazó el cambio de contraseña del usuario {Id}. {Estado} {Cuerpo}",
-                idKeycloak, respuesta.StatusCode, detalle);
+                "Keycloak rechazó el cambio de contraseña del usuario {IdKeycloak}. " +
+                "Estado={Estado} Cuerpo={Cuerpo}",
+                idKeycloak, (int)respuesta.StatusCode, detalle);
             respuesta.EnsureSuccessStatusCode();
         }
+
+        _registro.LogInformation(
+            "Keycloak aceptó el cambio de contraseña del usuario {IdKeycloak} " +
+            "(estado={Estado}).",
+            idKeycloak, (int)respuesta.StatusCode);
     }
 
     public async Task EliminarUsuarioAsync(string idKeycloak, CancellationToken cancelacion)

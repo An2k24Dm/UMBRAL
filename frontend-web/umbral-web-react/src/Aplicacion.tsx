@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { PaginaInicioSesion } from './paginas/PaginaInicioSesion'
+import { PaginaCambioContrasenaObligatorio } from './paginas/PaginaCambioContrasenaObligatorio'
 import { PaginaAdministrador } from './paginas/PaginaAdministrador'
 import { PaginaRegistrarUsuario } from './paginas/PaginaRegistrarUsuario'
 import { PaginaOperador } from './paginas/PaginaOperador'
@@ -30,6 +31,14 @@ export function Aplicacion() {
     <Routes>
       <Route path="/" element={<Navigate to="/iniciar-sesion" replace />} />
       <Route path="/iniciar-sesion" element={<PaginaInicioSesion />} />
+      {/* Pantalla propia de cambio obligatorio. Es accesible sin pasar
+          por RutaProtegida porque la usa el flujo justo después del
+          login con contraseña temporal: el usuario todavía no tiene
+          permiso para entrar al panel hasta cambiarla. */}
+      <Route
+        path="/cambio-contrasena-obligatorio"
+        element={<PaginaCambioContrasenaObligatorio />}
+      />
 
       {/* ----- Administrador ----- */}
       <Route path="/administrador" element={<RutaProtegida rolesPermitidos={['Administrador']}><PaginaAdministrador /></RutaProtegida>} />

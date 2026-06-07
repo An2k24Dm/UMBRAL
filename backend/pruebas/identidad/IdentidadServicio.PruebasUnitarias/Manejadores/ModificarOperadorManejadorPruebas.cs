@@ -306,88 +306,13 @@ public class ModificarOperadorManejadorPruebas
     }
 
     // ============================================================
-    // Coordinación: cambio de contraseña
+    // El endpoint de modificación NO acepta cambios de contraseña.
+    // El cambio de contraseña vive exclusivamente en el endpoint de
+    // reseteo (genera contraseña temporal y la envía por correo).
     // ============================================================
 
-    private const string ContrasenaNueva = "Sup3r*";
-
     [Fact]
-    public async Task SoloContrasena_LlamaCambiarContrasenaAsync_YNoGuarda()
-    {
-        var original = OperadorOriginal();
-        EncolarOperador(original);
-
-        var dto = new ModificarOperadorSolicitudDto
-        {
-            NuevaContrasena = ContrasenaNueva,
-            ConfirmacionContrasena = ContrasenaNueva
-        };
-        var resultado = await CrearManejador().Handle(
-            new ModificarOperadorComando(original.Id, dto), CancellationToken.None);
-
-        resultado.HuboCambios.Should().BeTrue();
-        resultado.CamposActualizados.Should().Contain("contrasena");
-        _proveedor.Verify(p => p.CambiarContrasenaAsync(
-            "kc-operador", ContrasenaNueva, false, It.IsAny<CancellationToken>()), Times.Once);
-        _repositorio.Verify(r => r.ActualizarAsync(It.IsAny<Operador>(), It.IsAny<CancellationToken>()), Times.Never);
-        _unidad.Verify(u => u.GuardarCambiosAsync(It.IsAny<CancellationToken>()), Times.Never);
-    }
-
-    [Fact]
-    public async Task DatosYContrasena_OrdenContrasenaDatosGuardar()
-    {
-        var original = OperadorOriginal();
-        EncolarOperador(original);
-
-        var orden = new List<string>();
-        _proveedor.Setup(p => p.CambiarContrasenaAsync(
-            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
-            .Callback(() => orden.Add("contrasena")).Returns(Task.CompletedTask);
-        _proveedor.Setup(p => p.ActualizarUsuarioAsync(
-            It.IsAny<string>(), It.IsAny<DatosActualizacionUsuarioIdentidad>(), It.IsAny<CancellationToken>()))
-            .Callback(() => orden.Add("datos")).Returns(Task.CompletedTask);
-        _unidad.Setup(u => u.GuardarCambiosAsync(It.IsAny<CancellationToken>()))
-            .Callback(() => orden.Add("guardar")).Returns(Task.CompletedTask);
-
-        var dto = new ModificarOperadorSolicitudDto
-        {
-            Correo = "nuevo@umbral.com",
-            NuevaContrasena = ContrasenaNueva,
-            ConfirmacionContrasena = ContrasenaNueva
-        };
-        await CrearManejador().Handle(
-            new ModificarOperadorComando(original.Id, dto), CancellationToken.None);
-
-        orden.Should().Equal("contrasena", "datos", "guardar");
-    }
-
-    [Fact]
-    public async Task KeycloakFallaContrasena_NoLlamaGuardarCambiosAsync()
-    {
-        var original = OperadorOriginal();
-        EncolarOperador(original);
-        _proveedor.Setup(p => p.CambiarContrasenaAsync(
-            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new InvalidOperationException("Keycloak rechazó la contraseña"));
-
-        var dto = new ModificarOperadorSolicitudDto
-        {
-            Correo = "nuevo@umbral.com",
-            NuevaContrasena = ContrasenaNueva,
-            ConfirmacionContrasena = ContrasenaNueva
-        };
-        Func<Task> accion = () => CrearManejador().Handle(
-            new ModificarOperadorComando(original.Id, dto), CancellationToken.None);
-        await accion.Should().ThrowAsync<InvalidOperationException>();
-
-        _unidad.Verify(u => u.GuardarCambiosAsync(It.IsAny<CancellationToken>()), Times.Never);
-        _proveedor.Verify(p => p.ActualizarUsuarioAsync(
-            It.IsAny<string>(), It.IsAny<DatosActualizacionUsuarioIdentidad>(),
-            It.IsAny<CancellationToken>()), Times.Never);
-    }
-
-    [Fact]
-    public async Task SinContrasena_NoLlamaCambiarContrasenaAsync()
+    public async Task ModificarOperador_NuncaLlamaCambiarContrasenaAsync()
     {
         var original = OperadorOriginal();
         EncolarOperador(original);
@@ -397,91 +322,7 @@ public class ModificarOperadorManejadorPruebas
             new ModificarOperadorComando(original.Id, dto), CancellationToken.None);
 
         _proveedor.Verify(p => p.CambiarContrasenaAsync(
-            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>(),
+            It.IsAny<string>(), It.IsAny<string>(),
             It.IsAny<CancellationToken>()), Times.Never);
-    }
-
-    [Fact]
-    public async Task Contrasena_NoSeIncluyeEnRespuestaSerializada()
-    {
-        var original = OperadorOriginal();
-        EncolarOperador(original);
-
-        var dto = new ModificarOperadorSolicitudDto
-        {
-            NuevaContrasena = ContrasenaNueva,
-            ConfirmacionContrasena = ContrasenaNueva
-        };
-        var resultado = await CrearManejador().Handle(
-            new ModificarOperadorComando(original.Id, dto), CancellationToken.None);
-
-        var json = System.Text.Json.JsonSerializer.Serialize(resultado);
-        json.Should().NotContain(ContrasenaNueva);
-    }
-
-    [Fact]
-    public async Task Contrasena_NoSeLogueaEnNingunMensaje()
-    {
-        var capturador = new LoggerCapturador<ModificarOperadorManejador>();
-        var original = OperadorOriginal();
-        EncolarOperador(original);
-
-        var dto = new ModificarOperadorSolicitudDto
-        {
-            NuevaContrasena = ContrasenaNueva,
-            ConfirmacionContrasena = ContrasenaNueva
-        };
-        await CrearManejador(capturador).Handle(
-            new ModificarOperadorComando(original.Id, dto), CancellationToken.None);
-
-        capturador.Mensajes.Should().NotBeEmpty();
-        capturador.Mensajes.Should().NotContain(m => m.Contains(ContrasenaNueva));
-    }
-
-    [Fact]
-    public async Task SoloContrasena_IdKeycloakVacio_Lanza()
-    {
-        var original = OperadorOriginal();
-        EncolarOperador(original);
-        _repositorio
-            .Setup(r => r.ObtenerIdKeycloakAsync(original.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((string?)null);
-
-        var dto = new ModificarOperadorSolicitudDto
-        {
-            NuevaContrasena = ContrasenaNueva,
-            ConfirmacionContrasena = ContrasenaNueva
-        };
-        Func<Task> accion = () => CrearManejador().Handle(
-            new ModificarOperadorComando(original.Id, dto), CancellationToken.None);
-        await accion.Should().ThrowAsync<InvalidOperationException>().WithMessage("*IdKeycloak*");
-
-        _proveedor.Verify(p => p.CambiarContrasenaAsync(
-            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>(),
-            It.IsAny<CancellationToken>()), Times.Never);
-    }
-
-    // Logger mínimo que captura mensajes formateados para verificar que la
-    // contraseña no aparece en ninguno.
-    private sealed class LoggerCapturador<T> : ILogger<T>
-    {
-        public List<string> Mensajes { get; } = new();
-        public IDisposable BeginScope<TState>(TState state) where TState : notnull => NullScope.Instancia;
-        public bool IsEnabled(LogLevel logLevel) => true;
-        public void Log<TState>(
-            LogLevel logLevel,
-            EventId eventId,
-            TState state,
-            Exception? exception,
-            Func<TState, Exception?, string> formatter)
-        {
-            Mensajes.Add(formatter(state, exception));
-        }
-
-        private sealed class NullScope : IDisposable
-        {
-            public static readonly NullScope Instancia = new();
-            public void Dispose() { }
-        }
     }
 }

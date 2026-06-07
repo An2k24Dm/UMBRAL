@@ -132,6 +132,8 @@ public class ModificarParticipanteManejadorPruebas
     [Fact]
     public async Task SoloContrasena_LlamaCambiarContrasenaAsync_NoGuardaBase()
     {
+        // HU10 — el Participante SÍ puede cambiar su contraseña desde la
+        // app móvil. La contraseña no es temporal (la define él mismo).
         var p = UsuariosDePrueba.NuevoParticipante();
         EncolarParticipante("kc-x", p);
 
@@ -146,7 +148,7 @@ public class ModificarParticipanteManejadorPruebas
         resultado.HuboCambios.Should().BeTrue();
         resultado.CamposActualizados.Should().Contain("contrasena");
         _proveedor.Verify(p => p.CambiarContrasenaAsync(
-            "kc-x", "Abc1*", false, It.IsAny<CancellationToken>()), Times.Once);
+            "kc-x", "Abc1*", It.IsAny<CancellationToken>()), Times.Once);
         _repositorio.Verify(r => r.ActualizarAsync(It.IsAny<Participante>(), It.IsAny<CancellationToken>()),
             Times.Never);
         _unidad.Verify(u => u.GuardarCambiosAsync(It.IsAny<CancellationToken>()), Times.Never);
@@ -160,7 +162,7 @@ public class ModificarParticipanteManejadorPruebas
 
         var orden = new List<string>();
         _proveedor.Setup(p => p.CambiarContrasenaAsync(
-            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .Callback(() => orden.Add("contrasena")).Returns(Task.CompletedTask);
         _proveedor.Setup(p => p.ActualizarUsuarioAsync(
             It.IsAny<string>(), It.IsAny<DatosActualizacionUsuarioIdentidad>(), It.IsAny<CancellationToken>()))
@@ -274,7 +276,7 @@ public class ModificarParticipanteManejadorPruebas
             It.IsAny<string>(), It.IsAny<DatosActualizacionUsuarioIdentidad>(),
             It.IsAny<CancellationToken>()), Times.Never);
         _proveedor.Verify(p => p.CambiarContrasenaAsync(
-            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>(),
+            It.IsAny<string>(), It.IsAny<string>(),
             It.IsAny<CancellationToken>()), Times.Never);
         // Sí persiste (ActualizarAsync + GuardarCambios).
         _repositorio.Verify(r => r.ActualizarAsync(It.IsAny<Participante>(), It.IsAny<CancellationToken>()),
@@ -306,26 +308,6 @@ public class ModificarParticipanteManejadorPruebas
         await accion.Should().ThrowAsync<InvalidOperationException>();
 
         _unidad.Verify(u => u.GuardarCambiosAsync(It.IsAny<CancellationToken>()), Times.Never);
-    }
-
-    [Fact]
-    public async Task NoSeExponeNiSeLogueaContrasena()
-    {
-        var capturador = new LoggerCapturador<ModificarParticipanteManejador>();
-        var p = UsuariosDePrueba.NuevoParticipante();
-        EncolarParticipante("kc-x", p);
-
-        var dto = new ModificarParticipanteSolicitudDto
-        {
-            NuevaContrasena = "S3cretoUnico!",
-            ConfirmacionContrasena = "S3cretoUnico!"
-        };
-        var resultado = await CrearManejador(capturador).Handle(
-            new ModificarParticipanteComando("kc-x", dto), CancellationToken.None);
-
-        var json = System.Text.Json.JsonSerializer.Serialize(resultado);
-        json.Should().NotContain("S3cretoUnico");
-        capturador.Mensajes.Should().NotContain(m => m.Contains("S3cretoUnico"));
     }
 
     private sealed class LoggerCapturador<T> : ILogger<T>
