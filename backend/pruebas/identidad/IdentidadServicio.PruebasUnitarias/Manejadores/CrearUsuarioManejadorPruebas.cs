@@ -30,7 +30,11 @@ public class CrearUsuarioManejadorPruebas
     private readonly Mock<IProveedorFechaHora> _reloj = new();
     private readonly Mock<IValidador<CrearUsuarioComando>> _validador = new();
     private readonly Mock<IGeneradorCodigoUsuario> _generador = new();
+    private readonly Mock<IGeneradorContrasenaTemporal> _generadorContrasena = new();
+    private readonly Mock<IServicioCorreo> _correo = new();
+    private readonly Mock<IRepositorioControlContrasenaTemporal> _controlContrasena = new();
     private static readonly DateTime Ahora = new(2026, 5, 17, 0, 0, 0, DateTimeKind.Utc);
+    private const string ContrasenaTemporalFake = "Temp0r4l*Xyz9";
 
     public CrearUsuarioManejadorPruebas()
     {
@@ -42,6 +46,10 @@ public class CrearUsuarioManejadorPruebas
             .ReturnsAsync("OP-001");
         _generador.Setup(g => g.GenerarCodigoAdministradorAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync("AD-001");
+        _generadorContrasena.Setup(g => g.Generar()).Returns(ContrasenaTemporalFake);
+        _correo.Setup(c => c.EnviarAsync(
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
+            It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
         _unidad.Setup(u => u.GuardarCambiosAsync(It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
     }
@@ -59,11 +67,14 @@ public class CrearUsuarioManejadorPruebas
             _unicidad.Object,
             _repoOperadores.Object,
             _repoAdministradores.Object,
+            _controlContrasena.Object,
             _unidad.Object,
             _proveedor.Object,
             _reloj.Object,
             fabrica,
             _validador.Object,
+            _generadorContrasena.Object,
+            _correo.Object,
             NullLogger<CrearUsuarioManejador>.Instance);
     }
 
@@ -72,7 +83,6 @@ public class CrearUsuarioManejadorPruebas
         TipoUsuario = tipo,
         NombreUsuario = "operador01",
         Correo = "operador@umbral.com",
-        Contrasena = "Abc1*",
         Nombre = "Ana", Apellido = "Apellido",
         Sexo = "Femenino",
         FechaNacimiento = new DateTime(1990, 1, 1, 0, 0, 0, DateTimeKind.Utc),
@@ -125,7 +135,10 @@ public class CrearUsuarioManejadorPruebas
         capturado.Correo.Should().Be("operador@umbral.com");
         capturado.Nombre.Should().Be("Ana");
         capturado.Apellido.Should().Be("Apellido");
-        capturado.Contrasena.Should().Be("Abc1*");
+        // El handler usa una contraseña temporal generada en backend. La
+        // credencial se guarda en Keycloak como NO temporal — el control
+        // de "obligar cambio" vive en la bandera UMBRAL.
+        capturado.Contrasena.Should().Be(ContrasenaTemporalFake);
     }
 
     [Fact]

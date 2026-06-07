@@ -18,7 +18,14 @@ export function PaginaInicioSesion() {
     try {
       const respuesta = await iniciarSesion(nombreUsuario, contrasena)
       iniciar(respuesta.tokenAcceso, respuesta.usuario)
-      navegar(respuesta.rutaRedireccion, { replace: true })
+      if (respuesta.requiereCambioContrasena) {
+        // El usuario inició sesión con una contraseña temporal (alta
+        // administrativa o reset). Redirigimos a la pantalla propia
+        // de cambio obligatorio; NO se entra al panel hasta cambiarla.
+        navegar('/cambio-contrasena-obligatorio', { replace: true })
+      } else {
+        navegar(respuesta.rutaRedireccion, { replace: true })
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error desconocido.')
     } finally {

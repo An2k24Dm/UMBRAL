@@ -35,15 +35,9 @@ interface Campos {
   fechaNacimiento: string
   direccion: string
   telefono: string
-  // Sección "Seguridad" — HU09. La nueva contraseña vive solo en estado del
-  // formulario y se borra tras guardar correctamente. Nunca se persiste en
-  // memoria del navegador más tiempo del necesario.
-  nuevaContrasena: string
-  confirmacionContrasena: string
 }
 
 const CODIGOS_TELEFONO = ['0414', '0412', '0424', '0416', '0426', '0212']
-const CARACTERES_ESPECIALES = '!@#$%^&*_-.?'
 
 type Errores = Partial<Record<keyof Campos | 'general', string>>
 
@@ -57,13 +51,7 @@ const MAPA_CAMPOS_BACKEND: Record<string, keyof Campos> = {
   telefono: 'telefono',
   'datosContacto.telefono': 'telefono',
   direccion: 'direccion',
-  'datosContacto.direccion': 'direccion',
-  // El validador del backend reporta errores de la regla común de contraseña
-  // sobre el campo "contrasena"; en este formulario se renderizan junto al
-  // input de "Nueva contraseña".
-  contrasena: 'nuevaContrasena',
-  nuevaContrasena: 'nuevaContrasena',
-  confirmacionContrasena: 'confirmacionContrasena'
+  'datosContacto.direccion': 'direccion'
 }
 
 function formatearFechaInput(valor: string | null | undefined): string {
@@ -85,11 +73,7 @@ function estadoInicial(usuario: UsuarioDetalle): Campos {
     sexo: usuario.sexo ?? 'Indefinido',
     fechaNacimiento: formatearFechaInput(usuario.fechaNacimiento),
     direccion: usuario.datosContacto?.direccion ?? '',
-    telefono: usuario.datosContacto?.telefono ?? '',
-    // Sección Seguridad — los inputs arrancan vacíos. La contraseña actual
-    // jamás se trae desde el backend ni se muestra.
-    nuevaContrasena: '',
-    confirmacionContrasena: ''
+    telefono: usuario.datosContacto?.telefono ?? ''
   }
 }
 
@@ -140,30 +124,6 @@ function validarLocal(campos: Campos, original: Campos): Errores {
     else if (valor.length < 5) e.direccion = 'La dirección debe tener al menos 5 caracteres.'
   }
 
-  // HU09 — sección Seguridad. Se valida solo si el Administrador rellenó al
-  // menos uno de los dos inputs. Reglas alineadas con
-  // ReglasValidacionUsuario.ValidarContrasena en el backend (longitud 5-10,
-  // al menos un dígito, al menos un carácter especial), y exigencia de que
-  // ambos campos coincidan exactamente.
-  const tocaContrasena = campos.nuevaContrasena !== '' || campos.confirmacionContrasena !== ''
-  if (tocaContrasena) {
-    const valor = campos.nuevaContrasena
-    if (!valor) {
-      e.nuevaContrasena = 'La contraseña es obligatoria.'
-    } else if (valor.length < 5 || valor.length > 10) {
-      e.nuevaContrasena = 'La contraseña debe tener entre 5 y 10 caracteres.'
-    } else if (!/\d/.test(valor)) {
-      e.nuevaContrasena = 'La contraseña debe contener al menos un número.'
-    } else if (![...valor].some((c) => CARACTERES_ESPECIALES.includes(c))) {
-      e.nuevaContrasena = 'La contraseña debe contener al menos un carácter especial.'
-    }
-    if (campos.confirmacionContrasena === '') {
-      e.confirmacionContrasena = 'Debe confirmar la nueva contraseña.'
-    } else if (campos.nuevaContrasena !== campos.confirmacionContrasena) {
-      e.confirmacionContrasena = 'La nueva contraseña y la confirmación no coinciden.'
-    }
-  }
-
   if (campos.fechaNacimiento !== original.fechaNacimiento) {
     if (!campos.fechaNacimiento) e.fechaNacimiento = 'La fecha de nacimiento es obligatoria.'
     else {
@@ -201,14 +161,6 @@ function construirPayload(campos: Campos, original: Campos): ModificarOperadorPa
   if (campos.direccion !== original.direccion) contacto.direccion = campos.direccion.trim()
   if (campos.telefono !== original.telefono) contacto.telefono = campos.telefono.replace(/[\s-]/g, '')
   if (Object.keys(contacto).length > 0) payload.datosContacto = contacto
-
-  // HU09 — sección Seguridad. Si el Administrador escribió contraseña Y
-  // confirmación, las dos viajan en el payload. Si no, no se envían: el
-  // backend interpreta ausencia como "no cambiar contraseña".
-  if (campos.nuevaContrasena !== '' && campos.confirmacionContrasena !== '') {
-    payload.nuevaContrasena = campos.nuevaContrasena
-    payload.confirmacionContrasena = campos.confirmacionContrasena
-  }
 
   return payload
 }
@@ -261,19 +213,11 @@ export function FormularioEditarOperador({ usuario, alCancelar, alGuardado }: Pr
     setEnviando(true)
     try {
       const respuesta = await modificarOperador(usuario.id, payload, token)
-      // Limpiar la contraseña en memoria del navegador inmediatamente tras
-      // recibir respuesta exitosa. La contraseña no debe permanecer en
-      // estado React más tiempo del estrictamente necesario.
-      setCampos((c) => ({ ...c, nuevaContrasena: '', confirmacionContrasena: '' }))
       const mensaje = respuesta.huboCambios
         ? 'Operador actualizado correctamente.'
         : 'No había cambios para aplicar.'
       alGuardado(respuesta, mensaje)
     } catch (e) {
-      // En error también limpiamos la contraseña: el Administrador deberá
-      // volver a escribirla si quiere reintentar, evitando que el valor
-      // sobreviva en el formulario.
-      setCampos((c) => ({ ...c, nuevaContrasena: '', confirmacionContrasena: '' }))
       if (e instanceof ErrorValidacionRegistro && e.errores.length > 0) {
         const nuevos: Errores = {}
         for (const err of e.errores) {
@@ -377,48 +321,10 @@ export function FormularioEditarOperador({ usuario, alCancelar, alGuardado }: Pr
           />
         </CampoFormulario>
 
-        {/* HU09 — Sección Seguridad. Ambos campos son opcionales: si el
-            Administrador no los rellena, la contraseña del Operador no se
-            modifica. La contraseña actual NUNCA se muestra y NUNCA viaja
-            desde el backend. */}
-        <fieldset className="seccion-formulario seccion-seguridad">
-          <legend>Seguridad</legend>
-          <p style={{ margin: '0 0 12px', color: 'var(--color-texto-tenue)' }}>
-            Deje ambos campos vacíos si no desea cambiar la contraseña.
-          </p>
-
-          <CampoFormulario
-            etiqueta="Nueva contraseña"
-            htmlFor="nuevaContrasena"
-            opcional="opcional"
-            error={errores.nuevaContrasena}
-          >
-            <input
-              id="nuevaContrasena"
-              type="password"
-              value={campos.nuevaContrasena}
-              maxLength={10}
-              autoComplete="new-password"
-              onChange={(e) => actualizar('nuevaContrasena', e.target.value)}
-            />
-          </CampoFormulario>
-
-          <CampoFormulario
-            etiqueta="Confirmar contraseña"
-            htmlFor="confirmacionContrasena"
-            opcional="opcional"
-            error={errores.confirmacionContrasena}
-          >
-            <input
-              id="confirmacionContrasena"
-              type="password"
-              value={campos.confirmacionContrasena}
-              maxLength={10}
-              autoComplete="new-password"
-              onChange={(e) => actualizar('confirmacionContrasena', e.target.value)}
-            />
-          </CampoFormulario>
-        </fieldset>
+        {/* El cambio de contraseña ya NO se hace desde este formulario. Para
+            resetear la contraseña de un Operador o Administrador, use el
+            botón "Resetear contraseña" en la vista de detalle: el backend
+            generará una contraseña temporal y la enviará por correo. */}
 
         <div className="acciones-formulario">
           <Boton variante="secundario" type="button" onClick={alCancelar} disabled={enviando}>

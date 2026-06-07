@@ -27,6 +27,10 @@ public sealed class ContextoIdentidad : DbContext
             e.Property(x => x.Rol).HasColumnName("rol").IsRequired();
             e.Property(x => x.Estado).HasColumnName("estado").IsRequired();
             e.Property(x => x.FechaRegistro).HasColumnName("fecha_registro").IsRequired();
+            e.Property(x => x.DebeCambiarContrasena)
+                .HasColumnName("debe_cambiar_contrasena")
+                .HasDefaultValue(false)
+                .IsRequired();
 
             e.HasIndex(x => x.NombreUsuario).IsUnique();
             e.HasIndex(x => x.IdKeycloak).IsUnique();

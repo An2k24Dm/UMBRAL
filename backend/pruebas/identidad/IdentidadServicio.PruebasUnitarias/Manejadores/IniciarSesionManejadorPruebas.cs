@@ -17,9 +17,10 @@ public class IniciarSesionManejadorPruebas
 {
     private readonly Mock<IProveedorIdentidad> _proveedor = new();
     private readonly Mock<IRepositorioUsuariosLectura> _repositorio = new();
+    private readonly Mock<IRepositorioControlContrasenaTemporal> _controlContrasena = new();
 
     private IniciarSesionManejador CrearManejador() => new(
-        _proveedor.Object, _repositorio.Object,
+        _proveedor.Object, _repositorio.Object, _controlContrasena.Object,
         NullLogger<IniciarSesionManejador>.Instance);
 
     private static DateTime Ahora => new(2026, 5, 17, 0, 0, 0, DateTimeKind.Utc);

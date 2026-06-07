@@ -25,7 +25,6 @@ public sealed class ValidadorCrearUsuario : ValidadorBase<CrearUsuarioComando>
 
         _reglas.ValidarNombreUsuario(dto.NombreUsuario, resultado);
         _reglas.ValidarCorreo(dto.Correo, resultado);
-        _reglas.ValidarContrasena(dto.Contrasena, resultado);
         _reglas.ValidarNombre(dto.Nombre, resultado);
         _reglas.ValidarApellido(dto.Apellido, resultado);
         _reglas.ValidarTelefono(dto.DatosContacto.Telefono, resultado);

@@ -15,9 +15,31 @@ public sealed class ValidadorModificarParticipante
     protected override void ValidarSolicitud(
         ModificarParticipanteComando comando, ResultadoValidacion resultado)
     {
+        var dto = comando.Datos;
+
         ValidadorReglasModificacionPerfilUsuario.Validar(
-            comando.Datos, _reglas, resultado);
-        if (comando.Datos.Alias is not null)
-            _reglas.ValidarAlias(comando.Datos.Alias, resultado);
+            dto, _reglas, resultado);
+
+        if (dto.Alias is not null)
+            _reglas.ValidarAlias(dto.Alias, resultado);
+
+        ValidarCambioContrasenaParticipante(dto, resultado);
+    }
+
+    private void ValidarCambioContrasenaParticipante(
+        Commons.Dtos.ModificarParticipanteSolicitudDto dto,
+        ResultadoValidacion resultado)
+    {
+        var solicita = dto.NuevaContrasena is not null || dto.ConfirmacionContrasena is not null;
+        if (!solicita) return;
+
+        _reglas.ValidarContrasena(dto.NuevaContrasena, resultado);
+
+        if (!string.Equals(dto.NuevaContrasena, dto.ConfirmacionContrasena, StringComparison.Ordinal))
+        {
+            resultado.Agregar(
+                MensajesValidacionUsuario.CampoConfirmacionContrasena,
+                MensajesValidacionUsuario.ContrasenasNoCoinciden);
+        }
     }
 }

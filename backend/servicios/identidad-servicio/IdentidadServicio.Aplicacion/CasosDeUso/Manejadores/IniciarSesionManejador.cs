@@ -15,15 +15,18 @@ public sealed class IniciarSesionManejador
 {
     private readonly IProveedorIdentidad _proveedor;
     private readonly IRepositorioUsuariosLectura _repositorioLectura;
+    private readonly IRepositorioControlContrasenaTemporal _controlContrasena;
     private readonly ILogger<IniciarSesionManejador> _registro;
 
     public IniciarSesionManejador(
         IProveedorIdentidad proveedor,
         IRepositorioUsuariosLectura repositorioLectura,
+        IRepositorioControlContrasenaTemporal controlContrasena,
         ILogger<IniciarSesionManejador> registro)
     {
         _proveedor = proveedor;
         _repositorioLectura = repositorioLectura;
+        _controlContrasena = controlContrasena;
         _registro = registro;
     }
 
@@ -36,28 +39,26 @@ public sealed class IniciarSesionManejador
             throw new DatosUsuarioInvalidosExcepcion("Debe indicar nombre de usuario y contraseña.");
         }
 
-        // 1) Autenticar contra Keycloak.
         var autenticacion = await _proveedor.IniciarSesionAsync(
                                 comando.NombreUsuario.Trim().ToLowerInvariant(),
                                 comando.Contrasena,
                                 cancelacion)
                             ?? throw new DatosUsuarioInvalidosExcepcion("Credenciales inválidas.");
 
-        // 2) Buscar el usuario interno por IdKeycloak.
         var usuario = await _repositorioLectura.ObtenerPorIdKeycloakAsync(autenticacion.IdKeycloak, cancelacion)
                       ?? throw new DatosUsuarioInvalidosExcepcion("El usuario no está registrado en UMBRAL.");
 
-        // 3) Reglas de dominio (cuenta desactivada / rol inválido).
         usuario.ValidarPuedeIniciarSesion();
 
-        // 4) Regla de acceso por aplicación.
-        //    Web   → Administrador, Operador
-        //    Movil → Participante
         ValidarOrigenPermitido(comando.Origen, usuario.Rol);
 
+        var requiereCambio = await _controlContrasena.ObtenerDebeCambiarPorIdKeycloakAsync(
+            autenticacion.IdKeycloak, cancelacion);
+
         _registro.LogInformation(
-            "Inicio de sesión exitoso para {NombreUsuario} (rol {Rol}, origen {Origen}).",
-            usuario.NombreUsuario.Valor, usuario.Rol, comando.Origen);
+            "Inicio de sesión exitoso para {NombreUsuario} (rol {Rol}, origen {Origen}, " +
+            "requiereCambioContrasena={RequiereCambio}).",
+            usuario.NombreUsuario.Valor, usuario.Rol, comando.Origen, requiereCambio);
 
         return new ResultadoInicioSesionDto
         {
@@ -66,7 +67,8 @@ public sealed class IniciarSesionManejador
             ExpiraEn = autenticacion.ExpiraEnSegundos,
             TipoToken = autenticacion.TipoToken,
             Usuario = DtoMapeador.AUsuarioAutenticado(usuario),
-            RutaRedireccion = DtoMapeador.ResolverRutaPorRol(usuario.Rol)
+            RutaRedireccion = DtoMapeador.ResolverRutaPorRol(usuario.Rol),
+            RequiereCambioContrasena = requiereCambio
         };
     }
 

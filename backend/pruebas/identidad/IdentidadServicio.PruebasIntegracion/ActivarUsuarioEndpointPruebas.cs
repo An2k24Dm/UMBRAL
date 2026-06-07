@@ -204,7 +204,7 @@ public class ActivarUsuarioEndpointPruebas : IClassFixture<FabricaApiPruebas>
             It.IsAny<string>(), It.IsAny<DatosActualizacionUsuarioIdentidad>(),
             It.IsAny<CancellationToken>()), Times.Never);
         _fabrica.MockProveedor.Verify(p => p.CambiarContrasenaAsync(
-            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>(),
+            It.IsAny<string>(), It.IsAny<string>(),
             It.IsAny<CancellationToken>()), Times.Never);
     }
 

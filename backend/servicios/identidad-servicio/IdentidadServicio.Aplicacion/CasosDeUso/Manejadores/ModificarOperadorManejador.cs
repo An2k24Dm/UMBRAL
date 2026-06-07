@@ -46,23 +46,17 @@ public sealed class ModificarOperadorManejador
     public async Task<ModificarOperadorRespuestaDto> Handle(
         ModificarOperadorComando comando, CancellationToken cancelacion)
     {
-        // 1) Cargar Operador (404 si no existe o no es Operador).
         var operador = await _repositorioOperadores.ObtenerPorIdAsync(comando.IdOperador, cancelacion)
             ?? throw new DatosUsuarioInvalidosExcepcion(
                 $"No existe un Operador con id {comando.IdOperador}.");
 
-        // 2) Validación de formato (sincrónica, sin I/O).
         _validador.Validar(comando).LanzarSiHayErrores();
 
-        // 3) Validación de unicidad (asincrónica, excluye al propio Operador).
         (await _validadorUnicidad.ValidarAsync(comando, cancelacion)).LanzarSiHayErrores();
 
-        // 4) Aplicar cambios al agregado mediante el servicio dedicado.
         var cambios = _aplicadorCambios.Aplicar(operador, comando.Datos);
 
-        // 5) Si no hay cambios reales (ni de datos ni de contraseña), devolver
-        //    respuesta indicándolo sin tocar repositorio ni Keycloak.
-        if (!cambios.HuboCambiosDatosUsuario && !cambios.CambiaContrasena)
+        if (!cambios.HuboCambiosDatosUsuario)
         {
             _registro.LogInformation(
                 "Edición HU09 sin cambios para Operador {Id}.", operador.Id);
@@ -75,12 +69,7 @@ public sealed class ModificarOperadorManejador
             };
         }
 
-        // 6) Conseguir IdKeycloak. Si hay cambios de datos, ActualizarAsync
-        //    deja los cambios listos en el contexto EF y devuelve el sub.
-        //    Si solo cambia la contraseña, lo consultamos sin tocar el tracker.
-        var idKeycloak = cambios.HuboCambiosDatosUsuario
-            ? await _repositorioOperadores.ActualizarAsync(operador, cancelacion)
-            : await _repositorioOperadores.ObtenerIdKeycloakAsync(operador.Id, cancelacion);
+        var idKeycloak = await _repositorioOperadores.ActualizarAsync(operador, cancelacion);
 
         if (cambios.RequiereSincronizarKeycloak && string.IsNullOrWhiteSpace(idKeycloak))
         {
@@ -92,26 +81,6 @@ public sealed class ModificarOperadorManejador
                 "No se puede sincronizar la actualización con Keycloak.");
         }
 
-        // 7) Contraseña primero — si falla, no quedan ni datos en Keycloak
-        //    ni cambios persistidos en BD.
-        if (cambios.CambiaContrasena)
-        {
-            try
-            {
-                await _proveedor.CambiarContrasenaAsync(
-                    idKeycloak!, cambios.NuevaContrasena!, temporal: false, cancelacion);
-            }
-            catch (Exception ex)
-            {
-                _registro.LogError(ex,
-                    "Keycloak rechazó el cambio de contraseña del Operador {Id} (KC={Kc}). " +
-                    "Los cambios NO se persisten en base de datos.",
-                    operador.Id, idKeycloak);
-                throw;
-            }
-        }
-
-        // 8) Datos en Keycloak (username / email / firstName / lastName).
         if (cambios.DatosKeycloak.TieneCambios)
         {
             try
@@ -129,17 +98,12 @@ public sealed class ModificarOperadorManejador
             }
         }
 
-        // 9) Confirmar PostgreSQL solo si hubo cambios de datos. Si solo
-        //    cambió la contraseña, no hay nada que guardar en BD.
         if (cambios.RequiereGuardarBaseDatos)
         {
             await _unidadTrabajo.GuardarCambiosAsync(cancelacion);
         }
 
-        // 10) Armar la lista informativa de campos cambiados. "contrasena" se
-        //     incluye SIN valor; jamás se devuelve la contraseña en claro.
         var camposRespuesta = new List<string>(cambios.CamposActualizados);
-        if (cambios.CambiaContrasena) camposRespuesta.Add("contrasena");
 
         _registro.LogInformation(
             "Operador {Id} actualizado. Campos: {Campos}.",

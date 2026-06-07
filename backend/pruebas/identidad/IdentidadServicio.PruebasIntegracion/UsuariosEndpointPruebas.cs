@@ -33,7 +33,6 @@ public class UsuariosEndpointPruebas : IClassFixture<FabricaApiPruebas>
         TipoUsuario = RolUsuario.Operador,
         NombreUsuario = "op" + Guid.NewGuid().ToString("N").Substring(0, 8),
         Correo = $"{Guid.NewGuid():N}@umbral.com",
-        Contrasena = "Abc1*",
         Nombre = "Olivia",
         Apellido = "Operadora",
         Sexo = "Femenino",
@@ -150,7 +149,6 @@ public class UsuariosEndpointPruebas : IClassFixture<FabricaApiPruebas>
             tipoUsuario = "Operador",
             nombreUsuario = dto.NombreUsuario,
             correo = dto.Correo,
-            contrasena = dto.Contrasena,
             nombre = dto.Nombre,
             apellido = dto.Apellido,
             sexo = dto.Sexo,
@@ -186,19 +184,8 @@ public class UsuariosEndpointPruebas : IClassFixture<FabricaApiPruebas>
             .Should().BeTrue();
     }
 
-    [Fact]
-    public async Task PostUsuarios_Operador_ContrasenaInvalida_Retorna400_ConErrorPorCampo()
-    {
-        ConfigurarKeycloakOk();
-
-        var dto = DtoOperador();
-        dto.Contrasena = "ABC";
-
-        var respuesta = await _cliente.SendAsync(Solicitud(dto, "Administrador"));
-        respuesta.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        (await LeerErroresAsync(respuesta))!.Errores.Any(e => e.Campo == "contrasena")
-            .Should().BeTrue();
-    }
+    // El endpoint de creación ya no recibe contraseña: la genera el backend.
+    // Por eso no hay prueba de validación de "contraseña inválida".
 
     [Fact]
     public async Task PostUsuarios_Operador_TelefonoInvalido_Retorna400_ConErrorPorCampo()

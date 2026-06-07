@@ -26,6 +26,9 @@ public static class RegistroAplicacion
         servicios.AddScoped<FabricaEstrategiaMapeoPerfilUsuario>();
         servicios.AddScoped<IReglasValidacionUsuario, ReglasValidacionUsuario>();
         servicios.AddScoped<IValidador<CrearUsuarioComando>, ValidadorCrearUsuario>();
+        servicios.AddScoped<
+            IValidador<CambiarContrasenaObligatoriaComando>,
+            ValidadorCambiarContrasenaObligatoria>();
         servicios.AddScoped<IValidador<RegistrarParticipanteComando>, ValidadorRegistrarParticipante>();
         servicios.AddScoped<IValidador<ModificarOperadorComando>, ValidadorModificarOperador>();
         servicios.AddScoped<
@@ -39,6 +42,7 @@ public static class RegistroAplicacion
             ValidadorUnicidadModificarParticipante>();
         servicios.AddSingleton<AplicadorCambiosUsuario>();
         servicios.AddScoped<IGeneradorCodigoUsuario, GeneradorCodigoUsuario>();
+        servicios.AddSingleton<IGeneradorContrasenaTemporal, GeneradorContrasenaTemporal>();
         servicios.AddScoped<IAutorizadorUsuarioActivo, AutorizadorUsuarioActivo>();
 
         return servicios;

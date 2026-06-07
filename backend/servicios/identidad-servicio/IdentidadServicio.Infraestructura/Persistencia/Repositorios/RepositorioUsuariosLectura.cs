@@ -5,7 +5,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace IdentidadServicio.Infraestructura.Persistencia.Repositorios;
 
-// HU01/HU05/HU06/HU08 — lecturas transversales sobre la jerarquía Usuario.
 public sealed class RepositorioUsuariosLectura : IRepositorioUsuariosLectura
 {
     private readonly ContextoIdentidad _contexto;
@@ -123,17 +122,23 @@ public sealed class RepositorioUsuariosLectura : IRepositorioUsuariosLectura
         return await _reconstructor.ReconstruirAsync(u, cancelacion);
     }
 
+    public async Task<string?> ObtenerIdKeycloakUsuarioInternoAsync(
+        Guid id, CancellationToken cancelacion)
+    {
+        var rolAdmin = (int)RolUsuario.Administrador;
+        var rolOperador = (int)RolUsuario.Operador;
+        return await _contexto.Usuarios.AsNoTracking()
+            .Where(u => u.Id == id && (u.Rol == rolAdmin || u.Rol == rolOperador))
+            .Select(u => u.IdKeycloak)
+            .FirstOrDefaultAsync(cancelacion);
+    }
+
     public async Task<IReadOnlyList<Guid>> FiltrarAdministradoresPorIdsAsync(
         IReadOnlyCollection<Guid> usuariosIds, CancellationToken cancelacion)
     {
         if (usuariosIds is null || usuariosIds.Count == 0)
             return Array.Empty<Guid>();
 
-        // HU34 — sesiones-servicio NO conoce el Usuario.Id interno de
-        // UMBRAL; lo único que persiste como creador es el `sub` del
-        // JWT de Keycloak (que en Keycloak es un UUID). Por eso aquí
-        // comparamos contra IdKeycloak en lugar de contra Id.
-        // EF Core traduce Contains a IN(...) en PostgreSQL.
         var rolAdmin = (int)RolUsuario.Administrador;
         var idsKeycloakBuscados = usuariosIds.Select(g => g.ToString()).ToList();
 
@@ -142,9 +147,6 @@ public sealed class RepositorioUsuariosLectura : IRepositorioUsuariosLectura
             .Select(u => u.IdKeycloak)
             .ToListAsync(cancelacion);
 
-        // Devolvemos los IDs como Guid en el mismo formato en que
-        // llegaron (es lo que sesiones-servicio necesita para casar
-        // con su CreadaPorUsuarioId).
         return idsKeycloakEncontrados
             .Select(s => Guid.TryParse(s, out var g) ? g : (Guid?)null)
             .Where(g => g.HasValue)
@@ -152,7 +154,6 @@ public sealed class RepositorioUsuariosLectura : IRepositorioUsuariosLectura
             .ToList();
     }
 
-    // Consulta base para HU08: usuarios cuyo rol es Operador o Administrador.
     private IQueryable<UsuarioModelo> ConsultaInternosBase(RolUsuario? rolFiltro)
     {
         var rolAdmin = (int)RolUsuario.Administrador;

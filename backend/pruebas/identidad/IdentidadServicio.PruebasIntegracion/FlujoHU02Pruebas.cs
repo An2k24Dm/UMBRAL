@@ -42,7 +42,6 @@ public class FlujoHU02Pruebas : IClassFixture<FabricaApiPruebas>
             TipoUsuario = RolUsuario.Operador,
             NombreUsuario = nombreUsuario,
             Correo = $"{nombreUsuario}@umbral.com",
-            Contrasena = "Abc1*",
             Nombre = "Olivia",
             Apellido = "Operadora",
             Sexo = "Femenino",

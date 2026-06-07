@@ -386,4 +386,39 @@ public sealed class UsuariosControlador : ControllerBase
             });
         }
     }
+
+    [HttpPost("internos/{id:guid}/resetear-contrasena")]
+    [Authorize(Policy = "PoliticaAdministrador")]
+    [ProducesResponseType(typeof(ResetearContrasenaRespuestaDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ResetearContrasenaUsuarioInterno(
+        Guid id, CancellationToken cancelacion)
+    {
+        try
+        {
+            var resultado = await _mediador.Send(
+                new ResetearContrasenaUsuarioComando(id), cancelacion);
+            return Ok(resultado);
+        }
+        catch (DatosUsuarioInvalidosExcepcion ex)
+            when (ex.Message.Contains("No existe un usuario interno", StringComparison.OrdinalIgnoreCase))
+        {
+            return NotFound(new
+            {
+                codigo = "USUARIO_NO_ENCONTRADO",
+                mensaje = "El usuario solicitado no existe."
+            });
+        }
+        catch (DatosUsuarioInvalidosExcepcion ex)
+            when (ex.Message.Contains("solo aplica a Operador o Administrador", StringComparison.OrdinalIgnoreCase))
+        {
+            return BadRequest(new
+            {
+                codigo = "ROL_NO_PERMITIDO",
+                mensaje = "El reseteo administrativo de contraseña solo aplica a Operador o Administrador."
+            });
+        }
+    }
 }

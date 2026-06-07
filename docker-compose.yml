@@ -81,6 +81,20 @@ services:
       Keycloak__ClientSecret: "umbral-backend-secreto"
       Keycloak__AdminUsuario: "admin"
       Keycloak__AdminContrasena: "admin"
+      # SMTP para envío de contraseñas temporales (alta administrativa y
+      # reseteo de contraseña). Para probar en desarrollo configurar un
+      # servidor SMTP real (p. ej. Gmail App Password, Mailtrap) y poner
+      # Correo__Habilitado=true. Si queda en false, el backend solo
+      # registra en logs que el envío fue solicitado y nunca expone la
+      # contraseña.
+      Correo__Habilitado: "${CORREO_HABILITADO:-false}"
+      Correo__Host: "${CORREO_HOST:-}"
+      Correo__Puerto: "${CORREO_PUERTO:-587}"
+      Correo__UsarSsl: "${CORREO_USAR_SSL:-true}"
+      Correo__Usuario: "${CORREO_USUARIO:-}"
+      Correo__Contrasena: "${CORREO_CONTRASENA:-}"
+      Correo__RemitenteCorreo: "${CORREO_REMITENTE:-no-reply@umbral.local}"
+      Correo__RemitenteNombre: "${CORREO_REMITENTE_NOMBRE:-UMBRAL}"
       Cors__OrigenesPermitidos__0: "http://localhost:3000"
       Cors__OrigenesPermitidos__1: "http://localhost:5173"
     ports:

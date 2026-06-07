@@ -457,3 +457,6 @@ Cada microservicio tiene su propia base de datos PostgreSQL.
 - Colocar EXPO_PUBLIC_API_URL=http://tui_ip:5000
 - luego hacer npx expo start -c --tunnel en la raiz de la app movil
 - instalar las dependencias si es necesario npm install expo
+
+### Crear un .env en la raiz del proyecto para utilizar el SMTP de gmail
+- Leer el .env.example y tomar la estructura que aparece ahí para la creacion del env y la configuración del correo emisor

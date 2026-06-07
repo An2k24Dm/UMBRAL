@@ -58,4 +58,34 @@ public sealed class AutenticacionControlador : ControllerBase
         var perfil = await _mediador.Send(new ObtenerPerfilActualConsulta(idKeycloak), cancelacion);
         return Ok((object)perfil);
     }
+
+    // Cambio obligatorio de contraseña tras login con credencial temporal
+    // (alta administrativa o reset). Requiere JWT — el IdKeycloak siempre
+    // se toma del token, NO del cuerpo: solo el propio usuario puede
+    // completar su cambio. El manejador rechaza si la bandera UMBRAL
+    // DebeCambiarContrasena no está activa o si el rol no es interno.
+    [HttpPost("cambiar-contrasena-obligatoria")]
+    [Authorize]
+    public async Task<ActionResult<CambiarContrasenaObligatoriaRespuestaDto>>
+        CambiarContrasenaObligatoria(
+            [FromBody] CambiarContrasenaObligatoriaDto dto,
+            CancellationToken cancelacion)
+    {
+        var idKeycloak = User.FindFirstValue(ClaimTypes.NameIdentifier)
+                         ?? User.FindFirstValue("sub")
+                         ?? string.Empty;
+
+        if (string.IsNullOrWhiteSpace(idKeycloak))
+        {
+            return Unauthorized(new
+            {
+                codigo = "TOKEN_SIN_SUJETO",
+                mensaje = "El token no contiene el identificador del usuario."
+            });
+        }
+
+        var resultado = await _mediador.Send(
+            new CambiarContrasenaObligatoriaComando(idKeycloak, dto), cancelacion);
+        return Ok(resultado);
+    }
 }

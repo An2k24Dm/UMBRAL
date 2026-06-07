@@ -188,46 +188,9 @@ public class ModificarOperadorEndpointPruebas : IClassFixture<FabricaApiPruebas>
         resp.CamposActualizados.Should().BeEmpty();
     }
 
-    // HU09 — cambio administrativo de contraseña. La contraseña viaja a
-    // Keycloak (reset-password), nunca al cuerpo de la respuesta ni a BD.
-    [Fact]
-    public async Task Patch_SoloContrasena_LlamaResetPasswordYNoExponeContrasena()
-    {
-        const string contrasena = "Z9!secreta";
-        var cuerpo = new
-        {
-            nuevaContrasena = contrasena,
-            confirmacionContrasena = contrasena
-        };
-        var respuesta = await _cliente.SendAsync(
-            Patch(FabricaApiPruebas.IdOperadorSembrado, cuerpo, "Administrador"));
-
-        respuesta.StatusCode.Should().Be(HttpStatusCode.OK);
-        var json = await respuesta.Content.ReadAsStringAsync();
-        json.Should().NotContain(contrasena);
-
-        _fabrica.MockProveedor.Verify(p => p.CambiarContrasenaAsync(
-            "kc-op-hu09",
-            contrasena,
-            false,
-            It.IsAny<CancellationToken>()), Times.Once);
-    }
-
-    [Fact]
-    public async Task Patch_ContrasenaNoCoincide_Retorna400()
-    {
-        var cuerpo = new
-        {
-            nuevaContrasena = "Abc1*",
-            confirmacionContrasena = "Otro2*"
-        };
-        var respuesta = await _cliente.SendAsync(
-            Patch(FabricaApiPruebas.IdOperadorSembrado, cuerpo, "Administrador"));
-
-        respuesta.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        var json = await respuesta.Content.ReadAsStringAsync();
-        json.Should().Contain("confirmacionContrasena");
-    }
+    // Nota: el endpoint de modificación administrativa de Operador ya NO
+    // acepta cambio de contraseña. El reseteo se hace con el endpoint
+    // dedicado /api/usuarios/internos/{id}/resetear-contrasena.
 
     // HU09 — si Keycloak falla, la base de datos NO debe quedar modificada.
     // Para que la prueba sea independiente del orden de ejecución se restaura
