@@ -1,0 +1,85 @@
+{
+  "realm": "umbral",
+  "enabled": true,
+  "displayName": "UMBRAL",
+  "registrationAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": true,
+  "loginWithEmailAllowed": false,
+  "duplicateEmailsAllowed": true,
+  "accessTokenLifespan": 3600,
+  "ssoSessionIdleTimeout": 3600,
+  "ssoSessionMaxLifespan": 36000,
+
+  "roles": {
+    "realm": [
+      {
+        "name": "Administrador",
+        "description": "Administrador de la plataforma UMBRAL"
+      },
+      {
+        "name": "Operador",
+        "description": "Operador de sesiones UMBRAL"
+      },
+      {
+        "name": "Participante",
+        "description": "Participante de sesiones UMBRAL"
+      }
+    ]
+  },
+
+  "clients": [
+    {
+      "clientId": "umbral-backend",
+      "name": "Backend UMBRAL (identidad-servicio)",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "umbral-backend-secreto",
+      "protocol": "openid-connect",
+      "directAccessGrantsEnabled": true,
+      "standardFlowEnabled": false,
+      "serviceAccountsEnabled": true
+    },
+    {
+      "clientId": "umbral-web",
+      "name": "Frontend Web UMBRAL",
+      "enabled": true,
+      "publicClient": true,
+      "protocol": "openid-connect",
+      "redirectUris": ["http://localhost:3000/*"],
+      "webOrigins": ["http://localhost:3000"],
+      "directAccessGrantsEnabled": true,
+      "standardFlowEnabled": true
+    },
+    {
+      "clientId": "umbral-movil",
+      "name": "Aplicación móvil UMBRAL",
+      "enabled": true,
+      "publicClient": true,
+      "protocol": "openid-connect",
+      "redirectUris": ["umbral://*"],
+      "directAccessGrantsEnabled": true,
+      "standardFlowEnabled": true
+    }
+  ],
+
+  "users": [
+    {
+      "id": "11111111-1111-1111-1111-111111111111",
+      "username": "administrador01",
+      "email": "administrador01@umbral.com",
+      "firstName": "Angelo",
+      "lastName": "Di Martino",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Temporal123*",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["Administrador"]
+    }
+  ]
+}

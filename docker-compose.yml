@@ -1,0 +1,261 @@
+name: umbral
+
+services:
+
+  postgres-keycloak:
+    image: postgres:16-alpine
+    container_name: umbral-postgres-keycloak
+    environment:
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: keycloak123
+      POSTGRES_DB: keycloak
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak -d keycloak"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - postgres_keycloak_data:/var/lib/postgresql/data
+    ports:
+      - "5434:5432"
+    networks:
+      - umbral-network
+    restart: unless-stopped
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0
+    container_name: umbral-keycloak
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres-keycloak:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: keycloak123
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_HOSTNAME_STRICT: "false"
+      KC_HTTP_ENABLED: "true"
+      KC_HEALTH_ENABLED: "true"
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./infraestructura/keycloak/realm-umbral.json:/opt/keycloak/data/import/realm-umbral.json:ro
+    depends_on:
+      postgres-keycloak:
+        condition: service_healthy
+    networks:
+      - umbral-network
+    restart: unless-stopped
+
+  postgres-identidad:
+    image: postgres:16-alpine
+    container_name: umbral-postgres-identidad
+    environment:
+      POSTGRES_USER: umbral
+      POSTGRES_PASSWORD: umbral123
+      POSTGRES_DB: umbral_identidad
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U umbral -d umbral_identidad"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - postgres_identidad_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    networks:
+      - umbral-network
+    restart: unless-stopped
+
+  identidad-servicio:
+    build:
+      context: ./backend/servicios/identidad-servicio
+      dockerfile: IdentidadServicio.Presentacion/Dockerfile
+    container_name: umbral-identidad-servicio
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__BaseDatos: "Host=postgres-identidad;Port=5432;Database=umbral_identidad;Username=umbral;Password=umbral123"
+      Keycloak__Authority: "http://keycloak:8080/realms/umbral"
+      Keycloak__ClientId: "umbral-backend"
+      Keycloak__ClientSecret: "umbral-backend-secreto"
+      Keycloak__AdminUsuario: "admin"
+      Keycloak__AdminContrasena: "admin"
+      # SMTP para envío de contraseñas temporales (alta administrativa y
+      # reseteo de contraseña). Para probar en desarrollo configurar un
+      # servidor SMTP real (p. ej. Gmail App Password, Mailtrap) y poner
+      # Correo__Habilitado=true. Si queda en false, el backend solo
+      # registra en logs que el envío fue solicitado y nunca expone la
+      # contraseña.
+      Correo__Habilitado: "${CORREO_HABILITADO:-false}"
+      Correo__Host: "${CORREO_HOST:-}"
+      Correo__Puerto: "${CORREO_PUERTO:-587}"
+      Correo__UsarSsl: "${CORREO_USAR_SSL:-true}"
+      Correo__Usuario: "${CORREO_USUARIO:-}"
+      Correo__Contrasena: "${CORREO_CONTRASENA:-}"
+      Correo__RemitenteCorreo: "${CORREO_REMITENTE:-no-reply@umbral.local}"
+      Correo__RemitenteNombre: "${CORREO_REMITENTE_NOMBRE:-UMBRAL}"
+      Cors__OrigenesPermitidos__0: "http://localhost:3000"
+      Cors__OrigenesPermitidos__1: "http://localhost:5173"
+    ports:
+      - "5001:8080"
+    depends_on:
+      postgres-identidad:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+    networks:
+      - umbral-network
+    restart: unless-stopped
+
+  postgres-juegos:
+    image: postgres:16-alpine
+    container_name: umbral-postgres-juegos
+    environment:
+      POSTGRES_USER: umbral
+      POSTGRES_PASSWORD: umbral123
+      POSTGRES_DB: umbral_juegos
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U umbral -d umbral_juegos"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - postgres_juegos_data:/var/lib/postgresql/data
+    ports:
+      - "5435:5432"
+    networks:
+      - umbral-network
+    restart: unless-stopped
+
+  juegos-servicio:
+    build:
+      context: ./backend/servicios/juegos-servicio
+      dockerfile: JuegosServicio.Presentacion/Dockerfile
+    container_name: umbral-juegos-servicio
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__BaseDatos: "Host=postgres-juegos;Port=5432;Database=umbral_juegos;Username=umbral;Password=umbral123"
+      Keycloak__Authority: "http://keycloak:8080/realms/umbral"
+      ServiciosExternos__SesionesServicio__Url: "http://sesiones-servicio:8080"
+      Cors__OrigenesPermitidos__0: "http://localhost:3000"
+      Cors__OrigenesPermitidos__1: "http://localhost:5173"
+    ports:
+      - "5002:8080"
+    depends_on:
+      postgres-juegos:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+    networks:
+      - umbral-network
+    restart: unless-stopped
+
+  postgres-sesiones:
+    image: postgres:16-alpine
+    container_name: umbral-postgres-sesiones
+    environment:
+      POSTGRES_USER: umbral
+      POSTGRES_PASSWORD: umbral123
+      POSTGRES_DB: umbral_sesiones
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U umbral -d umbral_sesiones"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - postgres_sesiones_data:/var/lib/postgresql/data
+    ports:
+      - "5436:5432"
+    networks:
+      - umbral-network
+    restart: unless-stopped
+
+  sesiones-servicio:
+    build:
+      context: ./backend/servicios/sesiones-servicio
+      dockerfile: SesionesServicio.Presentacion/Dockerfile
+    container_name: umbral-sesiones-servicio
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__BaseDatos: "Host=postgres-sesiones;Port=5432;Database=umbral_sesiones;Username=umbral;Password=umbral123"
+      Keycloak__Authority: "http://keycloak:8080/realms/umbral"
+      ServiciosExternos__JuegosServicio__Url: "http://juegos-servicio:8080"
+      ServiciosExternos__IdentidadServicio__Url: "http://identidad-servicio:8080"
+      Cors__OrigenesPermitidos__0: "http://localhost:3000"
+      Cors__OrigenesPermitidos__1: "http://localhost:5173"
+    ports:
+      - "5003:8080"
+    depends_on:
+      postgres-sesiones:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+      juegos-servicio:
+        condition: service_started
+    networks:
+      - umbral-network
+    restart: unless-stopped
+
+  api-gateway:
+    build:
+      context: ./backend/gateway/api-gateway
+    container_name: umbral-api-gateway
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+    ports:
+      - "5000:8080"
+    depends_on:
+      - identidad-servicio
+      - juegos-servicio
+      - sesiones-servicio
+    networks:
+      - umbral-network
+    restart: unless-stopped
+
+  frontend-web:
+    build:
+      context: ./frontend-web/umbral-web-react
+    container_name: umbral-frontend-web
+    environment:
+      VITE_API_URL: "http://localhost:5000"
+      CHOKIDAR_USEPOLLING: "true"
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api-gateway
+    networks:
+      - umbral-network
+    restart: unless-stopped
+
+  # OPCIONAL: levantar con  docker compose --profile movil up -d --build
+  # El emulador Android o un dispositivo físico se conecta externamente al
+  # Metro Bundler de Expo en los puertos 19000/19001/19002/8081.
+  frontend-movil:
+    profiles: ["movil"]
+    build:
+      context: ./frontend-movil/umbral-app-react-native
+    container_name: umbral-frontend-movil
+    environment:
+      EXPO_DEVTOOLS_LISTEN_ADDRESS: "0.0.0.0"
+      REACT_NATIVE_PACKAGER_HOSTNAME: "0.0.0.0"
+    ports:
+      - "19000:19000"
+      - "19001:19001"
+      - "19002:19002"
+      - "8081:8081"
+    networks:
+      - umbral-network
+
+networks:
+  umbral-network:
+    driver: bridge
+
+volumes:
+  postgres_keycloak_data:
+  postgres_identidad_data:
+  postgres_juegos_data:
+  postgres_sesiones_data:

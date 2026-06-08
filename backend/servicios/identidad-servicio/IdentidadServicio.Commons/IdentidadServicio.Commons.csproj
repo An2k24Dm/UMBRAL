@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>IdentidadServicio.Commons</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      Commons reutiliza los enums del dominio (RolUsuario, etc.) para evitar
+      duplicar conceptos como TipoUsuario. Dominio no referencia a Commons, por
+      lo que no se introduce dependencia circular.
+    -->
+    <ProjectReference Include="..\IdentidadServicio.Dominio\IdentidadServicio.Dominio.csproj" />
+  </ItemGroup>
+
+</Project>

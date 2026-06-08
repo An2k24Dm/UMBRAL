@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>SesionesServicio.Presentacion</RootNamespace>
+    <UserSecretsId>sesiones-servicio-umbral</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.0">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.7.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SesionesServicio.Aplicacion\SesionesServicio.Aplicacion.csproj" />
+    <ProjectReference Include="..\SesionesServicio.Infraestructura\SesionesServicio.Infraestructura.csproj" />
+    <ProjectReference Include="..\SesionesServicio.Commons\SesionesServicio.Commons.csproj" />
+    <ProjectReference Include="..\SesionesServicio.Dominio\SesionesServicio.Dominio.csproj" />
+  </ItemGroup>
+
+</Project>

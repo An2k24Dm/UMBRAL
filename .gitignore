@@ -1,0 +1,31 @@
+# .NET
+**/bin/
+**/obj/
+**/TestResults/
+**/coverage/
+*.user
+*.suo
+.vs/
+
+# Claude local
+.claude/settings.local.json
+.claude/skills/
+.agents/
+.impeccable/
+skills-lock.json
+
+# Node
+node_modules/
+dist/
+.expo/
+.expo-shared/
+
+# Entorno
+.env.local
+*.local
+
+# IDE
+.idea/
+.vscode/
+.env*.local
+.env

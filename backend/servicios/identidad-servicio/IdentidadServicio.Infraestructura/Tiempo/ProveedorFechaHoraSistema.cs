@@ -1,0 +1,8 @@
+using IdentidadServicio.Aplicacion.Puertos;
+
+namespace IdentidadServicio.Infraestructura.Tiempo;
+
+public sealed class ProveedorFechaHoraSistema : IProveedorFechaHora
+{
+    public DateTime ObtenerFechaHoraUtc() => DateTime.UtcNow;
+}

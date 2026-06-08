@@ -1,0 +1,81 @@
+using JuegosServicio.Aplicacion.CasosDeUso.Comandos;
+using JuegosServicio.Aplicacion.CasosDeUso.Manejadores;
+using JuegosServicio.Aplicacion.Puertos;
+using JuegosServicio.Dominio.Entidades;
+using JuegosServicio.Dominio.Enums;
+using JuegosServicio.Dominio.Excepciones;
+
+namespace JuegosServicio.PruebasUnitarias.CasosDeUso;
+
+public class EliminarPistaManejadorPruebas
+{
+    private readonly Mock<IRepositorioBusquedas> _repositorio = new();
+    private readonly Mock<IRepositorioMisiones> _repositorioMisiones = new();
+
+    private static readonly DateTime FechaFija =
+        new(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc);
+
+    private EliminarPistaManejador CrearManejador() => new(_repositorio.Object, _repositorioMisiones.Object);
+
+    private static BusquedaTesoro BusquedaConPista(out Guid pistaId)
+    {
+        var busqueda = BusquedaTesoro.Crear("Búsqueda Test", "Descripción", Guid.NewGuid(), FechaFija);
+        var pista = busqueda.AgregarPista("Pista de prueba.");
+        pistaId = pista.Id;
+        return busqueda;
+    }
+
+    public EliminarPistaManejadorPruebas()
+    {
+        _repositorioMisiones.Setup(r => r.EsContenidoUsadoEnMisionActivaAsync(
+            It.IsAny<TipoModoDeJuego>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+        _repositorio
+            .Setup(r => r.EliminarPistaAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+    }
+
+    [Fact]
+    public async Task Handle_TodosExistentes_LlamaEliminarPistaAsyncUnaVez()
+    {
+        var busqueda = BusquedaConPista(out var pistaId);
+        _repositorio
+            .Setup(r => r.ObtenerBusquedaPorIdAsync(busqueda.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(busqueda);
+
+        await CrearManejador().Handle(
+            new EliminarPistaComando(busqueda.Id, pistaId), CancellationToken.None);
+
+        _repositorio.Verify(
+            r => r.EliminarPistaAsync(pistaId, It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task Handle_BusquedaInexistente_LanzaExcepcionNoEncontrado()
+    {
+        var busquedaId = Guid.NewGuid();
+        _repositorio
+            .Setup(r => r.ObtenerBusquedaPorIdAsync(busquedaId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((BusquedaTesoro?)null);
+
+        var accion = async () => await CrearManejador().Handle(
+            new EliminarPistaComando(busquedaId, Guid.NewGuid()), CancellationToken.None);
+
+        await accion.Should().ThrowAsync<ExcepcionNoEncontrado>();
+    }
+
+    [Fact]
+    public async Task Handle_PistaInexistente_LanzaExcepcionNoEncontrado()
+    {
+        var busqueda = BusquedaConPista(out _);
+        _repositorio
+            .Setup(r => r.ObtenerBusquedaPorIdAsync(busqueda.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(busqueda);
+
+        var accion = async () => await CrearManejador().Handle(
+            new EliminarPistaComando(busqueda.Id, Guid.NewGuid()), CancellationToken.None);
+
+        await accion.Should().ThrowAsync<ExcepcionNoEncontrado>();
+    }
+}

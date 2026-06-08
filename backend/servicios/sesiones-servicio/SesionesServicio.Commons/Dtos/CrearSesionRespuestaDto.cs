@@ -1,0 +1,15 @@
+namespace SesionesServicio.Commons.Dtos;
+
+public sealed class CrearSesionRespuestaDto
+{
+    public Guid Id { get; set; }
+    public string Nombre { get; set; } = string.Empty;
+    public string Descripcion { get; set; } = string.Empty;
+    public string Modo { get; set; } = string.Empty;
+    public string Estado { get; set; } = string.Empty;
+    public DateTime FechaProgramada { get; set; }
+    public string CodigoAcceso { get; set; } = string.Empty;
+    public Guid OperadorCreadorId { get; set; }
+    public DateTime FechaCreacion { get; set; }
+    public List<Guid> MisionesIds { get; set; } = new();
+}
