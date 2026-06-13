@@ -1,11 +1,17 @@
 using Microsoft.EntityFrameworkCore;
 using SesionesServicio.Aplicacion.Puertos;
+using SesionesServicio.Dominio.Abstract;
 using SesionesServicio.Dominio.Entidades;
 using SesionesServicio.Dominio.Enums;
+using SesionesServicio.Infraestructura.Persistencia.Mapeadores;
 
 namespace SesionesServicio.Infraestructura.Persistencia.Repositorios;
 
-public sealed class RepositorioSesiones : IRepositorioSesiones
+// Implementa ambos puertos: el repositorio del agregado (dominio) y las
+// consultas de lectura (aplicación). Compartir la implementación evita
+// duplicar el acceso a EF, manteniendo separadas las dependencias que ven
+// los casos de uso.
+public sealed class RepositorioSesiones : IRepositorioSesiones, IConsultasSesiones
 {
     private static readonly EstadoSesion[] EstadosVigentes =
     {
@@ -16,15 +22,19 @@ public sealed class RepositorioSesiones : IRepositorioSesiones
     };
 
     private readonly ContextoSesiones _contexto;
+    private readonly MapeadorSesionesPersistencia _mapeador;
 
-    public RepositorioSesiones(ContextoSesiones contexto)
+    public RepositorioSesiones(
+        ContextoSesiones contexto,
+        MapeadorSesionesPersistencia mapeador)
     {
         _contexto = contexto;
+        _mapeador = mapeador;
     }
 
     public Task AgregarAsync(Sesion sesion, CancellationToken cancelacion)
     {
-        var modelo = SesionesMapeador.HaciaModelo(sesion);
+        var modelo = _mapeador.HaciaModelo(sesion);
         _contexto.Sesiones.Add(modelo);
         return Task.CompletedTask;
     }
@@ -37,7 +47,7 @@ public sealed class RepositorioSesiones : IRepositorioSesiones
             .Include(s => s.Participantes)
             .FirstOrDefaultAsync(s => s.Id == sesion.Id, cancelacion);
 
-        var actualizado = SesionesMapeador.HaciaModelo(sesion);
+        var actualizado = _mapeador.HaciaModelo(sesion);
 
         if (existente is null)
         {
@@ -66,7 +76,7 @@ public sealed class RepositorioSesiones : IRepositorioSesiones
             .Include(s => s.Equipos)
             .Include(s => s.Participantes)
             .FirstOrDefaultAsync(s => s.Id == id, cancelacion);
-        return modelo is null ? null : SesionesMapeador.HaciaDominio(modelo);
+        return modelo is null ? null : _mapeador.HaciaDominio(modelo);
     }
 
     public async Task<IReadOnlyList<Sesion>> ListarAsync(
@@ -89,7 +99,7 @@ public sealed class RepositorioSesiones : IRepositorioSesiones
             .OrderByDescending(s => s.FechaProgramada)
             .ToListAsync(cancelacion);
 
-        return modelos.Select(SesionesMapeador.HaciaDominio).ToList();
+        return modelos.Select(_mapeador.HaciaDominio).ToList();
     }
 
     public async Task<IReadOnlyList<Sesion>> ListarProgramadasVencidasAsync(
@@ -103,7 +113,7 @@ public sealed class RepositorioSesiones : IRepositorioSesiones
             .OrderBy(s => s.FechaProgramada)
             .ToListAsync(cancelacion);
 
-        return modelos.Select(SesionesMapeador.HaciaDominio).ToList();
+        return modelos.Select(_mapeador.HaciaDominio).ToList();
     }
 
     public Task<bool> ExisteSesionVigentePorMisionAsync(
@@ -156,6 +166,6 @@ public sealed class RepositorioSesiones : IRepositorioSesiones
             .OrderBy(s => s.FechaProgramada)
             .ToListAsync(cancelacion);
 
-        return modelos.Select(SesionesMapeador.HaciaDominio).ToList();
+        return modelos.Select(_mapeador.HaciaDominio).ToList();
     }
 }

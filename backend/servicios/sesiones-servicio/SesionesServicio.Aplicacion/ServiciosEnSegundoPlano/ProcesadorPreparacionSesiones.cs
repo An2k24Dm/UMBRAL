@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using SesionesServicio.Aplicacion.Puertos;
+using SesionesServicio.Dominio.Abstract;
 using SesionesServicio.Dominio.Enums;
 
 namespace SesionesServicio.Aplicacion.ServiciosEnSegundoPlano;
@@ -16,17 +17,22 @@ namespace SesionesServicio.Aplicacion.ServiciosEnSegundoPlano;
 // Programada antes de llamar a Preparar() evita transiciones inválidas.
 public sealed class ProcesadorPreparacionSesiones
 {
+    // Lectura (listado de candidatas) por el puerto de consultas; escritura
+    // (persistir la transición de estado) por el repositorio del agregado.
+    private readonly IConsultasSesiones _consultas;
     private readonly IRepositorioSesiones _repositorio;
     private readonly IUnidadTrabajoSesiones _unidadTrabajo;
     private readonly IProveedorFechaHora _reloj;
     private readonly ILogger<ProcesadorPreparacionSesiones> _registro;
 
     public ProcesadorPreparacionSesiones(
+        IConsultasSesiones consultas,
         IRepositorioSesiones repositorio,
         IUnidadTrabajoSesiones unidadTrabajo,
         IProveedorFechaHora reloj,
         ILogger<ProcesadorPreparacionSesiones> registro)
     {
+        _consultas = consultas;
         _repositorio = repositorio;
         _unidadTrabajo = unidadTrabajo;
         _reloj = reloj;
@@ -36,7 +42,7 @@ public sealed class ProcesadorPreparacionSesiones
     public async Task<ResultadoCiclo> EjecutarCicloAsync(CancellationToken cancelacion)
     {
         var ahoraUtc = _reloj.ObtenerFechaHoraUtc();
-        var candidatas = await _repositorio.ListarProgramadasVencidasAsync(ahoraUtc, cancelacion);
+        var candidatas = await _consultas.ListarProgramadasVencidasAsync(ahoraUtc, cancelacion);
 
         if (candidatas.Count == 0)
         {

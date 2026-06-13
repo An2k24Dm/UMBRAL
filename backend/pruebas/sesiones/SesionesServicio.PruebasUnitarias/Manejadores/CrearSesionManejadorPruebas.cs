@@ -8,8 +8,10 @@ using SesionesServicio.Aplicacion.CasosDeUso.Manejadores;
 using SesionesServicio.Aplicacion.Puertos;
 using SesionesServicio.Aplicacion.Validaciones;
 using SesionesServicio.Commons.Dtos;
+using SesionesServicio.Dominio.Abstract;
 using SesionesServicio.Dominio.Entidades;
 using SesionesServicio.Dominio.Excepciones;
+using SesionesServicio.Dominio.Fabricas;
 
 namespace SesionesServicio.PruebasUnitarias.Manejadores;
 
@@ -40,8 +42,8 @@ public class CrearSesionManejadorPruebas
         {
             Reloj.Setup(r => r.ObtenerFechaHoraUtc()).Returns(AhoraUtc);
             Generador.Setup(g => g.Generar()).Returns("CODE99");
-            Usuario.SetupGet(u => u.EstaAutenticado).Returns(true);
-            Usuario.SetupGet(u => u.Id).Returns(Operador);
+            Usuario.Setup(u => u.EstaAutenticado()).Returns(true);
+            Usuario.Setup(u => u.ObtenerId()).Returns(Operador);
             Usuario.Setup(u => u.TieneAlgunRol(It.IsAny<string[]>()))
                 .Returns<string[]>(roles => Array.IndexOf(roles, "Operador") >= 0);
 
@@ -65,9 +67,20 @@ public class CrearSesionManejadorPruebas
                 { Id = MisionSinEtapas, Nombre = "Vacía", Estado = "Activa", TotalEtapas = 0 });
         }
 
+        // Se usa la fábrica real con sus creadores de dominio: son piezas
+        // puras sin dependencias externas, así la prueba ejercita el camino
+        // real de selección por modo.
+        private static readonly IFabricaSesion FabricaSesionReal =
+            new FabricaSesion(new ICreadorSesion[]
+            {
+                new CreadorSesionIndividual(),
+                new CreadorSesionGrupal()
+            });
+
         public CrearSesionManejador Construir()
             => new(new ValidadorCrearSesion(), Repo.Object, Unidad.Object,
-                Usuario.Object, Misiones.Object, Generador.Object, Reloj.Object);
+                Usuario.Object, Misiones.Object, Generador.Object, Reloj.Object,
+                FabricaSesionReal);
     }
 
     private static CrearSesionSolicitudDto DtoValido(

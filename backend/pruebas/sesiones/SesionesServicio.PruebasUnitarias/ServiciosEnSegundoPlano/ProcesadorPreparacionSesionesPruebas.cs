@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
 using SesionesServicio.Aplicacion.Puertos;
 using SesionesServicio.Aplicacion.ServiciosEnSegundoPlano;
+using SesionesServicio.Dominio.Abstract;
 using SesionesServicio.Dominio.Entidades;
 using SesionesServicio.Dominio.Enums;
 
@@ -31,27 +32,29 @@ public class ProcesadorPreparacionSesionesPruebas
             fechaFinalizacionUtc: null);
 
     private static (ProcesadorPreparacionSesiones procesador,
+                    Mock<IConsultasSesiones> consultas,
                     Mock<IRepositorioSesiones> repo,
                     Mock<IUnidadTrabajoSesiones> unidad,
                     Mock<IProveedorFechaHora> reloj)
         CrearProcesador()
     {
+        var consultas = new Mock<IConsultasSesiones>();
         var repo = new Mock<IRepositorioSesiones>();
         var unidad = new Mock<IUnidadTrabajoSesiones>();
         var reloj = new Mock<IProveedorFechaHora>();
         reloj.Setup(r => r.ObtenerFechaHoraUtc()).Returns(AhoraUtc);
         var procesador = new ProcesadorPreparacionSesiones(
-            repo.Object, unidad.Object, reloj.Object,
+            consultas.Object, repo.Object, unidad.Object, reloj.Object,
             NullLogger<ProcesadorPreparacionSesiones>.Instance);
-        return (procesador, repo, unidad, reloj);
+        return (procesador, consultas, repo, unidad, reloj);
     }
 
     [Fact]
     public async Task SesionProgramadaVencida_DebePasarA_EnPreparacion()
     {
-        var (procesador, repo, unidad, _) = CrearProcesador();
+        var (procesador, consultas, repo, unidad, _) = CrearProcesador();
         var sesion = CrearSesion(EstadoSesion.Programada, AhoraUtc.AddMinutes(-5));
-        repo.Setup(r => r.ListarProgramadasVencidasAsync(AhoraUtc, It.IsAny<CancellationToken>()))
+        consultas.Setup(r => r.ListarProgramadasVencidasAsync(AhoraUtc, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<Sesion> { sesion });
 
         Sesion? actualizada = null;
@@ -70,8 +73,8 @@ public class ProcesadorPreparacionSesionesPruebas
     [Fact]
     public async Task NoHaySesionesVencidas_NoDebeGuardarCambios()
     {
-        var (procesador, repo, unidad, _) = CrearProcesador();
-        repo.Setup(r => r.ListarProgramadasVencidasAsync(AhoraUtc, It.IsAny<CancellationToken>()))
+        var (procesador, consultas, _, unidad, _) = CrearProcesador();
+        consultas.Setup(r => r.ListarProgramadasVencidasAsync(AhoraUtc, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<Sesion>());
 
         var resultado = await procesador.EjecutarCicloAsync(CancellationToken.None);
@@ -88,8 +91,8 @@ public class ProcesadorPreparacionSesionesPruebas
     [InlineData(EstadoSesion.Pausada)]
     public async Task SesionConOtroEstado_NoDebeSerProcesada(EstadoSesion estado)
     {
-        var (procesador, repo, _, _) = CrearProcesador();
-        repo.Setup(r => r.ListarProgramadasVencidasAsync(AhoraUtc, It.IsAny<CancellationToken>()))
+        var (procesador, consultas, repo, _, _) = CrearProcesador();
+        consultas.Setup(r => r.ListarProgramadasVencidasAsync(AhoraUtc, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<Sesion> { CrearSesion(estado) });
 
         var resultado = await procesador.EjecutarCicloAsync(CancellationToken.None);
