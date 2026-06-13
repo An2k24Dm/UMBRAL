@@ -5,6 +5,7 @@ using SesionesServicio.Aplicacion.CasosDeUso.Comandos;
 using SesionesServicio.Aplicacion.CasosDeUso.Consultas;
 using SesionesServicio.Aplicacion.Puertos;
 using SesionesServicio.Commons.Dtos;
+using SesionesServicio.Dominio.Abstract;
 using SesionesServicio.Dominio.Enums;
 
 namespace SesionesServicio.Presentacion.Controladores;

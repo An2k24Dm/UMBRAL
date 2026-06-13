@@ -1,15 +1,14 @@
 namespace SesionesServicio.Aplicacion.Puertos;
 
-// Sesiones-servicio NO consulta la base de datos de identidad. Toda la
-// información del usuario actual proviene del JWT emitido por Keycloak,
-// que el gateway propaga al microservicio. Esta abstracción aísla a la
-// capa de Aplicación de HttpContext y permite probarla con dobles.
+// Puerto de aplicación: representa al usuario autenticado del request actual,
+// obtenido desde JWT/HTTP/claims. No es una abstracción del dominio. Expone
+// métodos (no propiedades) siguiendo la convención del proyecto.
 public interface IUsuarioActual
 {
-    bool EstaAutenticado { get; }
-    Guid? Id { get; }
-    string? IdKeycloak { get; }
-    string? NombreUsuario { get; }
-    IReadOnlyCollection<string> Roles { get; }
+    bool EstaAutenticado();
+    Guid? ObtenerId();
+    string? ObtenerIdKeycloak();
+    string? ObtenerNombreUsuario();
+    IReadOnlyCollection<string> ObtenerRoles();
     bool TieneAlgunRol(params string[] roles);
 }

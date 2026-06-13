@@ -6,6 +6,7 @@ using SesionesServicio.Aplicacion.Puertos;
 using SesionesServicio.Aplicacion.ServiciosEnSegundoPlano;
 using SesionesServicio.Infraestructura.Mapeadores;
 using SesionesServicio.Infraestructura.Persistencia;
+using SesionesServicio.Infraestructura.Persistencia.Mapeadores;
 using SesionesServicio.Infraestructura.Persistencia.Repositorios;
 using SesionesServicio.Infraestructura.ServiciosEnSegundoPlano;
 using SesionesServicio.Infraestructura.ServiciosExternos;
@@ -29,7 +30,21 @@ public static class RegistroInfraestructura
                 p.EnableRetryOnFailure(5, TimeSpan.FromSeconds(10), null);
             }));
 
-        servicios.AddScoped<IRepositorioSesiones, RepositorioSesiones>();
+        // Strategy de mapeo de persistencia por tipo de sesión. Stateless;
+        // agregar un tipo nuevo solo requiere registrar su estrategia.
+        servicios.AddSingleton<IMapeadorPersistenciaSesion, MapeadorPersistenciaSesionIndividual>();
+        servicios.AddSingleton<IMapeadorPersistenciaSesion, MapeadorPersistenciaSesionGrupal>();
+        servicios.AddSingleton<MapeadorSesionesPersistencia>();
+
+        // RepositorioSesiones implementa el puerto del agregado (dominio) y el
+        // puerto de consultas (aplicación). Registramos una sola instancia por
+        // alcance y la reexponemos en ambos contratos para que compartan el
+        // mismo DbContext y unidad de trabajo.
+        servicios.AddScoped<RepositorioSesiones>();
+        servicios.AddScoped<Dominio.Abstract.IRepositorioSesiones>(
+            sp => sp.GetRequiredService<RepositorioSesiones>());
+        servicios.AddScoped<IConsultasSesiones>(
+            sp => sp.GetRequiredService<RepositorioSesiones>());
         servicios.AddScoped<IUnidadTrabajoSesiones, UnidadTrabajoSesiones>();
 
         servicios.AddSingleton<IProveedorFechaHora, ProveedorFechaHoraSistema>();

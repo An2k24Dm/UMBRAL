@@ -3,10 +3,9 @@ using SesionesServicio.Aplicacion.CasosDeUso.Comandos;
 using SesionesServicio.Aplicacion.Puertos;
 using SesionesServicio.Aplicacion.Validaciones;
 using SesionesServicio.Commons.Dtos;
+using SesionesServicio.Dominio.Abstract;
 using SesionesServicio.Dominio.Entidades;
-using SesionesServicio.Dominio.Enums;
 using SesionesServicio.Dominio.Excepciones;
-using SesionesServicio.Dominio.Factorias;
 using SesionesServicio.Dominio.Politicas;
 
 namespace SesionesServicio.Aplicacion.CasosDeUso.Manejadores;
@@ -24,6 +23,7 @@ public sealed class CrearSesionManejador
     private readonly IClienteJuegosMisiones _clienteMisiones;
     private readonly IGeneradorCodigoAcceso _generadorCodigo;
     private readonly IProveedorFechaHora _reloj;
+    private readonly IFabricaSesion _fabricaSesion;
 
     public CrearSesionManejador(
         IValidador<CrearSesionComando> validador,
@@ -32,7 +32,8 @@ public sealed class CrearSesionManejador
         IUsuarioActual usuarioActual,
         IClienteJuegosMisiones clienteMisiones,
         IGeneradorCodigoAcceso generadorCodigo,
-        IProveedorFechaHora reloj)
+        IProveedorFechaHora reloj,
+        IFabricaSesion fabricaSesion)
     {
         _validador = validador;
         _repositorio = repositorio;
@@ -41,6 +42,7 @@ public sealed class CrearSesionManejador
         _clienteMisiones = clienteMisiones;
         _generadorCodigo = generadorCodigo;
         _reloj = reloj;
+        _fabricaSesion = fabricaSesion;
     }
 
     public async Task<CrearSesionRespuestaDto> Handle(
@@ -48,7 +50,7 @@ public sealed class CrearSesionManejador
     {
         _validador.Validar(comando).LanzarSiHayErrores();
 
-        if (!_usuarioActual.EstaAutenticado)
+        if (!_usuarioActual.EstaAutenticado())
             throw new UsuarioNoAutorizadoCrearSesionExcepcion(
                 "Debe iniciar sesión para crear una sesión.");
 
@@ -64,20 +66,18 @@ public sealed class CrearSesionManejador
 
         await ValidarMisionesAsync(comando.Datos.MisionesIds, cancelacion);
 
-        var operadorId = _usuarioActual.Id
+        var operadorId = _usuarioActual.ObtenerId()
             ?? throw new UsuarioNoAutorizadoCrearSesionExcepcion(
                 "No se pudo determinar la identidad del operador.");
 
         var codigoAcceso = _generadorCodigo.Generar();
-        var modo = Enum.Parse<ModoSesion>(comando.Datos.Modo, ignoreCase: true);
 
-        Sesion sesion = modo == ModoSesion.Individual
-            ? FabricaSesiones.CrearIndividual(
-                comando.Datos.Nombre, comando.Datos.Descripcion,
-                fechaProgramada, codigoAcceso, operadorId, ahoraUtc)
-            : FabricaSesiones.CrearGrupal(
-                comando.Datos.Nombre, comando.Datos.Descripcion,
-                fechaProgramada, codigoAcceso, operadorId, ahoraUtc);
+        // La fábrica selecciona el creador compatible con el modo; el
+        // manejador no conoce SesionIndividual ni SesionGrupal.
+        var sesion = _fabricaSesion.Crear(
+            comando.Datos.Modo,
+            comando.Datos.Nombre, comando.Datos.Descripcion,
+            fechaProgramada, codigoAcceso, operadorId, ahoraUtc);
 
         sesion.AsignarMisiones(comando.Datos.MisionesIds);
 

@@ -2,6 +2,7 @@ using MediatR;
 using SesionesServicio.Aplicacion.CasosDeUso.Consultas;
 using SesionesServicio.Aplicacion.Puertos;
 using SesionesServicio.Commons.Dtos;
+using SesionesServicio.Dominio.Abstract;
 using SesionesServicio.Dominio.Enums;
 using SesionesServicio.Dominio.Excepciones;
 
@@ -49,9 +50,6 @@ public sealed class ObtenerDetalleSesionDisponibleParticipanteManejador
             CodigoAcceso = sesion.CodigoAcceso
         };
 
-        // Resolvemos cada misión en paralelo: la lista suele tener
-        // pocos elementos (≤ 5 por política), pero el round-trip a
-        // juegos-servicio es bloqueante por misión.
         var misionesEnOrden = sesion.Misiones.OrderBy(m => m.Orden).ToList();
         var tareas = misionesEnOrden
             .Select(m => _clienteMisiones.ObtenerMisionConEtapasAsync(m.MisionId, cancelacion))
@@ -63,10 +61,6 @@ public sealed class ObtenerDetalleSesionDisponibleParticipanteManejador
             var asociacion = misionesEnOrden[i];
             var misionRemota = resultados[i];
 
-            // Si juegos-servicio no devolvió detalle (404 o caída
-            // momentánea), exponemos el id + orden con datos vacíos.
-            // No usamos mocks: la UI sabrá distinguir un detalle
-            // ausente y mostrará "Sin información disponible".
             detalle.Misiones.Add(new MisionSesionMovilDto
             {
                 Id = asociacion.MisionId,
@@ -83,7 +77,6 @@ public sealed class ObtenerDetalleSesionDisponibleParticipanteManejador
                         Orden = e.Orden,
                         TipoModoDeJuego = e.TipoModoDeJuego,
                         NombreModoDeJuego = e.NombreModoDeJuego,
-                        // juegos-servicio expone el tiempo en segundos.
                         TiempoEstimadoSegundos = e.TiempoEstimado
                     }).ToList()
             });
