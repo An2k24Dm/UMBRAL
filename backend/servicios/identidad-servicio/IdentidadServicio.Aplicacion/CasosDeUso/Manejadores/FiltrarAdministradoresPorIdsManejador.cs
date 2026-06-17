@@ -5,9 +5,6 @@ using MediatR;
 
 namespace IdentidadServicio.Aplicacion.CasosDeUso.Manejadores;
 
-// HU34 — Manejador de la consulta de filtrado por rol Administrador.
-// Devuelve únicamente identificadores; ningún dato personal sale del
-// microservicio. Si la lista llega vacía, se evita el roundtrip a BD.
 public sealed class FiltrarAdministradoresPorIdsManejador
     : IRequestHandler<FiltrarAdministradoresPorIdsConsulta, AdministradoresPorIdsRespuestaDto>
 {

@@ -10,6 +10,7 @@ public sealed class MapeadorDetalleSesionIndividual : MapeadorDetalleSesionBase
     protected override void CompletarEspecifico(Sesion sesion, SesionDetalleDto dto)
     {
         var individual = (SesionIndividual)sesion;
+        dto.MaximoParticipantes = individual.MaximoParticipantes;
         dto.ParticipantesIndividuales = individual.Participantes
             .Select(p => new ParticipanteSesionDto
             {

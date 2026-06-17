@@ -1,4 +1,5 @@
 using IdentidadServicio.Aplicacion.CasosDeUso.Comandos;
+using IdentidadServicio.Aplicacion.Puertos;
 using IdentidadServicio.Commons.Dtos;
 
 namespace IdentidadServicio.Aplicacion.Validaciones;

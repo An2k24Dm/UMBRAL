@@ -23,14 +23,11 @@ internal sealed class EstadoSesionActiva : IEstadoSesion
         => sesion.CambiarEstado(new EstadoSesionCancelada());
 
     public void Preparar(Sesion sesion) => throw new TransicionEstadoSesionInvalidaExcepcion(
-        Estado, nameof(Preparar),
-        "Una sesión Activa no puede volver a EnPreparacion.");
+        Estado, nameof(Preparar));
 
     public void Iniciar(Sesion sesion) => throw new TransicionEstadoSesionInvalidaExcepcion(
-        Estado, nameof(Iniciar),
-        "La sesión ya se encuentra Activa.");
+        Estado, nameof(Iniciar));
 
     public void Reanudar(Sesion sesion) => throw new TransicionEstadoSesionInvalidaExcepcion(
-        Estado, nameof(Reanudar),
-        "La sesión ya se encuentra Activa.");
+        Estado, nameof(Reanudar));
 }

@@ -1,4 +1,6 @@
-namespace IdentidadServicio.Aplicacion.Validaciones;
+using IdentidadServicio.Aplicacion.Validaciones;
+
+namespace IdentidadServicio.Aplicacion.Puertos;
 
 public interface IValidadorAsincrono<in TSolicitud>
 {

@@ -19,18 +19,14 @@ internal sealed class EstadoSesionProgramada : IEstadoSesion
         => sesion.CambiarEstado(new EstadoSesionCancelada());
 
     public void Iniciar(Sesion sesion) => throw new TransicionEstadoSesionInvalidaExcepcion(
-        Estado, nameof(Iniciar),
-        "Una sesión Programada no puede iniciarse directamente. Debe pasar primero a EnPreparacion.");
+        Estado, nameof(Iniciar));
 
     public void Pausar(Sesion sesion) => throw new TransicionEstadoSesionInvalidaExcepcion(
-        Estado, nameof(Pausar),
-        "Una sesión Programada no puede pausarse.");
+        Estado, nameof(Pausar));
 
     public void Reanudar(Sesion sesion) => throw new TransicionEstadoSesionInvalidaExcepcion(
-        Estado, nameof(Reanudar),
-        "Una sesión Programada no puede reanudarse.");
+        Estado, nameof(Reanudar));
 
     public void Finalizar(Sesion sesion) => throw new TransicionEstadoSesionInvalidaExcepcion(
-        Estado, nameof(Finalizar),
-        "Una sesión Programada no puede finalizarse.");
+        Estado, nameof(Finalizar));
 }

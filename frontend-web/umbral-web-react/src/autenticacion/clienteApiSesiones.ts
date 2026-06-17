@@ -39,14 +39,18 @@ export type EstadoSesionApi =
   | 'Finalizada'
   | 'Cancelada'
 
-// Cuerpo del POST /api/sesiones según el ERS actual. NO incluye
-// tiempoEjecucionMinutos: el backend ya no lo modela.
+// Cuerpo del POST /api/sesiones según el ERS actual. La capacidad es
+// configurable por el Operador: se envía solo la que aplica al modo y el
+// resto viaja en null (el backend los trata como opcionales por modo).
 export interface CrearSesionSolicitud {
   nombre: string
   descripcion: string
   modo: ModoSesionApi
   fechaProgramada: string
   misionesIds: string[]
+  maximoParticipantes: number | null
+  maximoEquipos: number | null
+  maximoParticipantesPorEquipo: number | null
 }
 
 export interface CrearSesionRespuestaDto {
@@ -75,6 +79,10 @@ export interface SesionListadoDto {
   cantidadMisiones: number
   cantidadParticipantes: number
   cantidadEquipos: number
+  // Capacidad configurada (solo se llena la que aplica al modo).
+  maximoParticipantes: number | null
+  maximoEquipos: number | null
+  maximoParticipantesPorEquipo: number | null
 }
 
 export interface SesionMisionDto {
@@ -115,9 +123,28 @@ export interface SesionDetalleDto {
   fechaCreacion: string
   fechaInicioUtc: string | null
   fechaFinalizacionUtc: string | null
+  // Capacidad configurada (solo se llena la que aplica al modo).
+  maximoParticipantes: number | null
+  maximoEquipos: number | null
+  maximoParticipantesPorEquipo: number | null
   misiones: SesionMisionDto[]
   equipos: EquipoSesionDto[]
   participantesIndividuales: ParticipanteSesionDto[]
+}
+
+// Cuerpo del PUT /api/sesiones/{id}. No incluye código de acceso, estado,
+// operadorCreadorId ni fechas de creación/inicio/fin: el backend los ignora
+// y no deben modificarse. La capacidad va solo en el campo que aplica al
+// modo; el resto viaja en null.
+export interface ModificarSesionSolicitud {
+  nombre: string
+  descripcion: string
+  modo: ModoSesionApi
+  fechaProgramada: string
+  misionesIds: string[]
+  maximoParticipantes: number | null
+  maximoEquipos: number | null
+  maximoParticipantesPorEquipo: number | null
 }
 
 // ---------------------------------------------------------------------------
@@ -173,6 +200,27 @@ export async function obtenerSesion(
   if (respuesta.status === 401) lanzar401(token, 'Debe iniciar sesión.')
   if (respuesta.status === 403) throw new Error('No tiene permiso para ver esta sesión.')
   if (respuesta.status === 404) throw new Error('Sesión no encontrada.')
+  if (!respuesta.ok) throw new Error(await leerError(respuesta))
+  return (await respuesta.json()) as SesionDetalleDto
+}
+
+// ---------------------------------------------------------------------------
+// Modificar sesión (solo Operador, solo sesiones propias en estado Programada)
+// ---------------------------------------------------------------------------
+export async function actualizarSesion(
+  id: string,
+  datos: ModificarSesionSolicitud,
+  token: string
+): Promise<SesionDetalleDto> {
+  const respuesta = await fetch(`${URL_API}${ENDPOINTS.porId(id)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...auth(token) },
+    body: JSON.stringify(datos)
+  })
+  if (respuesta.status === 401) lanzar401(token, 'Debe iniciar sesión.')
+  if (respuesta.status === 403) throw new Error('No tiene permiso para modificar esta sesión.')
+  if (respuesta.status === 404) throw new Error('Sesión no encontrada.')
+  // 400 (validación), 409 (no está Programada) y demás traen mensaje del backend.
   if (!respuesta.ok) throw new Error(await leerError(respuesta))
   return (await respuesta.json()) as SesionDetalleDto
 }

@@ -22,6 +22,7 @@ public abstract class Sesion : ISesion
     public DateTime? FechaFinalizacionUtc { get; protected set; }
     public abstract string TipoSesion { get; }
     public IReadOnlyList<SesionMision> Misiones => _misiones.AsReadOnly();
+    public abstract bool TieneInscritos { get; }
 
     protected Sesion() { }
 
@@ -75,6 +76,44 @@ public abstract class Sesion : ISesion
             _misiones.Add(SesionMision.Crear(Id, misionId, orden));
             orden++;
         }
+    }
+
+    public void ModificarDatosBasicos(
+        string nombre,
+        string descripcion,
+        DateTime fechaProgramada,
+        DateTime ahoraUtc)
+    {
+        GarantizarModificable();
+
+        if (string.IsNullOrWhiteSpace(nombre))
+            throw new SesionInvalidaExcepcion("El nombre de la sesión es obligatorio.");
+        if (string.IsNullOrWhiteSpace(descripcion))
+            throw new SesionInvalidaExcepcion("La descripción de la sesión es obligatoria.");
+
+        PoliticaProgramacionSesion.ValidarFechaProgramada(fechaProgramada, ahoraUtc);
+
+        Nombre = nombre.Trim();
+        Descripcion = descripcion.Trim();
+        FechaProgramada = fechaProgramada;
+    }
+
+    public void ReemplazarMisiones(IReadOnlyList<Guid> misionesIds)
+    {
+        GarantizarModificable();
+        AsignarMisiones(misionesIds);
+    }
+
+    public abstract void AplicarCapacidad(
+        int? maximoParticipantes,
+        int? maximoEquipos,
+        int? maximoParticipantesPorEquipo);
+
+    protected void GarantizarModificable()
+    {
+        if (Estado != EstadoSesion.Programada)
+            throw new SesionNoModificableExcepcion(
+                "Solo se pueden modificar sesiones en estado Programada.");
     }
 
     public void Preparar() => _estadoActual.Preparar(this);

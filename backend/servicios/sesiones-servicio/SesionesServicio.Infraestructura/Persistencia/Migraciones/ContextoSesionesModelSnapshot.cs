@@ -169,6 +169,18 @@ namespace SesionesServicio.Infraestructura.Persistencia.Migraciones
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("fecha_programada");
 
+                    b.Property<int?>("MaximoEquipos")
+                        .HasColumnType("integer")
+                        .HasColumnName("maximo_equipos");
+
+                    b.Property<int?>("MaximoParticipantes")
+                        .HasColumnType("integer")
+                        .HasColumnName("maximo_participantes");
+
+                    b.Property<int?>("MaximoParticipantesPorEquipo")
+                        .HasColumnType("integer")
+                        .HasColumnName("maximo_participantes_por_equipo");
+
                     b.Property<string>("Nombre")
                         .IsRequired()
                         .HasMaxLength(150)

@@ -1,7 +1,7 @@
 using SesionesServicio.Commons.Dtos;
 using SesionesServicio.Dominio.Entidades;
 
-namespace SesionesServicio.Aplicacion.Mapeadores;
+namespace SesionesServicio.Aplicacion.Puertos;
 
 // Strategy de mapeo de una Sesion concreta a SesionDisponibleMovilDto
 // (capacidades de participantes/equipos según el tipo).

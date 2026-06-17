@@ -1,7 +1,6 @@
 using System;
 using SesionesServicio.Dominio.Entidades;
 using SesionesServicio.Dominio.Excepciones;
-using SesionesServicio.Dominio.Factorias;
 
 namespace SesionesServicio.PruebasUnitarias.Dominio;
 
@@ -10,9 +9,12 @@ public class EquipoPruebas
     private static readonly DateTime AhoraUtc = new(2026, 6, 3, 12, 0, 0, DateTimeKind.Utc);
     private static readonly Guid Operador = Guid.Parse("44444444-4444-4444-4444-444444444444");
 
+    private const int MaximoParticipantesPorEquipo = 2;
+
     private static SesionGrupal CrearSesion()
-        => FabricaSesiones.CrearGrupal(
-            "Sesión", "Demo", AhoraUtc.AddHours(1), "ABC123", Operador, AhoraUtc);
+        => SesionGrupal.Crear(
+            "Sesión", "Demo", AhoraUtc.AddHours(1), "ABC123", Operador, AhoraUtc,
+            maximoEquipos: 5, maximoParticipantesPorEquipo: MaximoParticipantesPorEquipo);
 
     [Fact]
     public void CrearEquipo_LiderEsIntegrante()
@@ -39,10 +41,10 @@ public class EquipoPruebas
     {
         var sesion = CrearSesion();
         var equipo = sesion.CrearEquipo("Rojo", Guid.NewGuid(), AhoraUtc, AhoraUtc);
-        equipo.EstaLleno().Should().BeFalse();
+        equipo.EstaLleno(MaximoParticipantesPorEquipo).Should().BeFalse();
 
         sesion.AgregarParticipanteAEquipo(equipo.Id, Guid.NewGuid(), AhoraUtc, AhoraUtc);
-        equipo.EstaLleno().Should().BeTrue();
+        equipo.EstaLleno(MaximoParticipantesPorEquipo).Should().BeTrue();
     }
 
     [Fact]

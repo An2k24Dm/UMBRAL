@@ -8,7 +8,12 @@ import { SelectorModoSesion } from '../componentes/sesiones/SelectorModoSesion'
 import { AyudaModoSesion } from '../componentes/sesiones/AyudaModoSesion'
 import { SelectorMisiones } from '../componentes/sesiones/SelectorMisiones'
 import { usarAutenticacion } from '../autenticacion/ProveedorAutenticacion'
-import { useCrearSesion } from '../hooks/useCrearSesion'
+import {
+  useCrearSesion,
+  MIN_EQUIPOS,
+  MIN_PARTICIPANTES_INDIVIDUAL,
+  MIN_PARTICIPANTES_POR_EQUIPO
+} from '../hooks/useCrearSesion'
 import { useMisionesActivas } from '../hooks/useMisionesActivas'
 
 // La página solo orquesta y renderiza. Estado, validación y envío
@@ -160,7 +165,71 @@ export function PaginaCrearSesion() {
             deshabilitado={enviando}
             error={errores.modo}
           />
-          <AyudaModoSesion modo={datos.modo} />
+          <AyudaModoSesion
+            modo={datos.modo}
+            maximoParticipantes={datos.maximoParticipantes}
+            maximoEquipos={datos.maximoEquipos}
+            maximoParticipantesPorEquipo={datos.maximoParticipantesPorEquipo}
+          />
+
+          {datos.modo === 'Individual' ? (
+            <CampoFormulario
+              etiqueta="Máximo de participantes"
+              htmlFor="maximoParticipantes"
+              error={errores.maximoParticipantes}
+              ayuda="Indica cuántos participantes podrán ingresar a esta sesión individual."
+            >
+              <input
+                id="maximoParticipantes"
+                type="number"
+                min={MIN_PARTICIPANTES_INDIVIDUAL}
+                step={1}
+                placeholder="Ej: 10"
+                value={datos.maximoParticipantes}
+                onChange={(e) => actualizarCampo('maximoParticipantes', e.target.value)}
+                disabled={enviando}
+              />
+            </CampoFormulario>
+          ) : (
+            <>
+              <CampoFormulario
+                etiqueta="Máximo de equipos"
+                htmlFor="maximoEquipos"
+                error={errores.maximoEquipos}
+                ayuda="Indica cuántos equipos podrán participar en esta sesión grupal."
+              >
+                <input
+                  id="maximoEquipos"
+                  type="number"
+                  min={MIN_EQUIPOS}
+                  step={1}
+                  placeholder="Ej: 4"
+                  value={datos.maximoEquipos}
+                  onChange={(e) => actualizarCampo('maximoEquipos', e.target.value)}
+                  disabled={enviando}
+                />
+              </CampoFormulario>
+
+              <CampoFormulario
+                etiqueta="Participantes por equipo"
+                htmlFor="maximoParticipantesPorEquipo"
+                error={errores.maximoParticipantesPorEquipo}
+                ayuda="Indica cuántos integrantes podrá tener cada equipo."
+              >
+                <input
+                  id="maximoParticipantesPorEquipo"
+                  type="number"
+                  min={MIN_PARTICIPANTES_POR_EQUIPO}
+                  step={1}
+                  placeholder="Ej: 3"
+                  value={datos.maximoParticipantesPorEquipo}
+                  onChange={(e) =>
+                    actualizarCampo('maximoParticipantesPorEquipo', e.target.value)}
+                  disabled={enviando}
+                />
+              </CampoFormulario>
+            </>
+          )}
 
           <CampoFormulario
             etiqueta="Fecha y hora programada"

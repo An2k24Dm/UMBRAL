@@ -12,5 +12,6 @@ public sealed class MapeadorListadoSesionIndividual : MapeadorListadoSesionBase
         var individual = (SesionIndividual)sesion;
         dto.CantidadParticipantes = individual.Participantes.Count;
         dto.CantidadEquipos = 0;
+        dto.MaximoParticipantes = individual.MaximoParticipantes;
     }
 }

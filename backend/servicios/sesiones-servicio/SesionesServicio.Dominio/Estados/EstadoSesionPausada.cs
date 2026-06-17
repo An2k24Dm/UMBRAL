@@ -23,14 +23,11 @@ internal sealed class EstadoSesionPausada : IEstadoSesion
         => sesion.CambiarEstado(new EstadoSesionCancelada());
 
     public void Preparar(Sesion sesion) => throw new TransicionEstadoSesionInvalidaExcepcion(
-        Estado, nameof(Preparar),
-        "Una sesión Pausada no puede volver a EnPreparacion.");
+        Estado, nameof(Preparar));
 
     public void Iniciar(Sesion sesion) => throw new TransicionEstadoSesionInvalidaExcepcion(
-        Estado, nameof(Iniciar),
-        "Una sesión Pausada debe reanudarse, no iniciarse.");
+        Estado, nameof(Iniciar));
 
     public void Pausar(Sesion sesion) => throw new TransicionEstadoSesionInvalidaExcepcion(
-        Estado, nameof(Pausar),
-        "La sesión ya se encuentra Pausada.");
+        Estado, nameof(Pausar));
 }

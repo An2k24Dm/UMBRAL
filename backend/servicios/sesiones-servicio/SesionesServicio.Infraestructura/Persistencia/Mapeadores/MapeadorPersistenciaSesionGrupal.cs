@@ -7,12 +7,21 @@ public sealed class MapeadorPersistenciaSesionGrupal : IMapeadorPersistenciaSesi
 {
     private static readonly string Tipo = ModoSesion.Grupal.ToString();
 
+    // Respaldo técnico (no regla de dominio) para filas anteriores a la
+    // capacidad configurable, cuyas columnas pudieron quedar nulas. Las
+    // sesiones nuevas siempre persisten su capacidad real.
+    private const int CapacidadEquiposHistorica = 5;
+    private const int CapacidadParticipantesPorEquipoHistorica = 2;
+
     public bool Soporta(string tipoSesion)
         => string.Equals(tipoSesion, Tipo, StringComparison.OrdinalIgnoreCase);
 
     public void CompletarModelo(Sesion sesion, SesionModelo modelo)
     {
         var grupal = (SesionGrupal)sesion;
+
+        modelo.MaximoEquipos = grupal.MaximoEquipos;
+        modelo.MaximoParticipantesPorEquipo = grupal.MaximoParticipantesPorEquipo;
 
         modelo.Equipos = grupal.Equipos.Select(e => new EquipoModelo
         {
@@ -50,11 +59,17 @@ public sealed class MapeadorPersistenciaSesionGrupal : IMapeadorPersistenciaSesi
                 integrantes ?? Enumerable.Empty<Participante>());
         }).ToList();
 
+        var maximoEquipos = modelo.MaximoEquipos
+            ?? CapacidadEquiposHistorica;
+        var maximoParticipantesPorEquipo = modelo.MaximoParticipantesPorEquipo
+            ?? CapacidadParticipantesPorEquipoHistorica;
+
         return SesionGrupal.Rehidratar(
             modelo.Id, modelo.Nombre, modelo.Descripcion, modelo.Estado,
             modelo.FechaProgramada, modelo.CodigoAcceso,
             modelo.OperadorCreadorId, modelo.FechaCreacion,
             modelo.FechaInicioUtc, modelo.FechaFinalizacionUtc,
+            maximoEquipos, maximoParticipantesPorEquipo,
             misiones, equipos);
     }
 }

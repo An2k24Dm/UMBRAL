@@ -7,11 +7,6 @@ using MediatR;
 
 namespace IdentidadServicio.Aplicacion.CasosDeUso.Manejadores;
 
-// HU07: detalle/perfil de un Participante seleccionado desde la lista.
-// Reutiliza la fábrica de estrategias de mapeo de perfil (HU06) para no
-// duplicar el armado del DTO base. La fábrica resuelve EstrategiaMapeoPerfil
-// Participante porque el repositorio sólo devuelve Participantes (los
-// usuarios internos se filtran ahí).
 public sealed class ObtenerParticipanteDetalleManejador
     : IRequestHandler<ObtenerParticipanteDetalleConsulta, PerfilParticipanteDto>
 {

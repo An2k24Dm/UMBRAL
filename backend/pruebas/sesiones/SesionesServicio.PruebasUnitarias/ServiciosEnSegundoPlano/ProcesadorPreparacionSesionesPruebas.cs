@@ -29,7 +29,8 @@ public class ProcesadorPreparacionSesionesPruebas
             operadorCreadorId: Operador,
             fechaCreacion: AhoraUtc,
             fechaInicioUtc: null,
-            fechaFinalizacionUtc: null);
+            fechaFinalizacionUtc: null,
+            maximoParticipantes: 10);
 
     private static (ProcesadorPreparacionSesiones procesador,
                     Mock<IConsultasSesiones> consultas,

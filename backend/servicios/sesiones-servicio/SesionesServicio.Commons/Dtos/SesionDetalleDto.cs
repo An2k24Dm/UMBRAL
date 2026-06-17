@@ -13,6 +13,14 @@ public sealed class SesionDetalleDto
     public DateTime FechaCreacion { get; set; }
     public DateTime? FechaInicioUtc { get; set; }
     public DateTime? FechaFinalizacionUtc { get; set; }
+
+    // Capacidad configurada de la sesión. Solo se llena la que aplica al modo:
+    // MaximoParticipantes (Individual) o MaximoEquipos +
+    // MaximoParticipantesPorEquipo (Grupal).
+    public int? MaximoParticipantes { get; set; }
+    public int? MaximoEquipos { get; set; }
+    public int? MaximoParticipantesPorEquipo { get; set; }
+
     public List<SesionMisionDto> Misiones { get; set; } = new();
     public List<EquipoSesionDto> Equipos { get; set; } = new();
     public List<ParticipanteSesionDto> ParticipantesIndividuales { get; set; } = new();

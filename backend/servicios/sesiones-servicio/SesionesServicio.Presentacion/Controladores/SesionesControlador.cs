@@ -40,6 +40,24 @@ public sealed class SesionesControlador : ControllerBase
         return Created($"/api/sesiones/{resultado.Id}", resultado);
     }
 
+    // Modificar sesión. Solo Operador. El Operador solo puede modificar sus
+    // propias sesiones y únicamente si están en estado Programada. El
+    // Administrador no realiza acciones de escritura sobre sesiones.
+    [HttpPut("{id:guid}")]
+    [Authorize(Policy = "PoliticaSoloOperador")]
+    [ProducesResponseType(typeof(SesionDetalleDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> ModificarSesion(
+        Guid id, [FromBody] ModificarSesionDto dto, CancellationToken cancelacion)
+    {
+        var resultado = await _mediador.Send(new ModificarSesionComando(id, dto), cancelacion);
+        return Ok(resultado);
+    }
+
     // Listado de sesiones. Administrador ve todas, Operador sólo las propias.
     [HttpGet]
     [Authorize(Policy = "PoliticaAdministradorUOperador")]

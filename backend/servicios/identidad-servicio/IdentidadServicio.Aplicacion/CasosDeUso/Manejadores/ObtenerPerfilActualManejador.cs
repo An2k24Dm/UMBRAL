@@ -27,8 +27,6 @@ public sealed class ObtenerPerfilActualManejador
         var usuario = await _repositorioLectura.ObtenerPorIdKeycloakAsync(consulta.IdKeycloak, cancelacion)
                       ?? throw new DatosUsuarioInvalidosExcepcion("Usuario no registrado.");
 
-        // La fábrica devuelve la instancia derivada apropiada
-        // (PerfilAdministradorDto / PerfilOperadorDto / PerfilParticipanteDto).
         return _fabricaMapeo.Mapear(usuario);
     }
 }

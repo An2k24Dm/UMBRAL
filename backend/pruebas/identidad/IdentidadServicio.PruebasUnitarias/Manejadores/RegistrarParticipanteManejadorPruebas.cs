@@ -49,7 +49,7 @@ public class RegistrarParticipanteManejadorPruebas
         });
 
         return new RegistrarParticipanteManejador(
-            _unicidad.Object,
+            new ValidadorUnicidadUsuario(_unicidad.Object),
             _repositorio.Object,
             _unidad.Object,
             _proveedor.Object,

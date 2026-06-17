@@ -1,5 +1,4 @@
 using SesionesServicio.Dominio.Excepciones;
-using SesionesServicio.Dominio.Politicas;
 
 namespace SesionesServicio.Dominio.Entidades;
 
@@ -13,14 +12,10 @@ public sealed class Equipo
     public Guid LiderParticipanteId { get; private set; }
     public int Puntaje { get; private set; }
     public DateTime FechaCreacion { get; private set; }
-
     public IReadOnlyList<Participante> Participantes => _participantes.AsReadOnly();
 
     private Equipo() { }
 
-    // Crea el equipo con su líder ya incorporado como primer integrante.
-    // El Equipo y el Participante líder se crean en conjunto para que la
-    // invariante "el líder es integrante del equipo" no pueda violarse.
     internal static Equipo CrearConLider(
         Guid equipoId, Guid sesionId, string nombre,
         Participante lider, DateTime fechaCreacionUtc)
@@ -46,20 +41,16 @@ public sealed class Equipo
         return equipo;
     }
 
-    // Agrega un integrante. La unicidad por sesión (no estar en otro
-    // equipo de la misma sesión) la valida SesionGrupal, porque requiere
-    // mirar el resto de los equipos. Aquí sólo se protege la invariante
-    // local del equipo: tope de 2 y sin duplicar la misma identidad.
-    internal void AgregarParticipante(Participante participante)
+    internal void AgregarParticipante(Participante participante, int maximoParticipantes)
     {
         if (participante is null)
             throw new EquipoInvalidoExcepcion("El participante es obligatorio.");
         if (participante.EquipoId != Id)
             throw new EquipoInvalidoExcepcion(
                 "El participante no pertenece a este equipo.");
-        if (_participantes.Count >= PoliticaCapacidadSesion.MaximoParticipantesPorEquipo)
+        if (_participantes.Count >= maximoParticipantes)
             throw new EquipoInvalidoExcepcion(
-                $"Un equipo no puede superar {PoliticaCapacidadSesion.MaximoParticipantesPorEquipo} integrantes.");
+                "El equipo alcanzó el máximo de participantes permitido.");
         if (_participantes.Any(p => p.ParticipanteIdentidadId == participante.ParticipanteIdentidadId))
             throw new ParticipacionInvalidaExcepcion(
                 "El participante ya forma parte de este equipo.");
@@ -70,8 +61,8 @@ public sealed class Equipo
     public bool ContieneParticipanteIdentidadId(Guid participanteIdentidadId)
         => _participantes.Any(p => p.ParticipanteIdentidadId == participanteIdentidadId);
 
-    public bool EstaLleno()
-        => _participantes.Count >= PoliticaCapacidadSesion.MaximoParticipantesPorEquipo;
+    public bool EstaLleno(int maximoParticipantes)
+        => _participantes.Count >= maximoParticipantes;
 
     public void SumarPuntaje(int puntos)
     {

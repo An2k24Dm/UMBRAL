@@ -5,10 +5,6 @@ using MediatR;
 
 namespace IdentidadServicio.Aplicacion.CasosDeUso.Manejadores;
 
-// HU07: arma el listado paginado de Participantes para el panel web.
-// - Normaliza los parámetros (página >= 1, tamaño fijo en 10, orden válido).
-// - Delega la consulta al repositorio (que ya filtra por rol Participante).
-// - Mapea cada entidad a su DTO de listado.
 public sealed class ConsultarParticipantesManejador
     : IRequestHandler<ConsultarParticipantesConsulta, ResultadoPaginadoDto<ParticipanteListadoDto>>
 {

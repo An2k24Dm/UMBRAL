@@ -20,6 +20,6 @@ public static class FabricaEstadoSesion
         EstadoSesion.Cancelada => new EstadoSesionCancelada(),
         _ => throw new TransicionEstadoSesionInvalidaExcepcion(
             estado, "Crear",
-            "El estado de la sesión no es válido.")
+            MensajesTransicionEstadoSesion.EstadoNoValido)
     };
 }

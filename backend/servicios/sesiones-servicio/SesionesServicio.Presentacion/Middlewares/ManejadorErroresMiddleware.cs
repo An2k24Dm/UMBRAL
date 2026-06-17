@@ -80,6 +80,11 @@ public sealed class ManejadorErroresMiddleware
             await EscribirCodigoAsync(contexto, HttpStatusCode.NotFound,
                 "SESION_NO_ENCONTRADA", ex.Message);
         }
+        catch (SesionNoModificableExcepcion ex)
+        {
+            await EscribirCodigoAsync(contexto, HttpStatusCode.Conflict,
+                "SESION_NO_MODIFICABLE", ex.Message);
+        }
         catch (AccesoSesionNoPermitidoExcepcion ex)
         {
             await EscribirCodigoAsync(contexto, HttpStatusCode.Forbidden,

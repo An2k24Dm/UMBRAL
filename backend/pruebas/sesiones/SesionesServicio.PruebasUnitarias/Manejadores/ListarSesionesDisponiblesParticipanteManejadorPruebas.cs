@@ -49,6 +49,7 @@ public class ListarSesionesDisponiblesParticipanteManejadorPruebas
             fechaCreacion: AhoraUtc,
             fechaInicioUtc: null,
             fechaFinalizacionUtc: null,
+            maximoParticipantes: 12,
             misiones: new[] { SesionMision.Rehidratar(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), 1) });
     }
 
@@ -65,6 +66,8 @@ public class ListarSesionesDisponiblesParticipanteManejadorPruebas
             fechaCreacion: AhoraUtc,
             fechaInicioUtc: null,
             fechaFinalizacionUtc: null,
+            maximoEquipos: 6,
+            maximoParticipantesPorEquipo: 2,
             misiones: new[] { SesionMision.Rehidratar(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), 1) });
     }
 
@@ -121,8 +124,8 @@ public class ListarSesionesDisponiblesParticipanteManejadorPruebas
 
         var dto = resultado.Single();
         dto.Modo.Should().Be("Individual");
-        dto.CapacidadMaximaParticipantes.Should().Be(
-            PoliticaCapacidadSesion.MaximoParticipantesIndividual);
+        // La capacidad expuesta es la propia de la sesión, no una constante global.
+        dto.CapacidadMaximaParticipantes.Should().Be(12);
         dto.CapacidadMaximaEquipos.Should().BeNull();
     }
 
@@ -143,8 +146,7 @@ public class ListarSesionesDisponiblesParticipanteManejadorPruebas
 
         var dto = resultado.Single();
         dto.Modo.Should().Be("Grupal");
-        dto.CapacidadMaximaEquipos.Should().Be(
-            PoliticaCapacidadSesion.MaximoEquiposPorSesion);
+        dto.CapacidadMaximaEquipos.Should().Be(6);
         dto.CapacidadMaximaParticipantes.Should().BeNull();
     }
 

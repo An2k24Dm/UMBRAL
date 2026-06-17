@@ -12,5 +12,7 @@ public sealed class MapeadorListadoSesionGrupal : MapeadorListadoSesionBase
         var grupal = (SesionGrupal)sesion;
         dto.CantidadEquipos = grupal.Equipos.Count;
         dto.CantidadParticipantes = 0;
+        dto.MaximoEquipos = grupal.MaximoEquipos;
+        dto.MaximoParticipantesPorEquipo = grupal.MaximoParticipantesPorEquipo;
     }
 }

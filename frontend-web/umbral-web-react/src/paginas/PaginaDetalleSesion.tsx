@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { LayoutPanel } from '../componentes/LayoutPanel'
 import { Alerta } from '../componentes/Alerta'
 import { Boton } from '../componentes/Boton'
@@ -67,10 +67,16 @@ export function PaginaDetalleSesion() {
   const { id } = useParams<{ id: string }>()
   const { token, usuario } = usarAutenticacion()
   const navegar = useNavigate()
+  const ubicacion = useLocation()
   const rutaListado = usuario?.rol === 'Administrador'
     ? '/administrador/sesiones'
     : '/operador/sesiones'
   const rutaBaseEquipos = `${rutaListado}/${id}/equipos`
+
+  // Solo el Operador puede editar sesiones (el Administrador es de solo
+  // lectura). El mensaje de éxito llega como state al volver de la edición.
+  const esOperador = usuario?.rol === 'Operador'
+  const mensajeExito = (ubicacion.state as { mensajeExito?: string } | null)?.mensajeExito
 
   const [estado, setEstado] = useState<'cargando' | 'error' | 'listo'>('cargando')
   const [mensajeError, setMensajeError] = useState<string | null>(null)
@@ -200,11 +206,42 @@ export function PaginaDetalleSesion() {
       titulo="Detalle de sesión"
       descripcion="Información completa de la sesión y de sus misiones asociadas."
     >
-      <div style={{ marginBottom: 'var(--espacio-4)' }}>
+      <div
+        style={{
+          marginBottom: 'var(--espacio-4)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: 'var(--espacio-3)',
+          flexWrap: 'wrap'
+        }}
+      >
         <Boton variante="volver" onClick={() => navegar(rutaListado)}>
           ← Volver a sesiones
         </Boton>
+
+        {/* Editar: solo Operador. Activo solo si la sesión está Programada. */}
+        {esOperador && (
+          sesion.estado === 'Programada' ? (
+            <Boton
+              variante="primario"
+              onClick={() => navegar(`${rutaListado}/${sesion.id}/editar`)}
+            >
+              Editar
+            </Boton>
+          ) : (
+            <Boton
+              variante="primario"
+              disabled
+              title="Solo se pueden editar sesiones en estado Programada."
+            >
+              Editar
+            </Boton>
+          )
+        )}
       </div>
+
+      {mensajeExito && <Alerta tono="exito">{mensajeExito}</Alerta>}
 
       {/* Cabecera con nombre + badge de estado + código de acceso */}
       <section className="seccion">
@@ -343,7 +380,7 @@ export function PaginaDetalleSesion() {
           <div className="detalle-subtitulo">
             <div>
               <h3>Participantes individuales</h3>
-              <p>Participantes: {sesion.participantesIndividuales.length} / 10</p>
+              <p>Participantes: {sesion.participantesIndividuales.length} / {sesion.maximoParticipantes ?? '—'}</p>
             </div>
           </div>
           {sesion.participantesIndividuales.length === 0 ? (
@@ -381,7 +418,7 @@ export function PaginaDetalleSesion() {
           <div className="detalle-subtitulo">
             <div>
               <h3>Equipos</h3>
-              <p>Equipos: {sesion.equipos.length} / 5</p>
+              <p>Equipos: {sesion.equipos.length} / {sesion.maximoEquipos ?? '—'}</p>
             </div>
           </div>
           {sesion.equipos.length === 0 ? (
@@ -405,7 +442,7 @@ export function PaginaDetalleSesion() {
                   <tr key={eq.id}>
                     <td>{idx + 1}</td>
                     <td>{eq.nombre}</td>
-                    <td>{eq.participantes.length} / 2</td>
+                    <td>{eq.participantes.length} / {sesion.maximoParticipantesPorEquipo ?? '—'}</td>
                     <td>{eq.puntajeActual}</td>
                     <td>{formatearFechaSesion(eq.fechaCreacion)}</td>
                     <td>

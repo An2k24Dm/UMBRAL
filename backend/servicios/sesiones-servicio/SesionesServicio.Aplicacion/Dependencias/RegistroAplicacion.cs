@@ -2,6 +2,7 @@ using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using SesionesServicio.Aplicacion.CasosDeUso.Comandos;
 using SesionesServicio.Aplicacion.Mapeadores;
+using SesionesServicio.Aplicacion.Puertos;
 using SesionesServicio.Aplicacion.Validaciones;
 using SesionesServicio.Dominio.Abstract;
 using SesionesServicio.Dominio.Fabricas;
@@ -15,6 +16,11 @@ public static class RegistroAplicacion
         var ensamblado = Assembly.GetExecutingAssembly();
         servicios.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(ensamblado));
         servicios.AddScoped<IValidador<CrearSesionComando>, ValidadorCrearSesion>();
+        servicios.AddScoped<IValidador<ModificarSesionComando>, ValidadorModificarSesion>();
+
+        // Servicio de aplicación reutilizado por crear y modificar sesión para
+        // validar las misiones contra juegos-servicio (existencia/activa/etapas).
+        servicios.AddScoped<IValidadorMisionesSesion, ValidadorMisionesSesion>();
 
         // Factory Pattern para creación de sesiones. Los creadores son
         // stateless; agregar un nuevo tipo de sesión solo requiere registrar
