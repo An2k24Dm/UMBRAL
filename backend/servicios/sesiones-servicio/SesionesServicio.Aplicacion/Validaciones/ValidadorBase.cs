@@ -1,3 +1,5 @@
+using SesionesServicio.Aplicacion.Puertos;
+
 namespace SesionesServicio.Aplicacion.Validaciones;
 
 // Misma estructura "template method" usada en identidad-servicio: el

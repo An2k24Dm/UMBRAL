@@ -4,9 +4,6 @@ using SesionesServicio.Dominio.Excepciones;
 
 namespace SesionesServicio.Dominio.Fabricas;
 
-// Recibe todos los ICreadorSesion registrados y selecciona el que soporta
-// el modo solicitado. No usa switch/if encadenados ni ternarios por tipo:
-// la decisión la encapsula cada creador en su método Soporta.
 public sealed class FabricaSesion : IFabricaSesion
 {
     private readonly IEnumerable<ICreadorSesion> _creadores;
@@ -16,24 +13,31 @@ public sealed class FabricaSesion : IFabricaSesion
         _creadores = creadores;
     }
 
-    public Sesion Crear(
-        string modo,
-        string nombre,
-        string descripcion,
-        DateTime fechaProgramada,
-        string codigoAcceso,
-        Guid operadorCreadorId,
-        DateTime fechaCreacionUtc)
+    public Sesion Crear(DatosCreacionSesion datos)
     {
-        if (string.IsNullOrWhiteSpace(modo))
+        if (datos is null)
+            throw new SesionInvalidaExcepcion("Los datos de creación son obligatorios.");
+        if (string.IsNullOrWhiteSpace(datos.Modo))
             throw new SesionInvalidaExcepcion("El modo de la sesión es obligatorio.");
 
-        var creador = _creadores.FirstOrDefault(c => c.Soporta(modo))
+        var creador = _creadores.FirstOrDefault(c => c.Soporta(datos.Modo))
             ?? throw new SesionInvalidaExcepcion(
-                $"No existe un creador de sesión para el modo '{modo}'.");
+                $"No existe un creador de sesión para el modo '{datos.Modo}'.");
 
-        return creador.Crear(
-            nombre, descripcion, fechaProgramada,
-            codigoAcceso, operadorCreadorId, fechaCreacionUtc);
+        return creador.Crear(datos);
+    }
+
+    public Sesion Reconstruir(DatosReconstruccionSesion datos)
+    {
+        if (datos is null)
+            throw new SesionInvalidaExcepcion("Los datos de reconstrucción son obligatorios.");
+        if (string.IsNullOrWhiteSpace(datos.Modo))
+            throw new SesionInvalidaExcepcion("El modo de la sesión es obligatorio.");
+
+        var creador = _creadores.FirstOrDefault(c => c.Soporta(datos.Modo))
+            ?? throw new SesionInvalidaExcepcion(
+                $"No existe un creador de sesión para el modo '{datos.Modo}'.");
+
+        return creador.Reconstruir(datos);
     }
 }

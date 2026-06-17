@@ -30,6 +30,9 @@ public sealed class ContextoSesiones : DbContext
             e.Property(x => x.FechaCreacion).HasColumnName("fecha_creacion").IsRequired();
             e.Property(x => x.FechaInicioUtc).HasColumnName("fecha_inicio_utc");
             e.Property(x => x.FechaFinalizacionUtc).HasColumnName("fecha_finalizacion_utc");
+            e.Property(x => x.MaximoParticipantes).HasColumnName("maximo_participantes");
+            e.Property(x => x.MaximoEquipos).HasColumnName("maximo_equipos");
+            e.Property(x => x.MaximoParticipantesPorEquipo).HasColumnName("maximo_participantes_por_equipo");
 
             e.HasIndex(x => x.Estado);
             e.HasIndex(x => x.FechaProgramada);

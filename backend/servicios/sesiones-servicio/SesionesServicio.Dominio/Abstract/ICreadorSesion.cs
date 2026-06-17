@@ -1,4 +1,5 @@
 using SesionesServicio.Dominio.Entidades;
+using SesionesServicio.Dominio.Fabricas;
 
 namespace SesionesServicio.Dominio.Abstract;
 
@@ -11,11 +12,10 @@ public interface ICreadorSesion
 {
     bool Soporta(string modo);
 
-    Sesion Crear(
-        string nombre,
-        string descripcion,
-        DateTime fechaProgramada,
-        string codigoAcceso,
-        Guid operadorCreadorId,
-        DateTime fechaCreacionUtc);
+    Sesion Crear(DatosCreacionSesion datos);
+
+    // Reconstruye una sesión existente como este tipo, conservando su
+    // identidad (Id, código de acceso, estado, fechas, operador). Se usa al
+    // cambiar el modo de una sesión sin participantes ni equipos.
+    Sesion Reconstruir(DatosReconstruccionSesion datos);
 }

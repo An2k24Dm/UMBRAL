@@ -16,8 +16,8 @@ using SesionesServicio.Dominio.Fabricas;
 namespace SesionesServicio.PruebasUnitarias.Manejadores;
 
 // Cubre la orquestación de CrearSesionManejador: rol Operador, fecha
-// futura, validación de misiones contra juegos-servicio, FabricaSesiones
-// instanciando la subclase correcta y la sesión naciendo vacía.
+// futura, validación de misiones contra juegos-servicio, la fábrica
+// (IFabricaSesion) instanciando la subclase correcta y la sesión naciendo vacía.
 public class CrearSesionManejadorPruebas
 {
     private static readonly DateTime AhoraUtc = new(2026, 6, 3, 12, 0, 0, DateTimeKind.Utc);
@@ -79,8 +79,8 @@ public class CrearSesionManejadorPruebas
 
         public CrearSesionManejador Construir()
             => new(new ValidadorCrearSesion(), Repo.Object, Unidad.Object,
-                Usuario.Object, Misiones.Object, Generador.Object, Reloj.Object,
-                FabricaSesionReal);
+                Usuario.Object, new ValidadorMisionesSesion(Misiones.Object),
+                Generador.Object, Reloj.Object, FabricaSesionReal);
     }
 
     private static CrearSesionSolicitudDto DtoValido(
@@ -90,7 +90,11 @@ public class CrearSesionManejadorPruebas
             Descripcion = "Demo",
             Modo = modo,
             FechaProgramada = AhoraUtc.AddHours(1),
-            MisionesIds = misiones ?? new List<Guid> { MisionA }
+            MisionesIds = misiones ?? new List<Guid> { MisionA },
+            // Capacidad para ambos modos; el creador toma la que aplica.
+            MaximoParticipantes = 10,
+            MaximoEquipos = 5,
+            MaximoParticipantesPorEquipo = 2
         };
 
     [Fact]
@@ -124,6 +128,57 @@ public class CrearSesionManejadorPruebas
         respuesta.Modo.Should().Be("Grupal");
         ctx.Persistida.Should().BeOfType<SesionGrupal>();
         ((SesionGrupal)ctx.Persistida!).Equipos.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Operador_CreaSesionIndividual_GuardaCapacidadConfigurada()
+    {
+        var ctx = new Contexto();
+        var dto = DtoValido("Individual");
+        dto.MaximoParticipantes = 25;
+
+        await ctx.Construir().Handle(new CrearSesionComando(dto), CancellationToken.None);
+
+        ((SesionIndividual)ctx.Persistida!).MaximoParticipantes.Should().Be(25);
+    }
+
+    [Fact]
+    public async Task Operador_CreaSesionGrupal_GuardaCapacidadesConfiguradas()
+    {
+        var ctx = new Contexto();
+        var dto = DtoValido("Grupal");
+        dto.MaximoEquipos = 8;
+        dto.MaximoParticipantesPorEquipo = 4;
+
+        await ctx.Construir().Handle(new CrearSesionComando(dto), CancellationToken.None);
+
+        var grupal = (SesionGrupal)ctx.Persistida!;
+        grupal.MaximoEquipos.Should().Be(8);
+        grupal.MaximoParticipantesPorEquipo.Should().Be(4);
+    }
+
+    [Fact]
+    public async Task SesionIndividual_SinCapacidad_LanzaValidacion()
+    {
+        var ctx = new Contexto();
+        var dto = DtoValido("Individual");
+        dto.MaximoParticipantes = null;
+
+        Func<Task> accion = () => ctx.Construir().Handle(
+            new CrearSesionComando(dto), CancellationToken.None);
+        await accion.Should().ThrowAsync<ExcepcionValidacion>();
+    }
+
+    [Fact]
+    public async Task SesionGrupal_SinCapacidadDeEquipos_LanzaValidacion()
+    {
+        var ctx = new Contexto();
+        var dto = DtoValido("Grupal");
+        dto.MaximoEquipos = null;
+
+        Func<Task> accion = () => ctx.Construir().Handle(
+            new CrearSesionComando(dto), CancellationToken.None);
+        await accion.Should().ThrowAsync<ExcepcionValidacion>();
     }
 
     [Fact]

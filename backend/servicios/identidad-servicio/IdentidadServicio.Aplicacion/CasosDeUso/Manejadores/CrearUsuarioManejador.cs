@@ -15,7 +15,7 @@ namespace IdentidadServicio.Aplicacion.CasosDeUso.Manejadores;
 public sealed class CrearUsuarioManejador
     : IRequestHandler<CrearUsuarioComando, CrearUsuarioRespuestaDto>
 {
-    private readonly IRepositorioUnicidadUsuario _unicidad;
+    private readonly ValidadorUnicidadUsuario _validadorUnicidad;
     private readonly IRepositorioOperadores _repositorioOperadores;
     private readonly IRepositorioAdministradores _repositorioAdministradores;
     private readonly IRepositorioControlContrasenaTemporal _controlContrasena;
@@ -29,7 +29,7 @@ public sealed class CrearUsuarioManejador
     private readonly ILogger<CrearUsuarioManejador> _registro;
 
     public CrearUsuarioManejador(
-        IRepositorioUnicidadUsuario unicidad,
+        ValidadorUnicidadUsuario validadorUnicidad,
         IRepositorioOperadores repositorioOperadores,
         IRepositorioAdministradores repositorioAdministradores,
         IRepositorioControlContrasenaTemporal controlContrasena,
@@ -42,7 +42,7 @@ public sealed class CrearUsuarioManejador
         IServicioCorreo correo,
         ILogger<CrearUsuarioManejador> registro)
     {
-        _unicidad = unicidad;
+        _validadorUnicidad = validadorUnicidad;
         _repositorioOperadores = repositorioOperadores;
         _repositorioAdministradores = repositorioAdministradores;
         _controlContrasena = controlContrasena;
@@ -63,7 +63,7 @@ public sealed class CrearUsuarioManejador
 
         _validador.Validar(comando).LanzarSiHayErrores();
 
-        await ValidarDuplicadosAsync(dto, cancelacion);
+        await _validadorUnicidad.ValidarCreacionUsuarioAsync(dto, cancelacion);
 
         var estrategia = _fabrica.Obtener(dto.TipoUsuario);
 
@@ -150,27 +150,6 @@ public sealed class CrearUsuarioManejador
         Administrador a => a.CodigoAdministrador,
         _ => null
     };
-
-    private async Task ValidarDuplicadosAsync(
-        CrearUsuarioDto dto, CancellationToken cancelacion)
-    {
-        var resultado = ResultadoValidacion.Exitoso();
-
-        if (await _unicidad.ExisteNombreUsuarioAsync(dto.NombreUsuario, cancelacion))
-            resultado.Agregar(MensajesValidacionUsuario.CampoNombreUsuario,
-                MensajesValidacionUsuario.NombreUsuarioDuplicado);
-
-        if (await _unicidad.ExisteCorreoAsync(dto.Correo, cancelacion))
-            resultado.Agregar(MensajesValidacionUsuario.CampoCorreo,
-                MensajesValidacionUsuario.CorreoDuplicado);
-
-        if (!string.IsNullOrWhiteSpace(dto.DatosContacto?.Telefono) &&
-            await _unicidad.ExisteTelefonoAsync(dto.DatosContacto!.Telefono!, cancelacion))
-            resultado.Agregar(MensajesValidacionUsuario.CampoTelefono,
-                MensajesValidacionUsuario.TelefonoDuplicado);
-
-        resultado.LanzarSiHayErrores();
-    }
 
     private async Task EnviarCorreoCreacionAsync(
         Usuario usuario, string contrasenaTemporal, CancellationToken cancelacion)

@@ -18,6 +18,9 @@ public sealed class SesionModelo
     public DateTime FechaCreacion { get; set; }
     public DateTime? FechaInicioUtc { get; set; }
     public DateTime? FechaFinalizacionUtc { get; set; }
+    public int? MaximoParticipantes { get; set; }
+    public int? MaximoEquipos { get; set; }
+    public int? MaximoParticipantesPorEquipo { get; set; }
 
     public List<SesionMisionModelo> Misiones { get; set; } = new();
     public List<EquipoModelo> Equipos { get; set; } = new();

@@ -1,12 +1,10 @@
 using SesionesServicio.Aplicacion.CasosDeUso.Comandos;
+using SesionesServicio.Commons.Dtos;
 using SesionesServicio.Dominio.Enums;
 using SesionesServicio.Dominio.Politicas;
 
 namespace SesionesServicio.Aplicacion.Validaciones;
 
-// Valida el DTO de creación de sesión. Reglas que dependen de sistemas
-// externos (existencia de misión, rol del usuario, fecha futura via
-// política) viven en el manejador.
 public sealed class ValidadorCrearSesion : ValidadorBase<CrearSesionComando>
 {
     private const int LongitudMinimaNombre = 3;
@@ -40,11 +38,15 @@ public sealed class ValidadorCrearSesion : ValidadorBase<CrearSesionComando>
                 "descripcion",
                 $"La descripción no puede superar los {LongitudMaximaDescripcion} caracteres.");
 
-        if (!Enum.TryParse<ModoSesion>(dto.Modo, ignoreCase: true, out var modoParseado)
-            || !Enum.IsDefined(typeof(ModoSesion), modoParseado))
+        var modoValido =
+            Enum.TryParse<ModoSesion>(dto.Modo, ignoreCase: true, out var modoParseado)
+            && Enum.IsDefined(typeof(ModoSesion), modoParseado);
+        if (!modoValido)
             resultado.Agregar(
                 "modo",
                 "El modo es obligatorio y debe ser Individual o Grupal.");
+        else
+            ValidarCapacidad(modoParseado, dto, resultado);
 
         if (dto.FechaProgramada == default)
             resultado.Agregar(
@@ -71,5 +73,38 @@ public sealed class ValidadorCrearSesion : ValidadorBase<CrearSesionComando>
             if (misiones.Distinct().Count() != misiones.Count)
                 resultado.Agregar("misionesIds", "No se pueden repetir misiones.");
         }
+    }
+    
+    // Solo valida presencia y el mínimo de negocio de cada campo. La capacidad
+    // máxima la decide el operador; no hay topes superiores arbitrarios.
+    private static void ValidarCapacidad(
+        ModoSesion modo, CrearSesionSolicitudDto dto, ResultadoValidacion resultado)
+    {
+        if (modo == ModoSesion.Individual)
+        {
+            ValidarMinimo(
+                dto.MaximoParticipantes, "maximoParticipantes", "el máximo de participantes",
+                PoliticaCapacidadSesion.MinimoParticipantesIndividual, resultado);
+        }
+        else if (modo == ModoSesion.Grupal)
+        {
+            ValidarMinimo(
+                dto.MaximoEquipos, "maximoEquipos", "el máximo de equipos",
+                PoliticaCapacidadSesion.MinimoEquiposPorSesion, resultado);
+            ValidarMinimo(
+                dto.MaximoParticipantesPorEquipo, "maximoParticipantesPorEquipo",
+                "el máximo de participantes por equipo",
+                PoliticaCapacidadSesion.MinimoParticipantesPorEquipo, resultado);
+        }
+    }
+
+    private static void ValidarMinimo(
+        int? valor, string campo, string descripcion,
+        int minimo, ResultadoValidacion resultado)
+    {
+        if (valor is null)
+            resultado.Agregar(campo, $"Debe indicar {descripcion}.");
+        else if (valor < minimo)
+            resultado.Agregar(campo, $"El valor de {descripcion} debe ser al menos {minimo}.");
     }
 }

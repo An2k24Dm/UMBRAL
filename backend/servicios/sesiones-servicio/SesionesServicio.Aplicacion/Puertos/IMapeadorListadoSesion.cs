@@ -1,7 +1,7 @@
 using SesionesServicio.Commons.Dtos;
 using SesionesServicio.Dominio.Entidades;
 
-namespace SesionesServicio.Aplicacion.Mapeadores;
+namespace SesionesServicio.Aplicacion.Puertos;
 
 // Strategy de mapeo de una Sesion concreta a SesionListadoDto (incluye los
 // conteos que dependen del tipo: participantes o equipos).

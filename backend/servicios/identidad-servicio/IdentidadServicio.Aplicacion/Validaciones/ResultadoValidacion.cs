@@ -5,8 +5,6 @@ public sealed class ResultadoValidacion
     public bool EsValido => Errores.Count == 0;
     public List<ErrorValidacion> Errores { get; } = new();
 
-    // Fábrica explícita: deja a la vista que un validador comienza siempre con
-    // un resultado vacío y va agregando errores conforme detecta problemas.
     public static ResultadoValidacion Exitoso() => new();
 
     public void Agregar(string campo, string mensaje)

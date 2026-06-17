@@ -64,7 +64,7 @@ public class CrearUsuarioManejadorPruebas
         });
 
         return new CrearUsuarioManejador(
-            _unicidad.Object,
+            new ValidadorUnicidadUsuario(_unicidad.Object),
             _repoOperadores.Object,
             _repoAdministradores.Object,
             _controlContrasena.Object,

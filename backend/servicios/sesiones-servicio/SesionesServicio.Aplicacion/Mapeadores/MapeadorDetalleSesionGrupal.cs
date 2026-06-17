@@ -10,6 +10,8 @@ public sealed class MapeadorDetalleSesionGrupal : MapeadorDetalleSesionBase
     protected override void CompletarEspecifico(Sesion sesion, SesionDetalleDto dto)
     {
         var grupal = (SesionGrupal)sesion;
+        dto.MaximoEquipos = grupal.MaximoEquipos;
+        dto.MaximoParticipantesPorEquipo = grupal.MaximoParticipantesPorEquipo;
         dto.Equipos = grupal.Equipos
             .Select(e => new EquipoSesionDto
             {

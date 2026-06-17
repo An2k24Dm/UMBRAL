@@ -1,6 +1,5 @@
 using SesionesServicio.Commons.Dtos;
 using SesionesServicio.Dominio.Entidades;
-using SesionesServicio.Dominio.Politicas;
 
 namespace SesionesServicio.Aplicacion.Mapeadores;
 
@@ -12,7 +11,6 @@ public sealed class MapeadorSesionDisponibleMovilGrupal : MapeadorSesionDisponib
     {
         var grupal = (SesionGrupal)sesion;
         dto.CantidadEquiposActuales = grupal.Equipos.Count;
-        dto.CapacidadMaximaEquipos =
-            PoliticaCapacidadSesion.MaximoEquiposPorSesion;
+        dto.CapacidadMaximaEquipos = grupal.MaximoEquipos;
     }
 }

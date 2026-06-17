@@ -1,3 +1,5 @@
+using IdentidadServicio.Aplicacion.Puertos;
+
 namespace IdentidadServicio.Aplicacion.Validaciones;
 
 public abstract class ValidadorBase<TSolicitud> : IValidador<TSolicitud>

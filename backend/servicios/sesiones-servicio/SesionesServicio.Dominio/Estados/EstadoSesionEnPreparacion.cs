@@ -19,18 +19,14 @@ internal sealed class EstadoSesionEnPreparacion : IEstadoSesion
         => sesion.CambiarEstado(new EstadoSesionCancelada());
 
     public void Preparar(Sesion sesion) => throw new TransicionEstadoSesionInvalidaExcepcion(
-        Estado, nameof(Preparar),
-        "La sesión ya se encuentra en preparación.");
+        Estado, nameof(Preparar));
 
     public void Pausar(Sesion sesion) => throw new TransicionEstadoSesionInvalidaExcepcion(
-        Estado, nameof(Pausar),
-        "Una sesión EnPreparacion no puede pausarse: debe iniciarse primero.");
+        Estado, nameof(Pausar));
 
     public void Reanudar(Sesion sesion) => throw new TransicionEstadoSesionInvalidaExcepcion(
-        Estado, nameof(Reanudar),
-        "Una sesión EnPreparacion no puede reanudarse.");
+        Estado, nameof(Reanudar));
 
     public void Finalizar(Sesion sesion) => throw new TransicionEstadoSesionInvalidaExcepcion(
-        Estado, nameof(Finalizar),
-        "Una sesión EnPreparacion no puede finalizarse sin haberse iniciado.");
+        Estado, nameof(Finalizar));
 }

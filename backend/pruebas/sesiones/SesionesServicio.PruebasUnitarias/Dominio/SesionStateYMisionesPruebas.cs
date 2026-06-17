@@ -3,7 +3,6 @@ using System.Linq;
 using SesionesServicio.Dominio.Entidades;
 using SesionesServicio.Dominio.Enums;
 using SesionesServicio.Dominio.Excepciones;
-using SesionesServicio.Dominio.Factorias;
 using SesionesServicio.Dominio.Politicas;
 
 namespace SesionesServicio.PruebasUnitarias.Dominio;
@@ -16,12 +15,14 @@ public class SesionStateYMisionesPruebas
     private static readonly Guid Operador = Guid.Parse("44444444-4444-4444-4444-444444444444");
 
     private static SesionIndividual NuevaIndividual()
-        => FabricaSesiones.CrearIndividual(
-            "I", "Demo", AhoraUtc.AddHours(1), "I-ABC", Operador, AhoraUtc);
+        => SesionIndividual.Crear(
+            "I", "Demo", AhoraUtc.AddHours(1), "I-ABC", Operador, AhoraUtc,
+            maximoParticipantes: 10);
 
     private static SesionGrupal NuevaGrupal()
-        => FabricaSesiones.CrearGrupal(
-            "G", "Demo", AhoraUtc.AddHours(1), "G-DEF", Operador, AhoraUtc);
+        => SesionGrupal.Crear(
+            "G", "Demo", AhoraUtc.AddHours(1), "G-DEF", Operador, AhoraUtc,
+            maximoEquipos: 5, maximoParticipantesPorEquipo: 2);
 
     [Fact]
     public void Individual_TransitaProgramadaAEnPreparacionActivaPausadaActivaFinalizada()

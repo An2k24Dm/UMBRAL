@@ -4,13 +4,6 @@ using IdentidadServicio.Dominio.ObjetosDeValor;
 
 namespace IdentidadServicio.Dominio.Entidades;
 
-// Clase base abstracta del dominio.
-// - NombreUsuario es el username de Keycloak (p. ej. "operador01") y NO es el
-//   correo. Se valida como identificador alfanumérico.
-// - Correo es el email del usuario (p. ej. "operador@umbral.com"). Es un VO
-//   independiente y NO está dentro de DatosContacto.
-// - El dominio NO conoce IdKeycloak (vive en UsuarioModelo).
-// - La fecha de registro se recibe por parámetro desde IProveedorFechaHora.
 public abstract class Usuario
 {
     public Guid Id { get; protected set; }

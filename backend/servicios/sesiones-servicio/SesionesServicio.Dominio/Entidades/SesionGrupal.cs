@@ -7,20 +7,27 @@ namespace SesionesServicio.Dominio.Entidades;
 public sealed class SesionGrupal : Sesion
 {
     private readonly List<Equipo> _equipos = new();
-
     public IReadOnlyList<Equipo> Equipos => _equipos.AsReadOnly();
-
+    public int MaximoEquipos { get; private set; }
+    public int MaximoParticipantesPorEquipo { get; private set; }
     public override string TipoSesion => "Grupal";
+    public override bool TieneInscritos => _equipos.Count > 0;
 
     private SesionGrupal() { }
 
     public static SesionGrupal Crear(
         string nombre, string descripcion, DateTime fechaProgramada,
-        string codigoAcceso, Guid operadorCreadorId, DateTime fechaCreacionUtc)
+        string codigoAcceso, Guid operadorCreadorId, DateTime fechaCreacionUtc,
+        int maximoEquipos, int maximoParticipantesPorEquipo)
     {
+        PoliticaCapacidadSesion.ValidarCapacidadGrupal(
+            maximoEquipos, maximoParticipantesPorEquipo);
+
         var sesion = new SesionGrupal();
         sesion.InicializarBase(nombre, descripcion, fechaProgramada,
             codigoAcceso, operadorCreadorId, fechaCreacionUtc);
+        sesion.MaximoEquipos = maximoEquipos;
+        sesion.MaximoParticipantesPorEquipo = maximoParticipantesPorEquipo;
         return sesion;
     }
 
@@ -32,9 +39,9 @@ public sealed class SesionGrupal : Sesion
     {
         if (liderIdentidadId == Guid.Empty)
             throw new EquipoInvalidoExcepcion("El líder del equipo es obligatorio.");
-        if (_equipos.Count >= PoliticaCapacidadSesion.MaximoEquiposPorSesion)
+        if (_equipos.Count >= MaximoEquipos)
             throw new EquipoInvalidoExcepcion(
-                $"La sesión ya alcanzó el máximo de {PoliticaCapacidadSesion.MaximoEquiposPorSesion} equipos.");
+                "La sesión grupal alcanzó el máximo de equipos permitido.");
 
         var nombreNormalizado = (nombreEquipo ?? string.Empty).Trim();
         if (string.IsNullOrWhiteSpace(nombreNormalizado))
@@ -47,9 +54,6 @@ public sealed class SesionGrupal : Sesion
             throw new ParticipacionInvalidaExcepcion(
                 "El participante ya forma parte de otro equipo de esta sesión.");
 
-        // Generamos el id del equipo primero para que el Participante
-        // líder pueda nacer con su EquipoId asignado y la invariante
-        // "el líder pertenece al equipo" quede protegida desde el inicio.
         var equipoId = Guid.NewGuid();
         var lider = Participante.CrearParaEquipo(
             Id, equipoId, liderIdentidadId, fechaUnionSesionUtc, fechaUnionEquipoUtc);
@@ -76,14 +80,40 @@ public sealed class SesionGrupal : Sesion
             throw new ParticipacionInvalidaExcepcion(
                 "El participante ya forma parte de un equipo de esta sesión.");
 
-        if (equipo.EstaLleno())
+        if (equipo.EstaLleno(MaximoParticipantesPorEquipo))
             throw new EquipoInvalidoExcepcion(
-                $"El equipo ya tiene {PoliticaCapacidadSesion.MaximoParticipantesPorEquipo} integrantes.");
+                "El equipo alcanzó el máximo de participantes permitido.");
 
         var participante = Participante.CrearParaEquipo(
             Id, equipoId, participanteIdentidadId, fechaUnionSesionUtc, fechaUnionEquipoUtc);
-        equipo.AgregarParticipante(participante);
+        equipo.AgregarParticipante(participante, MaximoParticipantesPorEquipo);
         return participante;
+    }
+
+    public void ModificarCapacidad(int maximoEquipos, int maximoParticipantesPorEquipo)
+    {
+        GarantizarModificable();
+        PoliticaCapacidadSesion.ValidarCapacidadGrupal(maximoEquipos, maximoParticipantesPorEquipo);
+        if (_equipos.Count > maximoEquipos)
+            throw new SesionInvalidaExcepcion(
+                "No se puede establecer una capacidad menor a la cantidad de equipos actuales.");
+        if (_equipos.Any(e => e.Participantes.Count > maximoParticipantesPorEquipo))
+            throw new SesionInvalidaExcepcion(
+                "No se puede establecer una capacidad por equipo menor a la cantidad de integrantes actuales.");
+        MaximoEquipos = maximoEquipos;
+        MaximoParticipantesPorEquipo = maximoParticipantesPorEquipo;
+    }
+
+    public override void AplicarCapacidad(
+        int? maximoParticipantes, int? maximoEquipos, int? maximoParticipantesPorEquipo)
+    {
+        var equipos = maximoEquipos
+            ?? throw new SesionInvalidaExcepcion(
+                "Debe indicar el máximo de equipos para una sesión grupal.");
+        var porEquipo = maximoParticipantesPorEquipo
+            ?? throw new SesionInvalidaExcepcion(
+                "Debe indicar el máximo de participantes por equipo para una sesión grupal.");
+        ModificarCapacidad(equipos, porEquipo);
     }
 
     public static SesionGrupal Rehidratar(
@@ -91,6 +121,7 @@ public sealed class SesionGrupal : Sesion
         DateTime fechaProgramada, string codigoAcceso,
         Guid operadorCreadorId, DateTime fechaCreacion,
         DateTime? fechaInicioUtc, DateTime? fechaFinalizacionUtc,
+        int maximoEquipos, int maximoParticipantesPorEquipo,
         IEnumerable<SesionMision>? misiones = null,
         IEnumerable<Equipo>? equipos = null)
     {
@@ -100,6 +131,8 @@ public sealed class SesionGrupal : Sesion
             fechaProgramada, codigoAcceso,
             operadorCreadorId, fechaCreacion,
             fechaInicioUtc, fechaFinalizacionUtc, misiones);
+        sesion.MaximoEquipos = maximoEquipos;
+        sesion.MaximoParticipantesPorEquipo = maximoParticipantesPorEquipo;
         if (equipos is not null) sesion._equipos.AddRange(equipos);
         return sesion;
     }

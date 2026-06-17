@@ -7,13 +7,15 @@
 export {
   crearSesion,
   listarSesiones,
-  obtenerSesion
+  obtenerSesion,
+  actualizarSesion
 } from '../autenticacion/clienteApiSesiones'
 
 export type {
   CrearSesionRespuestaDto,
   CrearSesionSolicitudDto,
   FiltrosListadoSesiones,
+  ModificarSesionSolicitud,
   SesionDetalleDto,
   SesionListadoDto
 } from '../tipos/sesiones'

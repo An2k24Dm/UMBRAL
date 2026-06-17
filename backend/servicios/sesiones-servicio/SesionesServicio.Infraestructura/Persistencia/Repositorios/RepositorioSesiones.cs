@@ -55,17 +55,22 @@ public sealed class RepositorioSesiones : IRepositorioSesiones, IConsultasSesion
             return;
         }
 
+        // Copia los escalares (incluye tipo_sesion y capacidad) sin tocar la
+        // clave ni las navegaciones.
         _contexto.Entry(existente).CurrentValues.SetValues(actualizado);
 
-        // Reemplazo de colecciones hijas (alcance actual: la población
-        // de equipos/participantes se hace siempre completa).
-        _contexto.Participantes.RemoveRange(existente.Participantes);
-        _contexto.Equipos.RemoveRange(existente.Equipos);
+        // Reemplazo de colecciones hijas fijando el estado explícitamente vía
+        // los DbSet. No se manipulan las navegaciones para evitar que EF infiera
+        // el estado: como la clave es ValueGeneratedOnAdd y los hijos nuevos ya
+        // traen un Guid asignado, al agregarlos por navegación EF los tomaría
+        // como "existentes" (Modified) y fallaría. Add explícito fuerza Added.
         _contexto.SesionMisiones.RemoveRange(existente.Misiones);
+        _contexto.Equipos.RemoveRange(existente.Equipos);
+        _contexto.Participantes.RemoveRange(existente.Participantes);
 
-        existente.Misiones = actualizado.Misiones;
-        existente.Equipos = actualizado.Equipos;
-        existente.Participantes = actualizado.Participantes;
+        _contexto.SesionMisiones.AddRange(actualizado.Misiones);
+        _contexto.Equipos.AddRange(actualizado.Equipos);
+        _contexto.Participantes.AddRange(actualizado.Participantes);
     }
 
     public async Task<Sesion?> ObtenerPorIdAsync(Guid id, CancellationToken cancelacion)

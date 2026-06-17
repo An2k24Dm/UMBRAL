@@ -3,8 +3,6 @@ using System.Linq;
 using SesionesServicio.Dominio.Entidades;
 using SesionesServicio.Dominio.Enums;
 using SesionesServicio.Dominio.Excepciones;
-using SesionesServicio.Dominio.Factorias;
-using SesionesServicio.Dominio.Politicas;
 
 namespace SesionesServicio.PruebasUnitarias.Dominio;
 
@@ -13,9 +11,19 @@ public class SesionIndividualPruebas
     private static readonly DateTime AhoraUtc = new(2026, 6, 3, 12, 0, 0, DateTimeKind.Utc);
     private static readonly Guid Operador = Guid.Parse("44444444-4444-4444-4444-444444444444");
 
-    private static SesionIndividual Crear()
-        => FabricaSesiones.CrearIndividual(
-            "Sesión piloto", "Demo", AhoraUtc.AddHours(1), "ABC123", Operador, AhoraUtc);
+    private const int MaximoParticipantes = 10;
+
+    private static SesionIndividual Crear(int maximoParticipantes = MaximoParticipantes)
+        => SesionIndividual.Crear(
+            "Sesión piloto", "Demo", AhoraUtc.AddHours(1), "ABC123", Operador, AhoraUtc,
+            maximoParticipantes);
+
+    [Fact]
+    public void Crear_GuardaLaCapacidadConfigurada()
+    {
+        var sesion = Crear(7);
+        sesion.MaximoParticipantes.Should().Be(7);
+    }
 
     [Fact]
     public void AgregarParticipante_LoIncluyeConDatosCorrectos()
@@ -55,12 +63,14 @@ public class SesionIndividualPruebas
     [Fact]
     public void AgregarParticipante_MasDelMaximo_Lanza()
     {
-        var sesion = Crear();
-        for (var i = 0; i < PoliticaCapacidadSesion.MaximoParticipantesIndividual; i++)
+        // La capacidad ahora es propia de la sesión, no una constante global.
+        var sesion = Crear(maximoParticipantes: 3);
+        for (var i = 0; i < 3; i++)
             sesion.AgregarParticipante(Guid.NewGuid(), AhoraUtc);
 
         Action accion = () => sesion.AgregarParticipante(Guid.NewGuid(), AhoraUtc);
-        accion.Should().Throw<ParticipacionInvalidaExcepcion>();
+        accion.Should().Throw<ParticipacionInvalidaExcepcion>()
+            .WithMessage("La sesión individual alcanzó el máximo de participantes permitido.");
     }
 
     [Fact]

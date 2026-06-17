@@ -23,9 +23,7 @@ public sealed class ObtenerUsuarioInternoDetalleManejador
     public async Task<PerfilUsuarioDto?> Handle(
         ObtenerUsuarioInternoDetalleConsulta consulta, CancellationToken cancelacion)
     {
-        // El puerto ya garantiza que no devuelva Participantes para HU08;
-        // si el id corresponde a un Participante, llega null y el controlador
-        // responde 404.
+
         var usuario = await _repositorio.ObtenerUsuarioInternoPorIdAsync(consulta.Id, cancelacion);
         if (usuario is null) return null;
 

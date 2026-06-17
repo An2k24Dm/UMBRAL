@@ -11,13 +11,10 @@ using Microsoft.Extensions.Logging;
 
 namespace IdentidadServicio.Aplicacion.CasosDeUso.Manejadores;
 
-// HU03 — registro público de Participante desde la app móvil. Reutiliza el
-// Strategy/Factory de creación, pero solo necesita el repositorio de
-// Participantes y la unidad de trabajo: ya no depende de una fachada gigante.
 public sealed class RegistrarParticipanteManejador
     : IRequestHandler<RegistrarParticipanteComando, CrearUsuarioRespuestaDto>
 {
-    private readonly IRepositorioUnicidadUsuario _unicidad;
+    private readonly ValidadorUnicidadUsuario _validadorUnicidad;
     private readonly IRepositorioParticipantes _repositorioParticipantes;
     private readonly IUnidadTrabajoIdentidad _unidadTrabajo;
     private readonly IProveedorIdentidad _proveedor;
@@ -27,7 +24,7 @@ public sealed class RegistrarParticipanteManejador
     private readonly ILogger<RegistrarParticipanteManejador> _registro;
 
     public RegistrarParticipanteManejador(
-        IRepositorioUnicidadUsuario unicidad,
+        ValidadorUnicidadUsuario validadorUnicidad,
         IRepositorioParticipantes repositorioParticipantes,
         IUnidadTrabajoIdentidad unidadTrabajo,
         IProveedorIdentidad proveedor,
@@ -36,7 +33,7 @@ public sealed class RegistrarParticipanteManejador
         IValidador<RegistrarParticipanteComando> validador,
         ILogger<RegistrarParticipanteManejador> registro)
     {
-        _unicidad = unicidad;
+        _validadorUnicidad = validadorUnicidad;
         _repositorioParticipantes = repositorioParticipantes;
         _unidadTrabajo = unidadTrabajo;
         _proveedor = proveedor;
@@ -52,7 +49,7 @@ public sealed class RegistrarParticipanteManejador
         var dto = comando.Datos;
 
         _validador.Validar(comando).LanzarSiHayErrores();
-        await ValidarDuplicadosAsync(dto, cancelacion);
+        await _validadorUnicidad.ValidarRegistroParticipanteAsync(dto, cancelacion);
 
         var estrategia = _fabrica.Obtener(RolUsuario.Participante);
         var fechaRegistro = _reloj.ObtenerFechaHoraUtc();
@@ -87,8 +84,6 @@ public sealed class RegistrarParticipanteManejador
             var usuario = await estrategia.CrearUsuarioDominioAsync(
                 datosCreacion, fechaRegistro, cancelacion);
 
-            // La estrategia siempre devuelve Participante en HU03; aseguramos
-            // explícitamente el tipo antes de delegar al repositorio.
             var participante = (Participante)usuario;
             await _repositorioParticipantes.AgregarAsync(participante, idKeycloak, cancelacion);
             await _unidadTrabajo.GuardarCambiosAsync(cancelacion);
@@ -113,32 +108,6 @@ public sealed class RegistrarParticipanteManejador
             await CompensarKeycloakAsync(idKeycloak);
             throw;
         }
-    }
-
-    // HU03 — duplicados específicos del registro público (incluye alias).
-    private async Task ValidarDuplicadosAsync(
-        RegistrarParticipanteDto dto, CancellationToken cancelacion)
-    {
-        var resultado = ResultadoValidacion.Exitoso();
-
-        if (await _unicidad.ExisteAliasAsync(dto.Alias, cancelacion))
-            resultado.Agregar(MensajesValidacionUsuario.CampoAlias,
-                MensajesValidacionUsuario.AliasDuplicado);
-
-        if (await _unicidad.ExisteNombreUsuarioAsync(dto.NombreUsuario, cancelacion))
-            resultado.Agregar(MensajesValidacionUsuario.CampoNombreUsuario,
-                MensajesValidacionUsuario.NombreUsuarioDuplicado);
-
-        if (await _unicidad.ExisteCorreoAsync(dto.Correo, cancelacion))
-            resultado.Agregar(MensajesValidacionUsuario.CampoCorreo,
-                MensajesValidacionUsuario.CorreoDuplicado);
-
-        if (!string.IsNullOrWhiteSpace(dto.DatosContacto?.Telefono) &&
-            await _unicidad.ExisteTelefonoAsync(dto.DatosContacto!.Telefono!, cancelacion))
-            resultado.Agregar(MensajesValidacionUsuario.CampoTelefono,
-                MensajesValidacionUsuario.TelefonoDuplicado);
-
-        resultado.LanzarSiHayErrores();
     }
 
     private async Task CompensarKeycloakAsync(string idKeycloak)
