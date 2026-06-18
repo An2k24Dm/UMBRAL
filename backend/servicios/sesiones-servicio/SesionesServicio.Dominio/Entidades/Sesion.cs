@@ -116,6 +116,13 @@ public abstract class Sesion : ISesion
                 "Solo se pueden modificar sesiones en estado Programada.");
     }
 
+    public void ValidarPuedeEliminarse()
+    {
+        if (Estado != EstadoSesion.Programada)
+            throw new SesionNoEliminableExcepcion(
+                "Solo se pueden eliminar sesiones en estado Programada.");
+    }
+
     public void Preparar() => _estadoActual.Preparar(this);
 
     public void Iniciar(DateTime fechaInicioUtc)

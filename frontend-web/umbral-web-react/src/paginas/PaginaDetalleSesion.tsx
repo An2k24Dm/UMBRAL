@@ -4,8 +4,10 @@ import { LayoutPanel } from '../componentes/LayoutPanel'
 import { Alerta } from '../componentes/Alerta'
 import { Boton } from '../componentes/Boton'
 import { BadgeEstadoSesion } from '../componentes/BadgeEstadoSesion'
+import { ModalConfirmacion } from '../componentes/ModalConfirmacion'
 import {
   obtenerSesion,
+  eliminarSesion,
   type SesionDetalleDto
 } from '../autenticacion/clienteApiSesiones'
 import {
@@ -83,6 +85,37 @@ export function PaginaDetalleSesion() {
   const [sesion, setSesion] = useState<SesionDetalleDto | null>(null)
   const [misiones, setMisiones] = useState<MisionEnriquecida[]>([])
   const [misionAbierta, setMisionAbierta] = useState<string | null>(null)
+  const [eliminando, setEliminando] = useState(false)
+  const [errorEliminar, setErrorEliminar] = useState<string | null>(null)
+  const [modalEliminarAbierto, setModalEliminarAbierto] = useState(false)
+
+  function abrirModalEliminar() {
+    setErrorEliminar(null)
+    setModalEliminarAbierto(true)
+  }
+
+  function cerrarModalEliminar() {
+    if (eliminando) return
+    setModalEliminarAbierto(false)
+    setErrorEliminar(null)
+  }
+
+  async function confirmarEliminar() {
+    if (!token || !sesion) return
+
+    setEliminando(true)
+    setErrorEliminar(null)
+    try {
+      await eliminarSesion(sesion.id, token)
+      navegar(rutaListado, { state: { mensajeExito: 'Sesión eliminada correctamente.' } })
+    } catch (e) {
+      // El error se muestra dentro del modal sin cerrarlo, para no perder
+      // el contexto de la acción.
+      setErrorEliminar(
+        e instanceof Error ? e.message : 'No se pudo eliminar la sesión. Intenta nuevamente.')
+      setEliminando(false)
+    }
+  }
 
   useEffect(() => {
     const ref = { cancelado: false }
@@ -220,24 +253,39 @@ export function PaginaDetalleSesion() {
           ← Volver a sesiones
         </Boton>
 
-        {/* Editar: solo Operador. Activo solo si la sesión está Programada. */}
+        {/* Acciones de escritura: solo Operador. */}
         {esOperador && (
-          sesion.estado === 'Programada' ? (
-            <Boton
-              variante="primario"
-              onClick={() => navegar(`${rutaListado}/${sesion.id}/editar`)}
-            >
-              Editar
-            </Boton>
-          ) : (
-            <Boton
-              variante="primario"
-              disabled
-              title="Solo se pueden editar sesiones en estado Programada."
-            >
-              Editar
-            </Boton>
-          )
+          <div style={{ display: 'flex', gap: 'var(--espacio-3)', flexWrap: 'wrap' }}>
+            {/* Editar: activo solo si la sesión está Programada. */}
+            {sesion.estado === 'Programada' ? (
+              <Boton
+                variante="primario"
+                onClick={() => navegar(`${rutaListado}/${sesion.id}/editar`)}
+                disabled={eliminando}
+              >
+                Editar
+              </Boton>
+            ) : (
+              <Boton
+                variante="primario"
+                disabled
+                title="Solo se pueden editar sesiones en estado Programada."
+              >
+                Editar
+              </Boton>
+            )}
+
+            {/* Eliminar: solo visible si la sesión está Programada (HU39). */}
+            {sesion.estado === 'Programada' && (
+              <Boton
+                variante="peligro"
+                onClick={abrirModalEliminar}
+                disabled={eliminando}
+              >
+                Eliminar
+              </Boton>
+            )}
+          </div>
         )}
       </div>
 
@@ -461,6 +509,25 @@ export function PaginaDetalleSesion() {
           )}
         </section>
       )}
+
+      <ModalConfirmacion
+        abierto={modalEliminarAbierto}
+        titulo="Eliminar sesión"
+        textoConfirmar="Eliminar sesión"
+        textoCancelar="Cancelar"
+        procesando={eliminando}
+        mensajeError={errorEliminar}
+        onConfirmar={confirmarEliminar}
+        onCancelar={cerrarModalEliminar}
+      >
+        <p>
+          ¿Estás seguro de que deseas eliminar esta sesión? Esta acción no se
+          puede deshacer.
+        </p>
+        <p style={{ fontSize: '0.85rem', opacity: 0.8 }}>
+          Se eliminará la sesión y sus registros asociados.
+        </p>
+      </ModalConfirmacion>
     </LayoutPanel>
   )
 }

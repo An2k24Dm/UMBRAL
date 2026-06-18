@@ -73,6 +73,33 @@ public sealed class RepositorioSesiones : IRepositorioSesiones, IConsultasSesion
         _contexto.Participantes.AddRange(actualizado.Participantes);
     }
 
+    public async Task EliminarAsync(Sesion sesion, CancellationToken cancelacion)
+    {
+        // Se localiza con tracking (sin AsNoTracking) e incluyendo las
+        // colecciones hijas para poder borrarlas en el mismo SaveChanges.
+        var existente = await _contexto.Sesiones
+            .Include(s => s.Misiones)
+            .Include(s => s.Equipos)
+            .Include(s => s.Participantes)
+            .FirstOrDefaultAsync(s => s.Id == sesion.Id, cancelacion);
+
+        if (existente is null)
+            return;
+
+        // Borrado explícito de las filas LOCALES del microservicio de sesiones
+        // (determinístico también con el proveedor InMemory de las pruebas). Se
+        // eliminan las relaciones/inscripciones locales, NO los datos maestros:
+        //   * SesionMision guarda mision_id (referencia a juegos-servicio).
+        //   * Participante guarda participante_identidad_id (referencia a
+        //     identidad-servicio).
+        // Esos microservicios no se tocan: aquí solo se borran filas de las
+        // tablas sesiones."SesionMision", "Participante", "Equipo" y "Sesion".
+        _contexto.SesionMisiones.RemoveRange(existente.Misiones);
+        _contexto.Participantes.RemoveRange(existente.Participantes);
+        _contexto.Equipos.RemoveRange(existente.Equipos);
+        _contexto.Sesiones.Remove(existente);
+    }
+
     public async Task<Sesion?> ObtenerPorIdAsync(Guid id, CancellationToken cancelacion)
     {
         var modelo = await _contexto.Sesiones

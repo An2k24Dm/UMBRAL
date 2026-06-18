@@ -8,7 +8,8 @@ export {
   crearSesion,
   listarSesiones,
   obtenerSesion,
-  actualizarSesion
+  actualizarSesion,
+  eliminarSesion
 } from '../autenticacion/clienteApiSesiones'
 
 export type {
