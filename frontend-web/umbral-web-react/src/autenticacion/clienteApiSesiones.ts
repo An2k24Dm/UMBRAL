@@ -224,3 +224,21 @@ export async function actualizarSesion(
   if (!respuesta.ok) throw new Error(await leerError(respuesta))
   return (await respuesta.json()) as SesionDetalleDto
 }
+
+// ---------------------------------------------------------------------------
+// Eliminar sesión (solo Operador, solo sesiones propias en estado Programada)
+// ---------------------------------------------------------------------------
+export async function eliminarSesion(id: string, token: string): Promise<void> {
+  const respuesta = await fetch(`${URL_API}${ENDPOINTS.porId(id)}`, {
+    method: 'DELETE',
+    headers: auth(token)
+  })
+  if (respuesta.status === 204) return
+  if (respuesta.status === 401) lanzar401(token, 'Debe iniciar sesión.')
+  if (respuesta.status === 403) throw new Error('No tienes permisos para eliminar esta sesión.')
+  if (respuesta.status === 404) throw new Error('La sesión no existe o ya fue eliminada.')
+  // 409: la sesión no está Programada. El backend envía el mensaje exacto
+  // ("Solo se pueden eliminar sesiones en estado Programada."); lo propagamos.
+  if (respuesta.status === 409) throw new Error(await leerError(respuesta))
+  throw new Error('No se pudo eliminar la sesión. Intenta nuevamente.')
+}

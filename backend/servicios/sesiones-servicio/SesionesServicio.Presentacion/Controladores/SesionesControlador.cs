@@ -58,6 +58,22 @@ public sealed class SesionesControlador : ControllerBase
         return Ok(resultado);
     }
 
+    // Eliminar sesión. Solo Operador, solo sus propias sesiones y únicamente
+    // si están en estado Programada (HU39). El Administrador no puede eliminar.
+    [HttpDelete("{id:guid}")]
+    [Authorize(Policy = "PoliticaSoloOperador")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> EliminarSesion(Guid id, CancellationToken cancelacion)
+    {
+        await _mediador.Send(new EliminarSesionComando(id), cancelacion);
+        return NoContent();
+    }
+
     // Listado de sesiones. Administrador ve todas, Operador sólo las propias.
     [HttpGet]
     [Authorize(Policy = "PoliticaAdministradorUOperador")]

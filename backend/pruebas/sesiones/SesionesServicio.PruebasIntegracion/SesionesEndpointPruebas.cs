@@ -1,7 +1,10 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
 using SesionesServicio.Commons.Dtos;
+using SesionesServicio.Dominio.Enums;
+using SesionesServicio.Infraestructura.Persistencia;
 
 namespace SesionesServicio.PruebasIntegracion;
 
@@ -406,5 +409,170 @@ public class SesionesEndpointPruebas : IClassFixture<FabricaApiPruebas>
         var listado = await respuesta.Content
             .ReadFromJsonAsync<List<SesionListadoDto>>(OpcionesJson);
         listado.Should().NotBeNullOrEmpty();
+    }
+
+    // -----------------------------------------------------------------------
+    // HU39 — Eliminar sesión
+    // -----------------------------------------------------------------------
+
+    // Inserta directamente en la BD local una sesión con el estado y las filas
+    // hijas indicadas, para cubrir escenarios que la API no permite alcanzar
+    // (estados distintos de Programada, hijos en una sesión Programada).
+    private void SembrarSesion(
+        Guid id, EstadoSesion estado, Guid operadorId, string codigo,
+        bool conHijos = false)
+    {
+        using var alcance = _fabrica.Services.CreateScope();
+        var ctx = alcance.ServiceProvider.GetRequiredService<ContextoSesiones>();
+
+        var modelo = new SesionModelo
+        {
+            Id = id,
+            TipoSesion = "Individual",
+            Nombre = "Sembrada",
+            Descripcion = "Demo",
+            Estado = estado,
+            FechaProgramada = DateTime.UtcNow.AddHours(2),
+            CodigoAcceso = codigo,
+            OperadorCreadorId = operadorId,
+            FechaCreacion = DateTime.UtcNow,
+            MaximoParticipantes = 10
+        };
+
+        if (conHijos)
+        {
+            var equipoId = Guid.NewGuid();
+            modelo.Misiones.Add(new SesionMisionModelo
+            {
+                Id = Guid.NewGuid(), SesionId = id,
+                MisionId = FabricaApiPruebas.IdMisionActiva, Orden = 1
+            });
+            modelo.Equipos.Add(new EquipoModelo
+            {
+                Id = equipoId, SesionId = id, Nombre = "Equipo Rojo",
+                LiderParticipanteId = Guid.NewGuid(), Puntaje = 0,
+                FechaCreacion = DateTime.UtcNow
+            });
+            modelo.Participantes.Add(new ParticipanteModelo
+            {
+                Id = Guid.NewGuid(), SesionId = id,
+                ParticipanteIdentidadId = Guid.NewGuid(), EquipoId = equipoId,
+                Puntaje = 0, FechaUnionSesion = DateTime.UtcNow
+            });
+        }
+
+        ctx.Sesiones.Add(modelo);
+        ctx.SaveChanges();
+    }
+
+    private (int sesiones, int misiones, int equipos, int participantes) ContarPorSesion(Guid id)
+    {
+        using var alcance = _fabrica.Services.CreateScope();
+        var ctx = alcance.ServiceProvider.GetRequiredService<ContextoSesiones>();
+        return (
+            ctx.Sesiones.Count(s => s.Id == id),
+            ctx.SesionMisiones.Count(m => m.SesionId == id),
+            ctx.Equipos.Count(e => e.SesionId == id),
+            ctx.Participantes.Count(p => p.SesionId == id)
+        );
+    }
+
+    [Fact]
+    public async Task Operador_EliminaSesionProgramada_Responde204_YDesaparece()
+    {
+        var cliente = ClienteConRol("Operador", FabricaApiPruebas.IdOperadorPrueba);
+        var creada = await cliente.PostAsJsonAsync("/api/sesiones", DtoValido());
+        creada.EnsureSuccessStatusCode();
+        var creado = await creada.Content.ReadFromJsonAsync<CrearSesionRespuestaDto>(OpcionesJson);
+
+        var eliminar = await cliente.DeleteAsync($"/api/sesiones/{creado!.Id}");
+        eliminar.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        // El detalle ya no existe.
+        var detalle = await cliente.GetAsync($"/api/sesiones/{creado.Id}");
+        detalle.StatusCode.Should().Be(HttpStatusCode.NotFound);
+
+        // El listado ya no la incluye.
+        var listado = await (await cliente.GetAsync("/api/sesiones"))
+            .Content.ReadFromJsonAsync<List<SesionListadoDto>>(OpcionesJson);
+        listado!.Should().NotContain(s => s.Id == creado.Id);
+    }
+
+    [Fact]
+    public async Task Eliminar_BorraFilasLocales_SesionMisionEquipoParticipante()
+    {
+        var id = Guid.NewGuid();
+        SembrarSesion(id, EstadoSesion.Programada, FabricaApiPruebas.IdOperadorPrueba,
+            "DEL-CAS", conHijos: true);
+
+        // Precondición: existen las filas hijas.
+        ContarPorSesion(id).Should().Be((1, 1, 1, 1));
+
+        var cliente = ClienteConRol("Operador", FabricaApiPruebas.IdOperadorPrueba);
+        var eliminar = await cliente.DeleteAsync($"/api/sesiones/{id}");
+        eliminar.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        // No quedan referencias locales con ese sesion_id.
+        ContarPorSesion(id).Should().Be((0, 0, 0, 0));
+    }
+
+    [Fact]
+    public async Task Eliminar_SesionEnPreparacion_Responde409()
+    {
+        var id = Guid.NewGuid();
+        SembrarSesion(id, EstadoSesion.EnPreparacion, FabricaApiPruebas.IdOperadorPrueba, "DEL-ENP");
+
+        var cliente = ClienteConRol("Operador", FabricaApiPruebas.IdOperadorPrueba);
+        var eliminar = await cliente.DeleteAsync($"/api/sesiones/{id}");
+
+        eliminar.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        ContarPorSesion(id).sesiones.Should().Be(1); // no se borró
+    }
+
+    [Fact]
+    public async Task Eliminar_SesionDeOtroOperador_Responde403()
+    {
+        var id = Guid.NewGuid();
+        SembrarSesion(id, EstadoSesion.Programada, FabricaApiPruebas.IdOperadorPrueba, "DEL-OTRO");
+
+        var clienteB = ClienteConRol("Operador", FabricaApiPruebas.IdOtroOperador);
+        var eliminar = await clienteB.DeleteAsync($"/api/sesiones/{id}");
+
+        eliminar.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        ContarPorSesion(id).sesiones.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Eliminar_ComoAdministrador_Responde403()
+    {
+        var id = Guid.NewGuid();
+        SembrarSesion(id, EstadoSesion.Programada, FabricaApiPruebas.IdOperadorPrueba, "DEL-ADM");
+
+        var admin = ClienteConRol("Administrador");
+        var eliminar = await admin.DeleteAsync($"/api/sesiones/{id}");
+
+        eliminar.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        ContarPorSesion(id).sesiones.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Eliminar_ComoParticipante_Responde403()
+    {
+        var id = Guid.NewGuid();
+        SembrarSesion(id, EstadoSesion.Programada, FabricaApiPruebas.IdOperadorPrueba, "DEL-PAR");
+
+        var participante = ClienteConRol("Participante");
+        var eliminar = await participante.DeleteAsync($"/api/sesiones/{id}");
+
+        eliminar.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        ContarPorSesion(id).sesiones.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Eliminar_SesionInexistente_Responde404()
+    {
+        var cliente = ClienteConRol("Operador", FabricaApiPruebas.IdOperadorPrueba);
+        var eliminar = await cliente.DeleteAsync($"/api/sesiones/{Guid.NewGuid()}");
+        eliminar.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 }

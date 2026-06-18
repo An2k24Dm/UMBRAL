@@ -49,6 +49,7 @@ public static class RegistroAplicacion
         servicios.AddScoped<IGeneradorCodigoUsuario, GeneradorCodigoUsuario>();
         servicios.AddSingleton<IGeneradorContrasenaTemporal, GeneradorContrasenaTemporal>();
         servicios.AddScoped<IAutorizadorUsuarioActivo, AutorizadorUsuarioActivo>();
+        servicios.AddScoped<IValidadorAccesoUsuarioActivo, ValidadorAccesoUsuarioActivo>();
 
         return servicios;
     }

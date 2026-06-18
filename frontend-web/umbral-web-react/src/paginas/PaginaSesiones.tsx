@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { LayoutPanel } from '../componentes/LayoutPanel'
 import { Alerta } from '../componentes/Alerta'
 import { Boton } from '../componentes/Boton'
@@ -27,6 +27,8 @@ const ESTADOS: Array<{ valor: EstadoSesion; etiqueta: string }> = [
 export function PaginaSesiones() {
   const { token, usuario } = usarAutenticacion()
   const navegar = useNavigate()
+  const ubicacion = useLocation()
+  const mensajeExito = (ubicacion.state as { mensajeExito?: string } | null)?.mensajeExito
   const esOperador = usuario?.rol === 'Operador'
   const rutaBase =
     usuario?.rol === 'Administrador' ? '/administrador/sesiones' : '/operador/sesiones'
@@ -89,6 +91,8 @@ export function PaginaSesiones() {
             </div>
           )}
         </div>
+
+        {mensajeExito && <Alerta tono="exito">{mensajeExito}</Alerta>}
 
         <div className="barra-filtros">
           <div className="campo">
