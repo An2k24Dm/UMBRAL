@@ -1,5 +1,4 @@
-using IdentidadServicio.Aplicacion.CasosDeUso.Consultas;
-using IdentidadServicio.Aplicacion.CasosDeUso.Manejadores;
+using IdentidadServicio.Aplicacion.Consultas.ConsultarParticipantes;
 using IdentidadServicio.Aplicacion.Puertos;
 using IdentidadServicio.Commons.Dtos;
 using IdentidadServicio.Dominio.Entidades;

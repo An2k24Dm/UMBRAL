@@ -1,6 +1,5 @@
 using FluentAssertions;
-using IdentidadServicio.Aplicacion.CasosDeUso.Consultas;
-using IdentidadServicio.Aplicacion.CasosDeUso.Manejadores;
+using IdentidadServicio.Aplicacion.Consultas.ObtenerUsuarioInternoDetalle;
 using IdentidadServicio.Aplicacion.Fabricas;
 using IdentidadServicio.Aplicacion.Mapeadores.Perfil;
 using IdentidadServicio.Aplicacion.Puertos;

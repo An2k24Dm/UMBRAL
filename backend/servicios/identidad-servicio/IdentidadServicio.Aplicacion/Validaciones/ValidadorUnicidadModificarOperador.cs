@@ -1,4 +1,4 @@
-using IdentidadServicio.Aplicacion.CasosDeUso.Comandos;
+using IdentidadServicio.Aplicacion.Comandos.ModificarOperador;
 using IdentidadServicio.Aplicacion.Puertos;
 
 namespace IdentidadServicio.Aplicacion.Validaciones;

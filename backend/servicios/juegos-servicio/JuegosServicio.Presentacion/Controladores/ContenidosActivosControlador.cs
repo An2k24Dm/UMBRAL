@@ -1,4 +1,4 @@
-using JuegosServicio.Aplicacion.CasosDeUso.Consultas;
+using JuegosServicio.Aplicacion.Consultas.ObtenerContenidoActivo;
 using JuegosServicio.Commons.Dtos;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;

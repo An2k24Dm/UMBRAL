@@ -1,4 +1,4 @@
-using SesionesServicio.Aplicacion.CasosDeUso.Comandos;
+using SesionesServicio.Aplicacion.Comandos.CrearSesion;
 using SesionesServicio.Commons.Dtos;
 using SesionesServicio.Dominio.Enums;
 using SesionesServicio.Dominio.Politicas;

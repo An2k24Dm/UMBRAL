@@ -1,6 +1,7 @@
 using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
-using SesionesServicio.Aplicacion.CasosDeUso.Comandos;
+using SesionesServicio.Aplicacion.Comandos.CrearSesion;
+using SesionesServicio.Aplicacion.Comandos.ModificarSesion;
 using SesionesServicio.Aplicacion.Mapeadores;
 using SesionesServicio.Aplicacion.Puertos;
 using SesionesServicio.Aplicacion.Validaciones;

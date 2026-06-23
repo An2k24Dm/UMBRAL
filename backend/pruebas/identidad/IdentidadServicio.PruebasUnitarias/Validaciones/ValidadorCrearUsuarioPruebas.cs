@@ -1,5 +1,5 @@
 using FluentAssertions;
-using IdentidadServicio.Aplicacion.CasosDeUso.Comandos;
+using IdentidadServicio.Aplicacion.Comandos.CrearUsuario;
 using IdentidadServicio.Aplicacion.Puertos;
 using IdentidadServicio.Aplicacion.Validaciones;
 using IdentidadServicio.Commons.Dtos;

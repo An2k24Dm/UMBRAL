@@ -1,5 +1,4 @@
-using IdentidadServicio.Aplicacion.CasosDeUso.Comandos;
-using IdentidadServicio.Aplicacion.CasosDeUso.Manejadores;
+using IdentidadServicio.Aplicacion.Comandos.ActivarOperador;
 using IdentidadServicio.Aplicacion.Puertos;
 using IdentidadServicio.Aplicacion.Servicios.Usuarios;
 using IdentidadServicio.Dominio.Entidades;

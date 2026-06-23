@@ -1,5 +1,4 @@
-using JuegosServicio.Aplicacion.CasosDeUso.Comandos;
-using JuegosServicio.Aplicacion.CasosDeUso.Manejadores;
+using JuegosServicio.Aplicacion.Comandos.ActivarBusquedaTesoro;
 using JuegosServicio.Aplicacion.Puertos;
 using JuegosServicio.Dominio.Entidades;
 using JuegosServicio.Dominio.Excepciones;

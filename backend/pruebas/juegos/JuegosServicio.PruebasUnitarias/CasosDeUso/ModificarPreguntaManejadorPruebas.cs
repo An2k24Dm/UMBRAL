@@ -1,5 +1,4 @@
-using JuegosServicio.Aplicacion.CasosDeUso.Comandos;
-using JuegosServicio.Aplicacion.CasosDeUso.Manejadores;
+using JuegosServicio.Aplicacion.Comandos.ModificarPregunta;
 using JuegosServicio.Aplicacion.Puertos;
 using JuegosServicio.Commons.Dtos;
 using JuegosServicio.Dominio.Entidades;

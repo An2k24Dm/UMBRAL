@@ -1,6 +1,15 @@
 using System.Security.Claims;
-using JuegosServicio.Aplicacion.CasosDeUso.Comandos;
-using JuegosServicio.Aplicacion.CasosDeUso.Consultas;
+using JuegosServicio.Aplicacion.Comandos.ActivarTrivia;
+using JuegosServicio.Aplicacion.Comandos.AgregarPregunta;
+using JuegosServicio.Aplicacion.Comandos.CrearTrivia;
+using JuegosServicio.Aplicacion.Comandos.DesactivarTrivia;
+using JuegosServicio.Aplicacion.Comandos.EliminarPregunta;
+using JuegosServicio.Aplicacion.Comandos.EliminarTrivia;
+using JuegosServicio.Aplicacion.Comandos.ModificarPregunta;
+using JuegosServicio.Aplicacion.Comandos.ModificarTrivia;
+using JuegosServicio.Aplicacion.Consultas.ObtenerDetalleTrivia;
+using JuegosServicio.Aplicacion.Consultas.ObtenerTriviasActivas;
+using JuegosServicio.Aplicacion.Consultas.ObtenerTriviasEnBorrador;
 using JuegosServicio.Commons.Dtos;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;

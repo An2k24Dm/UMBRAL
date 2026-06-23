@@ -1,5 +1,13 @@
 using System.Reflection;
-using JuegosServicio.Aplicacion.CasosDeUso.Comandos;
+using JuegosServicio.Aplicacion.Comandos.AgregarEtapa;
+using JuegosServicio.Aplicacion.Comandos.AgregarPista;
+using JuegosServicio.Aplicacion.Comandos.AgregarPregunta;
+using JuegosServicio.Aplicacion.Comandos.CrearBusquedaTesoro;
+using JuegosServicio.Aplicacion.Comandos.CrearMision;
+using JuegosServicio.Aplicacion.Comandos.CrearTrivia;
+using JuegosServicio.Aplicacion.Comandos.ModificarBusquedaTesoro;
+using JuegosServicio.Aplicacion.Comandos.ModificarMision;
+using JuegosServicio.Aplicacion.Comandos.ModificarTrivia;
 using JuegosServicio.Aplicacion.Validaciones;
 using Microsoft.Extensions.DependencyInjection;
 

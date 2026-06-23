@@ -1,4 +1,4 @@
-using JuegosServicio.Aplicacion.CasosDeUso.Comandos;
+using JuegosServicio.Aplicacion.Comandos.AgregarEtapa;
 
 namespace JuegosServicio.Aplicacion.Validaciones;
 

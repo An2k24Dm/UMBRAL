@@ -1,4 +1,4 @@
-using JuegosServicio.Aplicacion.CasosDeUso.Comandos;
+using JuegosServicio.Aplicacion.Comandos.ModificarTrivia;
 
 namespace JuegosServicio.Aplicacion.Validaciones;
 

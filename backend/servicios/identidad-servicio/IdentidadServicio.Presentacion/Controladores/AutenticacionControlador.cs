@@ -1,6 +1,7 @@
 using System.Security.Claims;
-using IdentidadServicio.Aplicacion.CasosDeUso.Comandos;
-using IdentidadServicio.Aplicacion.CasosDeUso.Consultas;
+using IdentidadServicio.Aplicacion.Comandos.CambiarContrasenaObligatoria;
+using IdentidadServicio.Aplicacion.Comandos.IniciarSesion;
+using IdentidadServicio.Aplicacion.Consultas.ObtenerPerfilActual;
 using IdentidadServicio.Aplicacion.Enums;
 using IdentidadServicio.Commons.Dtos;
 using MediatR;
@@ -20,7 +21,6 @@ public sealed class AutenticacionControlador : ControllerBase
         _mediador = mediador;
     }
 
-    // Login desde el panel web: sólo Administrador y Operador.
     [HttpPost("login-web")]
     [AllowAnonymous]
     public async Task<ActionResult<ResultadoInicioSesionDto>> LoginWeb(
@@ -32,7 +32,6 @@ public sealed class AutenticacionControlador : ControllerBase
         return Ok(resultado);
     }
 
-    // Login desde la app móvil: sólo Participante.
     [HttpPost("login-movil")]
     [AllowAnonymous]
     public async Task<ActionResult<ResultadoInicioSesionDto>> LoginMovil(
@@ -44,10 +43,6 @@ public sealed class AutenticacionControlador : ControllerBase
         return Ok(resultado);
     }
 
-    // HU06: el perfil devuelto es siempre una instancia derivada
-    // (PerfilAdministradorDto, PerfilOperadorDto o PerfilParticipanteDto). Para
-    // que System.Text.Json serialice las propiedades del tipo concreto (y no
-    // solo las del DTO base declarado), se retorna como object.
     [HttpGet("perfil-actual")]
     [Authorize]
     public async Task<ActionResult<object>> ObtenerPerfilActual(CancellationToken cancelacion)
@@ -59,11 +54,6 @@ public sealed class AutenticacionControlador : ControllerBase
         return Ok((object)perfil);
     }
 
-    // Cambio obligatorio de contraseña tras login con credencial temporal
-    // (alta administrativa o reset). Requiere JWT — el IdKeycloak siempre
-    // se toma del token, NO del cuerpo: solo el propio usuario puede
-    // completar su cambio. El manejador rechaza si la bandera UMBRAL
-    // DebeCambiarContrasena no está activa o si el rol no es interno.
     [HttpPost("cambiar-contrasena-obligatoria")]
     [Authorize]
     public async Task<ActionResult<CambiarContrasenaObligatoriaRespuestaDto>>

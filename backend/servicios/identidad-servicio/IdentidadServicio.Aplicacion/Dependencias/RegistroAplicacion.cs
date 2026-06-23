@@ -1,5 +1,9 @@
 using System.Reflection;
-using IdentidadServicio.Aplicacion.CasosDeUso.Comandos;
+using IdentidadServicio.Aplicacion.Comandos.CambiarContrasenaObligatoria;
+using IdentidadServicio.Aplicacion.Comandos.CrearUsuario;
+using IdentidadServicio.Aplicacion.Comandos.ModificarOperador;
+using IdentidadServicio.Aplicacion.Comandos.ModificarParticipante;
+using IdentidadServicio.Aplicacion.Comandos.RegistrarParticipante;
 using IdentidadServicio.Aplicacion.Estrategias;
 using IdentidadServicio.Aplicacion.Fabricas;
 using IdentidadServicio.Aplicacion.Generadores;
@@ -31,9 +35,6 @@ public static class RegistroAplicacion
             IValidador<CambiarContrasenaObligatoriaComando>,
             ValidadorCambiarContrasenaObligatoria>();
         servicios.AddScoped<IValidador<RegistrarParticipanteComando>, ValidadorRegistrarParticipante>();
-        // Validación de unicidad reutilizable (HU02 creación administrativa y
-        // HU03 registro de participante). Una sola clase concreta con métodos
-        // por caso de uso; no se expone como IValidadorAsincrono<T>.
         servicios.AddScoped<ValidadorUnicidadUsuario>();
         servicios.AddScoped<IValidador<ModificarOperadorComando>, ValidadorModificarOperador>();
         servicios.AddScoped<
