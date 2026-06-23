@@ -1,4 +1,5 @@
 using MediatR;
+using SesionesServicio.Aplicacion.Autorizacion;
 using SesionesServicio.Aplicacion.Puertos;
 using SesionesServicio.Aplicacion.Validaciones;
 using SesionesServicio.Commons.Dtos;
@@ -24,6 +25,7 @@ public sealed class CrearEquipoManejador
     private readonly IUsuarioActual _usuarioActual;
     private readonly IHashContrasenaEquipo _hashContrasena;
     private readonly IProveedorFechaHora _reloj;
+    private readonly ValidadorParticipacionUnicaSesion _participacionUnica;
 
     public CrearEquipoManejador(
         IValidador<CrearEquipoComando> validador,
@@ -31,7 +33,8 @@ public sealed class CrearEquipoManejador
         IUnidadTrabajoSesiones unidadTrabajo,
         IUsuarioActual usuarioActual,
         IHashContrasenaEquipo hashContrasena,
-        IProveedorFechaHora reloj)
+        IProveedorFechaHora reloj,
+        ValidadorParticipacionUnicaSesion participacionUnica)
     {
         _validador = validador;
         _repositorio = repositorio;
@@ -39,6 +42,7 @@ public sealed class CrearEquipoManejador
         _usuarioActual = usuarioActual;
         _hashContrasena = hashContrasena;
         _reloj = reloj;
+        _participacionUnica = participacionUnica;
     }
 
     public async Task<CrearEquipoRespuestaDto> Handle(
@@ -60,6 +64,11 @@ public sealed class CrearEquipoManejador
 
         var sesion = await _repositorio.ObtenerPorIdAsync(comando.SesionId, cancelacion)
             ?? throw new SesionNoEncontradaExcepcion("La sesión solicitada no existe.");
+
+        // Regla de participación única: bloquea si el participante ya está en
+        // otra sesión activa, o si ya pertenece a esta misma sesión.
+        await _participacionUnica.ValidarPuedeIngresarASesionAsync(
+            participanteId, comando.SesionId, cancelacion);
 
         if (sesion is not SesionGrupal sesionGrupal)
             throw new EquipoInvalidoExcepcion(

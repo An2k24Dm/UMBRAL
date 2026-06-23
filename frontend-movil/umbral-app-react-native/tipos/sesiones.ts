@@ -97,6 +97,13 @@ export interface SesionDetalleMovilDto {
   codigoAcceso: string;
   misiones: MisionSesionMovilDto[];
   participacionActual: ParticipacionActual;
+
+  // Regla de participación única: si es false, el participante ya está en otra
+  // sesión (o en esta) y el móvil no debe ofrecer "Unirse".
+  puedeIngresar: boolean;
+  motivoNoPuedeIngresar: string | null;
+  sesionActualId: string | null;
+  sesionActualNombre: string | null;
 }
 
 // Filtros que la pantalla del listado mantiene en su estado local.

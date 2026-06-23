@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SesionesServicio.Aplicacion.Comandos.CrearEquipo;
+using SesionesServicio.Aplicacion.Comandos.ModificarEquipo;
 using SesionesServicio.Aplicacion.Consultas.ListarEquiposSesion;
 using SesionesServicio.Aplicacion.Consultas.ObtenerDetalleEquipoSesion;
 using SesionesServicio.Commons.Dtos;
@@ -55,6 +56,27 @@ public sealed class EquiposControlador : ControllerBase
     {
         var resultado = await _mediador.Send(
             new ListarEquiposSesionConsulta(sesionId), cancelacion);
+        return Ok(resultado);
+    }
+
+    // HU41 — Modificar un equipo. Solo el líder (Participante). El líder se
+    // resuelve del usuario autenticado, no del body.
+    [HttpPut("{sesionId:guid}/equipos/{equipoId:guid}")]
+    [Authorize(Policy = "PoliticaSoloParticipante")]
+    [ProducesResponseType(typeof(ModificarEquipoRespuestaDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> ModificarEquipo(
+        Guid sesionId,
+        Guid equipoId,
+        [FromBody] ModificarEquipoDto dto,
+        CancellationToken cancelacion)
+    {
+        var resultado = await _mediador.Send(
+            new ModificarEquipoComando(sesionId, equipoId, dto), cancelacion);
         return Ok(resultado);
     }
 

@@ -211,6 +211,25 @@ function SeccionParticipacion({
     );
   }
 
+  // Caso E: no pertenece a esta sesión pero ya está en otra activa.
+  if (!detalle.puedeIngresar) {
+    return (
+      <View style={estilos.tarjetaParticipacion}>
+        <Text style={estilos.participacionTexto}>
+          Ya estás participando en otra sesión.
+        </Text>
+        <Text style={estilos.participacionDetalle}>
+          Debes esperar a que finalice o sea cancelada para ingresar a una nueva.
+        </Text>
+        {detalle.sesionActualNombre ? (
+          <Text style={estilos.participacionDetalle}>
+            Sesión actual: {detalle.sesionActualNombre}
+          </Text>
+        ) : null}
+      </View>
+    );
+  }
+
   // No inscrito: solo se puede unir mientras la sesión está En Preparación.
   if (!enPreparacion) {
     return (

@@ -18,7 +18,10 @@ public class EquiposEndpointPruebas : IClassFixture<FabricaApiPruebas>
         PropertyNameCaseInsensitive = true
     };
 
-    private static readonly Guid IdParticipante = Guid.Parse("55555555-5555-5555-5555-555555555555");
+    // Único por test (xUnit instancia la clase por método). Evita que, con la
+    // regla de participación única y la BD compartida del fixture, un test deje
+    // al participante "ocupado" para los siguientes.
+    private readonly Guid IdParticipante = Guid.NewGuid();
 
     private readonly FabricaApiPruebas _fabrica;
 
@@ -382,5 +385,174 @@ public class EquiposEndpointPruebas : IClassFixture<FabricaApiPruebas>
             $"/api/sesiones/{creado!.Id}/equipos");
 
         respuesta.StatusCode.Should().Be(HttpStatusCode.Conflict);
+    }
+
+    // ---- HU41: modificar equipo ----
+
+    private static ModificarEquipoDto ModificarPublico(string nombre) => new()
+    {
+        Nombre = nombre,
+        Tipo = TipoEquipoDto.Publico,
+    };
+
+    private static ModificarEquipoDto ModificarPrivado(string nombre, string? pass) => new()
+    {
+        Nombre = nombre,
+        Tipo = TipoEquipoDto.Privado,
+        Contrasena = pass,
+    };
+
+    [Fact]
+    public async Task ModificarEquipo_Lider_Responde200YPersiste()
+    {
+        var sesionId = await CrearSesionGrupalEnPreparacionAsync();
+        var participante = ClienteConRol("Participante", IdParticipante);
+        var creado = await (await participante.PostAsJsonAsync(
+                $"/api/sesiones/{sesionId}/equipos", EquipoPublico("Rojo")))
+            .Content.ReadFromJsonAsync<CrearEquipoRespuestaDto>(OpcionesJson);
+
+        var respuesta = await participante.PutAsJsonAsync(
+            $"/api/sesiones/{sesionId}/equipos/{creado!.Id}", ModificarPublico("Verde"));
+
+        respuesta.StatusCode.Should().Be(HttpStatusCode.OK);
+        var dto = await respuesta.Content
+            .ReadFromJsonAsync<ModificarEquipoRespuestaDto>(OpcionesJson);
+        dto!.Nombre.Should().Be("Verde");
+
+        var detalle = await (await participante.GetAsync(
+                $"/api/sesiones/{sesionId}/equipos/{creado.Id}"))
+            .Content.ReadFromJsonAsync<EquipoSesionDetalleDto>(OpcionesJson);
+        detalle!.Nombre.Should().Be("Verde");
+    }
+
+    [Fact]
+    public async Task ModificarEquipo_PrivadoNoPersisteTextoPlano()
+    {
+        var sesionId = await CrearSesionGrupalEnPreparacionAsync();
+        var participante = ClienteConRol("Participante", IdParticipante);
+        var creado = await (await participante.PostAsJsonAsync(
+                $"/api/sesiones/{sesionId}/equipos", EquipoPublico("Rojo")))
+            .Content.ReadFromJsonAsync<CrearEquipoRespuestaDto>(OpcionesJson);
+
+        var respuesta = await participante.PutAsJsonAsync(
+            $"/api/sesiones/{sesionId}/equipos/{creado!.Id}",
+            ModificarPrivado("Rojo", "secretaXYZ"));
+        respuesta.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        using var alcance = _fabrica.Services.CreateScope();
+        var ctx = alcance.ServiceProvider.GetRequiredService<ContextoSesiones>();
+        var equipo = await ctx.Equipos.FirstAsync(e => e.Id == creado.Id);
+        equipo.Tipo.Should().Be(TipoEquipo.Privado);
+        equipo.ContrasenaHash.Should().NotBeNullOrWhiteSpace();
+        equipo.ContrasenaHash.Should().NotContain("secretaXYZ");
+    }
+
+    [Fact]
+    public async Task ModificarEquipo_NoLider_Responde403()
+    {
+        var sesionId = await CrearSesionGrupalEnPreparacionAsync();
+        var lider = ClienteConRol("Participante", IdParticipante);
+        var creado = await (await lider.PostAsJsonAsync(
+                $"/api/sesiones/{sesionId}/equipos", EquipoPublico("Rojo")))
+            .Content.ReadFromJsonAsync<CrearEquipoRespuestaDto>(OpcionesJson);
+
+        var otro = ClienteConRol("Participante", Guid.NewGuid());
+        var respuesta = await otro.PutAsJsonAsync(
+            $"/api/sesiones/{sesionId}/equipos/{creado!.Id}", ModificarPublico("Verde"));
+
+        respuesta.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
+    public async Task ModificarEquipo_SesionNoEnPreparacion_Responde409()
+    {
+        var sesionId = await CrearSesionGrupalEnPreparacionAsync();
+        var participante = ClienteConRol("Participante", IdParticipante);
+        var creado = await (await participante.PostAsJsonAsync(
+                $"/api/sesiones/{sesionId}/equipos", EquipoPublico("Rojo")))
+            .Content.ReadFromJsonAsync<CrearEquipoRespuestaDto>(OpcionesJson);
+
+        await CambiarEstadoAsync(sesionId, EstadoSesion.Activa);
+
+        var respuesta = await participante.PutAsJsonAsync(
+            $"/api/sesiones/{sesionId}/equipos/{creado!.Id}", ModificarPublico("Verde"));
+
+        respuesta.StatusCode.Should().Be(HttpStatusCode.Conflict);
+    }
+
+    [Fact]
+    public async Task ModificarEquipo_NombreDuplicado_Responde409()
+    {
+        var sesionId = await CrearSesionGrupalEnPreparacionAsync();
+        var p1 = ClienteConRol("Participante", IdParticipante);
+        var creado = await (await p1.PostAsJsonAsync(
+                $"/api/sesiones/{sesionId}/equipos", EquipoPublico("Uno")))
+            .Content.ReadFromJsonAsync<CrearEquipoRespuestaDto>(OpcionesJson);
+
+        var p2 = ClienteConRol("Participante", Guid.NewGuid());
+        (await p2.PostAsJsonAsync($"/api/sesiones/{sesionId}/equipos", EquipoPublico("Dos")))
+            .EnsureSuccessStatusCode();
+
+        var respuesta = await p1.PutAsJsonAsync(
+            $"/api/sesiones/{sesionId}/equipos/{creado!.Id}", ModificarPublico("Dos"));
+
+        respuesta.StatusCode.Should().Be(HttpStatusCode.Conflict);
+    }
+
+    // ---- RB: participación única en una sesión a la vez ----
+
+    [Fact]
+    public async Task CrearEquipo_ParticipanteEnOtraSesionActiva_Responde409()
+    {
+        var sesionA = await CrearSesionGrupalEnPreparacionAsync();
+        var sesionB = await CrearSesionGrupalEnPreparacionAsync();
+        var participante = ClienteConRol("Participante", IdParticipante);
+
+        (await participante.PostAsJsonAsync(
+            $"/api/sesiones/{sesionA}/equipos", EquipoPublico("Rojo")))
+            .EnsureSuccessStatusCode();
+
+        var respuesta = await participante.PostAsJsonAsync(
+            $"/api/sesiones/{sesionB}/equipos", EquipoPublico("Azul"));
+
+        respuesta.StatusCode.Should().Be(HttpStatusCode.Conflict);
+    }
+
+    [Fact]
+    public async Task CrearEquipo_SesionAnteriorFinalizada_Funciona()
+    {
+        var sesionA = await CrearSesionGrupalEnPreparacionAsync();
+        var participante = ClienteConRol("Participante", IdParticipante);
+        (await participante.PostAsJsonAsync(
+            $"/api/sesiones/{sesionA}/equipos", EquipoPublico("Rojo")))
+            .EnsureSuccessStatusCode();
+
+        // Al finalizar la sesión anterior, el participante queda libre.
+        await CambiarEstadoAsync(sesionA, EstadoSesion.Finalizada);
+
+        var sesionB = await CrearSesionGrupalEnPreparacionAsync();
+        var respuesta = await participante.PostAsJsonAsync(
+            $"/api/sesiones/{sesionB}/equipos", EquipoPublico("Azul"));
+
+        respuesta.StatusCode.Should().Be(HttpStatusCode.Created);
+    }
+
+    [Fact]
+    public async Task DetalleSesion_ConOtraSesionActiva_PuedeIngresarFalse()
+    {
+        var sesionA = await CrearSesionGrupalEnPreparacionAsync();
+        var sesionB = await CrearSesionGrupalEnPreparacionAsync();
+        var participante = ClienteConRol("Participante", IdParticipante);
+        (await participante.PostAsJsonAsync(
+            $"/api/sesiones/{sesionA}/equipos", EquipoPublico("Rojo")))
+            .EnsureSuccessStatusCode();
+
+        var detalle = await (await participante.GetAsync(
+                $"/api/sesiones/participante/disponibles/{sesionB}"))
+            .Content.ReadFromJsonAsync<SesionDetalleMovilDto>(OpcionesJson);
+
+        detalle!.PuedeIngresar.Should().BeFalse();
+        detalle.MotivoNoPuedeIngresar.Should().NotBeNullOrWhiteSpace();
+        detalle.SesionActualId.Should().Be(sesionA);
     }
 }

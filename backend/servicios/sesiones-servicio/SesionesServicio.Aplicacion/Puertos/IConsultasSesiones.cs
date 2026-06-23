@@ -3,10 +3,6 @@ using SesionesServicio.Dominio.Enums;
 
 namespace SesionesServicio.Aplicacion.Puertos;
 
-// Puerto de consultas/lectura sobre sesiones. Vive en Aplicación porque
-// expone listados, filtros y proyecciones orientadas a casos de uso y
-// pantallas, no operaciones del agregado. La implementación concreta en
-// Infraestructura es la misma que la del repositorio del dominio.
 public interface IConsultasSesiones
 {
     Task<IReadOnlyList<Sesion>> ListarAsync(
@@ -20,4 +16,14 @@ public interface IConsultasSesiones
         string? busqueda,
         string? tipoSesion,
         CancellationToken cancelacion);
+    Task<SesionParticipacionActivaDto?> ObtenerParticipacionActivaDeParticipanteAsync(
+        Guid participanteIdentidadId,
+        CancellationToken cancelacion);
 }
+public sealed record SesionParticipacionActivaDto(
+    Guid SesionId,
+    string NombreSesion,
+    EstadoSesion Estado,
+    ModoSesion Modo,
+    Guid? EquipoId,
+    string? EquipoNombre);
