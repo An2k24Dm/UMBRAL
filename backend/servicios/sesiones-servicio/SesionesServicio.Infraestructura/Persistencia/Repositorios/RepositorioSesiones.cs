@@ -7,10 +7,6 @@ using SesionesServicio.Infraestructura.Persistencia.Mapeadores;
 
 namespace SesionesServicio.Infraestructura.Persistencia.Repositorios;
 
-// Implementa ambos puertos: el repositorio del agregado (dominio) y las
-// consultas de lectura (aplicación). Compartir la implementación evita
-// duplicar el acceso a EF, manteniendo separadas las dependencias que ven
-// los casos de uso.
 public sealed class RepositorioSesiones : IRepositorioSesiones, IConsultasSesiones
 {
     private static readonly EstadoSesion[] EstadosVigentes =
@@ -55,15 +51,7 @@ public sealed class RepositorioSesiones : IRepositorioSesiones, IConsultasSesion
             return;
         }
 
-        // Copia los escalares (incluye tipo_sesion y capacidad) sin tocar la
-        // clave ni las navegaciones.
         _contexto.Entry(existente).CurrentValues.SetValues(actualizado);
-
-        // Reemplazo de colecciones hijas fijando el estado explícitamente vía
-        // los DbSet. No se manipulan las navegaciones para evitar que EF infiera
-        // el estado: como la clave es ValueGeneratedOnAdd y los hijos nuevos ya
-        // traen un Guid asignado, al agregarlos por navegación EF los tomaría
-        // como "existentes" (Modified) y fallaría. Add explícito fuerza Added.
         _contexto.SesionMisiones.RemoveRange(existente.Misiones);
         _contexto.Equipos.RemoveRange(existente.Equipos);
         _contexto.Participantes.RemoveRange(existente.Participantes);
@@ -75,8 +63,6 @@ public sealed class RepositorioSesiones : IRepositorioSesiones, IConsultasSesion
 
     public async Task EliminarAsync(Sesion sesion, CancellationToken cancelacion)
     {
-        // Se localiza con tracking (sin AsNoTracking) e incluyendo las
-        // colecciones hijas para poder borrarlas en el mismo SaveChanges.
         var existente = await _contexto.Sesiones
             .Include(s => s.Misiones)
             .Include(s => s.Equipos)
@@ -85,15 +71,6 @@ public sealed class RepositorioSesiones : IRepositorioSesiones, IConsultasSesion
 
         if (existente is null)
             return;
-
-        // Borrado explícito de las filas LOCALES del microservicio de sesiones
-        // (determinístico también con el proveedor InMemory de las pruebas). Se
-        // eliminan las relaciones/inscripciones locales, NO los datos maestros:
-        //   * SesionMision guarda mision_id (referencia a juegos-servicio).
-        //   * Participante guarda participante_identidad_id (referencia a
-        //     identidad-servicio).
-        // Esos microservicios no se tocan: aquí solo se borran filas de las
-        // tablas sesiones."SesionMision", "Participante", "Equipo" y "Sesion".
         _contexto.SesionMisiones.RemoveRange(existente.Misiones);
         _contexto.Participantes.RemoveRange(existente.Participantes);
         _contexto.Equipos.RemoveRange(existente.Equipos);
@@ -169,6 +146,50 @@ public sealed class RepositorioSesiones : IRepositorioSesiones, IConsultasSesion
         EstadoSesion.Activa
     };
 
+    private static readonly EstadoSesion[] EstadosBloqueantes =
+    {
+        EstadoSesion.EnPreparacion,
+        EstadoSesion.Activa,
+        EstadoSesion.Pausada
+    };
+
+    public async Task<SesionParticipacionActivaDto?> ObtenerParticipacionActivaDeParticipanteAsync(
+        Guid participanteIdentidadId, CancellationToken cancelacion)
+    {
+        var fila = await (
+            from p in _contexto.Participantes.AsNoTracking()
+            join s in _contexto.Sesiones.AsNoTracking() on p.SesionId equals s.Id
+            where p.ParticipanteIdentidadId == participanteIdentidadId
+                  && EstadosBloqueantes.Contains(s.Estado)
+            select new
+            {
+                s.Id,
+                s.Nombre,
+                s.Estado,
+                s.TipoSesion,
+                p.EquipoId
+            }).FirstOrDefaultAsync(cancelacion);
+
+        if (fila is null) return null;
+
+        string? equipoNombre = null;
+        if (fila.EquipoId is Guid equipoId)
+        {
+            equipoNombre = await _contexto.Equipos.AsNoTracking()
+                .Where(e => e.Id == equipoId)
+                .Select(e => e.Nombre)
+                .FirstOrDefaultAsync(cancelacion);
+        }
+
+        var modo = string.Equals(fila.TipoSesion, ModoSesion.Grupal.ToString(),
+            StringComparison.OrdinalIgnoreCase)
+            ? ModoSesion.Grupal
+            : ModoSesion.Individual;
+
+        return new SesionParticipacionActivaDto(
+            fila.Id, fila.Nombre, fila.Estado, modo, fila.EquipoId, equipoNombre);
+    }
+
     public async Task<IReadOnlyList<Sesion>> ListarDisponiblesParaParticipanteAsync(
         string? busqueda, string? tipoSesion, CancellationToken cancelacion)
     {
@@ -181,9 +202,6 @@ public sealed class RepositorioSesiones : IRepositorioSesiones, IConsultasSesion
 
         if (!string.IsNullOrWhiteSpace(tipoSesion))
         {
-            // Discriminador TPH lógico: la columna `tipo_sesion` guarda
-            // "Individual" o "Grupal". Comparación case-insensitive
-            // se evalúa en BD vía ILIKE bajo Npgsql.
             consulta = consulta.Where(s =>
                 EF.Functions.ILike(s.TipoSesion, tipoSesion));
         }

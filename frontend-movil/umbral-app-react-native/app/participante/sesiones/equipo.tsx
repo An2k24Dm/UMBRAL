@@ -48,6 +48,17 @@ function Contenido() {
     );
   };
 
+  // HU41: solo el líder puede editar el equipo.
+  const editarEquipo = () => {
+    if (!equipo) return;
+    enrutador.push(
+      `/participante/sesiones/editar-equipo?sesionId=${sesionId}` +
+        `&equipoId=${equipoId}` +
+        `&nombre=${encodeURIComponent(equipo.nombre)}` +
+        `&tipo=${equipo.tipo}`,
+    );
+  };
+
   return (
     <PantallaBase>
       <View style={estilos.encabezado}>
@@ -104,6 +115,16 @@ function Contenido() {
             equipo.participantes.map((p) => (
               <FilaParticipante key={p.participanteSesionId} participante={p} />
             ))
+          )}
+
+          {equipo.soyLider && (
+            <TouchableOpacity
+              style={estilos.botonPrimario}
+              onPress={editarEquipo}
+              accessibilityRole="button"
+            >
+              <Text style={estilos.botonPrimarioTexto}>Editar equipo</Text>
+            </TouchableOpacity>
           )}
 
           {!equipo.esMiEquipo && (

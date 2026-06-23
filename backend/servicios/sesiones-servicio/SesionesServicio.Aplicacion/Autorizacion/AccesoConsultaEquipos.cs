@@ -4,11 +4,8 @@ using SesionesServicio.Dominio.Entidades;
 using SesionesServicio.Dominio.Enums;
 using SesionesServicio.Dominio.Excepciones;
 
-namespace SesionesServicio.Aplicacion.Consultas.Equipos;
+namespace SesionesServicio.Aplicacion.Autorizacion;
 
-// HU43 — Reglas comunes de acceso para consultar equipos de una sesión,
-// compartidas por el listado y el detalle. Centraliza la validación de
-// existencia, tipo grupal y permisos por rol.
 internal static class AccesoConsultaEquipos
 {
     private static readonly EstadoSesion[] EstadosDisponibles =
@@ -21,8 +18,6 @@ internal static class AccesoConsultaEquipos
     private const string MensajeSinPermiso =
         "No tienes permisos para consultar los equipos de esta sesión.";
 
-    // Carga la sesión, valida que sea grupal y autoriza al usuario actual.
-    // Devuelve la sesión grupal y el id de identidad del usuario (o null).
     public static async Task<(SesionGrupal Sesion, Guid? UsuarioId)> ResolverSesionAutorizadaAsync(
         Guid sesionId,
         IRepositorioSesiones repositorio,

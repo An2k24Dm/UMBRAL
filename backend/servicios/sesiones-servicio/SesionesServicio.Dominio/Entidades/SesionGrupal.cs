@@ -62,8 +62,6 @@ public sealed class SesionGrupal : Sesion
         var equipoId = Guid.NewGuid();
         var lider = Participante.CrearParaEquipo(
             Id, equipoId, liderIdentidadId, fechaUnionSesionUtc, fechaUnionEquipoUtc);
-        // La capacidad del equipo es una copia de la configuración de la sesión
-        // al momento de crearlo (MaximoParticipantesPorEquipo).
         var equipo = Equipo.CrearConLider(
             equipoId, Id, nombreEquipo, tipoEquipo, contrasenaHash,
             MaximoParticipantesPorEquipo, lider, fechaUnionEquipoUtc);
@@ -97,6 +95,37 @@ public sealed class SesionGrupal : Sesion
             Id, equipoId, participanteIdentidadId, fechaUnionSesionUtc, fechaUnionEquipoUtc);
         equipo.AgregarParticipante(participante);
         return participante;
+    }
+
+    public Equipo ModificarEquipo(
+        Guid equipoId,
+        Guid participanteIdentidadId,
+        NombreEquipo nuevoNombre,
+        TipoEquipo nuevoTipo,
+        ContrasenaEquipoHash? nuevaContrasenaHash,
+        bool actualizarContrasena)
+    {
+        if (nuevoNombre is null)
+            throw new EquipoInvalidoExcepcion("El nombre del equipo es obligatorio.");
+
+        var equipo = _equipos.FirstOrDefault(e => e.Id == equipoId)
+            ?? throw new EquipoNoEncontradoExcepcion(
+                "El equipo solicitado no existe en esta sesión.");
+
+        if (Estado != EstadoSesion.EnPreparacion)
+            throw new EquipoInvalidoExcepcion(
+                "Solo se pueden modificar equipos cuando la sesión está en estado En Preparación.");
+
+        if (!equipo.EsLider(participanteIdentidadId))
+            throw new AccesoSesionNoPermitidoExcepcion(
+                "Solo el líder del equipo puede modificarlo.");
+
+        if (_equipos.Any(e => e.Id != equipoId && e.Nombre.Equals(nuevoNombre)))
+            throw new EquipoInvalidoExcepcion(
+                "Ya existe un equipo con ese nombre en la sesión.");
+
+        equipo.ModificarDatos(nuevoNombre, nuevoTipo, nuevaContrasenaHash, actualizarContrasena);
+        return equipo;
     }
 
     public void ModificarCapacidad(int maximoEquipos, int maximoParticipantesPorEquipo)

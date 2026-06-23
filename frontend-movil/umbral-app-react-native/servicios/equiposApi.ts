@@ -111,6 +111,65 @@ export async function crearEquipoApi(
   return (await respuesta.json()) as CrearEquipoRespuesta;
 }
 
+// HU41 — Modifica nombre/tipo/contraseña de un equipo. Solo el líder.
+function mapearErrorModificar(
+  estadoHttp: number,
+  mensajeBackend: string | undefined,
+): ErrorCrearEquipo {
+  if (estadoHttp === 403) {
+    return new ErrorCrearEquipo(
+      mensajeBackend ?? "Solo el líder del equipo puede modificarlo.",
+      "ACCESO_NO_PERMITIDO",
+      403,
+    );
+  }
+  if (estadoHttp === 409) {
+    return new ErrorCrearEquipo(
+      mensajeBackend ??
+        "Solo puedes modificar el equipo mientras la sesión está en preparación.",
+      "CONFLICTO",
+      409,
+    );
+  }
+  if (estadoHttp === 400) {
+    return new ErrorCrearEquipo(
+      mensajeBackend ?? "Debes indicar una contraseña para un equipo privado.",
+      "VALIDACION",
+      400,
+    );
+  }
+  return mapearError(estadoHttp, mensajeBackend);
+}
+
+export async function modificarEquipoApi(
+  tokenAcceso: string,
+  sesionId: string,
+  equipoId: string,
+  solicitud: CrearEquipoSolicitud,
+): Promise<CrearEquipoRespuesta> {
+  const cuerpo = {
+    nombre: solicitud.nombre,
+    tipo: solicitud.tipo,
+    contrasena: solicitud.tipo === "Privado" ? solicitud.contrasena : null,
+  };
+
+  const respuesta = await fetch(
+    construirUrl(`/api/sesiones/${sesionId}/equipos/${equipoId}`),
+    {
+      method: "PUT",
+      headers: obtenerEncabezadosAutenticados(tokenAcceso),
+      body: JSON.stringify(cuerpo),
+    },
+  );
+
+  if (!respuesta.ok) {
+    const error = await leerCuerpoError(respuesta);
+    throw mapearErrorModificar(respuesta.status, error?.mensaje);
+  }
+
+  return (await respuesta.json()) as CrearEquipoRespuesta;
+}
+
 // HU43 — Mapea errores de las consultas de equipos (mismos códigos HTTP).
 function mapearErrorConsulta(
   estadoHttp: number,

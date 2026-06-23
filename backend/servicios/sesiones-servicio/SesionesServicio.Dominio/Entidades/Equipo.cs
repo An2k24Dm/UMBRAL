@@ -13,9 +13,6 @@ public sealed class Equipo
     public Guid SesionId { get; private set; }
     public NombreEquipo Nombre { get; private set; } = null!;
     public Guid LiderParticipanteId { get; private set; }
-    // Puntaje se mantiene como int en HU40 (siempre nace en 0). Se evaluará
-    // promoverlo a Value Object en historias futuras de scoring/ranking y
-    // penalizaciones, donde tendrá invariantes propias y trazabilidad.
     public int Puntaje { get; private set; }
     public TipoEquipo Tipo { get; private set; }
     public ContrasenaEquipoHash? ContrasenaHash { get; private set; }
@@ -77,8 +74,50 @@ public sealed class Equipo
         _participantes.Add(participante);
     }
 
+    internal void ModificarDatos(
+        NombreEquipo nuevoNombre,
+        TipoEquipo nuevoTipo,
+        ContrasenaEquipoHash? nuevaContrasenaHash,
+        bool actualizarContrasena)
+    {
+        if (nuevoNombre is null)
+            throw new EquipoInvalidoExcepcion("El nombre del equipo es obligatorio.");
+
+        if (nuevoTipo == TipoEquipo.Publico)
+        {
+            // Un equipo público nunca conserva contraseña.
+            Nombre = nuevoNombre;
+            Tipo = TipoEquipo.Publico;
+            ContrasenaHash = null;
+            return;
+        }
+
+        if (actualizarContrasena)
+        {
+            if (nuevaContrasenaHash is null)
+                throw new EquipoInvalidoExcepcion(
+                    "Un equipo privado debe tener una contraseña configurada.");
+            ContrasenaHash = nuevaContrasenaHash;
+        }
+        else if (ContrasenaHash is null)
+        {
+            throw new EquipoInvalidoExcepcion(
+                "Un equipo privado debe tener una contraseña configurada.");
+        }
+
+        Nombre = nuevoNombre;
+        Tipo = TipoEquipo.Privado;
+    }
+
     public bool ContieneParticipanteIdentidadId(Guid participanteIdentidadId)
         => _participantes.Any(p => p.ParticipanteIdentidadId == participanteIdentidadId);
+
+
+    public bool EsLider(Guid participanteIdentidadId)
+    {
+        var lider = _participantes.FirstOrDefault(p => p.Id == LiderParticipanteId);
+        return lider is not null && lider.ParticipanteIdentidadId == participanteIdentidadId;
+    }
 
     public bool EstaLleno() => _participantes.Count >= CapacidadMaxima;
 

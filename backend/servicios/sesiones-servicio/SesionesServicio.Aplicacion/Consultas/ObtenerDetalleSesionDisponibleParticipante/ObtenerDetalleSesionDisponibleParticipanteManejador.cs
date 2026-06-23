@@ -22,15 +22,18 @@ public sealed class ObtenerDetalleSesionDisponibleParticipanteManejador
     private readonly IRepositorioSesiones _repositorio;
     private readonly IClienteJuegosMisiones _clienteMisiones;
     private readonly IUsuarioActual _usuarioActual;
+    private readonly IConsultasSesiones _consultas;
 
     public ObtenerDetalleSesionDisponibleParticipanteManejador(
         IRepositorioSesiones repositorio,
         IClienteJuegosMisiones clienteMisiones,
-        IUsuarioActual usuarioActual)
+        IUsuarioActual usuarioActual,
+        IConsultasSesiones consultas)
     {
         _repositorio = repositorio;
         _clienteMisiones = clienteMisiones;
         _usuarioActual = usuarioActual;
+        _consultas = consultas;
     }
 
     public async Task<SesionDetalleMovilDto> Handle(
@@ -53,6 +56,8 @@ public sealed class ObtenerDetalleSesionDisponibleParticipanteManejador
             CodigoAcceso = sesion.CodigoAcceso,
             ParticipacionActual = CalcularParticipacion(sesion)
         };
+
+        await CalcularPuedeIngresarAsync(detalle, sesion, cancelacion);
 
         var misionesEnOrden = sesion.Misiones.OrderBy(m => m.Orden).ToList();
         var tareas = misionesEnOrden
@@ -87,6 +92,29 @@ public sealed class ObtenerDetalleSesionDisponibleParticipanteManejador
         }
 
         return detalle;
+    }
+
+    // Regla de participación única: informa si el participante puede ingresar
+    // a esta sesión o por qué no (ya está en esta misma sesión o en otra).
+    private async Task CalcularPuedeIngresarAsync(
+        SesionDetalleMovilDto detalle, Sesion sesion, CancellationToken cancelacion)
+    {
+        var participanteId = _usuarioActual.ObtenerId();
+        if (participanteId is not Guid pid || pid == Guid.Empty)
+            return;
+
+        var activa = await _consultas.ObtenerParticipacionActivaDeParticipanteAsync(
+            pid, cancelacion);
+        if (activa is null)
+            return;
+
+        detalle.PuedeIngresar = false;
+        detalle.SesionActualId = activa.SesionId;
+        detalle.SesionActualNombre = activa.NombreSesion;
+        detalle.MotivoNoPuedeIngresar = activa.SesionId == sesion.Id
+            ? "Ya perteneces a esta sesión."
+            : "Ya estás participando en otra sesión. Debes esperar a que finalice " +
+              "o sea cancelada para ingresar a una nueva.";
     }
 
     // HU40 — Determina la participación del usuario autenticado en la sesión.

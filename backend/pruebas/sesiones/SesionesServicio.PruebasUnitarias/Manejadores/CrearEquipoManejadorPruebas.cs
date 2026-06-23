@@ -2,7 +2,9 @@ using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using SesionesServicio.Aplicacion.Autorizacion;
 using SesionesServicio.Aplicacion.Comandos.CrearEquipo;
+using SesionesServicio.Aplicacion.Excepciones;
 using SesionesServicio.Aplicacion.Puertos;
 using SesionesServicio.Aplicacion.Validaciones;
 using SesionesServicio.Commons.Dtos;
@@ -29,10 +31,16 @@ public class CrearEquipoManejadorPruebas
         public Mock<IUsuarioActual> Usuario { get; } = new();
         public Mock<IHashContrasenaEquipo> Hash { get; } = new();
         public Mock<IProveedorFechaHora> Reloj { get; } = new();
+        public Mock<IConsultasSesiones> Consultas { get; } = new();
         public Sesion? Actualizada;
 
         public Contexto(Sesion? sesion = null)
         {
+            // Por defecto el participante no está en ninguna sesión activa.
+            Consultas.Setup(c => c.ObtenerParticipacionActivaDeParticipanteAsync(
+                    It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync((SesionParticipacionActivaDto?)null);
+
             Reloj.Setup(r => r.ObtenerFechaHoraUtc()).Returns(AhoraUtc);
             Usuario.Setup(u => u.EstaAutenticado()).Returns(true);
             Usuario.Setup(u => u.ObtenerId()).Returns(Participante);
@@ -50,7 +58,8 @@ public class CrearEquipoManejadorPruebas
 
         public CrearEquipoManejador Construir()
             => new(new ValidadorCrearEquipo(), Repo.Object, Unidad.Object,
-                Usuario.Object, Hash.Object, Reloj.Object);
+                Usuario.Object, Hash.Object, Reloj.Object,
+                new ValidadorParticipacionUnicaSesion(Consultas.Object));
     }
 
     private static SesionGrupal SesionGrupalEnPreparacion(
@@ -222,5 +231,46 @@ public class CrearEquipoManejadorPruebas
             .Where(p => p.PropertyType == typeof(string))
             .Select(p => (string?)p.GetValue(dto))
             .Should().NotContain(v => v != null && v.Contains("secreta"));
+    }
+
+    // ---- Regla de participación única ----
+
+    private static void ConParticipacionEn(
+        Contexto ctx, Guid sesionId, EstadoSesion estado)
+        => ctx.Consultas.Setup(c => c.ObtenerParticipacionActivaDeParticipanteAsync(
+                It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SesionParticipacionActivaDto(
+                sesionId, "Otra", estado, ModoSesion.Grupal, null, null));
+
+    [Theory]
+    [InlineData(EstadoSesion.EnPreparacion)]
+    [InlineData(EstadoSesion.Activa)]
+    [InlineData(EstadoSesion.Pausada)]
+    public async Task NoCrea_SiParticipanteEnOtraSesionActiva(EstadoSesion estado)
+    {
+        var ctx = new Contexto();
+        ConParticipacionEn(ctx, Guid.NewGuid(), estado);
+
+        Func<Task> accion = () => ctx.Construir().Handle(Comando(), CancellationToken.None);
+        await accion.Should().ThrowAsync<ParticipanteYaEstaEnSesionActivaExcepcion>();
+    }
+
+    [Fact]
+    public async Task Crea_SiParticipacionAnteriorNoBloqueante()
+    {
+        // Finalizada/Cancelada hacen que la consulta no devuelva participación.
+        var ctx = new Contexto();
+        var dto = await ctx.Construir().Handle(Comando(), CancellationToken.None);
+        dto.Nombre.Should().Be("Rojo");
+    }
+
+    [Fact]
+    public async Task NoCrea_SiYaPerteneceAEstaMismaSesion()
+    {
+        var ctx = new Contexto();
+        ConParticipacionEn(ctx, SesionId, EstadoSesion.EnPreparacion);
+
+        Func<Task> accion = () => ctx.Construir().Handle(Comando(), CancellationToken.None);
+        await accion.Should().ThrowAsync<ParticipanteYaPerteneceASesionExcepcion>();
     }
 }

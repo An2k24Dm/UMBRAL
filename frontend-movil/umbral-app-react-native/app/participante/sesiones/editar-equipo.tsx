@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
   ActivityIndicator,
   StyleSheet,
@@ -11,15 +11,15 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import RutaProtegidaMovil from "../../../autenticacion/RutaProtegidaMovil";
 import { PantallaBase } from "../../../componentes/PantallaBase";
 import { tema } from "../../../estilos/tema";
-import { useCrearEquipo } from "../../../hooks/useCrearEquipo";
+import { useModificarEquipo } from "../../../hooks/useModificarEquipo";
 import type { TipoEquipo } from "../../../tipos/equipos";
 
 const LONGITUD_MINIMA_CONTRASENA = 6;
 const LONGITUD_MAXIMA_NOMBRE = 80;
 
-// HU40 — Pantalla independiente para crear un equipo. Sustituye al formulario
-// que antes se mostraba dentro del detalle de la sesión.
-export default function PantallaCrearEquipo() {
+// HU41 — Edición de un equipo por su líder. El tipo actual llega por params
+// para decidir si la contraseña es obligatoria al pasar de Público a Privado.
+export default function PantallaEditarEquipo() {
   return (
     <RutaProtegidaMovil>
       <Contenido />
@@ -27,131 +27,75 @@ export default function PantallaCrearEquipo() {
   );
 }
 
-// Traduce el mensaje del backend a un texto claro y detecta si el conflicto
-// se debe a que el participante ya pertenece a un equipo de la sesión.
-function interpretarError(mensaje: string): { texto: string; yaPertenece: boolean } {
-  const m = mensaje.toLowerCase();
-  // Regla de participación única: ya está en otra sesión activa.
-  if (m.includes("participando en otra"))
-    return {
-      texto:
-        "Ya estás participando en otra sesión. Debes esperar a que finalice " +
-        "o sea cancelada para ingresar a una nueva.",
-      yaPertenece: true,
-    };
-  if (m.includes("ya forma parte") || m.includes("pertenec"))
-    return { texto: "Ya perteneces a un equipo en esta sesión.", yaPertenece: true };
-  if (m.includes("preparaci"))
-    return {
-      texto: "Solo puedes crear equipos mientras la sesión está en preparación.",
-      yaPertenece: false,
-    };
-  if (m.includes("grupal"))
-    return { texto: "Solo puedes crear equipos en sesiones grupales.", yaPertenece: false };
-  if (m.includes("ya existe un equipo"))
-    return { texto: "Ya existe un equipo con ese nombre en esta sesión.", yaPertenece: false };
-  return { texto: mensaje, yaPertenece: false };
-}
-
 function Contenido() {
   const enrutador = useRouter();
-  const parametros = useLocalSearchParams<{ sesionId?: string; nombre?: string }>();
+  const parametros = useLocalSearchParams<{
+    sesionId?: string;
+    equipoId?: string;
+    nombre?: string;
+    tipo?: string;
+  }>();
   const sesionId = parametros.sesionId ?? "";
-  const nombreSesion = parametros.nombre ?? "";
+  const equipoId = parametros.equipoId ?? "";
+  const tipoActual: TipoEquipo = parametros.tipo === "Privado" ? "Privado" : "Publico";
 
-  const [nombre, setNombre] = useState("");
-  const [tipo, setTipo] = useState<TipoEquipo>("Publico");
+  const [nombre, setNombre] = useState(parametros.nombre ?? "");
+  const [tipo, setTipo] = useState<TipoEquipo>(tipoActual);
   const [contrasena, setContrasena] = useState("");
   const [errorLocal, setErrorLocal] = useState<string | null>(null);
 
-  const { creando, error, equipoCreado, crear } = useCrearEquipo(sesionId);
+  const { guardando, error, modificar } = useModificarEquipo(sesionId, equipoId);
 
-  const errorBackend = useMemo(
-    () => (error ? interpretarError(error) : null),
-    [error],
-  );
+  // La contraseña es obligatoria solo si el equipo pasa de Público a Privado.
+  const contrasenaObligatoria = tipo === "Privado" && tipoActual === "Publico";
 
-  const volverADetalle = () =>
-    enrutador.replace(`/participante/sesiones/${sesionId}`);
+  const volverAlDetalle = () =>
+    enrutador.replace(
+      `/participante/sesiones/equipo?sesionId=${sesionId}&equipoId=${equipoId}`,
+    );
 
   const validarLocal = (): string | null => {
-    const nombreLimpio = nombre.trim();
-    if (nombreLimpio.length === 0) return "El nombre del equipo es obligatorio.";
-    if (nombreLimpio.length > LONGITUD_MAXIMA_NOMBRE)
+    const limpio = nombre.trim();
+    if (limpio.length === 0) return "El nombre del equipo es obligatorio.";
+    if (limpio.length > LONGITUD_MAXIMA_NOMBRE)
       return `El nombre no puede superar ${LONGITUD_MAXIMA_NOMBRE} caracteres.`;
-    if (tipo === "Privado" && contrasena.trim().length < LONGITUD_MINIMA_CONTRASENA)
+    if (contrasenaObligatoria && contrasena.trim().length === 0)
+      return "Debes indicar una contraseña para un equipo privado.";
+    if (
+      tipo === "Privado" &&
+      contrasena.trim().length > 0 &&
+      contrasena.trim().length < LONGITUD_MINIMA_CONTRASENA
+    )
       return `La contraseña debe tener al menos ${LONGITUD_MINIMA_CONTRASENA} caracteres.`;
     return null;
   };
 
-  const enviar = async () => {
+  const guardar = async () => {
     setErrorLocal(null);
     const errorValidacion = validarLocal();
     if (errorValidacion) {
       setErrorLocal(errorValidacion);
       return;
     }
-    await crear({
+    const ok = await modificar({
       nombre: nombre.trim(),
       tipo,
-      contrasena: tipo === "Privado" ? contrasena.trim() : null,
+      // En privado: contraseña solo si se escribió (si no, se conserva).
+      contrasena:
+        tipo === "Privado" && contrasena.trim().length > 0
+          ? contrasena.trim()
+          : null,
     });
+    if (ok) volverAlDetalle();
   };
-
-  // Éxito: el participante ya quedó como líder del equipo.
-  if (equipoCreado) {
-    return (
-      <PantallaBase>
-        <View style={estilos.tarjeta}>
-          <View style={estilos.cuadroExito}>
-            <Text style={estilos.cuadroExitoTexto}>Equipo creado correctamente.</Text>
-          </View>
-          <Bloque etiqueta="NOMBRE" valor={equipoCreado.nombre} />
-          <Bloque etiqueta="TIPO" valor={equipoCreado.tipo} />
-          <Bloque
-            etiqueta="INTEGRANTES"
-            valor={`${equipoCreado.cantidadParticipantes} / ${equipoCreado.capacidadMaxima}`}
-          />
-          <TouchableOpacity
-            style={estilos.botonPrimario}
-            onPress={volverADetalle}
-            accessibilityRole="button"
-          >
-            <Text style={estilos.botonPrimarioTexto}>Volver a la sesión</Text>
-          </TouchableOpacity>
-        </View>
-      </PantallaBase>
-    );
-  }
-
-  // Conflicto: ya pertenece a un equipo. No reabrimos el formulario.
-  if (errorBackend?.yaPertenece) {
-    return (
-      <PantallaBase>
-        <View style={estilos.tarjeta}>
-          <View style={estilos.cuadroError}>
-            <Text style={estilos.cuadroErrorTexto}>{errorBackend.texto}</Text>
-          </View>
-          <TouchableOpacity
-            style={estilos.botonPrimario}
-            onPress={volverADetalle}
-            accessibilityRole="button"
-          >
-            <Text style={estilos.botonPrimarioTexto}>Volver a la sesión</Text>
-          </TouchableOpacity>
-        </View>
-      </PantallaBase>
-    );
-  }
 
   return (
     <PantallaBase>
       <View style={estilos.encabezado}>
-        <Text style={estilos.titulo}>Crear equipo</Text>
+        <Text style={estilos.titulo}>Editar equipo</Text>
         <Text style={estilos.subtitulo}>
-          Crea un equipo para participar en esta sesión grupal.
+          Actualiza el nombre, el tipo o la contraseña del equipo.
         </Text>
-        {nombreSesion ? <Text style={estilos.nombreSesion}>{nombreSesion}</Text> : null}
       </View>
 
       <View style={estilos.tarjeta}>
@@ -163,7 +107,7 @@ function Contenido() {
           placeholder="Ej. Los exploradores"
           placeholderTextColor={tema.colores.textoTenue}
           maxLength={LONGITUD_MAXIMA_NOMBRE}
-          editable={!creando}
+          editable={!guardando}
           accessibilityLabel="Nombre del equipo"
         />
 
@@ -173,72 +117,72 @@ function Contenido() {
             activo={tipo === "Publico"}
             texto="Público"
             onPress={() => setTipo("Publico")}
-            deshabilitado={creando}
+            deshabilitado={guardando}
           />
           <BotonTipo
             activo={tipo === "Privado"}
             texto="Privado"
             onPress={() => setTipo("Privado")}
-            deshabilitado={creando}
+            deshabilitado={guardando}
           />
         </View>
 
-        {tipo === "Privado" && (
+        {tipo === "Privado" ? (
           <>
             <Text style={estilos.etiqueta}>Contraseña</Text>
             <TextInput
               style={estilos.entrada}
               value={contrasena}
               onChangeText={setContrasena}
-              placeholder="Mínimo 6 caracteres"
+              placeholder={
+                contrasenaObligatoria ? "Mínimo 6 caracteres" : "Mínimo 6 caracteres"
+              }
               placeholderTextColor={tema.colores.textoTenue}
               secureTextEntry
-              editable={!creando}
+              editable={!guardando}
               accessibilityLabel="Contraseña del equipo"
             />
+            <Text style={estilos.ayuda}>
+              {contrasenaObligatoria
+                ? "Debes definir una contraseña para hacer el equipo privado."
+                : "Deja la contraseña vacía si no deseas cambiarla."}
+            </Text>
           </>
+        ) : (
+          <Text style={estilos.ayuda}>
+            El equipo público no requiere contraseña.
+          </Text>
         )}
 
-        {(errorLocal || errorBackend) && (
+        {(errorLocal || error) && (
           <View style={estilos.cuadroError}>
-            <Text style={estilos.cuadroErrorTexto}>
-              {errorLocal ?? errorBackend?.texto}
-            </Text>
+            <Text style={estilos.cuadroErrorTexto}>{errorLocal ?? error}</Text>
           </View>
         )}
 
         <TouchableOpacity
-          style={[estilos.botonPrimario, creando && estilos.botonDeshabilitado]}
-          onPress={enviar}
-          disabled={creando}
+          style={[estilos.botonPrimario, guardando && estilos.botonDeshabilitado]}
+          onPress={guardar}
+          disabled={guardando}
           accessibilityRole="button"
         >
-          {creando ? (
+          {guardando ? (
             <ActivityIndicator color={tema.colores.textoBlanco} />
           ) : (
-            <Text style={estilos.botonPrimarioTexto}>Crear equipo</Text>
+            <Text style={estilos.botonPrimarioTexto}>Guardar cambios</Text>
           )}
         </TouchableOpacity>
 
         <TouchableOpacity
           style={estilos.botonSecundario}
           onPress={() => enrutador.back()}
-          disabled={creando}
+          disabled={guardando}
           accessibilityRole="button"
         >
           <Text style={estilos.botonSecundarioTexto}>Cancelar</Text>
         </TouchableOpacity>
       </View>
     </PantallaBase>
-  );
-}
-
-function Bloque({ etiqueta, valor }: { etiqueta: string; valor: string }) {
-  return (
-    <View style={estilos.bloqueMeta}>
-      <Text style={estilos.metaEtiqueta}>{etiqueta}</Text>
-      <Text style={estilos.metaValor}>{valor}</Text>
-    </View>
   );
 }
 
@@ -269,10 +213,7 @@ function BotonTipo({
 }
 
 const estilos = StyleSheet.create({
-  encabezado: {
-    marginBottom: tema.espacios.md,
-    paddingTop: tema.espacios.md,
-  },
+  encabezado: { marginBottom: tema.espacios.md, paddingTop: tema.espacios.md },
   titulo: {
     fontSize: tema.tipografia.tamanos.h2,
     fontWeight: tema.tipografia.pesos.extrabold,
@@ -282,12 +223,6 @@ const estilos = StyleSheet.create({
     fontSize: tema.tipografia.tamanos.md,
     color: tema.colores.textoTenue,
     marginTop: tema.espacios.xs,
-  },
-  nombreSesion: {
-    fontSize: tema.tipografia.tamanos.sm,
-    color: tema.colores.primario,
-    marginTop: tema.espacios.sm,
-    fontWeight: tema.tipografia.pesos.semibold,
   },
   tarjeta: {
     backgroundColor: tema.colores.fondoTarjeta,
@@ -304,6 +239,11 @@ const estilos = StyleSheet.create({
     marginBottom: tema.espacios.xs,
     marginTop: tema.espacios.sm,
   },
+  ayuda: {
+    color: tema.colores.textoTenue,
+    fontSize: tema.tipografia.tamanos.xs,
+    marginTop: tema.espacios.xs,
+  },
   entrada: {
     backgroundColor: tema.colores.fondo,
     borderWidth: 1,
@@ -314,10 +254,7 @@ const estilos = StyleSheet.create({
     color: tema.colores.texto,
     fontSize: tema.tipografia.tamanos.md,
   },
-  filaTipos: {
-    flexDirection: "row",
-    gap: tema.espacios.sm,
-  },
+  filaTipos: { flexDirection: "row", gap: tema.espacios.sm },
   botonTipo: {
     flex: 1,
     paddingVertical: tema.espacios.sm,
@@ -336,9 +273,7 @@ const estilos = StyleSheet.create({
     fontWeight: tema.tipografia.pesos.semibold,
     fontSize: tema.tipografia.tamanos.md,
   },
-  botonTipoTextoActivo: {
-    color: tema.colores.textoBlanco,
-  },
+  botonTipoTextoActivo: { color: tema.colores.textoBlanco },
   botonPrimario: {
     backgroundColor: tema.colores.primario,
     paddingVertical: tema.espacios.md,
@@ -346,9 +281,7 @@ const estilos = StyleSheet.create({
     alignItems: "center",
     marginTop: tema.espacios.md,
   },
-  botonDeshabilitado: {
-    opacity: 0.7,
-  },
+  botonDeshabilitado: { opacity: 0.7 },
   botonPrimarioTexto: {
     color: tema.colores.textoBlanco,
     fontWeight: tema.tipografia.pesos.bold,
@@ -380,33 +313,5 @@ const estilos = StyleSheet.create({
     color: tema.colores.error,
     fontSize: tema.tipografia.tamanos.sm,
     textAlign: "center",
-  },
-  cuadroExito: {
-    backgroundColor: tema.colores.fondo,
-    borderColor: tema.colores.primario,
-    borderWidth: 1,
-    borderRadius: tema.radios.entrada,
-    padding: tema.espacios.md,
-    marginBottom: tema.espacios.md,
-  },
-  cuadroExitoTexto: {
-    color: tema.colores.primario,
-    fontSize: tema.tipografia.tamanos.md,
-    fontWeight: tema.tipografia.pesos.bold,
-    textAlign: "center",
-  },
-  bloqueMeta: {
-    marginTop: tema.espacios.sm,
-  },
-  metaEtiqueta: {
-    color: tema.colores.textoTenue,
-    fontSize: tema.tipografia.tamanos.xs,
-    letterSpacing: tema.tipografia.espaciadoLetra.sm,
-  },
-  metaValor: {
-    color: tema.colores.texto,
-    fontSize: tema.tipografia.tamanos.md,
-    fontWeight: tema.tipografia.pesos.semibold,
-    marginTop: 2,
   },
 });

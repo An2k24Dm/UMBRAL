@@ -1,5 +1,5 @@
 using MediatR;
-using SesionesServicio.Aplicacion.Consultas.Equipos;
+using SesionesServicio.Aplicacion.Autorizacion;
 using SesionesServicio.Aplicacion.Puertos;
 using SesionesServicio.Commons.Dtos;
 using SesionesServicio.Dominio.Abstract;

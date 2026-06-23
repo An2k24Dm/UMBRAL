@@ -1,14 +1,12 @@
 using System.Net;
 using System.Text.Json;
 using SesionesServicio.Presentacion.Configuraciones;
+using SesionesServicio.Aplicacion.Excepciones;
 using SesionesServicio.Aplicacion.Validaciones;
 using SesionesServicio.Dominio.Excepciones;
 
 namespace SesionesServicio.Presentacion.Middlewares;
 
-// Centraliza el mapeo Excepción → respuesta HTTP. Las excepciones
-// "esperadas" del dominio/aplicación se traducen a 4xx con un cuerpo
-// { codigo, mensaje[, errores] } consistente con el resto del proyecto.
 public sealed class ManejadorErroresMiddleware
 {
     private static readonly JsonSerializerOptions OpcionesJson = new()
@@ -69,6 +67,16 @@ public sealed class ManejadorErroresMiddleware
         {
             await EscribirCodigoAsync(contexto, HttpStatusCode.Conflict,
                 "PARTICIPACION_INVALIDA", ex.Message);
+        }
+        catch (ParticipanteYaEstaEnSesionActivaExcepcion ex)
+        {
+            await EscribirCodigoAsync(contexto, HttpStatusCode.Conflict,
+                "PARTICIPANTE_EN_SESION_ACTIVA", ex.Message);
+        }
+        catch (ParticipanteYaPerteneceASesionExcepcion ex)
+        {
+            await EscribirCodigoAsync(contexto, HttpStatusCode.Conflict,
+                "PARTICIPANTE_YA_INSCRITO", ex.Message);
         }
         catch (UsuarioNoAutorizadoCrearSesionExcepcion ex)
         {
