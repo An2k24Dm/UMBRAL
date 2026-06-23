@@ -274,4 +274,113 @@ public class EquiposEndpointPruebas : IClassFixture<FabricaApiPruebas>
             $"/api/sesiones/{sesionId}/equipos", EquipoPublico("Segundo"));
         respuesta.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
+
+    // ---- HU43: consultar equipos ----
+
+    [Fact]
+    public async Task ListarEquipos_Participante_Responde200()
+    {
+        var sesionId = await CrearSesionGrupalEnPreparacionAsync();
+        var creador = ClienteConRol("Participante", IdParticipante);
+        (await creador.PostAsJsonAsync(
+            $"/api/sesiones/{sesionId}/equipos", EquipoPublico("Rojo")))
+            .EnsureSuccessStatusCode();
+
+        var otro = ClienteConRol("Participante", Guid.NewGuid());
+        var respuesta = await otro.GetAsync($"/api/sesiones/{sesionId}/equipos");
+
+        respuesta.StatusCode.Should().Be(HttpStatusCode.OK);
+        var equipos = await respuesta.Content
+            .ReadFromJsonAsync<List<EquipoSesionListadoDto>>(OpcionesJson);
+        equipos.Should().ContainSingle(e => e.Nombre == "Rojo");
+        equipos!.Single().CapacidadMaxima.Should().Be(3);
+    }
+
+    [Fact]
+    public async Task DetalleEquipo_Participante_Responde200_SinSecretos()
+    {
+        var sesionId = await CrearSesionGrupalEnPreparacionAsync();
+        var participante = ClienteConRol("Participante", IdParticipante);
+        var creado = await (await participante.PostAsJsonAsync(
+                $"/api/sesiones/{sesionId}/equipos", EquipoPrivado("Azul")))
+            .Content.ReadFromJsonAsync<CrearEquipoRespuestaDto>(OpcionesJson);
+
+        var respuesta = await participante.GetAsync(
+            $"/api/sesiones/{sesionId}/equipos/{creado!.Id}");
+
+        respuesta.StatusCode.Should().Be(HttpStatusCode.OK);
+        var detalle = await respuesta.Content
+            .ReadFromJsonAsync<EquipoSesionDetalleDto>(OpcionesJson);
+        detalle!.Nombre.Should().Be("Azul");
+        detalle.Tipo.Should().Be("Privado");
+        detalle.Participantes.Should().ContainSingle(p => p.EsLider);
+        detalle.Participantes.Single().FechaUnion.Should().NotBe(default);
+        detalle.Participantes.Single().Alias.Should().NotBeNullOrWhiteSpace();
+        detalle.EsMiEquipo.Should().BeTrue();
+
+        var cuerpo = (await respuesta.Content.ReadAsStringAsync()).ToLowerInvariant();
+        cuerpo.Should().NotContain("contrasena");
+        cuerpo.Should().NotContain("hash");
+        cuerpo.Should().NotContain("secreta");
+        cuerpo.Should().NotContain("correo");
+        cuerpo.Should().NotContain("telefono");
+        cuerpo.Should().NotContain("direccion");
+    }
+
+    [Fact]
+    public async Task ListarEquipos_Administrador_Responde403()
+    {
+        var sesionId = await CrearSesionGrupalEnPreparacionAsync();
+        var admin = ClienteConRol("Administrador");
+
+        var respuesta = await admin.GetAsync($"/api/sesiones/{sesionId}/equipos");
+
+        respuesta.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
+    public async Task ListarEquipos_SesionInexistente_Responde404()
+    {
+        var participante = ClienteConRol("Participante", IdParticipante);
+
+        var respuesta = await participante.GetAsync(
+            $"/api/sesiones/{Guid.NewGuid()}/equipos");
+
+        respuesta.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task DetalleEquipo_Inexistente_Responde404()
+    {
+        var sesionId = await CrearSesionGrupalEnPreparacionAsync();
+        var participante = ClienteConRol("Participante", IdParticipante);
+
+        var respuesta = await participante.GetAsync(
+            $"/api/sesiones/{sesionId}/equipos/{Guid.NewGuid()}");
+
+        respuesta.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task ListarEquipos_SesionIndividual_Responde409()
+    {
+        var operador = ClienteConRol("Operador");
+        var creada = await operador.PostAsJsonAsync("/api/sesiones", new CrearSesionSolicitudDto
+        {
+            Nombre = "Individual HU43",
+            Descripcion = "Demo",
+            Modo = "Individual",
+            FechaProgramada = DateTime.UtcNow.AddHours(2),
+            MisionesIds = new List<Guid> { FabricaApiPruebas.IdMisionActiva },
+            MaximoParticipantes = 10
+        });
+        creada.EnsureSuccessStatusCode();
+        var creado = await creada.Content.ReadFromJsonAsync<CrearSesionRespuestaDto>(OpcionesJson);
+
+        var participante = ClienteConRol("Participante", IdParticipante);
+        var respuesta = await participante.GetAsync(
+            $"/api/sesiones/{creado!.Id}/equipos");
+
+        respuesta.StatusCode.Should().Be(HttpStatusCode.Conflict);
+    }
 }

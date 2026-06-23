@@ -190,7 +190,7 @@ function SeccionParticipacion({
             onPress={() =>
               enrutador.push(
                 `/participante/sesiones/equipo?sesionId=${sesionId}` +
-                  `&equipoNombre=${encodeURIComponent(participacion.equipoNombre ?? "")}`,
+                  `&equipoId=${participacion.equipoId ?? ""}`,
               )
             }
             accessibilityRole="button"

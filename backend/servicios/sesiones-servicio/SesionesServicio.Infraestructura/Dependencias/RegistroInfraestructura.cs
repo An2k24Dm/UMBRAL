@@ -63,6 +63,7 @@ public static class RegistroInfraestructura
 
         servicios.AddHttpClient<IClienteJuegosMisiones, ClienteJuegosMisionesHttp>();
         servicios.AddHttpClient<IClienteIdentidadUsuarios, ClienteIdentidadUsuariosHttp>();
+        servicios.AddHttpClient<IClienteIdentidadParticipantes, ClienteIdentidadParticipantes>();
 
         servicios.Configure<OpcionesPreparacionSesiones>(
             configuracion.GetSection(OpcionesPreparacionSesiones.Seccion));

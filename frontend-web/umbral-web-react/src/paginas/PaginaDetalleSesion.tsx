@@ -8,6 +8,8 @@ import { ModalConfirmacion } from '../componentes/ModalConfirmacion'
 import {
   obtenerSesion,
   eliminarSesion,
+  listarEquiposSesion,
+  type EquipoSesionListadoDto,
   type SesionDetalleDto
 } from '../autenticacion/clienteApiSesiones'
 import {
@@ -83,6 +85,7 @@ export function PaginaDetalleSesion() {
   const [estado, setEstado] = useState<'cargando' | 'error' | 'listo'>('cargando')
   const [mensajeError, setMensajeError] = useState<string | null>(null)
   const [sesion, setSesion] = useState<SesionDetalleDto | null>(null)
+  const [equiposListado, setEquiposListado] = useState<EquipoSesionListadoDto[] | null>(null)
   const [misiones, setMisiones] = useState<MisionEnriquecida[]>([])
   const [misionAbierta, setMisionAbierta] = useState<string | null>(null)
   const [eliminando, setEliminando] = useState(false)
@@ -127,8 +130,12 @@ export function PaginaDetalleSesion() {
       }
       try {
         const detalle = await obtenerSesion(id, token)
+        const equipos = esOperador && detalle.modo === 'Grupal'
+          ? await listarEquiposSesion(id, token)
+          : null
         if (ref.cancelado) return
         setSesion(detalle)
+        setEquiposListado(equipos)
         setEstado('listo')
 
         const inicial: MisionEnriquecida[] = detalle.misiones
@@ -203,7 +210,7 @@ export function PaginaDetalleSesion() {
 
     cargar()
     return () => { ref.cancelado = true }
-  }, [token, id])
+  }, [token, id, esOperador])
 
   if (estado === 'cargando') {
     return (
@@ -233,6 +240,19 @@ export function PaginaDetalleSesion() {
   }
 
   const esGrupal = sesion.modo === 'Grupal'
+  const equiposMostrados: EquipoSesionListadoDto[] = equiposListado ?? sesion.equipos.map(eq => ({
+    id: eq.id,
+    sesionId: sesion.id,
+    nombre: eq.nombre,
+    tipo: eq.tipo,
+    puntaje: eq.puntajeActual,
+    cantidadParticipantes: eq.participantes.length,
+    capacidadMaxima: eq.capacidadMaxima,
+    estaLleno: eq.participantes.length >= eq.capacidadMaxima,
+    fechaCreacion: eq.fechaCreacion,
+    esMiEquipo: false,
+    soyLider: false
+  }))
 
   return (
     <LayoutPanel
@@ -466,10 +486,10 @@ export function PaginaDetalleSesion() {
           <div className="detalle-subtitulo">
             <div>
               <h3>Equipos</h3>
-              <p>Equipos: {sesion.equipos.length} / {sesion.maximoEquipos ?? '—'}</p>
+              <p>Equipos: {equiposMostrados.length} / {sesion.maximoEquipos ?? '—'}</p>
             </div>
           </div>
-          {sesion.equipos.length === 0 ? (
+          {equiposMostrados.length === 0 ? (
             <p className="detalle-mensaje-vacio">
               Aún no hay equipos unidos a esta sesión.
             </p>
@@ -479,27 +499,31 @@ export function PaginaDetalleSesion() {
                 <tr>
                   <th>#</th>
                   <th>Nombre del equipo</th>
+                  <th>Tipo</th>
                   <th>Integrantes</th>
-                  <th>Puntaje actual</th>
                   <th>Fecha de creación</th>
                   <th>Acciones</th>
                 </tr>
               </thead>
               <tbody>
-                {sesion.equipos.map((eq, idx) => (
+                {equiposMostrados.map((eq, idx) => (
                   <tr key={eq.id}>
                     <td>{idx + 1}</td>
-                    <td>{eq.nombre}</td>
-                    <td>{eq.participantes.length} / {sesion.maximoParticipantesPorEquipo ?? '—'}</td>
-                    <td>{eq.puntajeActual}</td>
+                    <td><strong className="equipo-nombre-listado">{eq.nombre}</strong></td>
+                    <td>
+                      <span className={`badge ${eq.tipo === 'Publico' ? 'badge-equipo-publico' : 'badge-equipo-privado'}`}>
+                        {eq.tipo === 'Publico' ? 'Público' : 'Privado'}
+                      </span>
+                    </td>
+                    <td>{eq.cantidadParticipantes} / {eq.capacidadMaxima}</td>
                     <td>{formatearFechaSesion(eq.fechaCreacion)}</td>
                     <td>
                       <Boton
-                        variante="secundario"
+                        variante="primario"
                         tamaño="sm"
                         onClick={() => navegar(`${rutaBaseEquipos}/${eq.id}`)}
                       >
-                        Ver equipo
+                        Ver
                       </Boton>
                     </td>
                   </tr>

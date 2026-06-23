@@ -1,7 +1,6 @@
 import { useEffect } from "react";
 import {
   ActivityIndicator,
-  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -13,12 +12,12 @@ import { useAutenticacion } from "../../../autenticacion/ContextoAutenticacion";
 import RutaProtegidaMovil from "../../../autenticacion/RutaProtegidaMovil";
 import { PantallaBase } from "../../../componentes/PantallaBase";
 import { tema } from "../../../estilos/tema";
-import { useDetalleEquipoSesion } from "../../../hooks/useDetalleEquipoSesion";
-import type { IntegranteEquipo } from "../../../tipos/equipos";
-import { formatearFechaHora } from "../../../utilidades/formatoFechas";
+import { useEquiposSesion } from "../../../hooks/useEquiposSesion";
+import type { EquipoSesionListado } from "../../../tipos/equipos";
 
-// HU43 — Detalle real de un equipo de la sesión. El ingreso a un equipo es HU47.
-export default function PantallaDetalleEquipo() {
+// HU43 — Listado de equipos de una sesión grupal. Permite ver el detalle de
+// cada equipo. El ingreso real a un equipo es HU47.
+export default function PantallaEquiposSesion() {
   return (
     <RutaProtegidaMovil>
       <Contenido />
@@ -29,35 +28,38 @@ export default function PantallaDetalleEquipo() {
 function Contenido() {
   const enrutador = useRouter();
   const { cerrarSesion } = useAutenticacion();
-  const parametros = useLocalSearchParams<{ sesionId?: string; equipoId?: string }>();
+  const parametros = useLocalSearchParams<{ sesionId?: string; nombre?: string }>();
   const sesionId = parametros.sesionId ?? "";
-  const equipoId = parametros.equipoId ?? "";
+  const nombre = parametros.nombre ?? "";
 
-  const { equipo, cargando, error, sesionExpirada, refrescar } =
-    useDetalleEquipoSesion(sesionId, equipoId);
+  const { equipos, cargando, error, sesionExpirada, refrescar } =
+    useEquiposSesion(sesionId);
 
   useEffect(() => {
     if (sesionExpirada) cerrarSesion().finally(() => enrutador.replace("/"));
   }, [sesionExpirada, cerrarSesion, enrutador]);
 
-  const ingresarAlEquipo = () => {
-    // HU47: ingreso real (público o con contraseña si es privado).
-    Alert.alert(
-      "Ingresar al equipo",
-      "Ingresar a un equipo se implementará en la HU47.",
+  const yaTengoEquipo = equipos.some((e) => e.esMiEquipo);
+
+  const verEquipo = (equipoId: string) =>
+    enrutador.push(
+      `/participante/sesiones/equipo?sesionId=${sesionId}&equipoId=${equipoId}`,
     );
-  };
 
   return (
     <PantallaBase>
       <View style={estilos.encabezado}>
-        <Text style={estilos.titulo}>Detalle de equipo</Text>
+        <Text style={estilos.titulo}>Equipos de la sesión</Text>
+        <Text style={estilos.subtitulo}>
+          Selecciona un equipo para ver su detalle.
+        </Text>
+        {nombre ? <Text style={estilos.nombreSesion}>{nombre}</Text> : null}
       </View>
 
       {cargando && (
         <View style={estilos.contenedorEstado}>
           <ActivityIndicator color={tema.colores.primario} size="large" />
-          <Text style={estilos.textoEstado}>Cargando equipo…</Text>
+          <Text style={estilos.textoEstado}>Cargando equipos…</Text>
         </View>
       )}
 
@@ -72,47 +74,36 @@ function Contenido() {
         </View>
       )}
 
-      {!cargando && !error && equipo && (
+      {!cargando && !error && (
         <ScrollView showsVerticalScrollIndicator={false}>
-          <View style={estilos.tarjeta}>
-            <View style={estilos.filaTitulo}>
-              <Text style={estilos.nombreEquipo}>{equipo.nombre}</Text>
-              <View style={estilos.badges}>
-                {equipo.esMiEquipo && (
-                  <Text style={[estilos.badge, estilos.badgePrimario]}>Tu equipo</Text>
-                )}
-                {equipo.soyLider && (
-                  <Text style={[estilos.badge, estilos.badgePrimario]}>Eres líder</Text>
-                )}
-              </View>
-            </View>
-            <Text style={estilos.metaLinea}>
-              {equipo.tipo === "Privado" ? "Privado" : "Público"}
-            </Text>
-            <Text style={estilos.metaLinea}>Puntaje: {equipo.puntaje}</Text>
-            <Text style={estilos.metaLinea}>
-              Integrantes: {equipo.cantidadParticipantes} / {equipo.capacidadMaxima}
-            </Text>
-          </View>
-
-          <Text style={estilos.tituloSeccion}>PARTICIPANTES</Text>
-          {equipo.participantes.length === 0 ? (
+          {equipos.length === 0 ? (
             <View style={estilos.tarjeta}>
-              <Text style={estilos.metaLinea}>Este equipo no tiene integrantes.</Text>
+              <Text style={estilos.vacioTexto}>
+                No hay equipos creados todavía.
+              </Text>
             </View>
           ) : (
-            equipo.participantes.map((p) => (
-              <FilaParticipante key={p.participanteSesionId} participante={p} />
+            equipos.map((equipo) => (
+              <TarjetaEquipo
+                key={equipo.id}
+                equipo={equipo}
+                onVer={() => verEquipo(equipo.id)}
+              />
             ))
           )}
 
-          {!equipo.esMiEquipo && (
+          {!yaTengoEquipo && (
             <TouchableOpacity
               style={estilos.botonPrimario}
-              onPress={ingresarAlEquipo}
+              onPress={() =>
+                enrutador.push(
+                  `/participante/sesiones/crear-equipo?sesionId=${sesionId}` +
+                    `&nombre=${encodeURIComponent(nombre)}`,
+                )
+              }
               accessibilityRole="button"
             >
-              <Text style={estilos.botonPrimarioTexto}>Ingresar al equipo</Text>
+              <Text style={estilos.botonPrimarioTexto}>Crear equipo</Text>
             </TouchableOpacity>
           )}
         </ScrollView>
@@ -129,21 +120,50 @@ function Contenido() {
   );
 }
 
-function FilaParticipante({ participante }: { participante: IntegranteEquipo }) {
-  const nombreCompleto = `${participante.nombre} ${participante.apellido}`.trim();
+function TarjetaEquipo({
+  equipo,
+  onVer,
+}: {
+  equipo: EquipoSesionListado;
+  onVer: () => void;
+}) {
   return (
     <View style={estilos.tarjeta}>
       <View style={estilos.filaTitulo}>
-        <Text style={estilos.nombreParticipante}>{nombreCompleto}</Text>
-        {participante.esLider && (
-          <Text style={[estilos.badge, estilos.badgePrimario]}>Líder</Text>
-        )}
+        <Text style={estilos.nombreEquipo}>{equipo.nombre}</Text>
+        <View style={estilos.badges}>
+          {equipo.esMiEquipo && (
+            <Text style={[estilos.badge, estilos.badgePrimario]}>Tu equipo</Text>
+          )}
+          {equipo.soyLider && (
+            <Text style={[estilos.badge, estilos.badgePrimario]}>Líder</Text>
+          )}
+        </View>
       </View>
-      <Text style={estilos.metaLinea}>@{participante.alias}</Text>
-      <Text style={estilos.metaLinea}>Puntaje: {participante.puntaje}</Text>
+
       <Text style={estilos.metaLinea}>
-        Fecha de unión: {formatearFechaHora(participante.fechaUnion)}
+        {equipo.tipo === "Privado" ? "Privado" : "Público"}
       </Text>
+      <Text style={estilos.metaLinea}>
+        Integrantes: {equipo.cantidadParticipantes} / {equipo.capacidadMaxima}
+      </Text>
+      <Text style={estilos.metaLinea}>Puntaje: {equipo.puntaje}</Text>
+      <Text
+        style={[
+          estilos.estado,
+          equipo.estaLleno ? estilos.estadoLleno : estilos.estadoDisponible,
+        ]}
+      >
+        {equipo.estaLleno ? "Lleno" : "Disponible"}
+      </Text>
+
+      <TouchableOpacity
+        style={estilos.botonVer}
+        onPress={onVer}
+        accessibilityRole="button"
+      >
+        <Text style={estilos.botonVerTexto}>Ver</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -154,6 +174,17 @@ const estilos = StyleSheet.create({
     fontSize: tema.tipografia.tamanos.h2,
     fontWeight: tema.tipografia.pesos.extrabold,
     color: tema.colores.texto,
+  },
+  subtitulo: {
+    fontSize: tema.tipografia.tamanos.md,
+    color: tema.colores.textoTenue,
+    marginTop: tema.espacios.xs,
+  },
+  nombreSesion: {
+    fontSize: tema.tipografia.tamanos.sm,
+    color: tema.colores.primario,
+    marginTop: tema.espacios.sm,
+    fontWeight: tema.tipografia.pesos.semibold,
   },
   tarjeta: {
     backgroundColor: tema.colores.fondoTarjeta,
@@ -171,12 +202,7 @@ const estilos = StyleSheet.create({
   },
   nombreEquipo: {
     color: tema.colores.texto,
-    fontSize: tema.tipografia.tamanos.h3,
-    fontWeight: tema.tipografia.pesos.extrabold,
-  },
-  nombreParticipante: {
-    color: tema.colores.texto,
-    fontSize: tema.tipografia.tamanos.md,
+    fontSize: tema.tipografia.tamanos.lg,
     fontWeight: tema.tipografia.pesos.bold,
   },
   badges: { flexDirection: "row", gap: tema.espacios.xs, flexWrap: "wrap" },
@@ -197,14 +223,30 @@ const estilos = StyleSheet.create({
     fontSize: tema.tipografia.tamanos.sm,
     marginTop: tema.espacios.xs,
   },
-  tituloSeccion: {
-    color: tema.colores.textoTenue,
-    fontSize: tema.tipografia.tamanos.xs,
-    letterSpacing: tema.tipografia.espaciadoLetra.sm,
-    textTransform: "uppercase",
-    marginBottom: tema.espacios.sm,
-    marginLeft: tema.espacios.xs,
+  estado: {
+    marginTop: tema.espacios.sm,
+    fontSize: tema.tipografia.tamanos.sm,
     fontWeight: tema.tipografia.pesos.bold,
+  },
+  estadoDisponible: { color: tema.colores.primario },
+  estadoLleno: { color: tema.colores.error },
+  botonVer: {
+    marginTop: tema.espacios.md,
+    paddingVertical: tema.espacios.sm,
+    borderRadius: tema.radios.boton,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: tema.colores.primario,
+  },
+  botonVerTexto: {
+    color: tema.colores.primario,
+    fontWeight: tema.tipografia.pesos.bold,
+    fontSize: tema.tipografia.tamanos.md,
+  },
+  vacioTexto: {
+    color: tema.colores.textoTenue,
+    fontSize: tema.tipografia.tamanos.md,
+    textAlign: "center",
   },
   contenedorEstado: { alignItems: "center", padding: tema.espacios.xl },
   textoEstado: {

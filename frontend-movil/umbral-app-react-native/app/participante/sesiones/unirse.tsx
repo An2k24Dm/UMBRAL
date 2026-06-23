@@ -1,11 +1,11 @@
-import { Alert, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import RutaProtegidaMovil from "../../../autenticacion/RutaProtegidaMovil";
 import { PantallaBase } from "../../../componentes/PantallaBase";
 import { tema } from "../../../estilos/tema";
 
-// HU40 — Pantalla de opciones al pulsar "Unirse" en una sesión grupal.
-// Ofrece "Unirse a un equipo" (HU47, placeholder) y "Crear equipo" (HU40).
+// HU40/HU43 — Pantalla de opciones al pulsar "Unirse" en una sesión grupal.
+// Ofrece "Unirse a un equipo" (lista equipos, HU43) y "Crear equipo" (HU40).
 export default function PantallaOpcionesUnirse() {
   return (
     <RutaProtegidaMovil>
@@ -28,10 +28,10 @@ function Contenido() {
   };
 
   const unirseAEquipoExistente = () => {
-    // HU47: ingreso a un equipo existente (público o privado). Aún no disponible.
-    Alert.alert(
-      "Unirse a un equipo",
-      "La opción de unirse a un equipo se implementará en la HU47.",
+    // HU43: abre el listado de equipos. El ingreso real es HU47.
+    enrutador.push(
+      `/participante/sesiones/equipos?sesionId=${sesionId}` +
+        `&nombre=${encodeURIComponent(nombre)}`,
     );
   };
 

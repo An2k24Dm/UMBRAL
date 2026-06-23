@@ -1,6 +1,8 @@
 import type {
   CrearEquipoRespuesta,
   CrearEquipoSolicitud,
+  EquipoSesionDetalle,
+  EquipoSesionListado,
 } from "../tipos/equipos";
 import {
   construirUrl,
@@ -107,4 +109,68 @@ export async function crearEquipoApi(
   }
 
   return (await respuesta.json()) as CrearEquipoRespuesta;
+}
+
+// HU43 — Mapea errores de las consultas de equipos (mismos códigos HTTP).
+function mapearErrorConsulta(
+  estadoHttp: number,
+  mensajeBackend: string | undefined,
+): ErrorCrearEquipo {
+  if (estadoHttp === 403) {
+    return new ErrorCrearEquipo(
+      mensajeBackend ?? "No tienes permisos para consultar los equipos.",
+      "ACCESO_NO_PERMITIDO",
+      403,
+    );
+  }
+  if (estadoHttp === 404) {
+    return new ErrorCrearEquipo(
+      mensajeBackend ?? "La sesión o el equipo no existe.",
+      "SESION_NO_ENCONTRADA",
+      404,
+    );
+  }
+  if (estadoHttp === 409) {
+    return new ErrorCrearEquipo(
+      mensajeBackend ?? "Esta sesión no permite consultar equipos.",
+      "CONFLICTO",
+      409,
+    );
+  }
+  return mapearError(estadoHttp, mensajeBackend);
+}
+
+export async function listarEquiposSesionApi(
+  tokenAcceso: string,
+  sesionId: string,
+): Promise<EquipoSesionListado[]> {
+  const respuesta = await fetch(
+    construirUrl(`/api/sesiones/${sesionId}/equipos`),
+    { method: "GET", headers: obtenerEncabezadosAutenticados(tokenAcceso) },
+  );
+
+  if (!respuesta.ok) {
+    const error = await leerCuerpoError(respuesta);
+    throw mapearErrorConsulta(respuesta.status, error?.mensaje);
+  }
+
+  return (await respuesta.json()) as EquipoSesionListado[];
+}
+
+export async function obtenerDetalleEquipoSesionApi(
+  tokenAcceso: string,
+  sesionId: string,
+  equipoId: string,
+): Promise<EquipoSesionDetalle> {
+  const respuesta = await fetch(
+    construirUrl(`/api/sesiones/${sesionId}/equipos/${equipoId}`),
+    { method: "GET", headers: obtenerEncabezadosAutenticados(tokenAcceso) },
+  );
+
+  if (!respuesta.ok) {
+    const error = await leerCuerpoError(respuesta);
+    throw mapearErrorConsulta(respuesta.status, error?.mensaje);
+  }
+
+  return (await respuesta.json()) as EquipoSesionDetalle;
 }

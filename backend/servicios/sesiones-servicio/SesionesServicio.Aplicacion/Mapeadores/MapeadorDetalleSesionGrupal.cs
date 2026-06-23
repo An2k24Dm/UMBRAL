@@ -17,7 +17,9 @@ public sealed class MapeadorDetalleSesionGrupal : MapeadorDetalleSesionBase
             {
                 Id = e.Id,
                 Nombre = e.Nombre.Valor,
+                Tipo = e.Tipo.ToString(),
                 PuntajeActual = e.Puntaje,
+                CapacidadMaxima = e.CapacidadMaxima,
                 FechaCreacion = e.FechaCreacion,
                 LiderParticipanteId = e.LiderParticipanteId,
                 Participantes = e.Participantes

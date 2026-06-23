@@ -19,6 +19,7 @@ public sealed class FabricaApiPruebas : WebApplicationFactory<Program>
 {
     public Mock<IClienteJuegosMisiones> MockClienteMisiones { get; } = new();
     public Mock<IGeneradorCodigoAcceso> MockGenerador { get; } = new();
+    public Mock<IClienteIdentidadParticipantes> MockClienteIdentidadParticipantes { get; } = new();
 
     public static readonly Guid IdOperadorPrueba = Guid.Parse("22222222-2222-2222-2222-222222222222");
     public static readonly Guid IdOtroOperador = Guid.Parse("99999999-9999-9999-9999-999999999999");
@@ -78,6 +79,25 @@ public sealed class FabricaApiPruebas : WebApplicationFactory<Program>
 
             MockGenerador.Setup(g => g.Generar()).Returns(CodigoAccesoPrueba);
             QuitarYReemplazar<IGeneradorCodigoAcceso>(servicios, MockGenerador.Object);
+
+            // HU43 — Resuelve participantes con datos genéricos para no depender
+            // de identidad-servicio real en las pruebas de integración.
+            MockClienteIdentidadParticipantes
+                .Setup(c => c.ObtenerParticipantesPorIdsAsync(
+                    It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync((IEnumerable<Guid> ids, CancellationToken _) =>
+                    (IReadOnlyDictionary<Guid, ParticipanteIdentidadResumenDto>)
+                    ids.Distinct().ToDictionary(
+                        id => id,
+                        id => new ParticipanteIdentidadResumenDto
+                        {
+                            Id = id,
+                            Nombre = "Nombre",
+                            Apellido = "Apellido",
+                            Alias = "alias-" + id.ToString("N")[..4]
+                        }));
+            QuitarYReemplazar<IClienteIdentidadParticipantes>(
+                servicios, MockClienteIdentidadParticipantes.Object);
 
             var hosted = servicios
                 .Where(d => d.ImplementationType?.Name == "ServicioPreparacionSesionesProgramadas")
