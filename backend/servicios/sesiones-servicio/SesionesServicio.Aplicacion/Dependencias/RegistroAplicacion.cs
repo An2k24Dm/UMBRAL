@@ -1,5 +1,6 @@
 using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
+using SesionesServicio.Aplicacion.Comandos.CrearEquipo;
 using SesionesServicio.Aplicacion.Comandos.CrearSesion;
 using SesionesServicio.Aplicacion.Comandos.ModificarSesion;
 using SesionesServicio.Aplicacion.Mapeadores;
@@ -18,6 +19,7 @@ public static class RegistroAplicacion
         servicios.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(ensamblado));
         servicios.AddScoped<IValidador<CrearSesionComando>, ValidadorCrearSesion>();
         servicios.AddScoped<IValidador<ModificarSesionComando>, ValidadorModificarSesion>();
+        servicios.AddScoped<IValidador<CrearEquipoComando>, ValidadorCrearEquipo>();
 
         // Servicio de aplicación reutilizado por crear y modificar sesión para
         // validar las misiones contra juegos-servicio (existencia/activa/etapas).

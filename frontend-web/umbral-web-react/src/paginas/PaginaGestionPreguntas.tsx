@@ -36,8 +36,12 @@ interface FormPregunta {
 
 interface ErroresPregunta {
   enunciado?: string
+  tiempoEstimado?: string
   opciones?: string
 }
+
+// Tope global del tiempo por pregunta (segundos). Coincide con el dominio.
+const TIEMPO_MAXIMO_PREGUNTA = 60
 
 let _contadorKey = 0
 function nuevaKey() { return String(++_contadorKey) }
@@ -59,10 +63,20 @@ const FORM_VACIO: FormPregunta = {
 // ---------------------------------------------------------------------------
 // Validación del formulario de pregunta
 // ---------------------------------------------------------------------------
-function validarPregunta(form: FormPregunta): ErroresPregunta {
+function validarPregunta(form: FormPregunta, limiteTrivia: number): ErroresPregunta {
   const err: ErroresPregunta = {}
   if (!form.enunciado.trim()) err.enunciado = 'El enunciado es obligatorio.'
   else if (form.enunciado.trim().length > 500) err.enunciado = 'Máximo 500 caracteres.'
+
+  const tiempo = Number(form.tiempoEstimado)
+  if (!form.tiempoEstimado || isNaN(tiempo) || tiempo <= 0) {
+    err.tiempoEstimado = 'El tiempo estimado debe ser mayor a 0.'
+  } else if (tiempo > TIEMPO_MAXIMO_PREGUNTA) {
+    err.tiempoEstimado = `El tiempo máximo por pregunta es de ${TIEMPO_MAXIMO_PREGUNTA} segundos.`
+  } else if (tiempo > limiteTrivia) {
+    err.tiempoEstimado = 'El tiempo de la pregunta no puede superar el límite configurado para la trivia.'
+  }
+
   if (form.opciones.length < 2)
     err.opciones = 'La pregunta debe tener al menos dos opciones.'
   else if (form.opciones.some((o) => !o.texto.trim()))
@@ -138,7 +152,10 @@ export function PaginaGestionPreguntas() {
   // Helpers del formulario
   // ---------------------------------------------------------------------------
   function abrirFormAgregar() {
-    setForm({ ...FORM_VACIO, opciones: opcionesVacias() })
+    // El tiempo inicial nunca debe exceder el límite de la trivia.
+    const limite = Math.min(TIEMPO_MAXIMO_PREGUNTA, trivia?.tiempoLimitePorPregunta ?? TIEMPO_MAXIMO_PREGUNTA)
+    const tiempoInicial = Math.min(Number(FORM_VACIO.tiempoEstimado), limite)
+    setForm({ ...FORM_VACIO, tiempoEstimado: String(tiempoInicial), opciones: opcionesVacias() })
     setErroresForm({})
     setErrorForm(null)
     setEditandoId(null)
@@ -211,7 +228,7 @@ export function PaginaGestionPreguntas() {
   // ---------------------------------------------------------------------------
   async function manejarEnvio(e: React.FormEvent) {
     e.preventDefault()
-    const erroresValidacion = validarPregunta(form)
+    const erroresValidacion = validarPregunta(form, trivia?.tiempoLimitePorPregunta ?? TIEMPO_MAXIMO_PREGUNTA)
     if (Object.keys(erroresValidacion).length > 0) {
       setErroresForm(erroresValidacion)
       return
@@ -319,6 +336,12 @@ export function PaginaGestionPreguntas() {
     if (!formTrivia.nombre.trim()) { setErrorFormTrivia('El nombre es obligatorio.'); return }
     if (!formTrivia.descripcion.trim()) { setErrorFormTrivia('La descripción es obligatoria.'); return }
     if (isNaN(tiempo) || tiempo <= 0) { setErrorFormTrivia('El tiempo debe ser mayor a 0.'); return }
+    if (tiempo > 60) { setErrorFormTrivia('El tiempo límite por pregunta no puede superar 60 segundos.'); return }
+    const maxPregunta = (trivia?.preguntas ?? []).reduce((m, p) => Math.max(m, p.tiempoEstimado), 0)
+    if (tiempo < maxPregunta) {
+      setErrorFormTrivia('No puedes establecer un límite menor al tiempo de una pregunta existente.')
+      return
+    }
     setEnviandoTrivia(true)
     setErrorFormTrivia(null)
     try {
@@ -487,6 +510,7 @@ export function PaginaGestionPreguntas() {
                   id="trivia-tiempo"
                   type="number"
                   min={1}
+                  max={60}
                   value={formTrivia.tiempoLimitePorPregunta}
                   onChange={(e) => setFormTrivia((p) => ({ ...p, tiempoLimitePorPregunta: e.target.value }))}
                   disabled={enviandoTrivia}
@@ -549,14 +573,20 @@ export function PaginaGestionPreguntas() {
               <CampoFormulario
                 etiqueta="Tiempo estimado (segundos)"
                 htmlFor="tiempo-estimado"
+                error={erroresForm.tiempoEstimado}
+                ayuda={`No puede superar el límite de la trivia (${trivia.tiempoLimitePorPregunta}s).`}
               >
                 <input
                   id="tiempo-estimado"
                   type="number"
                   min={5}
-                  max={600}
+                  max={Math.min(TIEMPO_MAXIMO_PREGUNTA, trivia.tiempoLimitePorPregunta)}
                   value={form.tiempoEstimado}
-                  onChange={(e) => setForm((p) => ({ ...p, tiempoEstimado: e.target.value }))}
+                  onChange={(e) => {
+                    const valor = e.target.value
+                    setForm((p) => ({ ...p, tiempoEstimado: valor }))
+                    if (erroresForm.tiempoEstimado) setErroresForm((p) => ({ ...p, tiempoEstimado: undefined }))
+                  }}
                   disabled={enviando}
                   placeholder="Ej. 30"
                 />

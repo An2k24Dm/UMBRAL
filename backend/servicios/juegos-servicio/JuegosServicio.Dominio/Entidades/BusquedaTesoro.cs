@@ -5,14 +5,10 @@ using JuegosServicio.Dominio.Excepciones;
 
 namespace JuegosServicio.Dominio.Entidades;
 
-// Composite — hoja: modo de juego de tipo búsqueda del tesoro.
-// Contiene sus propias pistas de ayuda que el Operador puede liberar en
-// tiempo real durante la sesión.
 public sealed class BusquedaTesoro : IComponenteJuego
 {
     private readonly List<Pista> _pistas = new();
     private readonly List<EventoDominio> _eventos = new();
-
     public Guid Id { get; private set; }
     public string Nombre { get; private set; } = default!;
     public string Descripcion { get; private set; } = default!;
@@ -21,7 +17,6 @@ public sealed class BusquedaTesoro : IComponenteJuego
     public DateTime FechaCreacion { get; private set; }
     public int Tiempo { get; private set; }
     public int Puntaje { get; private set; }
-
     public IReadOnlyList<Pista> Pistas => _pistas.AsReadOnly();
     public IReadOnlyList<EventoDominio> Eventos => _eventos.AsReadOnly();
 
@@ -32,7 +27,7 @@ public sealed class BusquedaTesoro : IComponenteJuego
         string descripcion,
         Guid creadorId,
         DateTime fechaCreacion,
-        int tiempo = 0,
+        int tiempo = 5,
         int puntaje = 0)
     {
         if (string.IsNullOrWhiteSpace(nombre))
@@ -41,8 +36,8 @@ public sealed class BusquedaTesoro : IComponenteJuego
             throw new ExcepcionDominio("La descripción de la búsqueda del tesoro es obligatoria.");
         if (creadorId == Guid.Empty)
             throw new ExcepcionDominio("El identificador del creador es obligatorio.");
-        if (tiempo < 0)
-            throw new ExcepcionDominio("El tiempo no puede ser negativo.");
+        if (tiempo <= 0)
+            throw new ExcepcionDominio("El tiempo debe ser mayor a cero.");
         if (puntaje < 0)
             throw new ExcepcionDominio("El puntaje no puede ser negativo.");
 
@@ -93,8 +88,8 @@ public sealed class BusquedaTesoro : IComponenteJuego
             throw new ExcepcionDominio("El nombre de la búsqueda del tesoro es obligatorio.");
         if (string.IsNullOrWhiteSpace(descripcion))
             throw new ExcepcionDominio("La descripción de la búsqueda del tesoro es obligatoria.");
-        if (tiempo < 0)
-            throw new ExcepcionDominio("El tiempo no puede ser negativo.");
+        if (tiempo <= 0)
+            throw new ExcepcionDominio("El tiempo debe ser mayor a cero.");
         if (puntaje < 0)
             throw new ExcepcionDominio("El puntaje no puede ser negativo.");
         Nombre = nombre.Trim();
@@ -154,6 +149,9 @@ public sealed class BusquedaTesoro : IComponenteJuego
         if (pistas is not null) busqueda._pistas.AddRange(pistas);
         return busqueda;
     }
+
+    // Reconstituir NO re-valida rangos: rehidrata datos ya persistidos para
+    // no romper listados/detalles de registros existentes.
 
     private Pista ObtenerPista(Guid pistaId) =>
         _pistas.FirstOrDefault(p => p.Id == pistaId)

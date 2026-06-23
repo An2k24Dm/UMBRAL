@@ -36,6 +36,8 @@ function validar(datos: Datos): Errores {
   const tiempo = Number(datos.tiempoLimitePorPregunta)
   if (!datos.tiempoLimitePorPregunta || isNaN(tiempo) || tiempo <= 0) {
     errores.tiempoLimitePorPregunta = 'El tiempo límite debe ser mayor a 0.'
+  } else if (tiempo > 60) {
+    errores.tiempoLimitePorPregunta = 'El tiempo límite por pregunta no puede superar 60 segundos.'
   }
   return errores
 }
@@ -123,13 +125,13 @@ export function PaginaCrearTrivia() {
             etiqueta="Tiempo límite por pregunta (segundos)"
             htmlFor="tiempo"
             error={errores.tiempoLimitePorPregunta}
-            ayuda="Tiempo en segundos que tendrá el participante para responder cada pregunta."
+            ayuda="Tiempo en segundos que tendrá el participante para responder cada pregunta (máximo 60)."
           >
             <input
               id="tiempo"
               type="number"
               min={1}
-              max={300}
+              max={60}
               value={datos.tiempoLimitePorPregunta}
               onChange={(e) => manejarCambio('tiempoLimitePorPregunta', e.target.value)}
               disabled={enviando}

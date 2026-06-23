@@ -6,6 +6,7 @@ public sealed class ValidadorCrearTrivia : ValidadorBase<CrearTriviaComando>
 {
     private const int LongitudMaximaNombre = 200;
     private const int LongitudMaximaDescripcion = 1000;
+    private const int TiempoMaximoPorPreguntaSegundos = 60;
 
     protected override void ValidarSolicitud(CrearTriviaComando comando, ResultadoValidacion resultado)
     {
@@ -23,5 +24,8 @@ public sealed class ValidadorCrearTrivia : ValidadorBase<CrearTriviaComando>
 
         if (dto.TiempoLimitePorPregunta <= 0)
             resultado.Agregar("tiempoLimitePorPregunta", "El tiempo límite por pregunta debe ser mayor a cero.");
+        else if (dto.TiempoLimitePorPregunta > TiempoMaximoPorPreguntaSegundos)
+            resultado.Agregar("tiempoLimitePorPregunta",
+                $"El tiempo límite por pregunta no puede superar {TiempoMaximoPorPreguntaSegundos} segundos.");
     }
 }

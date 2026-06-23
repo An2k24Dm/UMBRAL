@@ -204,6 +204,7 @@ export interface BusquedaTesoroResumenDto {
 export interface DatosCrearBusquedaTesoro {
   nombre: string;
   descripcion: string;
+  // tiempo expresado en MINUTOS (regla de negocio: entre 5 y 60).
   tiempo: number;
   puntaje: number;
 }
@@ -211,6 +212,7 @@ export interface DatosCrearBusquedaTesoro {
 export interface DatosModificarBusquedaTesoro {
   nombre: string;
   descripcion: string;
+  // tiempo expresado en MINUTOS (regla de negocio: entre 5 y 60).
   tiempo: number;
   puntaje: number;
 }

@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import {
   ActivityIndicator,
+  Alert,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -15,6 +16,7 @@ import { BadgeModoSesionMovil } from "../../../componentes/sesiones/BadgeModoSes
 import { ListaMisionesSesionMovil } from "../../../componentes/sesiones/ListaMisionesSesionMovil";
 import { tema } from "../../../estilos/tema";
 import { useDetalleSesionDisponible } from "../../../hooks/useDetalleSesionDisponible";
+import type { SesionDetalleMovilDto } from "../../../tipos/sesiones";
 import { formatearFechaHora } from "../../../utilidades/formatoFechas";
 
 // HU — Detalle de una sesión disponible. Solo consulta: el Participante
@@ -135,6 +137,12 @@ function ContenidoDetalle() {
 
           <Text style={estilos.tituloSeccion}>MISIONES</Text>
           <ListaMisionesSesionMovil misiones={detalle.misiones} />
+
+          <SeccionParticipacion
+            detalle={detalle}
+            sesionId={sesionId}
+            enrutador={enrutador}
+          />
         </>
       )}
 
@@ -146,6 +154,97 @@ function ContenidoDetalle() {
         <Text style={estilos.botonSecundarioTexto}>Volver al listado</Text>
       </TouchableOpacity>
     </PantallaBase>
+  );
+}
+
+// HU40 — Render según el estado de participación que devuelve el backend.
+// Nunca se muestran dos acciones contradictorias (Unirse + Ver equipo).
+function SeccionParticipacion({
+  detalle,
+  sesionId,
+  enrutador,
+}: {
+  detalle: SesionDetalleMovilDto;
+  sesionId: string;
+  enrutador: ReturnType<typeof useRouter>;
+}) {
+  const participacion = detalle.participacionActual;
+  const esGrupal = detalle.modo === "Grupal";
+  const enPreparacion = detalle.estado === "EnPreparacion";
+
+  // Casos B y D: el participante ya pertenece a la sesión.
+  if (participacion?.estaInscrito) {
+    if (participacion.tipo === "Equipo") {
+      return (
+        <View style={estilos.tarjetaParticipacion}>
+          <Text style={estilos.participacionTexto}>
+            Ya perteneces a un equipo en esta sesión.
+          </Text>
+          {participacion.equipoNombre ? (
+            <Text style={estilos.participacionDetalle}>
+              Equipo: {participacion.equipoNombre}
+            </Text>
+          ) : null}
+          <TouchableOpacity
+            style={estilos.botonPrimario}
+            onPress={() =>
+              enrutador.push(
+                `/participante/sesiones/equipo?sesionId=${sesionId}` +
+                  `&equipoNombre=${encodeURIComponent(participacion.equipoNombre ?? "")}`,
+              )
+            }
+            accessibilityRole="button"
+          >
+            <Text style={estilos.botonPrimarioTexto}>Ver equipo</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    // Sesión individual ya ingresada.
+    return (
+      <View style={estilos.tarjetaParticipacion}>
+        <Text style={estilos.participacionTexto}>
+          Ya ingresaste a esta sesión.
+        </Text>
+      </View>
+    );
+  }
+
+  // No inscrito: solo se puede unir mientras la sesión está En Preparación.
+  if (!enPreparacion) {
+    return (
+      <View style={estilos.tarjetaParticipacion}>
+        <Text style={estilos.participacionDetalle}>
+          Solo puedes unirte mientras la sesión está en preparación.
+        </Text>
+      </View>
+    );
+  }
+
+  const alPresionarUnirse = () => {
+    if (esGrupal) {
+      enrutador.push(
+        `/participante/sesiones/unirse?sesionId=${sesionId}` +
+          `&nombre=${encodeURIComponent(detalle.nombre)}`,
+      );
+      return;
+    }
+    // El ingreso individual se implementará en una historia futura.
+    Alert.alert(
+      "Unirse a la sesión",
+      "El ingreso a sesiones individuales se implementará próximamente.",
+    );
+  };
+
+  return (
+    <TouchableOpacity
+      style={estilos.botonPrimario}
+      onPress={alPresionarUnirse}
+      accessibilityRole="button"
+    >
+      <Text style={estilos.botonPrimarioTexto}>Unirse</Text>
+    </TouchableOpacity>
   );
 }
 
@@ -262,6 +361,26 @@ const estilos = StyleSheet.create({
     borderWidth: 1,
     borderColor: tema.colores.bordeTarjeta,
     backgroundColor: tema.colores.fondoTarjeta,
+  },
+  tarjetaParticipacion: {
+    backgroundColor: tema.colores.fondoTarjeta,
+    borderRadius: tema.radios.tarjeta,
+    borderWidth: 1,
+    borderColor: tema.colores.bordeTarjeta,
+    padding: tema.espacios.lg,
+    marginTop: tema.espacios.sm,
+  },
+  participacionTexto: {
+    color: tema.colores.texto,
+    fontSize: tema.tipografia.tamanos.md,
+    fontWeight: tema.tipografia.pesos.bold,
+    textAlign: "center",
+  },
+  participacionDetalle: {
+    color: tema.colores.textoTenue,
+    fontSize: tema.tipografia.tamanos.sm,
+    textAlign: "center",
+    marginTop: tema.espacios.xs,
   },
   botonSecundarioTexto: {
     color: tema.colores.texto,

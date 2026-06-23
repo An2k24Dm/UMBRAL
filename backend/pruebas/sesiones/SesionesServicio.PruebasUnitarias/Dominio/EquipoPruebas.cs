@@ -41,10 +41,10 @@ public class EquipoPruebas
     {
         var sesion = CrearSesion();
         var equipo = sesion.CrearEquipo("Rojo", Guid.NewGuid(), AhoraUtc, AhoraUtc);
-        equipo.EstaLleno(MaximoParticipantesPorEquipo).Should().BeFalse();
+        equipo.EstaLleno().Should().BeFalse();
 
         sesion.AgregarParticipanteAEquipo(equipo.Id, Guid.NewGuid(), AhoraUtc, AhoraUtc);
-        equipo.EstaLleno(MaximoParticipantesPorEquipo).Should().BeTrue();
+        equipo.EstaLleno().Should().BeTrue();
     }
 
     [Fact]

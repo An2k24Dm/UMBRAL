@@ -26,7 +26,9 @@ public class CrearBusquedaTesoroManejadorPruebas
         new(new CrearBusquedaTesoroDto
         {
             Nombre = nombre,
-            Descripcion = "Recorre el parque resolviendo acertijos"
+            Descripcion = "Recorre el parque resolviendo acertijos",
+            Tiempo = 15,
+            Puntaje = 50
         }, Guid.NewGuid());
 
     public CrearBusquedaTesoroManejadorPruebas()
@@ -70,7 +72,9 @@ public class CrearBusquedaTesoroManejadorPruebas
             new CrearBusquedaTesoroDto
             {
                 Nombre = "Búsqueda válida",
-                Descripcion = "Descripción"
+                Descripcion = "Descripción",
+                Tiempo = 15,
+                Puntaje = 50
             }, creadorId);
 
         BusquedaTesoro? busquedaGuardada = null;

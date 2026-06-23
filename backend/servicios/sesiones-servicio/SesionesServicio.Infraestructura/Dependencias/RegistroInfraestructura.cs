@@ -9,6 +9,7 @@ using SesionesServicio.Infraestructura.Persistencia;
 using SesionesServicio.Infraestructura.Persistencia.Mapeadores;
 using SesionesServicio.Infraestructura.Persistencia.Repositorios;
 using SesionesServicio.Infraestructura.ServiciosEnSegundoPlano;
+using SesionesServicio.Infraestructura.Seguridad;
 using SesionesServicio.Infraestructura.ServiciosExternos;
 using SesionesServicio.Infraestructura.Tiempo;
 
@@ -49,6 +50,7 @@ public static class RegistroInfraestructura
 
         servicios.AddSingleton<IProveedorFechaHora, ProveedorFechaHoraSistema>();
         servicios.AddSingleton<IGeneradorCodigoAcceso, GeneradorCodigoAccesoAleatorio>();
+        servicios.AddSingleton<IHashContrasenaEquipo, HashContrasenaEquipo>();
 
         var configMapster = TypeAdapterConfig.GlobalSettings;
         ConfiguracionMapsterSesiones.Configurar(configMapster);

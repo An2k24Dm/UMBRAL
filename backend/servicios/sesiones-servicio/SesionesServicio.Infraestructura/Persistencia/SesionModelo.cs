@@ -42,6 +42,10 @@ public sealed class EquipoModelo
     public string Nombre { get; set; } = string.Empty;
     public Guid LiderParticipanteId { get; set; }
     public int Puntaje { get; set; }
+    public TipoEquipo Tipo { get; set; }
+    // Hash de la contraseña (solo equipos privados); null en públicos.
+    public string? ContrasenaHash { get; set; }
+    public int CapacidadMaxima { get; set; }
     public DateTime FechaCreacion { get; set; }
 }
 

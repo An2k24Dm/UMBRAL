@@ -78,6 +78,9 @@ public sealed class ContextoSesiones : DbContext
             e.Property(x => x.Nombre).HasColumnName("nombre").HasMaxLength(80).IsRequired();
             e.Property(x => x.LiderParticipanteId).HasColumnName("lider_participante_id").IsRequired();
             e.Property(x => x.Puntaje).HasColumnName("puntaje").IsRequired();
+            e.Property(x => x.Tipo).HasColumnName("tipo_equipo").IsRequired();
+            e.Property(x => x.ContrasenaHash).HasColumnName("contrasena_hash").HasMaxLength(256);
+            e.Property(x => x.CapacidadMaxima).HasColumnName("capacidad_maxima").IsRequired();
             e.Property(x => x.FechaCreacion).HasColumnName("fecha_creacion").IsRequired();
 
             e.HasIndex(x => new { x.SesionId, x.Nombre }).IsUnique();

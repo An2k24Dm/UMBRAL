@@ -16,7 +16,7 @@ public sealed class MapeadorDetalleSesionGrupal : MapeadorDetalleSesionBase
             .Select(e => new EquipoSesionDto
             {
                 Id = e.Id,
-                Nombre = e.Nombre,
+                Nombre = e.Nombre.Valor,
                 PuntajeActual = e.Puntaje,
                 FechaCreacion = e.FechaCreacion,
                 LiderParticipanteId = e.LiderParticipanteId,

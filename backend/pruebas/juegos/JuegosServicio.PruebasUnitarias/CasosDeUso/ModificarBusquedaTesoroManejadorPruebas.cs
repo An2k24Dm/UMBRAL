@@ -24,7 +24,7 @@ public class ModificarBusquedaTesoroManejadorPruebas
         BusquedaTesoro.Crear("Búsqueda Original", "Descripción original", Guid.NewGuid(), FechaFija);
 
     private static ModificarBusquedaTesoroDto DtoValido() =>
-        new() { Nombre = "Búsqueda Modificada", Descripcion = "Nueva descripción", Tiempo = 120, Puntaje = 50 };
+        new() { Nombre = "Búsqueda Modificada", Descripcion = "Nueva descripción", Tiempo = 30, Puntaje = 50 };
 
     public ModificarBusquedaTesoroManejadorPruebas()
     {
@@ -67,7 +67,7 @@ public class ModificarBusquedaTesoroManejadorPruebas
 
         busqueda.Nombre.Should().Be("Búsqueda Modificada");
         busqueda.Descripcion.Should().Be("Nueva descripción");
-        busqueda.Tiempo.Should().Be(120);
+        busqueda.Tiempo.Should().Be(30);
         busqueda.Puntaje.Should().Be(50);
     }
 

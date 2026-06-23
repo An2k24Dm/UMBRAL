@@ -39,7 +39,9 @@ function validar(datos: Datos): Errores {
   }
   const tiempo = Number(datos.tiempo)
   if (isNaN(tiempo) || tiempo < 5) {
-    errores.tiempo = 'El tiempo debe ser al menos 5 segundos.'
+    errores.tiempo = 'El tiempo debe ser al menos 5 minutos.'
+  } else if (tiempo > 60) {
+    errores.tiempo = 'El tiempo no puede superar 60 minutos.'
   }
   const puntaje = Number(datos.puntaje)
   if (isNaN(puntaje) || puntaje < 5) {
@@ -128,17 +130,17 @@ export function PaginaCrearBusqueda() {
             />
           </CampoFormulario>
 
-          <CampoFormulario etiqueta="Tiempo estimado (segundos)" htmlFor="tiempo" error={errores.tiempo}>
+          <CampoFormulario etiqueta="Tiempo estimado (minutos)" htmlFor="tiempo" error={errores.tiempo} ayuda="Duración de la búsqueda entre 5 y 60 minutos.">
             <input
               id="tiempo"
               type="number"
               min={5}
               step={5}
-              max={3600}
+              max={60}
               value={datos.tiempo}
               onChange={(e) => manejarCambio('tiempo', e.target.value)}
               disabled={enviando}
-              placeholder="Ej. 60"
+              placeholder="Ej. 15"
             />
           </CampoFormulario>
 
