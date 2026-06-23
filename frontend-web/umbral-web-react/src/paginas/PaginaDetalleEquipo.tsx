@@ -4,19 +4,17 @@ import { LayoutPanel } from '../componentes/LayoutPanel'
 import { Alerta } from '../componentes/Alerta'
 import { Boton } from '../componentes/Boton'
 import {
+  obtenerDetalleEquipoSesion,
   obtenerSesion,
-  type EquipoSesionDto,
-  type SesionDetalleDto
+  type EquipoSesionDetalleDto
 } from '../autenticacion/clienteApiSesiones'
 import { usarAutenticacion } from '../autenticacion/ProveedorAutenticacion'
 import { formatearFechaSesion } from '../utilidades/formatoSesiones'
 
 // Detalle de un equipo dentro de una sesión grupal.
 //
-// El backend devuelve el equipo embebido en SesionDetalleDto, por eso
-// esta vista carga el detalle de la sesión y filtra el equipo pedido.
-// Cuando el backend exponga un endpoint dedicado para equipo, se cambia
-// la fuente de datos sin tocar la UI.
+// El Operador consume el DTO dedicado de HU43, ya enriquecido por el backend
+// de sesiones con los datos básicos no sensibles de identidad.
 
 export function PaginaDetalleEquipo() {
   const { id, equipoId } = useParams<{ id: string; equipoId: string }>()
@@ -28,8 +26,7 @@ export function PaginaDetalleEquipo() {
 
   const [estado, setEstado] = useState<'cargando' | 'error' | 'listo'>('cargando')
   const [mensajeError, setMensajeError] = useState<string | null>(null)
-  const [sesion, setSesion] = useState<SesionDetalleDto | null>(null)
-  const [equipo, setEquipo] = useState<EquipoSesionDto | null>(null)
+  const [equipo, setEquipo] = useState<EquipoSesionDetalleDto | null>(null)
 
   useEffect(() => {
     const ref = { cancelado: false }
@@ -40,16 +37,37 @@ export function PaginaDetalleEquipo() {
         return
       }
       try {
-        const detalle = await obtenerSesion(id, token)
+        const detalle = usuario?.rol === 'Administrador'
+          ? await obtenerSesion(id, token)
+          : null
+        const equipoDetalle = usuario?.rol === 'Administrador'
+          ? (() => {
+              const encontrado = detalle?.equipos.find(e => e.id === equipoId)
+              if (!encontrado) return null
+              return {
+                id: encontrado.id,
+                sesionId: id,
+                nombre: encontrado.nombre,
+                tipo: encontrado.tipo,
+                puntaje: encontrado.puntajeActual,
+                cantidadParticipantes: encontrado.participantes.length,
+                capacidadMaxima: encontrado.capacidadMaxima,
+                fechaCreacion: encontrado.fechaCreacion,
+                estaLleno: encontrado.participantes.length >= encontrado.capacidadMaxima,
+                liderParticipanteId: '',
+                esMiEquipo: false,
+                soyLider: false,
+                participantes: []
+              } satisfies EquipoSesionDetalleDto
+            })()
+          : await obtenerDetalleEquipoSesion(id, equipoId, token)
         if (ref.cancelado) return
-        setSesion(detalle)
-        const encontrado = detalle.equipos.find(e => e.id === equipoId) ?? null
-        if (!encontrado) {
+        if (!equipoDetalle) {
           setEstado('error')
           setMensajeError('El equipo solicitado no pertenece a esta sesión.')
           return
         }
-        setEquipo(encontrado)
+        setEquipo(equipoDetalle)
         setEstado('listo')
       } catch (e) {
         if (ref.cancelado) return
@@ -59,7 +77,7 @@ export function PaginaDetalleEquipo() {
     }
     cargar()
     return () => { ref.cancelado = true }
-  }, [token, id, equipoId])
+  }, [token, id, equipoId, usuario?.rol])
 
   if (estado === 'cargando') {
     return (
@@ -71,7 +89,7 @@ export function PaginaDetalleEquipo() {
     )
   }
 
-  if (estado === 'error' || !equipo || !sesion) {
+  if (estado === 'error' || !equipo) {
     return (
       <LayoutPanel titulo="Detalle de equipo" descripcion="">
         <div style={{ marginBottom: 'var(--espacio-4)' }}>
@@ -100,28 +118,28 @@ export function PaginaDetalleEquipo() {
       </div>
 
       <section className="seccion">
-        <div className="detalle-sesion-cabecera">
-          <div>
-            <h2>{equipo.nombre}</h2>
-            <p>Sesión: {sesion.nombre}</p>
-          </div>
-          <span className="badge badge-md badge-sesion-activa">
-            {equipo.participantes.length} / 2 integrantes
-          </span>
-        </div>
-
         <div className="detalle-grilla">
           <div className="detalle-campo">
             <span className="detalle-campo-etiqueta">Nombre del equipo</span>
-            <span className="detalle-campo-valor">{equipo.nombre}</span>
+            <strong className="detalle-equipo-nombre">{equipo.nombre}</strong>
           </div>
           <div className="detalle-campo">
-            <span className="detalle-campo-etiqueta">Sesión</span>
-            <span className="detalle-campo-valor">{sesion.nombre}</span>
+            <span className="detalle-campo-etiqueta">Tipo de equipo</span>
+            <span>
+              <span className={`badge ${equipo.tipo === 'Publico' ? 'badge-equipo-publico' : 'badge-equipo-privado'}`}>
+                {equipo.tipo === 'Publico' ? 'Público' : 'Privado'}
+              </span>
+            </span>
           </div>
           <div className="detalle-campo">
-            <span className="detalle-campo-etiqueta">Puntaje actual</span>
-            <span className="detalle-campo-valor">{equipo.puntajeActual}</span>
+            <span className="detalle-campo-etiqueta">Puntaje total</span>
+            <span className="detalle-campo-valor">{equipo.puntaje}</span>
+          </div>
+          <div className="detalle-campo">
+            <span className="detalle-campo-etiqueta">Integrantes</span>
+            <span className="detalle-campo-valor">
+              {equipo.cantidadParticipantes} / {equipo.capacidadMaxima}
+            </span>
           </div>
           <div className="detalle-campo">
             <span className="detalle-campo-etiqueta">Fecha de creación</span>
@@ -134,7 +152,7 @@ export function PaginaDetalleEquipo() {
         <div className="detalle-subtitulo">
           <div>
             <h3>Integrantes</h3>
-            <p>{equipo.participantes.length} de 2 integrantes.</p>
+            <p>{equipo.cantidadParticipantes} de {equipo.capacidadMaxima} integrantes.</p>
           </div>
         </div>
 
@@ -145,18 +163,28 @@ export function PaginaDetalleEquipo() {
             <thead>
               <tr>
                 <th>#</th>
-                <th>Participante</th>
+                <th>Alias</th>
+                <th>Nombre</th>
+                <th>Apellido</th>
+                <th>Puntaje individual</th>
                 <th>Fecha de unión</th>
+                <th>Rol</th>
               </tr>
             </thead>
             <tbody>
               {equipo.participantes.map((p, idx) => (
-                <tr key={p.id}>
+                <tr key={p.participanteSesionId}>
                   <td>{idx + 1}</td>
-                  {/* TODO: enriquecer con alias/nombre cuando identidad-servicio
-                      sirva esa consulta. Hoy mostramos el id como fallback. */}
-                  <td>{p.participanteId}</td>
+                  <td><strong>{p.alias}</strong></td>
+                  <td>{p.nombre || '—'}</td>
+                  <td>{p.apellido || '—'}</td>
+                  <td>{p.puntaje}</td>
                   <td>{formatearFechaSesion(p.fechaUnion)}</td>
+                  <td>
+                    <span className={`badge ${p.esLider ? 'badge-equipo-lider' : 'badge-neutro'}`}>
+                      {p.esLider ? 'Líder' : 'Integrante'}
+                    </span>
+                  </td>
                 </tr>
               ))}
             </tbody>

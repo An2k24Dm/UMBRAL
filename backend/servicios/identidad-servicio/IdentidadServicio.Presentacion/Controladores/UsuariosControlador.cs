@@ -10,6 +10,7 @@ using IdentidadServicio.Aplicacion.Comandos.ModificarParticipante;
 using IdentidadServicio.Aplicacion.Comandos.RegistrarParticipante;
 using IdentidadServicio.Aplicacion.Comandos.ResetearContrasenaUsuario;
 using IdentidadServicio.Aplicacion.Consultas.ConsultarParticipantes;
+using IdentidadServicio.Aplicacion.Consultas.ConsultarParticipantesPorIds;
 using IdentidadServicio.Aplicacion.Consultas.ConsultarUsuariosInternos;
 using IdentidadServicio.Aplicacion.Consultas.FiltrarAdministradoresPorIds;
 using IdentidadServicio.Aplicacion.Consultas.ObtenerParticipanteDetalle;
@@ -152,6 +153,22 @@ public sealed class UsuariosControlador : ControllerBase
         var ids = dto?.UsuariosIds ?? Array.Empty<Guid>();
         var resultado = await _mediador.Send(
             new FiltrarAdministradoresPorIdsConsulta(ids), cancelacion);
+        return Ok(resultado);
+    }
+
+    // HU43 — Datos básicos (nombre/apellido/alias) de participantes por ids.
+    // Solo lectura, sin datos sensibles. Lo consume sesiones-servicio.
+    [HttpPost("participantes/por-ids")]
+    [Authorize(Policy = "PoliticaConsultaParticipantesBasicos")]
+    [ProducesResponseType(typeof(List<ParticipanteBasicoDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> ConsultarParticipantesPorIds(
+        [FromBody] ParticipantesPorIdsSolicitudDto dto, CancellationToken cancelacion)
+    {
+        var ids = dto?.ParticipantesIds ?? Array.Empty<Guid>();
+        var resultado = await _mediador.Send(
+            new ConsultarParticipantesPorIdsConsulta(ids), cancelacion);
         return Ok(resultado);
     }
 

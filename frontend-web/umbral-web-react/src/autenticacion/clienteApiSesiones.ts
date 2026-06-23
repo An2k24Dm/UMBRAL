@@ -100,9 +100,52 @@ export interface ParticipanteEquipoDto {
 export interface EquipoSesionDto {
   id: string
   nombre: string
+  tipo: string
   puntajeActual: number
+  capacidadMaxima: number
   fechaCreacion: string
   participantes: ParticipanteEquipoDto[]
+}
+
+export interface EquipoSesionListadoDto {
+  id: string
+  sesionId: string
+  nombre: string
+  tipo: string
+  puntaje: number
+  cantidadParticipantes: number
+  capacidadMaxima: number
+  estaLleno: boolean
+  fechaCreacion: string
+  esMiEquipo: boolean
+  soyLider: boolean
+}
+
+export interface IntegranteEquipoDto {
+  participanteSesionId: string
+  participanteIdentidadId: string
+  alias: string
+  nombre: string
+  apellido: string
+  puntaje: number
+  fechaUnion: string
+  esLider: boolean
+}
+
+export interface EquipoSesionDetalleDto {
+  id: string
+  sesionId: string
+  nombre: string
+  tipo: string
+  puntaje: number
+  cantidadParticipantes: number
+  capacidadMaxima: number
+  fechaCreacion: string
+  estaLleno: boolean
+  liderParticipanteId: string
+  esMiEquipo: boolean
+  soyLider: boolean
+  participantes: IntegranteEquipoDto[]
 }
 
 export interface ParticipanteSesionDto {
@@ -202,6 +245,34 @@ export async function obtenerSesion(
   if (respuesta.status === 404) throw new Error('Sesión no encontrada.')
   if (!respuesta.ok) throw new Error(await leerError(respuesta))
   return (await respuesta.json()) as SesionDetalleDto
+}
+
+export async function listarEquiposSesion(
+  sesionId: string, token: string
+): Promise<EquipoSesionListadoDto[]> {
+  const respuesta = await fetch(
+    `${URL_API}${ENDPOINTS.porId(sesionId)}/equipos`,
+    { headers: auth(token) }
+  )
+  if (respuesta.status === 401) lanzar401(token, 'Debe iniciar sesión.')
+  if (respuesta.status === 403) throw new Error('No tiene permiso para ver los equipos de esta sesión.')
+  if (respuesta.status === 404) throw new Error('Sesión no encontrada.')
+  if (!respuesta.ok) throw new Error(await leerError(respuesta))
+  return (await respuesta.json()) as EquipoSesionListadoDto[]
+}
+
+export async function obtenerDetalleEquipoSesion(
+  sesionId: string, equipoId: string, token: string
+): Promise<EquipoSesionDetalleDto> {
+  const respuesta = await fetch(
+    `${URL_API}${ENDPOINTS.porId(sesionId)}/equipos/${encodeURIComponent(equipoId)}`,
+    { headers: auth(token) }
+  )
+  if (respuesta.status === 401) lanzar401(token, 'Debe iniciar sesión.')
+  if (respuesta.status === 403) throw new Error('No tiene permiso para ver este equipo.')
+  if (respuesta.status === 404) throw new Error('Equipo no encontrado.')
+  if (!respuesta.ok) throw new Error(await leerError(respuesta))
+  return (await respuesta.json()) as EquipoSesionDetalleDto
 }
 
 // ---------------------------------------------------------------------------

@@ -92,6 +92,10 @@ public static class RegistroSeguridad
             opcAuth.AddPolicy("PoliticaSoloParticipante",
                 p => p.RequireAuthenticatedUser()
                       .RequireRole("Participante"));
+            // HU43 — Consultar equipos de una sesión: Participante u Operador.
+            opcAuth.AddPolicy("PoliticaOperadorOParticipante",
+                p => p.RequireAuthenticatedUser()
+                      .RequireRole("Operador", "Participante"));
         });
 
         return servicios;

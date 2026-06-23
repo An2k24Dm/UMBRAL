@@ -37,7 +37,9 @@ public sealed class EquipoSesionDto
 {
     public Guid Id { get; set; }
     public string Nombre { get; set; } = string.Empty;
+    public string Tipo { get; set; } = string.Empty;
     public int PuntajeActual { get; set; }
+    public int CapacidadMaxima { get; set; }
     public DateTime FechaCreacion { get; set; }
     public Guid LiderParticipanteId { get; set; }
     public List<ParticipanteEquipoDto> Participantes { get; set; } = new();

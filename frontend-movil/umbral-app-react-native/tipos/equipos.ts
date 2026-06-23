@@ -23,3 +23,47 @@ export interface CrearEquipoRespuesta {
   puntaje: number;
   fechaCreacion: string;
 }
+
+// HU43 — Equipo en el listado de equipos de una sesión.
+export interface EquipoSesionListado {
+  id: string;
+  sesionId: string;
+  nombre: string;
+  tipo: TipoEquipo;
+  puntaje: number;
+  cantidadParticipantes: number;
+  capacidadMaxima: number;
+  estaLleno: boolean;
+  fechaCreacion: string;
+  esMiEquipo: boolean;
+  soyLider: boolean;
+}
+
+// HU43 — Integrante de un equipo. Solo datos no sensibles.
+export interface IntegranteEquipo {
+  participanteSesionId: string;
+  participanteIdentidadId: string;
+  nombre: string;
+  apellido: string;
+  alias: string;
+  puntaje: number;
+  fechaUnion: string;
+  esLider: boolean;
+}
+
+// HU43 — Detalle de un equipo con sus integrantes.
+export interface EquipoSesionDetalle {
+  id: string;
+  sesionId: string;
+  nombre: string;
+  tipo: TipoEquipo;
+  puntaje: number;
+  cantidadParticipantes: number;
+  capacidadMaxima: number;
+  fechaCreacion: string;
+  estaLleno: boolean;
+  liderParticipanteId: string;
+  esMiEquipo: boolean;
+  soyLider: boolean;
+  participantes: IntegranteEquipo[];
+}
