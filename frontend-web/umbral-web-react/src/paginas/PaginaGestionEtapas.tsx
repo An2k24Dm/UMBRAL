@@ -89,6 +89,9 @@ export function PaginaGestionEtapas() {
     e.preventDefault()
     if (!formEditar.nombre.trim()) { setErrorFormEditar('El nombre es obligatorio.'); return }
     if (!formEditar.descripcion.trim()) { setErrorFormEditar('La descripción es obligatoria.'); return }
+    const tiempoEditar = Number(formEditar.tiempo)
+    if (isNaN(tiempoEditar) || tiempoEditar < 5) { setErrorFormEditar('El tiempo debe ser al menos 5 minutos.'); return }
+    if (tiempoEditar > 60) { setErrorFormEditar('El tiempo no puede superar 60 minutos.'); return }
     if (!token || !busquedaId) return
     setEnviandoEditar(true); setErrorFormEditar(null)
     try {
@@ -173,7 +176,7 @@ export function PaginaGestionEtapas() {
             <p>{busqueda.descripcion}</p>
             <div style={{ display: 'flex', gap: 12, marginTop: 4, alignItems: 'center' }}>
               <span className={`estado-badge estado-badge-${busqueda.estado.toLowerCase()}`}>{busqueda.estado}</span>
-              {busqueda.tiempo > 0 && <span className="trivia-card-meta">{busqueda.tiempo}s</span>}
+              {busqueda.tiempo > 0 && <span className="trivia-card-meta">{busqueda.tiempo} min</span>}
               {busqueda.puntaje > 0 && <span className="trivia-card-meta">{busqueda.puntaje} pts</span>}
             </div>
           </div>
@@ -226,11 +229,11 @@ export function PaginaGestionEtapas() {
                   onChange={(e) => setFormEditar(p => ({ ...p, descripcion: e.target.value }))}
                   disabled={enviandoEditar} />
               </CampoFormulario>
-              <CampoFormulario etiqueta="Tiempo estimado (segundos)" htmlFor="edit-busqueda-tiempo">
-                <input id="edit-busqueda-tiempo" type="number" min={5} step={5} max={3600}
+              <CampoFormulario etiqueta="Tiempo estimado (minutos)" htmlFor="edit-busqueda-tiempo">
+                <input id="edit-busqueda-tiempo" type="number" min={5} step={5} max={60}
                   value={formEditar.tiempo}
                   onChange={(e) => setFormEditar(p => ({ ...p, tiempo: e.target.value }))}
-                  disabled={enviandoEditar} placeholder="Ej. 60" />
+                  disabled={enviandoEditar} placeholder="Ej. 15" />
               </CampoFormulario>
               <CampoFormulario etiqueta="Puntaje" htmlFor="edit-busqueda-puntaje">
                 <select id="edit-busqueda-puntaje"

@@ -2,6 +2,7 @@ using MediatR;
 using SesionesServicio.Aplicacion.Puertos;
 using SesionesServicio.Commons.Dtos;
 using SesionesServicio.Dominio.Abstract;
+using SesionesServicio.Dominio.Entidades;
 using SesionesServicio.Dominio.Enums;
 using SesionesServicio.Dominio.Excepciones;
 
@@ -20,13 +21,16 @@ public sealed class ObtenerDetalleSesionDisponibleParticipanteManejador
 
     private readonly IRepositorioSesiones _repositorio;
     private readonly IClienteJuegosMisiones _clienteMisiones;
+    private readonly IUsuarioActual _usuarioActual;
 
     public ObtenerDetalleSesionDisponibleParticipanteManejador(
         IRepositorioSesiones repositorio,
-        IClienteJuegosMisiones clienteMisiones)
+        IClienteJuegosMisiones clienteMisiones,
+        IUsuarioActual usuarioActual)
     {
         _repositorio = repositorio;
         _clienteMisiones = clienteMisiones;
+        _usuarioActual = usuarioActual;
     }
 
     public async Task<SesionDetalleMovilDto> Handle(
@@ -46,7 +50,8 @@ public sealed class ObtenerDetalleSesionDisponibleParticipanteManejador
             Modo = sesion.TipoSesion,
             Estado = sesion.Estado.ToString(),
             FechaProgramada = sesion.FechaProgramada,
-            CodigoAcceso = sesion.CodigoAcceso
+            CodigoAcceso = sesion.CodigoAcceso,
+            ParticipacionActual = CalcularParticipacion(sesion)
         };
 
         var misionesEnOrden = sesion.Misiones.OrderBy(m => m.Orden).ToList();
@@ -82,5 +87,51 @@ public sealed class ObtenerDetalleSesionDisponibleParticipanteManejador
         }
 
         return detalle;
+    }
+
+    // HU40 — Determina la participación del usuario autenticado en la sesión.
+    // Si no hay identidad o no pertenece, devuelve EstaInscrito = false.
+    private ParticipacionActualDto CalcularParticipacion(Sesion sesion)
+    {
+        var participanteId = _usuarioActual.ObtenerId();
+        if (participanteId is not Guid pid || pid == Guid.Empty)
+            return new ParticipacionActualDto { EstaInscrito = false };
+
+        if (sesion is SesionGrupal grupal)
+        {
+            var equipo = grupal.Equipos
+                .FirstOrDefault(e => e.ContieneParticipanteIdentidadId(pid));
+            if (equipo is null)
+                return new ParticipacionActualDto { EstaInscrito = false };
+
+            var integrante = equipo.Participantes
+                .First(p => p.ParticipanteIdentidadId == pid);
+            return new ParticipacionActualDto
+            {
+                EstaInscrito = true,
+                Tipo = "Equipo",
+                EquipoId = equipo.Id,
+                EquipoNombre = equipo.Nombre.Valor,
+                EsLider = equipo.LiderParticipanteId == integrante.Id,
+                ParticipanteSesionId = integrante.Id
+            };
+        }
+
+        if (sesion is SesionIndividual individual)
+        {
+            var participante = individual.Participantes
+                .FirstOrDefault(p => p.ParticipanteIdentidadId == pid);
+            if (participante is null)
+                return new ParticipacionActualDto { EstaInscrito = false };
+
+            return new ParticipacionActualDto
+            {
+                EstaInscrito = true,
+                Tipo = "Individual",
+                ParticipanteSesionId = participante.Id
+            };
+        }
+
+        return new ParticipacionActualDto { EstaInscrito = false };
     }
 }

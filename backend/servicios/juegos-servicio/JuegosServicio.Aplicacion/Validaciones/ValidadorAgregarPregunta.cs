@@ -7,7 +7,7 @@ public sealed class ValidadorAgregarPregunta : ValidadorBase<AgregarPreguntaComa
     private const int LongitudMaximaEnunciado = 500;
     private const int PuntajeMinimo = 5;
     private const int TiempoMinimoSegundos = 5;
-    private const int TiempoMaximoSegundos = 600;
+    private const int TiempoMaximoSegundos = 60;
     private const int MinimoOpciones = 2;
     private const int MaximoOpciones = 4;
 

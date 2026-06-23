@@ -1,5 +1,6 @@
 using SesionesServicio.Dominio.Enums;
 using SesionesServicio.Dominio.Excepciones;
+using SesionesServicio.Dominio.ObjetosValor;
 using SesionesServicio.Dominio.Politicas;
 
 namespace SesionesServicio.Dominio.Entidades;
@@ -32,22 +33,26 @@ public sealed class SesionGrupal : Sesion
     }
 
     public Equipo CrearEquipo(
-        string nombreEquipo,
+        NombreEquipo nombreEquipo,
+        TipoEquipo tipoEquipo,
+        ContrasenaEquipoHash? contrasenaHash,
         Guid liderIdentidadId,
         DateTime fechaUnionSesionUtc,
         DateTime fechaUnionEquipoUtc)
     {
         if (liderIdentidadId == Guid.Empty)
             throw new EquipoInvalidoExcepcion("El líder del equipo es obligatorio.");
+        if (nombreEquipo is null)
+            throw new EquipoInvalidoExcepcion("El nombre del equipo es obligatorio.");
         if (_equipos.Count >= MaximoEquipos)
             throw new EquipoInvalidoExcepcion(
                 "La sesión grupal alcanzó el máximo de equipos permitido.");
 
-        var nombreNormalizado = (nombreEquipo ?? string.Empty).Trim();
-        if (string.IsNullOrWhiteSpace(nombreNormalizado))
-            throw new EquipoInvalidoExcepcion("El nombre del equipo es obligatorio.");
-        if (_equipos.Any(e => string.Equals(e.Nombre, nombreNormalizado,
-                StringComparison.OrdinalIgnoreCase)))
+        if (tipoEquipo == TipoEquipo.Privado && contrasenaHash is null)
+            throw new EquipoInvalidoExcepcion(
+                "Un equipo privado debe tener una contraseña configurada.");
+
+        if (_equipos.Any(e => e.Nombre.Equals(nombreEquipo)))
             throw new EquipoInvalidoExcepcion(
                 "Ya existe un equipo con ese nombre en la sesión.");
         if (_equipos.Any(e => e.ContieneParticipanteIdentidadId(liderIdentidadId)))
@@ -57,7 +62,11 @@ public sealed class SesionGrupal : Sesion
         var equipoId = Guid.NewGuid();
         var lider = Participante.CrearParaEquipo(
             Id, equipoId, liderIdentidadId, fechaUnionSesionUtc, fechaUnionEquipoUtc);
-        var equipo = Equipo.CrearConLider(equipoId, Id, nombreNormalizado, lider, fechaUnionEquipoUtc);
+        // La capacidad del equipo es una copia de la configuración de la sesión
+        // al momento de crearlo (MaximoParticipantesPorEquipo).
+        var equipo = Equipo.CrearConLider(
+            equipoId, Id, nombreEquipo, tipoEquipo, contrasenaHash,
+            MaximoParticipantesPorEquipo, lider, fechaUnionEquipoUtc);
         _equipos.Add(equipo);
         return equipo;
     }
@@ -80,13 +89,13 @@ public sealed class SesionGrupal : Sesion
             throw new ParticipacionInvalidaExcepcion(
                 "El participante ya forma parte de un equipo de esta sesión.");
 
-        if (equipo.EstaLleno(MaximoParticipantesPorEquipo))
+        if (equipo.EstaLleno())
             throw new EquipoInvalidoExcepcion(
                 "El equipo alcanzó el máximo de participantes permitido.");
 
         var participante = Participante.CrearParaEquipo(
             Id, equipoId, participanteIdentidadId, fechaUnionSesionUtc, fechaUnionEquipoUtc);
-        equipo.AgregarParticipante(participante, MaximoParticipantesPorEquipo);
+        equipo.AgregarParticipante(participante);
         return participante;
     }
 

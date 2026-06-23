@@ -5,7 +5,6 @@ using JuegosServicio.Dominio.Excepciones;
 
 namespace JuegosServicio.Dominio.Entidades;
 
-// Composite — hoja: modo de juego de tipo trivia.
 public sealed class Trivia : IComponenteJuego
 {
     private readonly List<Pregunta> _preguntas = new();
@@ -64,6 +63,9 @@ public sealed class Trivia : IComponenteJuego
             throw new ExcepcionDominio("No se pueden agregar preguntas a una trivia que está activa.");
         if (_preguntas.Count >= 20)
             throw new ExcepcionDominio("La trivia no puede tener más de 20 preguntas.");
+        if (tiempoEstimado > TiempoLimitePorPregunta)
+            throw new ExcepcionDominio(
+                "El tiempo de la pregunta no puede superar el límite configurado para la trivia.");
 
         var pregunta = Pregunta.Crear(Id, enunciado, puntaje, tiempoEstimado, opciones);
         _preguntas.Add(pregunta);
@@ -81,6 +83,10 @@ public sealed class Trivia : IComponenteJuego
 
         var pregunta = _preguntas.FirstOrDefault(p => p.Id == preguntaId)
             ?? throw new ExcepcionNoEncontrado($"No se encontró la pregunta con ID '{preguntaId}'.");
+
+        if (nuevoTiempoEstimado > TiempoLimitePorPregunta)
+            throw new ExcepcionDominio(
+                "El tiempo de la pregunta no puede superar el límite configurado para la trivia.");
 
         pregunta.Modificar(nuevoEnunciado, nuevoTiempoEstimado, nuevasOpciones);
     }
@@ -126,6 +132,9 @@ public sealed class Trivia : IComponenteJuego
             throw new ExcepcionDominio("La descripción de la trivia es obligatoria.");
         if (nuevoTiempo <= 0)
             throw new ExcepcionDominio("El tiempo límite por pregunta debe ser mayor a cero.");
+        if (_preguntas.Count > 0 && nuevoTiempo < _preguntas.Max(p => p.TiempoEstimado))
+            throw new ExcepcionDominio(
+                "No se puede establecer un tiempo límite menor al tiempo de las preguntas existentes.");
 
         Nombre = nuevoNombre.Trim();
         Descripcion = nuevaDescripcion.Trim();

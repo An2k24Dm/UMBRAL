@@ -14,7 +14,6 @@ public sealed class Participante
 
     private Participante() { }
 
-    // Participante de una sesión individual: sin equipo asociado.
     public static Participante CrearParaSesionIndividual(
         Guid sesionId, Guid participanteIdentidadId, DateTime fechaUnionSesionUtc)
     {
@@ -31,8 +30,6 @@ public sealed class Participante
         };
     }
 
-    // Participante que ingresa a un equipo: se conoce SesionId y EquipoId
-    // desde el momento de su creación.
     public static Participante CrearParaEquipo(
         Guid sesionId, Guid equipoId,
         Guid participanteIdentidadId,
@@ -70,7 +67,6 @@ public sealed class Participante
             FechaUnionEquipo = fechaUnionEquipo
         };
 
-    // Reservado para una fase posterior cuando se implemente puntaje.
     public void SumarPuntaje(int puntos)
     {
         if (puntos < 0)

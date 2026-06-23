@@ -74,6 +74,17 @@ export interface MisionSesionMovilDto {
   etapas: EtapaSesionMovilDto[];
 }
 
+// Estado de participación del usuario autenticado en la sesión (HU40).
+// Lo calcula el backend a partir del token; el móvil no lo infiere solo.
+export interface ParticipacionActual {
+  estaInscrito: boolean;
+  tipo: "Individual" | "Equipo" | null;
+  equipoId: string | null;
+  equipoNombre: string | null;
+  esLider: boolean;
+  participanteSesionId: string | null;
+}
+
 // DTO del detalle. El código de acceso es parte del flujo posterior
 // (unirse a sesión), no se muestra en pantalla en esta iteración.
 export interface SesionDetalleMovilDto {
@@ -85,6 +96,7 @@ export interface SesionDetalleMovilDto {
   fechaProgramada: string;
   codigoAcceso: string;
   misiones: MisionSesionMovilDto[];
+  participacionActual: ParticipacionActual;
 }
 
 // Filtros que la pantalla del listado mantiene en su estado local.

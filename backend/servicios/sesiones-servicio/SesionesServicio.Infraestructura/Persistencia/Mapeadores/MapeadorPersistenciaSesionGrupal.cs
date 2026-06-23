@@ -27,9 +27,12 @@ public sealed class MapeadorPersistenciaSesionGrupal : IMapeadorPersistenciaSesi
         {
             Id = e.Id,
             SesionId = e.SesionId,
-            Nombre = e.Nombre,
+            Nombre = e.Nombre.Valor,
             LiderParticipanteId = e.LiderParticipanteId,
             Puntaje = e.Puntaje,
+            Tipo = e.Tipo,
+            ContrasenaHash = e.ContrasenaHash?.Valor,
+            CapacidadMaxima = e.CapacidadMaxima,
             FechaCreacion = e.FechaCreacion
         }).ToList();
 
@@ -53,9 +56,14 @@ public sealed class MapeadorPersistenciaSesionGrupal : IMapeadorPersistenciaSesi
         var equipos = modelo.Equipos.Select(em =>
         {
             integrantesPorEquipo.TryGetValue(em.Id, out var integrantes);
+            // Respaldo técnico para filas previas a la capacidad por equipo:
+            // si capacidad_maxima quedó en 0, se toma el mínimo de negocio.
+            var capacidad = em.CapacidadMaxima > 0
+                ? em.CapacidadMaxima
+                : CapacidadParticipantesPorEquipoHistorica;
             return Equipo.Rehidratar(
                 em.Id, em.SesionId, em.Nombre, em.LiderParticipanteId,
-                em.Puntaje, em.FechaCreacion,
+                em.Puntaje, em.Tipo, em.ContrasenaHash, capacidad, em.FechaCreacion,
                 integrantes ?? Enumerable.Empty<Participante>());
         }).ToList();
 
