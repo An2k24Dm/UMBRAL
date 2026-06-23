@@ -1,6 +1,15 @@
 using System.Security.Claims;
-using JuegosServicio.Aplicacion.CasosDeUso.Comandos;
-using JuegosServicio.Aplicacion.CasosDeUso.Consultas;
+using JuegosServicio.Aplicacion.Comandos.ActivarBusquedaTesoro;
+using JuegosServicio.Aplicacion.Comandos.AgregarPista;
+using JuegosServicio.Aplicacion.Comandos.CrearBusquedaTesoro;
+using JuegosServicio.Aplicacion.Comandos.DesactivarBusquedaTesoro;
+using JuegosServicio.Aplicacion.Comandos.EliminarBusquedaTesoro;
+using JuegosServicio.Aplicacion.Comandos.EliminarPista;
+using JuegosServicio.Aplicacion.Comandos.ModificarBusquedaTesoro;
+using JuegosServicio.Aplicacion.Comandos.ModificarPista;
+using JuegosServicio.Aplicacion.Consultas.ObtenerBusquedasActivas;
+using JuegosServicio.Aplicacion.Consultas.ObtenerBusquedasEnBorrador;
+using JuegosServicio.Aplicacion.Consultas.ObtenerDetalleBusqueda;
 using JuegosServicio.Commons.Dtos;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;

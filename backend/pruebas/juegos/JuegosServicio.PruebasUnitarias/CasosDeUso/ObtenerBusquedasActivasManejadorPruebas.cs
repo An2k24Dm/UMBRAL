@@ -1,5 +1,4 @@
-using JuegosServicio.Aplicacion.CasosDeUso.Consultas;
-using JuegosServicio.Aplicacion.CasosDeUso.Manejadores;
+using JuegosServicio.Aplicacion.Consultas.ObtenerBusquedasActivas;
 using JuegosServicio.Aplicacion.Puertos;
 using JuegosServicio.Commons.Dtos;
 

@@ -1,7 +1,8 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using SesionesServicio.Aplicacion.CasosDeUso.Consultas;
+using SesionesServicio.Aplicacion.Consultas.ListarSesionesDisponiblesParticipante;
+using SesionesServicio.Aplicacion.Consultas.ObtenerDetalleSesionDisponibleParticipante;
 using SesionesServicio.Commons.Dtos;
 
 namespace SesionesServicio.Presentacion.Controladores;

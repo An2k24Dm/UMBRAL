@@ -1,8 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using SesionesServicio.Aplicacion.CasosDeUso.Comandos;
-using SesionesServicio.Aplicacion.CasosDeUso.Manejadores;
+using SesionesServicio.Aplicacion.Comandos.EliminarSesion;
 using SesionesServicio.Aplicacion.Puertos;
 using SesionesServicio.Dominio.Abstract;
 using SesionesServicio.Dominio.Entidades;

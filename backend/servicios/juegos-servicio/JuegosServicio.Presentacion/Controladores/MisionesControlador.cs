@@ -1,6 +1,15 @@
 using System.Security.Claims;
-using JuegosServicio.Aplicacion.CasosDeUso.Comandos;
-using JuegosServicio.Aplicacion.CasosDeUso.Consultas;
+using JuegosServicio.Aplicacion.Comandos.ActivarMision;
+using JuegosServicio.Aplicacion.Comandos.AgregarEtapa;
+using JuegosServicio.Aplicacion.Comandos.CrearMision;
+using JuegosServicio.Aplicacion.Comandos.DesactivarMision;
+using JuegosServicio.Aplicacion.Comandos.EliminarEtapa;
+using JuegosServicio.Aplicacion.Comandos.EliminarMision;
+using JuegosServicio.Aplicacion.Comandos.ModificarMision;
+using JuegosServicio.Aplicacion.Consultas.ObtenerDetalleMision;
+using JuegosServicio.Aplicacion.Consultas.ObtenerDetalleMisionParticipante;
+using JuegosServicio.Aplicacion.Consultas.ObtenerMisionesActivas;
+using JuegosServicio.Aplicacion.Consultas.ObtenerMisionesEnBorrador;
 using JuegosServicio.Commons.Dtos;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;

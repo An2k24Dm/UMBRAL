@@ -1,8 +1,11 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using SesionesServicio.Aplicacion.CasosDeUso.Comandos;
-using SesionesServicio.Aplicacion.CasosDeUso.Consultas;
+using SesionesServicio.Aplicacion.Comandos.CrearSesion;
+using SesionesServicio.Aplicacion.Comandos.EliminarSesion;
+using SesionesServicio.Aplicacion.Comandos.ModificarSesion;
+using SesionesServicio.Aplicacion.Consultas.ListarSesiones;
+using SesionesServicio.Aplicacion.Consultas.ObtenerSesionPorId;
 using SesionesServicio.Aplicacion.Puertos;
 using SesionesServicio.Commons.Dtos;
 using SesionesServicio.Dominio.Abstract;

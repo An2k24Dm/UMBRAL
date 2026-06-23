@@ -39,7 +39,7 @@ public sealed class BloqueoUsuarioInactivoMiddleware
                 if (!resultado.PuedeAcceder)
                 {
                     _registro.LogWarning(
-                        "Petición bloqueada: usuario {IdKeycloak} sin acceso ({Codigo}) (HU12).",
+                        "Petición bloqueada: usuario {IdKeycloak} sin acceso ({Codigo}).",
                         idKeycloak, resultado.Codigo);
                     await EscribirJsonAsync(contexto, HttpStatusCode.Forbidden, new
                     {
