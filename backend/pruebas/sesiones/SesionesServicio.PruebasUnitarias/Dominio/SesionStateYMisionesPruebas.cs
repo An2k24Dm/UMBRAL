@@ -64,11 +64,129 @@ public class SesionStateYMisionesPruebas
     }
 
     [Fact]
-    public void Cancelar_DesdeProgramada_Funciona()
+    public void Programada_Preparar_PasaAEnPreparacion()
     {
         var s = NuevaGrupal();
+
+        s.Preparar();
+
+        s.Estado.Should().Be(EstadoSesion.EnPreparacion);
+    }
+
+    [Fact]
+    public void Programada_Cancelar_LanzaYConservaEstado()
+    {
+        var s = NuevaGrupal();
+
+        Action accion = () => s.Cancelar();
+
+        accion.Should()
+            .Throw<TransicionEstadoSesionInvalidaExcepcion>()
+            .WithMessage("Una sesión programada no se cancela; debe eliminarse.");
+        s.Estado.Should().Be(EstadoSesion.Programada);
+    }
+
+    [Fact]
+    public void EnPreparacion_Cancelar_PasaACancelada()
+    {
+        var s = NuevaIndividual();
+        s.Preparar();
+
         s.Cancelar();
+
         s.Estado.Should().Be(EstadoSesion.Cancelada);
+    }
+
+    [Fact]
+    public void Activa_Cancelar_PasaACancelada()
+    {
+        var s = NuevaIndividual();
+        s.Preparar();
+        s.Iniciar(AhoraUtc);
+
+        s.Cancelar();
+
+        s.Estado.Should().Be(EstadoSesion.Cancelada);
+    }
+
+    [Fact]
+    public void Pausada_Cancelar_PasaACancelada()
+    {
+        var s = NuevaIndividual();
+        s.Preparar();
+        s.Iniciar(AhoraUtc);
+        s.Pausar();
+
+        s.Cancelar();
+
+        s.Estado.Should().Be(EstadoSesion.Cancelada);
+    }
+
+    [Fact]
+    public void Finalizada_Cancelar_LanzaYConservaEstado()
+    {
+        var s = NuevaIndividual();
+        s.Preparar();
+        s.Iniciar(AhoraUtc);
+        s.Finalizar(AhoraUtc.AddMinutes(30));
+
+        Action accion = () => s.Cancelar();
+
+        accion.Should().Throw<TransicionEstadoSesionInvalidaExcepcion>();
+        s.Estado.Should().Be(EstadoSesion.Finalizada);
+    }
+
+    [Fact]
+    public void Cancelada_NoPermiteNuevasTransiciones()
+    {
+        var s = NuevaIndividual();
+        s.Preparar();
+        s.Cancelar();
+
+        Action preparar = () => s.Preparar();
+        Action iniciar = () => s.Iniciar(AhoraUtc);
+        Action pausar = () => s.Pausar();
+        Action reanudar = () => s.Reanudar();
+        Action finalizar = () => s.Finalizar(AhoraUtc);
+        Action cancelar = () => s.Cancelar();
+
+        preparar.Should().Throw<TransicionEstadoSesionInvalidaExcepcion>();
+        iniciar.Should().Throw<TransicionEstadoSesionInvalidaExcepcion>();
+        pausar.Should().Throw<TransicionEstadoSesionInvalidaExcepcion>();
+        reanudar.Should().Throw<TransicionEstadoSesionInvalidaExcepcion>();
+        finalizar.Should().Throw<TransicionEstadoSesionInvalidaExcepcion>();
+        cancelar.Should().Throw<TransicionEstadoSesionInvalidaExcepcion>();
+        s.Estado.Should().Be(EstadoSesion.Cancelada);
+    }
+
+    [Fact]
+    public void Programada_ValidarPuedeEliminarse_NoLanza()
+    {
+        var s = NuevaIndividual();
+
+        Action accion = () => s.ValidarPuedeEliminarse();
+
+        accion.Should().NotThrow();
+    }
+
+    [Theory]
+    [InlineData(EstadoSesion.EnPreparacion)]
+    [InlineData(EstadoSesion.Activa)]
+    [InlineData(EstadoSesion.Pausada)]
+    [InlineData(EstadoSesion.Finalizada)]
+    [InlineData(EstadoSesion.Cancelada)]
+    public void NoProgramada_ValidarPuedeEliminarse_Lanza(EstadoSesion estado)
+    {
+        var s = SesionIndividual.Rehidratar(
+            Guid.NewGuid(), "I", "Demo", estado,
+            AhoraUtc.AddHours(1), "I-ABC", Operador, AhoraUtc,
+            null, null, 10);
+
+        Action accion = () => s.ValidarPuedeEliminarse();
+
+        accion.Should()
+            .Throw<SesionNoEliminableExcepcion>()
+            .WithMessage("Solo se pueden eliminar sesiones en estado Programada.");
     }
 
     [Fact]

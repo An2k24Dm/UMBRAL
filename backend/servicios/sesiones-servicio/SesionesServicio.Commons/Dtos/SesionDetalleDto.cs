@@ -54,7 +54,11 @@ public sealed class ParticipanteEquipoDto
 
 public sealed class ParticipanteSesionDto
 {
-    public Guid Id { get; set; }
-    public Guid ParticipanteId { get; set; }
+    public Guid ParticipanteSesionId { get; set; }
+    public Guid ParticipanteIdentidadId { get; set; }
+    public string Alias { get; set; } = string.Empty;
+    public string Nombre { get; set; } = string.Empty;
+    public string Apellido { get; set; } = string.Empty;
+    public int Puntaje { get; set; }
     public DateTime FechaUnion { get; set; }
 }

@@ -1,5 +1,6 @@
 import type {
   FiltroModoSesion,
+  IngresarSesionRespuestaDto,
   SesionDetalleMovilDto,
   SesionDisponibleMovilDto,
 } from "../tipos/sesiones";
@@ -130,4 +131,42 @@ export async function obtenerDetalleSesionDisponibleApi(
   }
 
   return (await respuesta.json()) as SesionDetalleMovilDto;
+}
+
+async function ejecutarIngreso(
+  tokenAcceso: string,
+  ruta: string,
+  cuerpo?: object,
+): Promise<IngresarSesionRespuestaDto> {
+  const respuesta = await fetch(construirUrl(ruta), {
+    method: "POST",
+    headers: obtenerEncabezadosAutenticados(tokenAcceso),
+    body: cuerpo ? JSON.stringify(cuerpo) : undefined,
+  });
+
+  if (!respuesta.ok) {
+    const error = await leerCuerpoError(respuesta);
+    throw mapearError(respuesta.status, error?.mensaje, error);
+  }
+
+  return (await respuesta.json()) as IngresarSesionRespuestaDto;
+}
+
+export function ingresarSesionPorCodigoApi(
+  tokenAcceso: string,
+  codigoSesion: string,
+): Promise<IngresarSesionRespuestaDto> {
+  return ejecutarIngreso(tokenAcceso, "/api/sesiones/participante/ingresar", {
+    codigoSesion: codigoSesion.trim().toUpperCase(),
+  });
+}
+
+export function ingresarSesionIndividualApi(
+  tokenAcceso: string,
+  sesionId: string,
+): Promise<IngresarSesionRespuestaDto> {
+  return ejecutarIngreso(
+    tokenAcceso,
+    `/api/sesiones/${sesionId}/participante/ingresar-individual`,
+  );
 }

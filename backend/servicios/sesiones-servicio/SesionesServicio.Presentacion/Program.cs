@@ -5,6 +5,7 @@ using SesionesServicio.Aplicacion.Dependencias;
 using SesionesServicio.Aplicacion.Puertos;
 using SesionesServicio.Infraestructura.Dependencias;
 using SesionesServicio.Infraestructura.Persistencia;
+using SesionesServicio.Infraestructura.TiempoReal.Hubs;
 
 var constructor = WebApplication.CreateBuilder(args);
 
@@ -27,6 +28,7 @@ constructor.Services.AddSwaggerGen();
 constructor.Services.AddHttpContextAccessor();
 constructor.Services.AddScoped<IUsuarioActual, UsuarioActualHttp>();
 constructor.Services.AddScoped<IPropagadorTokenActual, PropagadorTokenActualHttp>();
+constructor.Services.AddSignalR();
 
 constructor.Services.AgregarAplicacion();
 constructor.Services.AgregarInfraestructura(constructor.Configuration);
@@ -48,6 +50,7 @@ aplicacion.UseAuthentication();
 aplicacion.UseAuthorization();
 
 aplicacion.MapControllers();
+aplicacion.MapHub<SesionesHub>("/hubs/sesiones");
 
 aplicacion.MapGet("/salud", () => Results.Ok(new { estado = "ok", servicio = "sesiones-servicio" }));
 

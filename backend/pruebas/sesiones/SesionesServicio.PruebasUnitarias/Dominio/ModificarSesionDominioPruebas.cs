@@ -131,10 +131,15 @@ public class ModificarSesionDominioPruebas
     [Fact]
     public void IndividualModificarCapacidad_PorDebajoDeParticipantesActuales_Lanza()
     {
-        var sesion = NuevaIndividual(maxParticipantes: 5);
-        sesion.AgregarParticipante(Guid.NewGuid(), AhoraUtc);
-        sesion.AgregarParticipante(Guid.NewGuid(), AhoraUtc);
-        sesion.AgregarParticipante(Guid.NewGuid(), AhoraUtc);
+        var sesionId = Guid.NewGuid();
+        var participantes = Enumerable.Range(0, 3)
+            .Select(_ => Participante.CrearParaSesionIndividual(
+                sesionId, Guid.NewGuid(), AhoraUtc))
+            .ToList();
+        var sesion = SesionIndividual.Rehidratar(
+            sesionId, "Original", "Demo", EstadoSesion.Programada,
+            AhoraUtc.AddHours(2), "ABC123", Operador, AhoraUtc,
+            null, null, 5, participantes: participantes);
 
         Action accion = () => sesion.ModificarCapacidad(2);
 
@@ -205,6 +210,7 @@ public class ModificarSesionDominioPruebas
     {
         var sesion = NuevaIndividual();
         sesion.TieneInscritos.Should().BeFalse();
+        sesion.Preparar();
         sesion.AgregarParticipante(Guid.NewGuid(), AhoraUtc);
         sesion.TieneInscritos.Should().BeTrue();
     }

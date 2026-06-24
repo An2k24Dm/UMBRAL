@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   RefreshControl,
   StyleSheet,
   Text,
@@ -17,8 +16,10 @@ import { BadgeModoSesionMovil } from "../../../componentes/sesiones/BadgeModoSes
 import { ListaMisionesSesionMovil } from "../../../componentes/sesiones/ListaMisionesSesionMovil";
 import { tema } from "../../../estilos/tema";
 import { useDetalleSesionDisponible } from "../../../hooks/useDetalleSesionDisponible";
+import { useIngresoSesion } from "../../../hooks/useIngresoSesion";
 import { useNavegacionSegura } from "../../../hooks/useNavegacionSegura";
 import { useRefrescarAlEnfocar } from "../../../hooks/useRefrescarAlEnfocar";
+import { useSesionesTiempoReal } from "../../../hooks/useSesionesTiempoReal";
 import type { SesionDetalleMovilDto } from "../../../tipos/sesiones";
 import { formatearFechaHora } from "../../../utilidades/formatoFechas";
 
@@ -51,6 +52,11 @@ function ContenidoDetalle() {
   const navegarSeguro = useNavegacionSegura();
   // Al volver desde crear/ver/editar/eliminar equipo, recarga participación.
   useRefrescarAlEnfocar(refrescar);
+  useSesionesTiempoReal({
+    sesionId,
+    onParticipantesSesionActualizados: refrescar,
+    onEquiposSesionActualizados: refrescar,
+  });
 
   const [refrescando, setRefrescando] = useState(false);
   const alRefrescar = useCallback(async () => {
@@ -169,6 +175,7 @@ function ContenidoDetalle() {
             sesionId={sesionId}
             enrutador={enrutador}
             navegarSeguro={navegarSeguro}
+            refrescar={refrescar}
           />
         </>
       )}
@@ -191,15 +198,28 @@ function SeccionParticipacion({
   sesionId,
   enrutador,
   navegarSeguro,
+  refrescar,
 }: {
   detalle: SesionDetalleMovilDto;
   sesionId: string;
   enrutador: ReturnType<typeof useRouter>;
   navegarSeguro: (accion: () => void) => void;
+  refrescar: () => Promise<void>;
 }) {
+  const { cerrarSesion } = useAutenticacion();
+  const {
+    ingresando,
+    error: errorIngreso,
+    sesionExpirada,
+    ingresarIndividual,
+  } = useIngresoSesion();
   const participacion = detalle.participacionActual;
   const esGrupal = detalle.modo === "Grupal";
   const enPreparacion = detalle.estado === "EnPreparacion";
+
+  useEffect(() => {
+    if (sesionExpirada) cerrarSesion().finally(() => enrutador.replace("/"));
+  }, [sesionExpirada, cerrarSesion, enrutador]);
 
   // Casos B y D: el participante ya pertenece a la sesión.
   if (participacion?.estaInscrito) {
@@ -272,29 +292,53 @@ function SeccionParticipacion({
     );
   }
 
-  const alPresionarUnirse = () => navegarSeguro(() => {
+  const alPresionarUnirse = async () => {
     if (esGrupal) {
-      enrutador.push(
-        `/participante/sesiones/unirse?sesionId=${sesionId}` +
-          `&nombre=${encodeURIComponent(detalle.nombre)}`,
+      navegarSeguro(() =>
+        enrutador.push(
+          `/participante/sesiones/unirse?sesionId=${sesionId}` +
+            `&nombre=${encodeURIComponent(detalle.nombre)}`,
+        ),
       );
       return;
     }
-    // El ingreso individual se implementará en una historia futura.
-    Alert.alert(
-      "Unirse a la sesión",
-      "El ingreso a sesiones individuales se implementará próximamente.",
-    );
-  });
+
+    const resultado = await ingresarIndividual(sesionId);
+    if (resultado?.ingresoRegistrado) {
+      await refrescar();
+      enrutador.replace(`/participante/sesiones/${sesionId}`);
+    }
+  };
 
   return (
-    <TouchableOpacity
-      style={estilos.botonPrimario}
-      onPress={alPresionarUnirse}
-      accessibilityRole="button"
-    >
-      <Text style={estilos.botonPrimarioTexto}>Unirse</Text>
-    </TouchableOpacity>
+    <View>
+      {esGrupal ? (
+        <View style={estilos.tarjetaParticipacion}>
+          <Text style={estilos.participacionDetalle}>
+            Para ingresar a una sesión grupal debes crear o unirte a un equipo.
+          </Text>
+        </View>
+      ) : null}
+      {errorIngreso ? (
+        <View style={estilos.cuadroError}>
+          <Text style={estilos.cuadroErrorTexto}>{errorIngreso}</Text>
+        </View>
+      ) : null}
+      <TouchableOpacity
+        style={[estilos.botonPrimario, ingresando && { opacity: 0.6 }]}
+        onPress={alPresionarUnirse}
+        disabled={ingresando}
+        accessibilityRole="button"
+      >
+        {ingresando ? (
+          <ActivityIndicator color={tema.colores.textoBlanco} />
+        ) : (
+          <Text style={estilos.botonPrimarioTexto}>
+            {esGrupal ? "Opciones de equipo" : "Unirse"}
+          </Text>
+        )}
+      </TouchableOpacity>
+    </View>
   );
 }
 

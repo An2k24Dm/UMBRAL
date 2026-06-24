@@ -8,6 +8,7 @@ public interface IRepositorioSesiones
     Task ActualizarAsync(Sesion sesion, CancellationToken cancelacion);
     Task EliminarAsync(Sesion sesion, CancellationToken cancelacion);
     Task<Sesion?> ObtenerPorIdAsync(Guid id, CancellationToken cancelacion);
+    Task<Sesion?> ObtenerPorCodigoAsync(string codigo, CancellationToken cancelacion);
     Task<bool> ExisteSesionVigentePorMisionAsync(
         Guid misionId,
         CancellationToken cancelacion);

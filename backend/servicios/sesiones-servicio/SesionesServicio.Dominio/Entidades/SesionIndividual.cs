@@ -31,6 +31,9 @@ public sealed class SesionIndividual : Sesion
     public Participante AgregarParticipante(
         Guid participanteIdentidadId, DateTime fechaUnionSesionUtc)
     {
+        if (Estado != EstadoSesion.EnPreparacion)
+            throw new ParticipacionInvalidaExcepcion(
+                "Solo puedes ingresar a una sesión en estado En Preparación.");
         if (participanteIdentidadId == Guid.Empty)
             throw new ParticipacionInvalidaExcepcion(
                 "El identificador del participante es obligatorio.");

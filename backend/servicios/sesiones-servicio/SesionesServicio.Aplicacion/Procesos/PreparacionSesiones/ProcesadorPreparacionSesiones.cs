@@ -3,7 +3,7 @@ using SesionesServicio.Aplicacion.Puertos;
 using SesionesServicio.Dominio.Abstract;
 using SesionesServicio.Dominio.Enums;
 
-namespace SesionesServicio.Aplicacion.ServiciosEnSegundoPlano;
+namespace SesionesServicio.Aplicacion.Procesos.PreparacionSesiones;
 
 // HU34/5.1 — Núcleo de la transición automática Programada → EnPreparacion.
 //

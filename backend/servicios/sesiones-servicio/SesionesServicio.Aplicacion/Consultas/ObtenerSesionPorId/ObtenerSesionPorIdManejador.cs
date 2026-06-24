@@ -16,15 +16,18 @@ public sealed class ObtenerSesionPorIdManejador
     private readonly IRepositorioSesiones _repositorio;
     private readonly IUsuarioActual _usuarioActual;
     private readonly FabricaMapeadorDetalleSesion _fabricaMapeador;
+    private readonly IClienteIdentidadParticipantes _clienteIdentidadParticipantes;
 
     public ObtenerSesionPorIdManejador(
         IRepositorioSesiones repositorio,
         IUsuarioActual usuarioActual,
-        FabricaMapeadorDetalleSesion fabricaMapeador)
+        FabricaMapeadorDetalleSesion fabricaMapeador,
+        IClienteIdentidadParticipantes clienteIdentidadParticipantes)
     {
         _repositorio = repositorio;
         _usuarioActual = usuarioActual;
         _fabricaMapeador = fabricaMapeador;
+        _clienteIdentidadParticipantes = clienteIdentidadParticipantes;
     }
 
     public async Task<SesionDetalleDto?> Handle(
@@ -52,6 +55,45 @@ public sealed class ObtenerSesionPorIdManejador
         // El mapeo del detalle (incluida la parte específica del tipo de
         // sesión) lo resuelve la estrategia compatible. El manejador no
         // conoce SesionIndividual ni SesionGrupal.
-        return _fabricaMapeador.Mapear(sesion);
+        var dto = _fabricaMapeador.Mapear(sesion);
+        await CompletarDatosParticipantesIndividualesAsync(dto, cancelacion);
+
+        return dto;
+    }
+
+    private async Task CompletarDatosParticipantesIndividualesAsync(
+        SesionDetalleDto dto,
+        CancellationToken cancelacion)
+    {
+        if (dto.ParticipantesIndividuales.Count == 0)
+            return;
+
+        var ids = dto.ParticipantesIndividuales
+            .Select(p => p.ParticipanteIdentidadId)
+            .Where(id => id != Guid.Empty)
+            .Distinct()
+            .ToArray();
+
+        if (ids.Length == 0)
+            return;
+
+        var datosIdentidad = await _clienteIdentidadParticipantes
+            .ObtenerParticipantesPorIdsAsync(ids, cancelacion);
+
+        foreach (var participante in dto.ParticipantesIndividuales)
+        {
+            if (!datosIdentidad.TryGetValue(
+                    participante.ParticipanteIdentidadId,
+                    out var datos))
+                continue;
+
+            participante.Alias = datos.Alias;
+            participante.Nombre = datos.Nombre;
+            participante.Apellido = datos.Apellido;
+        }
+
+        dto.ParticipantesIndividuales = dto.ParticipantesIndividuales
+            .OrderBy(p => p.FechaUnion)
+            .ToList();
     }
 }

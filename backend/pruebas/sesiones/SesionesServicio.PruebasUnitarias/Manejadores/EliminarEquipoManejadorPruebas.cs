@@ -25,6 +25,7 @@ public class EliminarEquipoManejadorPruebas
         public Mock<IRepositorioSesiones> Repo { get; } = new();
         public Mock<IUnidadTrabajoSesiones> Unidad { get; } = new();
         public Mock<IUsuarioActual> Usuario { get; } = new();
+        public Mock<INotificadorSesionesTiempoReal> Notificador { get; } = new();
         public Sesion? Actualizada;
         public Guid SesionId;
         public Guid EquipoId;
@@ -48,10 +49,15 @@ public class EliminarEquipoManejadorPruebas
             Repo.Setup(r => r.ActualizarAsync(It.IsAny<Sesion>(), It.IsAny<CancellationToken>()))
                 .Callback<Sesion, CancellationToken>((x, _) => Actualizada = x)
                 .Returns(Task.CompletedTask);
+            Unidad.Setup(u => u.GuardarCambiosAsync(It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
+            Notificador.Setup(n => n.NotificarEquiposSesionActualizadosAsync(
+                    It.IsAny<Guid>(), It.IsAny<Guid?>(), It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
         }
 
         public EliminarEquipoManejador Construir()
-            => new(Repo.Object, Unidad.Object, Usuario.Object);
+            => new(Repo.Object, Unidad.Object, Usuario.Object, Notificador.Object);
     }
 
     private static SesionGrupal SesionConEquipo(Guid lider, out Guid equipoId)
@@ -100,6 +106,8 @@ public class EliminarEquipoManejadorPruebas
 
         ((SesionGrupal)ctx.Actualizada!).Equipos.Should().BeEmpty();
         ctx.Unidad.Verify(u => u.GuardarCambiosAsync(It.IsAny<CancellationToken>()), Times.Once);
+        ctx.Notificador.Verify(n => n.NotificarEquiposSesionActualizadosAsync(
+            ctx.SesionId, ctx.EquipoId, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]

@@ -25,7 +25,8 @@ public sealed class CrearEquipoManejador
     private readonly IUsuarioActual _usuarioActual;
     private readonly IHashContrasenaEquipo _hashContrasena;
     private readonly IProveedorFechaHora _reloj;
-    private readonly ValidadorParticipacionUnicaSesion _participacionUnica;
+    private readonly PoliticaParticipacionUnicaSesion _participacionUnica;
+    private readonly INotificadorSesionesTiempoReal _notificadorTiempoReal;
 
     public CrearEquipoManejador(
         IValidador<CrearEquipoComando> validador,
@@ -34,7 +35,8 @@ public sealed class CrearEquipoManejador
         IUsuarioActual usuarioActual,
         IHashContrasenaEquipo hashContrasena,
         IProveedorFechaHora reloj,
-        ValidadorParticipacionUnicaSesion participacionUnica)
+        PoliticaParticipacionUnicaSesion participacionUnica,
+        INotificadorSesionesTiempoReal notificadorTiempoReal)
     {
         _validador = validador;
         _repositorio = repositorio;
@@ -43,6 +45,7 @@ public sealed class CrearEquipoManejador
         _hashContrasena = hashContrasena;
         _reloj = reloj;
         _participacionUnica = participacionUnica;
+        _notificadorTiempoReal = notificadorTiempoReal;
     }
 
     public async Task<CrearEquipoRespuestaDto> Handle(
@@ -99,6 +102,8 @@ public sealed class CrearEquipoManejador
 
         await _repositorio.ActualizarAsync(sesionGrupal, cancelacion);
         await _unidadTrabajo.GuardarCambiosAsync(cancelacion);
+        await _notificadorTiempoReal.NotificarEquiposSesionActualizadosAsync(
+            sesionGrupal.Id, equipo.Id, cancelacion);
 
         return new CrearEquipoRespuestaDto
         {

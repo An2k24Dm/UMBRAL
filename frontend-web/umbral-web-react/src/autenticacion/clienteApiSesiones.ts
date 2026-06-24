@@ -149,8 +149,12 @@ export interface EquipoSesionDetalleDto {
 }
 
 export interface ParticipanteSesionDto {
-  id: string
-  participanteId: string
+  participanteSesionId: string
+  participanteIdentidadId: string
+  alias: string
+  nombre: string
+  apellido: string
+  puntaje: number
   fechaUnion: string
 }
 

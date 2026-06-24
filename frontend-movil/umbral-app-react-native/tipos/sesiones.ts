@@ -1,24 +1,7 @@
-// Tipos del flujo móvil de sesiones disponibles para Participante.
-//
-// Se mantienen alineados con los DTOs expuestos por sesiones-servicio en:
-//   * GET /api/sesiones/participante/disponibles
-//   * GET /api/sesiones/participante/disponibles/{sesionId}
-//
-// El móvil no genera estos tipos a partir del backend; se replican a mano
-// para que el editor avise si en algún momento divergen.
-
-// El backend serializa el discriminador como string "Individual" | "Grupal".
 export type ModoSesion = "Individual" | "Grupal";
 
-// "Todas" es un valor exclusivo de la UI para indicar "sin filtro de modo".
-// El cliente HTTP NO lo envía al backend: se traduce a omitir el query param.
 export type FiltroModoSesion = "Todas" | ModoSesion;
 
-// Estados que el Participante puede llegar a ver en el listado/detalle. El
-// backend solo devuelve sesiones en estos estados (defensa en profundidad).
-// Se incluye el catálogo completo porque el detalle también muestra el
-// estado actual y, eventualmente, otros estados podrían llegar si el
-// Operador transiciona la sesión durante la consulta.
 export type EstadoSesion =
   | "Programada"
   | "EnPreparacion"
@@ -27,9 +10,6 @@ export type EstadoSesion =
   | "Finalizada"
   | "Cancelada";
 
-// DTO del listado móvil. Solo expone los datos pensados para el Participante:
-// los identificadores administrativos (OperadorCreadorId, fechas internas,
-// código de acceso) NUNCA se incluyen aquí.
 export interface SesionDisponibleMovilDto {
   id: string;
   nombre: string;
@@ -49,9 +29,6 @@ export interface SesionDisponibleMovilDto {
   capacidadMaximaEquipos?: number | null;
 }
 
-// Etapa de una misión vista desde móvil. Mantiene los nombres del backend
-// (TipoModoDeJuego, NombreModoDeJuego, TiempoEstimadoSegundos) pero
-// camelCase al estilo TypeScript.
 export interface EtapaSesionMovilDto {
   id: string;
   orden: number;
@@ -110,4 +87,33 @@ export interface SesionDetalleMovilDto {
 export interface FiltrosListadoSesiones {
   busqueda: string;
   modo: FiltroModoSesion;
+}
+
+export interface IngresarSesionDto {
+  codigoSesion: string;
+}
+
+export interface ContenidoSesionMovilDto {
+  misionId: string;
+  nombre: string;
+  tipo: string;
+  orden: number;
+  descripcion: string | null;
+  tiempoLimite: number | null;
+}
+
+export interface IngresarSesionRespuestaDto {
+  sesionId: string;
+  nombreSesion: string;
+  codigoSesion: string;
+  estado: EstadoSesion;
+  modo: ModoSesion;
+  ingresoRegistrado: boolean;
+  redirigirADetalle: boolean;
+  requiereEquipo: boolean;
+  puedeCrearEquipo: boolean;
+  yaPertenecia: boolean;
+  mensaje: string | null;
+  participacionActual: ParticipacionActual | null;
+  contenido: ContenidoSesionMovilDto[];
 }

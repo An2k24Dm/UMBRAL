@@ -2,8 +2,9 @@ using Mapster;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using SesionesServicio.Aplicacion.Procesos.PreparacionSesiones;
 using SesionesServicio.Aplicacion.Puertos;
-using SesionesServicio.Aplicacion.ServiciosEnSegundoPlano;
+using SesionesServicio.Infraestructura.Configuraciones;
 using SesionesServicio.Infraestructura.Mapeadores;
 using SesionesServicio.Infraestructura.Persistencia;
 using SesionesServicio.Infraestructura.Persistencia.Mapeadores;
@@ -11,6 +12,7 @@ using SesionesServicio.Infraestructura.Persistencia.Repositorios;
 using SesionesServicio.Infraestructura.ServiciosEnSegundoPlano;
 using SesionesServicio.Infraestructura.Seguridad;
 using SesionesServicio.Infraestructura.ServiciosExternos;
+using SesionesServicio.Infraestructura.TiempoReal;
 using SesionesServicio.Infraestructura.Tiempo;
 
 namespace SesionesServicio.Infraestructura.Dependencias;
@@ -47,6 +49,10 @@ public static class RegistroInfraestructura
         servicios.AddScoped<IConsultasSesiones>(
             sp => sp.GetRequiredService<RepositorioSesiones>());
         servicios.AddScoped<IUnidadTrabajoSesiones, UnidadTrabajoSesiones>();
+
+        // Adaptador de comunicación en tiempo real (SignalR). El puerto vive en
+        // Aplicación; la implementación concreta es infraestructura técnica.
+        servicios.AddScoped<INotificadorSesionesTiempoReal, NotificadorSesionesTiempoReal>();
 
         servicios.AddSingleton<IProveedorFechaHora, ProveedorFechaHoraSistema>();
         servicios.AddSingleton<IGeneradorCodigoAcceso, GeneradorCodigoAccesoAleatorio>();

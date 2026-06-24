@@ -16,15 +16,18 @@ public sealed class EliminarEquipoManejador : IRequestHandler<EliminarEquipoComa
     private readonly IRepositorioSesiones _repositorio;
     private readonly IUnidadTrabajoSesiones _unidadTrabajo;
     private readonly IUsuarioActual _usuarioActual;
+    private readonly INotificadorSesionesTiempoReal _notificadorTiempoReal;
 
     public EliminarEquipoManejador(
         IRepositorioSesiones repositorio,
         IUnidadTrabajoSesiones unidadTrabajo,
-        IUsuarioActual usuarioActual)
+        IUsuarioActual usuarioActual,
+        INotificadorSesionesTiempoReal notificadorTiempoReal)
     {
         _repositorio = repositorio;
         _unidadTrabajo = unidadTrabajo;
         _usuarioActual = usuarioActual;
+        _notificadorTiempoReal = notificadorTiempoReal;
     }
 
     public async Task Handle(EliminarEquipoComando comando, CancellationToken cancelacion)
@@ -52,5 +55,7 @@ public sealed class EliminarEquipoManejador : IRequestHandler<EliminarEquipoComa
 
         await _repositorio.ActualizarAsync(sesionGrupal, cancelacion);
         await _unidadTrabajo.GuardarCambiosAsync(cancelacion);
+        await _notificadorTiempoReal.NotificarEquiposSesionActualizadosAsync(
+            sesionGrupal.Id, comando.EquipoId, cancelacion);
     }
 }

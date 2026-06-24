@@ -29,6 +29,7 @@ public class SesionIndividualPruebas
     public void AgregarParticipante_LoIncluyeConDatosCorrectos()
     {
         var sesion = Crear();
+        sesion.Preparar();
         var pid = Guid.NewGuid();
 
         var p = sesion.AgregarParticipante(pid, AhoraUtc);
@@ -45,6 +46,7 @@ public class SesionIndividualPruebas
     public void AgregarParticipante_IdVacio_Lanza()
     {
         var sesion = Crear();
+        sesion.Preparar();
         Action accion = () => sesion.AgregarParticipante(Guid.Empty, AhoraUtc);
         accion.Should().Throw<ParticipacionInvalidaExcepcion>();
     }
@@ -53,6 +55,7 @@ public class SesionIndividualPruebas
     public void AgregarParticipante_Duplicado_Lanza()
     {
         var sesion = Crear();
+        sesion.Preparar();
         var pid = Guid.NewGuid();
         sesion.AgregarParticipante(pid, AhoraUtc);
 
@@ -65,12 +68,24 @@ public class SesionIndividualPruebas
     {
         // La capacidad ahora es propia de la sesión, no una constante global.
         var sesion = Crear(maximoParticipantes: 3);
+        sesion.Preparar();
         for (var i = 0; i < 3; i++)
             sesion.AgregarParticipante(Guid.NewGuid(), AhoraUtc);
 
         Action accion = () => sesion.AgregarParticipante(Guid.NewGuid(), AhoraUtc);
         accion.Should().Throw<ParticipacionInvalidaExcepcion>()
             .WithMessage("La sesión individual alcanzó el máximo de participantes permitido.");
+    }
+
+    [Fact]
+    public void AgregarParticipante_SesionNoEnPreparacion_Lanza()
+    {
+        var sesion = Crear();
+
+        Action accion = () => sesion.AgregarParticipante(Guid.NewGuid(), AhoraUtc);
+
+        accion.Should().Throw<ParticipacionInvalidaExcepcion>()
+            .WithMessage("Solo puedes ingresar a una sesión en estado En Preparación.");
     }
 
     [Fact]

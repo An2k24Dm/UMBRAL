@@ -2,20 +2,15 @@ using SesionesServicio.Dominio.Enums;
 
 namespace SesionesServicio.Dominio.Excepciones;
 
-// Centraliza los mensajes de transición inválida del patrón State. Así los
-// ConcreteState (carpeta Estados) quedan enfocados solo en su comportamiento
-// y no contienen strings de error. La clave es el par (estado origen, acción)
-// para conservar el mismo mensaje específico que tenía cada estado; los
-// estados terminales y los casos no contemplados caen en un mensaje genérico.
 internal static class MensajesTransicionEstadoSesion
 {
-    // Mensaje usado por la fábrica de estados cuando el valor persistido no
-    // corresponde a ningún ConcreteState conocido.
     public const string EstadoNoValido = "El estado de la sesión no es válido.";
 
     private static readonly Dictionary<(EstadoSesion Estado, string Accion), string> Mensajes = new()
     {
         // Programada
+        [(EstadoSesion.Programada, "Cancelar")] =
+            "Una sesión programada no se cancela; debe eliminarse.",
         [(EstadoSesion.Programada, "Iniciar")] =
             "Una sesión Programada no puede iniciarse directamente. Debe pasar primero a EnPreparacion.",
         [(EstadoSesion.Programada, "Pausar")] = "Una sesión Programada no puede pausarse.",

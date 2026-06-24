@@ -5,9 +5,6 @@ using SesionesServicio.Dominio.Excepciones;
 
 namespace SesionesServicio.Dominio.Estados;
 
-// Transiciones permitidas desde Programada:
-//   Preparar  → EnPreparacion
-//   Cancelar  → Cancelada
 internal sealed class EstadoSesionProgramada : IEstadoSesion
 {
     public EstadoSesion Estado => EstadoSesion.Programada;
@@ -15,8 +12,8 @@ internal sealed class EstadoSesionProgramada : IEstadoSesion
     public void Preparar(Sesion sesion)
         => sesion.CambiarEstado(new EstadoSesionEnPreparacion());
 
-    public void Cancelar(Sesion sesion)
-        => sesion.CambiarEstado(new EstadoSesionCancelada());
+    public void Cancelar(Sesion sesion) => throw new TransicionEstadoSesionInvalidaExcepcion(
+        Estado, nameof(Cancelar));
 
     public void Iniciar(Sesion sesion) => throw new TransicionEstadoSesionInvalidaExcepcion(
         Estado, nameof(Iniciar));

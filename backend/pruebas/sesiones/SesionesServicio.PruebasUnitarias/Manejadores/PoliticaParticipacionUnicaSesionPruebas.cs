@@ -10,20 +10,20 @@ namespace SesionesServicio.PruebasUnitarias.Manejadores;
 
 // RB — Participación única: un participante solo puede estar en una sesión
 // (EnPreparacion, Activa o Pausada) a la vez.
-public class ValidadorParticipacionUnicaSesionPruebas
+public class PoliticaParticipacionUnicaSesionPruebas
 {
     private static readonly Guid Participante = Guid.Parse("55555555-5555-5555-5555-555555555555");
     private static readonly Guid SesionDestino = Guid.Parse("11111111-1111-1111-1111-111111111111");
     private static readonly Guid OtraSesion = Guid.Parse("22222222-2222-2222-2222-222222222222");
 
-    private static (ValidadorParticipacionUnicaSesion, Mock<IConsultasSesiones>) Construir(
+    private static (PoliticaParticipacionUnicaSesion, Mock<IConsultasSesiones>) Construir(
         SesionParticipacionActivaDto? activa)
     {
         var consultas = new Mock<IConsultasSesiones>();
         consultas.Setup(c => c.ObtenerParticipacionActivaDeParticipanteAsync(
                 It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(activa);
-        return (new ValidadorParticipacionUnicaSesion(consultas.Object), consultas);
+        return (new PoliticaParticipacionUnicaSesion(consultas.Object), consultas);
     }
 
     private static SesionParticipacionActivaDto Participacion(
