@@ -1,7 +1,7 @@
-import { useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  ScrollView,
+  RefreshControl,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -13,6 +13,8 @@ import RutaProtegidaMovil from "../../../autenticacion/RutaProtegidaMovil";
 import { PantallaBase } from "../../../componentes/PantallaBase";
 import { tema } from "../../../estilos/tema";
 import { useEquiposSesion } from "../../../hooks/useEquiposSesion";
+import { useNavegacionSegura } from "../../../hooks/useNavegacionSegura";
+import { useRefrescarAlEnfocar } from "../../../hooks/useRefrescarAlEnfocar";
 import type { EquipoSesionListado } from "../../../tipos/equipos";
 
 // HU43 — Listado de equipos de una sesión grupal. Permite ver el detalle de
@@ -35,6 +37,19 @@ function Contenido() {
   const { equipos, cargando, error, sesionExpirada, refrescar } =
     useEquiposSesion(sesionId);
 
+  const navegarSeguro = useNavegacionSegura();
+  useRefrescarAlEnfocar(refrescar);
+
+  const [refrescando, setRefrescando] = useState(false);
+  const alRefrescar = useCallback(async () => {
+    setRefrescando(true);
+    try {
+      await refrescar();
+    } finally {
+      setRefrescando(false);
+    }
+  }, [refrescar]);
+
   useEffect(() => {
     if (sesionExpirada) cerrarSesion().finally(() => enrutador.replace("/"));
   }, [sesionExpirada, cerrarSesion, enrutador]);
@@ -42,12 +57,23 @@ function Contenido() {
   const yaTengoEquipo = equipos.some((e) => e.esMiEquipo);
 
   const verEquipo = (equipoId: string) =>
-    enrutador.push(
-      `/participante/sesiones/equipo?sesionId=${sesionId}&equipoId=${equipoId}`,
+    navegarSeguro(() =>
+      enrutador.push(
+        `/participante/sesiones/equipo?sesionId=${sesionId}&equipoId=${equipoId}`,
+      ),
     );
 
   return (
-    <PantallaBase>
+    <PantallaBase
+      refreshControl={
+        <RefreshControl
+          refreshing={refrescando}
+          onRefresh={alRefrescar}
+          tintColor={tema.colores.primario}
+          colors={[tema.colores.primario]}
+        />
+      }
+    >
       <View style={estilos.encabezado}>
         <Text style={estilos.titulo}>Equipos de la sesión</Text>
         <Text style={estilos.subtitulo}>
@@ -75,7 +101,7 @@ function Contenido() {
       )}
 
       {!cargando && !error && (
-        <ScrollView showsVerticalScrollIndicator={false}>
+        <View>
           {equipos.length === 0 ? (
             <View style={estilos.tarjeta}>
               <Text style={estilos.vacioTexto}>
@@ -96,9 +122,11 @@ function Contenido() {
             <TouchableOpacity
               style={estilos.botonPrimario}
               onPress={() =>
-                enrutador.push(
-                  `/participante/sesiones/crear-equipo?sesionId=${sesionId}` +
-                    `&nombre=${encodeURIComponent(nombre)}`,
+                navegarSeguro(() =>
+                  enrutador.push(
+                    `/participante/sesiones/crear-equipo?sesionId=${sesionId}` +
+                      `&nombre=${encodeURIComponent(nombre)}`,
+                  ),
                 )
               }
               accessibilityRole="button"
@@ -106,7 +134,7 @@ function Contenido() {
               <Text style={estilos.botonPrimarioTexto}>Crear equipo</Text>
             </TouchableOpacity>
           )}
-        </ScrollView>
+        </View>
       )}
 
       <TouchableOpacity

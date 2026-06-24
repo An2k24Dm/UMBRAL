@@ -71,6 +71,7 @@ function Contenido() {
   };
 
   const guardar = async () => {
+    if (guardando) return; // evita doble submit
     setErrorLocal(null);
     const errorValidacion = validarLocal();
     if (errorValidacion) {

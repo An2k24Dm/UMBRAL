@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SesionesServicio.Aplicacion.Comandos.CrearEquipo;
+using SesionesServicio.Aplicacion.Comandos.EliminarEquipo;
 using SesionesServicio.Aplicacion.Comandos.ModificarEquipo;
 using SesionesServicio.Aplicacion.Consultas.ListarEquiposSesion;
 using SesionesServicio.Aplicacion.Consultas.ObtenerDetalleEquipoSesion;
@@ -78,6 +79,25 @@ public sealed class EquiposControlador : ControllerBase
         var resultado = await _mediador.Send(
             new ModificarEquipoComando(sesionId, equipoId, dto), cancelacion);
         return Ok(resultado);
+    }
+
+    // HU42 — Eliminar un equipo. Solo el líder (Participante). El líder se
+    // resuelve del usuario autenticado, no del body.
+    [HttpDelete("{sesionId:guid}/equipos/{equipoId:guid}")]
+    [Authorize(Policy = "PoliticaSoloParticipante")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> EliminarEquipo(
+        Guid sesionId,
+        Guid equipoId,
+        CancellationToken cancelacion)
+    {
+        await _mediador.Send(new EliminarEquipoComando(sesionId, equipoId), cancelacion);
+        return NoContent();
     }
 
     // HU43 — Detalle de un equipo de la sesión. Participante u Operador.

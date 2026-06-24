@@ -555,4 +555,118 @@ public class EquiposEndpointPruebas : IClassFixture<FabricaApiPruebas>
         detalle.MotivoNoPuedeIngresar.Should().NotBeNullOrWhiteSpace();
         detalle.SesionActualId.Should().Be(sesionA);
     }
+
+    // ---- HU42: eliminar equipo ----
+
+    [Fact]
+    public async Task EliminarEquipo_Lider_Responde204_YEliminaEquipoYParticipantes()
+    {
+        var sesionId = await CrearSesionGrupalEnPreparacionAsync();
+        var participante = ClienteConRol("Participante", IdParticipante);
+        var creado = await (await participante.PostAsJsonAsync(
+                $"/api/sesiones/{sesionId}/equipos", EquipoPublico("Rojo")))
+            .Content.ReadFromJsonAsync<CrearEquipoRespuestaDto>(OpcionesJson);
+
+        var respuesta = await participante.DeleteAsync(
+            $"/api/sesiones/{sesionId}/equipos/{creado!.Id}");
+
+        respuesta.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        using var alcance = _fabrica.Services.CreateScope();
+        var ctx = alcance.ServiceProvider.GetRequiredService<ContextoSesiones>();
+        (await ctx.Equipos.AnyAsync(e => e.Id == creado.Id)).Should().BeFalse();
+        (await ctx.Participantes.AnyAsync(p => p.EquipoId == creado.Id)).Should().BeFalse();
+        // La sesión y sus misiones siguen existiendo.
+        (await ctx.Sesiones.AnyAsync(s => s.Id == sesionId)).Should().BeTrue();
+        (await ctx.SesionMisiones.AnyAsync(m => m.SesionId == sesionId)).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task EliminarEquipo_NoEliminaOtrosEquipos_NiApareceEnListado()
+    {
+        var sesionId = await CrearSesionGrupalEnPreparacionAsync();
+        var p1 = ClienteConRol("Participante", IdParticipante);
+        var rojo = await (await p1.PostAsJsonAsync(
+                $"/api/sesiones/{sesionId}/equipos", EquipoPublico("Rojo")))
+            .Content.ReadFromJsonAsync<CrearEquipoRespuestaDto>(OpcionesJson);
+        var p2 = ClienteConRol("Participante", Guid.NewGuid());
+        var azul = await (await p2.PostAsJsonAsync(
+                $"/api/sesiones/{sesionId}/equipos", EquipoPublico("Azul")))
+            .Content.ReadFromJsonAsync<CrearEquipoRespuestaDto>(OpcionesJson);
+
+        (await p1.DeleteAsync($"/api/sesiones/{sesionId}/equipos/{rojo!.Id}"))
+            .StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        var equipos = await (await p2.GetAsync($"/api/sesiones/{sesionId}/equipos"))
+            .Content.ReadFromJsonAsync<List<EquipoSesionListadoDto>>(OpcionesJson);
+        equipos.Should().ContainSingle(e => e.Id == azul!.Id);
+        equipos.Should().NotContain(e => e.Id == rojo.Id);
+
+        // El detalle del equipo eliminado responde 404.
+        (await p1.GetAsync($"/api/sesiones/{sesionId}/equipos/{rojo.Id}"))
+            .StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task EliminarEquipo_LiberaParticipacion_PermiteCrearDeNuevo()
+    {
+        var sesionId = await CrearSesionGrupalEnPreparacionAsync();
+        var participante = ClienteConRol("Participante", IdParticipante);
+        var creado = await (await participante.PostAsJsonAsync(
+                $"/api/sesiones/{sesionId}/equipos", EquipoPublico("Rojo")))
+            .Content.ReadFromJsonAsync<CrearEquipoRespuestaDto>(OpcionesJson);
+
+        (await participante.DeleteAsync($"/api/sesiones/{sesionId}/equipos/{creado!.Id}"))
+            .EnsureSuccessStatusCode();
+
+        // Ya no queda participación activa: puede crear otro equipo en la sesión.
+        var respuesta = await participante.PostAsJsonAsync(
+            $"/api/sesiones/{sesionId}/equipos", EquipoPublico("Verde"));
+        respuesta.StatusCode.Should().Be(HttpStatusCode.Created);
+    }
+
+    [Fact]
+    public async Task EliminarEquipo_NoLider_Responde403()
+    {
+        var sesionId = await CrearSesionGrupalEnPreparacionAsync();
+        var lider = ClienteConRol("Participante", IdParticipante);
+        var creado = await (await lider.PostAsJsonAsync(
+                $"/api/sesiones/{sesionId}/equipos", EquipoPublico("Rojo")))
+            .Content.ReadFromJsonAsync<CrearEquipoRespuestaDto>(OpcionesJson);
+
+        var otro = ClienteConRol("Participante", Guid.NewGuid());
+        var respuesta = await otro.DeleteAsync(
+            $"/api/sesiones/{sesionId}/equipos/{creado!.Id}");
+
+        respuesta.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
+    public async Task EliminarEquipo_SesionActiva_Responde409()
+    {
+        var sesionId = await CrearSesionGrupalEnPreparacionAsync();
+        var participante = ClienteConRol("Participante", IdParticipante);
+        var creado = await (await participante.PostAsJsonAsync(
+                $"/api/sesiones/{sesionId}/equipos", EquipoPublico("Rojo")))
+            .Content.ReadFromJsonAsync<CrearEquipoRespuestaDto>(OpcionesJson);
+
+        await CambiarEstadoAsync(sesionId, EstadoSesion.Activa);
+
+        var respuesta = await participante.DeleteAsync(
+            $"/api/sesiones/{sesionId}/equipos/{creado!.Id}");
+
+        respuesta.StatusCode.Should().Be(HttpStatusCode.Conflict);
+    }
+
+    [Fact]
+    public async Task EliminarEquipo_Inexistente_Responde404()
+    {
+        var sesionId = await CrearSesionGrupalEnPreparacionAsync();
+        var participante = ClienteConRol("Participante", IdParticipante);
+
+        var respuesta = await participante.DeleteAsync(
+            $"/api/sesiones/{sesionId}/equipos/{Guid.NewGuid()}");
+
+        respuesta.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
 }

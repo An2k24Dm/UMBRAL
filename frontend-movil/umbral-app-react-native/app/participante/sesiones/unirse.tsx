@@ -3,6 +3,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import RutaProtegidaMovil from "../../../autenticacion/RutaProtegidaMovil";
 import { PantallaBase } from "../../../componentes/PantallaBase";
 import { tema } from "../../../estilos/tema";
+import { useNavegacionSegura } from "../../../hooks/useNavegacionSegura";
 
 // HU40/HU43 — Pantalla de opciones al pulsar "Unirse" en una sesión grupal.
 // Ofrece "Unirse a un equipo" (lista equipos, HU43) y "Crear equipo" (HU40).
@@ -19,21 +20,24 @@ function Contenido() {
   const parametros = useLocalSearchParams<{ sesionId?: string; nombre?: string }>();
   const sesionId = parametros.sesionId ?? "";
   const nombre = parametros.nombre ?? "";
+  const navegarSeguro = useNavegacionSegura();
 
-  const irACrearEquipo = () => {
-    enrutador.push(
-      `/participante/sesiones/crear-equipo?sesionId=${sesionId}` +
-        `&nombre=${encodeURIComponent(nombre)}`,
+  const irACrearEquipo = () =>
+    navegarSeguro(() =>
+      enrutador.push(
+        `/participante/sesiones/crear-equipo?sesionId=${sesionId}` +
+          `&nombre=${encodeURIComponent(nombre)}`,
+      ),
     );
-  };
 
-  const unirseAEquipoExistente = () => {
+  const unirseAEquipoExistente = () =>
     // HU43: abre el listado de equipos. El ingreso real es HU47.
-    enrutador.push(
-      `/participante/sesiones/equipos?sesionId=${sesionId}` +
-        `&nombre=${encodeURIComponent(nombre)}`,
+    navegarSeguro(() =>
+      enrutador.push(
+        `/participante/sesiones/equipos?sesionId=${sesionId}` +
+          `&nombre=${encodeURIComponent(nombre)}`,
+      ),
     );
-  };
 
   return (
     <PantallaBase>

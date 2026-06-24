@@ -128,6 +128,23 @@ public sealed class SesionGrupal : Sesion
         return equipo;
     }
 
+    public void EliminarEquipo(Guid equipoId, Guid participanteIdentidadId)
+    {
+        var equipo = _equipos.FirstOrDefault(e => e.Id == equipoId)
+            ?? throw new EquipoNoEncontradoExcepcion(
+                "El equipo solicitado no existe en esta sesión.");
+
+        if (Estado != EstadoSesion.EnPreparacion)
+            throw new EquipoInvalidoExcepcion(
+                "Solo se pueden eliminar equipos cuando la sesión está en estado En Preparación.");
+
+        if (!equipo.EsLider(participanteIdentidadId))
+            throw new AccesoSesionNoPermitidoExcepcion(
+                "Solo el líder del equipo puede eliminarlo.");
+
+        _equipos.Remove(equipo);
+    }
+
     public void ModificarCapacidad(int maximoEquipos, int maximoParticipantesPorEquipo)
     {
         GarantizarModificable();

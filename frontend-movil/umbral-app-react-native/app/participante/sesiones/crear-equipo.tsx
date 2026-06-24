@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   StyleSheet,
   Text,
   TextInput,
@@ -64,7 +65,7 @@ function Contenido() {
   const [contrasena, setContrasena] = useState("");
   const [errorLocal, setErrorLocal] = useState<string | null>(null);
 
-  const { creando, error, equipoCreado, crear } = useCrearEquipo(sesionId);
+  const { creando, error, crear } = useCrearEquipo(sesionId);
 
   const errorBackend = useMemo(
     () => (error ? interpretarError(error) : null),
@@ -85,44 +86,28 @@ function Contenido() {
   };
 
   const enviar = async () => {
+    if (creando) return; // evita doble submit
     setErrorLocal(null);
     const errorValidacion = validarLocal();
     if (errorValidacion) {
       setErrorLocal(errorValidacion);
       return;
     }
-    await crear({
+    const creado = await crear({
       nombre: nombre.trim(),
       tipo,
       contrasena: tipo === "Privado" ? contrasena.trim() : null,
     });
+    if (creado) {
+      // Mutación exitosa: reemplazamos el formulario por el detalle del equipo
+      // creado (no queda en el historial, no se vuelve al detalle viejo).
+      Alert.alert("Equipo creado", "Equipo creado correctamente.");
+      enrutador.replace(
+        `/participante/sesiones/equipo?sesionId=${sesionId}` +
+          `&equipoId=${creado.id}`,
+      );
+    }
   };
-
-  // Éxito: el participante ya quedó como líder del equipo.
-  if (equipoCreado) {
-    return (
-      <PantallaBase>
-        <View style={estilos.tarjeta}>
-          <View style={estilos.cuadroExito}>
-            <Text style={estilos.cuadroExitoTexto}>Equipo creado correctamente.</Text>
-          </View>
-          <Bloque etiqueta="NOMBRE" valor={equipoCreado.nombre} />
-          <Bloque etiqueta="TIPO" valor={equipoCreado.tipo} />
-          <Bloque
-            etiqueta="INTEGRANTES"
-            valor={`${equipoCreado.cantidadParticipantes} / ${equipoCreado.capacidadMaxima}`}
-          />
-          <TouchableOpacity
-            style={estilos.botonPrimario}
-            onPress={volverADetalle}
-            accessibilityRole="button"
-          >
-            <Text style={estilos.botonPrimarioTexto}>Volver a la sesión</Text>
-          </TouchableOpacity>
-        </View>
-      </PantallaBase>
-    );
-  }
 
   // Conflicto: ya pertenece a un equipo. No reabrimos el formulario.
   if (errorBackend?.yaPertenece) {
@@ -230,15 +215,6 @@ function Contenido() {
         </TouchableOpacity>
       </View>
     </PantallaBase>
-  );
-}
-
-function Bloque({ etiqueta, valor }: { etiqueta: string; valor: string }) {
-  return (
-    <View style={estilos.bloqueMeta}>
-      <Text style={estilos.metaEtiqueta}>{etiqueta}</Text>
-      <Text style={estilos.metaValor}>{valor}</Text>
-    </View>
   );
 }
 

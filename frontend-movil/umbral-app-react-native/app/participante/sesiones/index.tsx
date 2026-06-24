@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  RefreshControl,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -13,6 +14,8 @@ import { PantallaBase } from "../../../componentes/PantallaBase";
 import { FiltrosSesionesMovil } from "../../../componentes/sesiones/FiltrosSesionesMovil";
 import { TarjetaSesionMovil } from "../../../componentes/sesiones/TarjetaSesionMovil";
 import { tema } from "../../../estilos/tema";
+import { useNavegacionSegura } from "../../../hooks/useNavegacionSegura";
+import { useRefrescarAlEnfocar } from "../../../hooks/useRefrescarAlEnfocar";
 import { useSesionesDisponibles } from "../../../hooks/useSesionesDisponibles";
 import type { FiltroModoSesion } from "../../../tipos/sesiones";
 
@@ -37,6 +40,20 @@ function ContenidoListado() {
   const { sesiones, cargando, error, sesionExpirada, refrescar } =
     useSesionesDisponibles({ busqueda, modo });
 
+  const navegarSeguro = useNavegacionSegura();
+  // Refresca al volver a esta pantalla (gesto atrás) con datos frescos.
+  useRefrescarAlEnfocar(refrescar);
+
+  const [refrescando, setRefrescando] = useState(false);
+  const alRefrescar = useCallback(async () => {
+    setRefrescando(true);
+    try {
+      await refrescar();
+    } finally {
+      setRefrescando(false);
+    }
+  }, [refrescar]);
+
   // Si el backend respondió 401, cerramos sesión y volvemos al login.
   // 403 NO debe cerrar sesión (la app móvil ya filtra por rol al iniciar).
   useEffect(() => {
@@ -48,7 +65,16 @@ function ContenidoListado() {
   const volverAlMenu = () => enrutador.replace("/participante/menu");
 
   return (
-    <PantallaBase>
+    <PantallaBase
+      refreshControl={
+        <RefreshControl
+          refreshing={refrescando}
+          onRefresh={alRefrescar}
+          tintColor={tema.colores.primario}
+          colors={[tema.colores.primario]}
+        />
+      }
+    >
       <View style={estilos.encabezado}>
         <Text style={estilos.titulo}>UMBRAL</Text>
         <Text style={estilos.subtitulo}>Sesiones disponibles</Text>
@@ -98,7 +124,9 @@ function ContenidoListado() {
               key={sesion.id}
               sesion={sesion}
               alPresionar={() =>
-                enrutador.push(`/participante/sesiones/${sesion.id}`)
+                navegarSeguro(() =>
+                  enrutador.push(`/participante/sesiones/${sesion.id}`),
+                )
               }
             />
           ))}

@@ -1,7 +1,8 @@
-import { useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  RefreshControl,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -16,6 +17,8 @@ import { BadgeModoSesionMovil } from "../../../componentes/sesiones/BadgeModoSes
 import { ListaMisionesSesionMovil } from "../../../componentes/sesiones/ListaMisionesSesionMovil";
 import { tema } from "../../../estilos/tema";
 import { useDetalleSesionDisponible } from "../../../hooks/useDetalleSesionDisponible";
+import { useNavegacionSegura } from "../../../hooks/useNavegacionSegura";
+import { useRefrescarAlEnfocar } from "../../../hooks/useRefrescarAlEnfocar";
 import type { SesionDetalleMovilDto } from "../../../tipos/sesiones";
 import { formatearFechaHora } from "../../../utilidades/formatoFechas";
 
@@ -45,6 +48,20 @@ function ContenidoDetalle() {
     refrescar,
   } = useDetalleSesionDisponible(sesionId ?? null);
 
+  const navegarSeguro = useNavegacionSegura();
+  // Al volver desde crear/ver/editar/eliminar equipo, recarga participación.
+  useRefrescarAlEnfocar(refrescar);
+
+  const [refrescando, setRefrescando] = useState(false);
+  const alRefrescar = useCallback(async () => {
+    setRefrescando(true);
+    try {
+      await refrescar();
+    } finally {
+      setRefrescando(false);
+    }
+  }, [refrescar]);
+
   useEffect(() => {
     if (sesionExpirada) {
       cerrarSesion().finally(() => enrutador.replace("/"));
@@ -73,7 +90,16 @@ function ContenidoDetalle() {
   }
 
   return (
-    <PantallaBase>
+    <PantallaBase
+      refreshControl={
+        <RefreshControl
+          refreshing={refrescando}
+          onRefresh={alRefrescar}
+          tintColor={tema.colores.primario}
+          colors={[tema.colores.primario]}
+        />
+      }
+    >
       <View style={estilos.encabezado}>
         <Text style={estilos.titulo}>UMBRAL</Text>
         <Text style={estilos.subtitulo}>Detalle de la sesión</Text>
@@ -142,6 +168,7 @@ function ContenidoDetalle() {
             detalle={detalle}
             sesionId={sesionId}
             enrutador={enrutador}
+            navegarSeguro={navegarSeguro}
           />
         </>
       )}
@@ -163,10 +190,12 @@ function SeccionParticipacion({
   detalle,
   sesionId,
   enrutador,
+  navegarSeguro,
 }: {
   detalle: SesionDetalleMovilDto;
   sesionId: string;
   enrutador: ReturnType<typeof useRouter>;
+  navegarSeguro: (accion: () => void) => void;
 }) {
   const participacion = detalle.participacionActual;
   const esGrupal = detalle.modo === "Grupal";
@@ -188,9 +217,11 @@ function SeccionParticipacion({
           <TouchableOpacity
             style={estilos.botonPrimario}
             onPress={() =>
-              enrutador.push(
-                `/participante/sesiones/equipo?sesionId=${sesionId}` +
-                  `&equipoId=${participacion.equipoId ?? ""}`,
+              navegarSeguro(() =>
+                enrutador.push(
+                  `/participante/sesiones/equipo?sesionId=${sesionId}` +
+                    `&equipoId=${participacion.equipoId ?? ""}`,
+                ),
               )
             }
             accessibilityRole="button"
@@ -241,7 +272,7 @@ function SeccionParticipacion({
     );
   }
 
-  const alPresionarUnirse = () => {
+  const alPresionarUnirse = () => navegarSeguro(() => {
     if (esGrupal) {
       enrutador.push(
         `/participante/sesiones/unirse?sesionId=${sesionId}` +
@@ -254,7 +285,7 @@ function SeccionParticipacion({
       "Unirse a la sesión",
       "El ingreso a sesiones individuales se implementará próximamente.",
     );
-  };
+  });
 
   return (
     <TouchableOpacity
