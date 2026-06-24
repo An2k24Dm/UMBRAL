@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { ComponentProps, ReactNode } from 'react'
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { tema } from '../estilos/tema'
@@ -7,9 +7,17 @@ interface Props {
   children: ReactNode
   scrollable?: boolean
   padding?: boolean
+  // Pull-to-refresh para pantallas que consultan datos del backend. Solo
+  // aplica cuando scrollable es true (el RefreshControl vive en el ScrollView).
+  refreshControl?: ComponentProps<typeof ScrollView>['refreshControl']
 }
 
-export function PantallaBase({ children, scrollable = true, padding = true }: Props) {
+export function PantallaBase({
+  children,
+  scrollable = true,
+  padding = true,
+  refreshControl,
+}: Props) {
   const contenido = padding ? (
     <View style={estilos.padding}>{children}</View>
   ) : children
@@ -33,6 +41,7 @@ export function PantallaBase({ children, scrollable = true, padding = true }: Pr
           contentContainerStyle={estilos.scrollContenido}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
+          refreshControl={refreshControl}
         >
           {contenido}
         </ScrollView>

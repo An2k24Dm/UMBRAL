@@ -1,8 +1,9 @@
-import { useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  ScrollView,
+  Modal,
+  RefreshControl,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -14,6 +15,9 @@ import RutaProtegidaMovil from "../../../autenticacion/RutaProtegidaMovil";
 import { PantallaBase } from "../../../componentes/PantallaBase";
 import { tema } from "../../../estilos/tema";
 import { useDetalleEquipoSesion } from "../../../hooks/useDetalleEquipoSesion";
+import { useEliminarEquipo } from "../../../hooks/useEliminarEquipo";
+import { useNavegacionSegura } from "../../../hooks/useNavegacionSegura";
+import { useRefrescarAlEnfocar } from "../../../hooks/useRefrescarAlEnfocar";
 import type { IntegranteEquipo } from "../../../tipos/equipos";
 import { formatearFechaHora } from "../../../utilidades/formatoFechas";
 
@@ -36,9 +40,48 @@ function Contenido() {
   const { equipo, cargando, error, sesionExpirada, refrescar } =
     useDetalleEquipoSesion(sesionId, equipoId);
 
+  const navegarSeguro = useNavegacionSegura();
+  useRefrescarAlEnfocar(refrescar);
+
+  const [refrescando, setRefrescando] = useState(false);
+  const alRefrescar = useCallback(async () => {
+    setRefrescando(true);
+    try {
+      await refrescar();
+    } finally {
+      setRefrescando(false);
+    }
+  }, [refrescar]);
+
+  const [mostrarConfirmacion, setMostrarConfirmacion] = useState(false);
+  const {
+    eliminando,
+    error: errorEliminar,
+    noExiste,
+    sesionExpirada: sesionExpiradaEliminar,
+    eliminar,
+  } = useEliminarEquipo(sesionId, equipoId);
+
   useEffect(() => {
-    if (sesionExpirada) cerrarSesion().finally(() => enrutador.replace("/"));
-  }, [sesionExpirada, cerrarSesion, enrutador]);
+    if (sesionExpirada || sesionExpiradaEliminar)
+      cerrarSesion().finally(() => enrutador.replace("/"));
+  }, [sesionExpirada, sesionExpiradaEliminar, cerrarSesion, enrutador]);
+
+  const volverASesion = () =>
+    enrutador.replace(`/participante/sesiones/${sesionId}`);
+
+  const confirmarEliminar = async () => {
+    const ok = await eliminar();
+    setMostrarConfirmacion(false);
+    if (ok) {
+      Alert.alert("Equipo eliminado", "Equipo eliminado correctamente.");
+      volverASesion();
+    } else if (noExiste) {
+      // El equipo ya no existe: volvemos al detalle de la sesión.
+      volverASesion();
+    }
+    // Otros errores (403/409) quedan en errorEliminar y se muestran en línea.
+  };
 
   const ingresarAlEquipo = () => {
     // HU47: ingreso real (público o con contraseña si es privado).
@@ -51,16 +94,27 @@ function Contenido() {
   // HU41: solo el líder puede editar el equipo.
   const editarEquipo = () => {
     if (!equipo) return;
-    enrutador.push(
-      `/participante/sesiones/editar-equipo?sesionId=${sesionId}` +
-        `&equipoId=${equipoId}` +
-        `&nombre=${encodeURIComponent(equipo.nombre)}` +
-        `&tipo=${equipo.tipo}`,
+    navegarSeguro(() =>
+      enrutador.push(
+        `/participante/sesiones/editar-equipo?sesionId=${sesionId}` +
+          `&equipoId=${equipoId}` +
+          `&nombre=${encodeURIComponent(equipo.nombre)}` +
+          `&tipo=${equipo.tipo}`,
+      ),
     );
   };
 
   return (
-    <PantallaBase>
+    <PantallaBase
+      refreshControl={
+        <RefreshControl
+          refreshing={refrescando}
+          onRefresh={alRefrescar}
+          tintColor={tema.colores.primario}
+          colors={[tema.colores.primario]}
+        />
+      }
+    >
       <View style={estilos.encabezado}>
         <Text style={estilos.titulo}>Detalle de equipo</Text>
       </View>
@@ -84,7 +138,7 @@ function Contenido() {
       )}
 
       {!cargando && !error && equipo && (
-        <ScrollView showsVerticalScrollIndicator={false}>
+        <View>
           <View style={estilos.tarjeta}>
             <View style={estilos.filaTitulo}>
               <Text style={estilos.nombreEquipo}>{equipo.nombre}</Text>
@@ -127,6 +181,22 @@ function Contenido() {
             </TouchableOpacity>
           )}
 
+          {equipo.soyLider && (
+            <TouchableOpacity
+              style={estilos.botonPeligro}
+              onPress={() => setMostrarConfirmacion(true)}
+              accessibilityRole="button"
+            >
+              <Text style={estilos.botonPeligroTexto}>Eliminar equipo</Text>
+            </TouchableOpacity>
+          )}
+
+          {errorEliminar && !noExiste ? (
+            <View style={estilos.cuadroError}>
+              <Text style={estilos.cuadroErrorTexto}>{errorEliminar}</Text>
+            </View>
+          ) : null}
+
           {!equipo.esMiEquipo && (
             <TouchableOpacity
               style={estilos.botonPrimario}
@@ -136,7 +206,7 @@ function Contenido() {
               <Text style={estilos.botonPrimarioTexto}>Ingresar al equipo</Text>
             </TouchableOpacity>
           )}
-        </ScrollView>
+        </View>
       )}
 
       <TouchableOpacity
@@ -146,6 +216,43 @@ function Contenido() {
       >
         <Text style={estilos.botonSecundarioTexto}>Volver</Text>
       </TouchableOpacity>
+
+      <Modal
+        visible={mostrarConfirmacion}
+        transparent
+        animationType="fade"
+        onRequestClose={() => !eliminando && setMostrarConfirmacion(false)}
+      >
+        <View style={estilos.modalFondo}>
+          <View style={estilos.modalTarjeta}>
+            <Text style={estilos.modalTitulo}>Eliminar equipo</Text>
+            <Text style={estilos.modalMensaje}>
+              ¿Seguro que deseas eliminar este equipo? Todos los integrantes
+              saldrán del equipo y podrán volver a ingresar a la sesión.
+            </Text>
+            <TouchableOpacity
+              style={[estilos.botonPeligro, eliminando && estilos.botonDeshabilitado]}
+              onPress={confirmarEliminar}
+              disabled={eliminando}
+              accessibilityRole="button"
+            >
+              {eliminando ? (
+                <ActivityIndicator color={tema.colores.textoBlanco} />
+              ) : (
+                <Text style={estilos.botonPeligroTexto}>Eliminar equipo</Text>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={estilos.botonSecundario}
+              onPress={() => setMostrarConfirmacion(false)}
+              disabled={eliminando}
+              accessibilityRole="button"
+            >
+              <Text style={estilos.botonSecundarioTexto}>Cancelar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </PantallaBase>
   );
 }
@@ -271,5 +378,43 @@ const estilos = StyleSheet.create({
     color: tema.colores.texto,
     fontWeight: tema.tipografia.pesos.bold,
     fontSize: tema.tipografia.tamanos.md,
+  },
+  botonPeligro: {
+    backgroundColor: tema.colores.error,
+    paddingVertical: tema.espacios.md,
+    borderRadius: tema.radios.boton,
+    alignItems: "center",
+    marginTop: tema.espacios.sm,
+  },
+  botonPeligroTexto: {
+    color: tema.colores.textoBlanco,
+    fontWeight: tema.tipografia.pesos.bold,
+    fontSize: tema.tipografia.tamanos.lg,
+  },
+  botonDeshabilitado: { opacity: 0.7 },
+  modalFondo: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    justifyContent: "center",
+    padding: tema.espacios.lg,
+  },
+  modalTarjeta: {
+    backgroundColor: tema.colores.fondoTarjeta,
+    borderRadius: tema.radios.tarjeta,
+    borderWidth: 1,
+    borderColor: tema.colores.bordeTarjeta,
+    padding: tema.espacios.lg,
+  },
+  modalTitulo: {
+    color: tema.colores.texto,
+    fontSize: tema.tipografia.tamanos.h3,
+    fontWeight: tema.tipografia.pesos.extrabold,
+    marginBottom: tema.espacios.sm,
+  },
+  modalMensaje: {
+    color: tema.colores.textoTenue,
+    fontSize: tema.tipografia.tamanos.md,
+    lineHeight: 20,
+    marginBottom: tema.espacios.sm,
   },
 });

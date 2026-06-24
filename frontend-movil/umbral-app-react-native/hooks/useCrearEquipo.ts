@@ -11,7 +11,8 @@ interface EstadoUseCrearEquipo {
   error: string | null;
   equipoCreado: CrearEquipoRespuesta | null;
   sesionExpirada: boolean;
-  crear: (solicitud: CrearEquipoSolicitud) => Promise<boolean>;
+  // Devuelve el equipo creado (para navegar a su detalle) o null si falló.
+  crear: (solicitud: CrearEquipoSolicitud) => Promise<CrearEquipoRespuesta | null>;
   reiniciar: () => void;
 }
 
@@ -25,15 +26,15 @@ export function useCrearEquipo(sesionId: string | null | undefined): EstadoUseCr
   const [sesionExpirada, setSesionExpirada] = useState(false);
 
   const crear = useCallback(
-    async (solicitud: CrearEquipoSolicitud): Promise<boolean> => {
-      if (!token || !sesionId) return false;
+    async (solicitud: CrearEquipoSolicitud): Promise<CrearEquipoRespuesta | null> => {
+      if (!token || !sesionId) return null;
       setCreando(true);
       setError(null);
       setSesionExpirada(false);
       try {
         const creado = await crearEquipoApi(token, sesionId, solicitud);
         setEquipoCreado(creado);
-        return true;
+        return creado;
       } catch (e) {
         if (e instanceof ErrorCrearEquipo) {
           if (e.codigo === "NO_AUTORIZADO") setSesionExpirada(true);
@@ -43,7 +44,7 @@ export function useCrearEquipo(sesionId: string | null | undefined): EstadoUseCr
         } else {
           setError("No fue posible crear el equipo.");
         }
-        return false;
+        return null;
       } finally {
         setCreando(false);
       }
