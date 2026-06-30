@@ -18,6 +18,7 @@ import { useDetalleEquipoSesion } from "../../../hooks/useDetalleEquipoSesion";
 import { useEliminarEquipo } from "../../../hooks/useEliminarEquipo";
 import { useNavegacionSegura } from "../../../hooks/useNavegacionSegura";
 import { useRefrescarAlEnfocar } from "../../../hooks/useRefrescarAlEnfocar";
+import { useSesionesTiempoReal } from "../../../hooks/useSesionesTiempoReal";
 import type { IntegranteEquipo } from "../../../tipos/equipos";
 import { formatearFechaHora } from "../../../utilidades/formatoFechas";
 
@@ -42,6 +43,12 @@ function Contenido() {
 
   const navegarSeguro = useNavegacionSegura();
   useRefrescarAlEnfocar(refrescar);
+  useSesionesTiempoReal({
+    sesionId,
+    equipoId,
+    onEquiposSesionActualizados: refrescar,
+    onEquipoActualizado: refrescar,
+  });
 
   const [refrescando, setRefrescando] = useState(false);
   const alRefrescar = useCallback(async () => {

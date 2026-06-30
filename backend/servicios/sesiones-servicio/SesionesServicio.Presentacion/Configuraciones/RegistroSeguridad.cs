@@ -30,6 +30,19 @@ public static class RegistroSeguridad
                 };
                 parametros.Events = new JwtBearerEvents
                 {
+                    OnMessageReceived = ctx =>
+                    {
+                        var accessToken = ctx.Request.Query["access_token"];
+                        var path = ctx.HttpContext.Request.Path;
+
+                        if (!string.IsNullOrEmpty(accessToken) &&
+                            path.StartsWithSegments("/hubs/sesiones"))
+                        {
+                            ctx.Token = accessToken;
+                        }
+
+                        return Task.CompletedTask;
+                    },
                     OnTokenValidated = ctx =>
                     {
                         if (ctx.Principal?.Identity is System.Security.Claims.ClaimsIdentity identidad)

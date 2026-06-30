@@ -3,7 +3,7 @@ using SesionesServicio.Aplicacion.Puertos;
 
 namespace SesionesServicio.Aplicacion.Autorizacion;
 
-public sealed class ValidadorParticipacionUnicaSesion
+public sealed class PoliticaParticipacionUnicaSesion
 {
     public const string MensajeOtraSesion =
         "Ya estás participando en otra sesión. Debes esperar a que finalice " +
@@ -12,7 +12,7 @@ public sealed class ValidadorParticipacionUnicaSesion
 
     private readonly IConsultasSesiones _consultas;
 
-    public ValidadorParticipacionUnicaSesion(IConsultasSesiones consultas)
+    public PoliticaParticipacionUnicaSesion(IConsultasSesiones consultas)
     {
         _consultas = consultas;
     }
@@ -33,4 +33,5 @@ public sealed class ValidadorParticipacionUnicaSesion
 
         throw new ParticipanteYaEstaEnSesionActivaExcepcion(MensajeOtraSesion);
     }
+
 }

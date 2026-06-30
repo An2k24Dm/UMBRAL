@@ -15,6 +15,7 @@ import { tema } from "../../../estilos/tema";
 import { useEquiposSesion } from "../../../hooks/useEquiposSesion";
 import { useNavegacionSegura } from "../../../hooks/useNavegacionSegura";
 import { useRefrescarAlEnfocar } from "../../../hooks/useRefrescarAlEnfocar";
+import { useSesionesTiempoReal } from "../../../hooks/useSesionesTiempoReal";
 import type { EquipoSesionListado } from "../../../tipos/equipos";
 
 // HU43 — Listado de equipos de una sesión grupal. Permite ver el detalle de
@@ -39,6 +40,10 @@ function Contenido() {
 
   const navegarSeguro = useNavegacionSegura();
   useRefrescarAlEnfocar(refrescar);
+  useSesionesTiempoReal({
+    sesionId,
+    onEquiposSesionActualizados: refrescar,
+  });
 
   const [refrescando, setRefrescando] = useState(false);
   const alRefrescar = useCallback(async () => {

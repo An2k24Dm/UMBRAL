@@ -110,7 +110,10 @@ public class EliminarSesionManejadorPruebas
         Func<Task> accion = () => ctx.Construir().Handle(
             new EliminarSesionComando(SesionId), CancellationToken.None);
 
-        await accion.Should().ThrowAsync<SesionNoEliminableExcepcion>();
+        await accion.Should()
+            .ThrowAsync<SesionNoEliminableExcepcion>()
+            .WithMessage("Solo se pueden eliminar sesiones en estado Programada.");
         ctx.Repo.Verify(r => r.EliminarAsync(It.IsAny<Sesion>(), It.IsAny<CancellationToken>()), Times.Never);
+        ctx.Unidad.Verify(u => u.GuardarCambiosAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
 }

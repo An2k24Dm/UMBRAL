@@ -80,6 +80,18 @@ function ContenidoListado() {
         <Text style={estilos.subtitulo}>Sesiones disponibles</Text>
       </View>
 
+      <TouchableOpacity
+        style={estilos.botonPrimario}
+        onPress={() =>
+          navegarSeguro(() =>
+            enrutador.push("/participante/sesiones/ingresar-codigo"),
+          )
+        }
+        accessibilityRole="button"
+      >
+        <Text style={estilos.botonPrimarioTexto}>Ingresar con código</Text>
+      </TouchableOpacity>
+
       <FiltrosSesionesMovil
         busqueda={busqueda}
         alCambiarBusqueda={setBusqueda}

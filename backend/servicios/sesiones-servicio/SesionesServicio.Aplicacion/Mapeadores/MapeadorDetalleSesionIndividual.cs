@@ -12,10 +12,12 @@ public sealed class MapeadorDetalleSesionIndividual : MapeadorDetalleSesionBase
         var individual = (SesionIndividual)sesion;
         dto.MaximoParticipantes = individual.MaximoParticipantes;
         dto.ParticipantesIndividuales = individual.Participantes
+            .OrderBy(p => p.FechaUnionSesion)
             .Select(p => new ParticipanteSesionDto
             {
-                Id = p.Id,
-                ParticipanteId = p.ParticipanteIdentidadId,
+                ParticipanteSesionId = p.Id,
+                ParticipanteIdentidadId = p.ParticipanteIdentidadId,
+                Puntaje = p.Puntaje,
                 FechaUnion = p.FechaUnionSesion
             }).ToList();
     }

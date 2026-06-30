@@ -32,6 +32,7 @@ public class CrearEquipoManejadorPruebas
         public Mock<IHashContrasenaEquipo> Hash { get; } = new();
         public Mock<IProveedorFechaHora> Reloj { get; } = new();
         public Mock<IConsultasSesiones> Consultas { get; } = new();
+        public Mock<INotificadorSesionesTiempoReal> Notificador { get; } = new();
         public Sesion? Actualizada;
 
         public Contexto(Sesion? sesion = null)
@@ -54,12 +55,18 @@ public class CrearEquipoManejadorPruebas
             Repo.Setup(r => r.ActualizarAsync(It.IsAny<Sesion>(), It.IsAny<CancellationToken>()))
                 .Callback<Sesion, CancellationToken>((s, _) => Actualizada = s)
                 .Returns(Task.CompletedTask);
+            Unidad.Setup(u => u.GuardarCambiosAsync(It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
+            Notificador.Setup(n => n.NotificarEquiposSesionActualizadosAsync(
+                    It.IsAny<Guid>(), It.IsAny<Guid?>(), It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
         }
 
         public CrearEquipoManejador Construir()
             => new(new ValidadorCrearEquipo(), Repo.Object, Unidad.Object,
                 Usuario.Object, Hash.Object, Reloj.Object,
-                new ValidadorParticipacionUnicaSesion(Consultas.Object));
+                new PoliticaParticipacionUnicaSesion(Consultas.Object),
+                Notificador.Object);
     }
 
     private static SesionGrupal SesionGrupalEnPreparacion(
@@ -98,6 +105,8 @@ public class CrearEquipoManejadorPruebas
         dto.CantidadParticipantes.Should().Be(1);
         dto.Puntaje.Should().Be(0);
         ctx.Unidad.Verify(u => u.GuardarCambiosAsync(It.IsAny<CancellationToken>()), Times.Once);
+        ctx.Notificador.Verify(n => n.NotificarEquiposSesionActualizadosAsync(
+            SesionId, dto.Id, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]

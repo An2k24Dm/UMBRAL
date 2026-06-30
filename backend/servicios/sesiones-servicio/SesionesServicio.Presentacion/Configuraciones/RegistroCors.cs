@@ -14,7 +14,10 @@ public static class RegistroCors
         {
             opciones.AddPolicy(PoliticaUmbral, c =>
             {
-                c.WithOrigins(origenes).AllowAnyHeader().AllowAnyMethod();
+                c.WithOrigins(origenes)
+                    .AllowAnyHeader()
+                    .AllowAnyMethod()
+                    .AllowCredentials();
             });
         });
 

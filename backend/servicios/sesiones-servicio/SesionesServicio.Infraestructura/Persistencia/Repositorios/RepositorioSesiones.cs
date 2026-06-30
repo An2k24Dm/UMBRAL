@@ -88,6 +88,21 @@ public sealed class RepositorioSesiones : IRepositorioSesiones, IConsultasSesion
         return modelo is null ? null : _mapeador.HaciaDominio(modelo);
     }
 
+    public async Task<Sesion?> ObtenerPorCodigoAsync(
+        string codigo, CancellationToken cancelacion)
+    {
+        var codigoNormalizado = codigo.Trim().ToUpperInvariant();
+        var modelo = await _contexto.Sesiones
+            .AsNoTracking()
+            .Include(s => s.Misiones)
+            .Include(s => s.Equipos)
+            .Include(s => s.Participantes)
+            .FirstOrDefaultAsync(
+                s => s.CodigoAcceso.ToUpper() == codigoNormalizado,
+                cancelacion);
+        return modelo is null ? null : _mapeador.HaciaDominio(modelo);
+    }
+
     public async Task<IReadOnlyList<Sesion>> ListarAsync(
         EstadoSesion? estado, Guid? operadorCreadorId, CancellationToken cancelacion)
     {

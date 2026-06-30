@@ -28,6 +28,7 @@ public class ModificarEquipoManejadorPruebas
         public Mock<IUnidadTrabajoSesiones> Unidad { get; } = new();
         public Mock<IUsuarioActual> Usuario { get; } = new();
         public Mock<IHashContrasenaEquipo> Hash { get; } = new();
+        public Mock<INotificadorSesionesTiempoReal> Notificador { get; } = new();
         public Sesion? Actualizada;
         public Guid SesionId;
         public Guid EquipoId;
@@ -54,11 +55,19 @@ public class ModificarEquipoManejadorPruebas
             Repo.Setup(r => r.ActualizarAsync(It.IsAny<Sesion>(), It.IsAny<CancellationToken>()))
                 .Callback<Sesion, CancellationToken>((x, _) => Actualizada = x)
                 .Returns(Task.CompletedTask);
+            Unidad.Setup(u => u.GuardarCambiosAsync(It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
+            Notificador.Setup(n => n.NotificarEquiposSesionActualizadosAsync(
+                    It.IsAny<Guid>(), It.IsAny<Guid?>(), It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
+            Notificador.Setup(n => n.NotificarEquipoActualizadoAsync(
+                    It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
         }
 
         public ModificarEquipoManejador Construir()
             => new(new ValidadorModificarEquipo(), Repo.Object, Unidad.Object,
-                Usuario.Object, Hash.Object);
+                Usuario.Object, Hash.Object, Notificador.Object);
     }
 
     private static SesionGrupal SesionConEquipo(
@@ -95,6 +104,10 @@ public class ModificarEquipoManejadorPruebas
 
         dto.Nombre.Should().Be("Azul");
         ctx.Unidad.Verify(u => u.GuardarCambiosAsync(It.IsAny<CancellationToken>()), Times.Once);
+        ctx.Notificador.Verify(n => n.NotificarEquiposSesionActualizadosAsync(
+            ctx.SesionId, ctx.EquipoId, It.IsAny<CancellationToken>()), Times.Once);
+        ctx.Notificador.Verify(n => n.NotificarEquipoActualizadoAsync(
+            ctx.SesionId, ctx.EquipoId, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]

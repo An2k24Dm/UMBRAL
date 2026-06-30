@@ -2,7 +2,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using SesionesServicio.Aplicacion.ServiciosEnSegundoPlano;
+using SesionesServicio.Aplicacion.Procesos.PreparacionSesiones;
+using SesionesServicio.Infraestructura.Configuraciones;
 
 namespace SesionesServicio.Infraestructura.ServiciosEnSegundoPlano;
 

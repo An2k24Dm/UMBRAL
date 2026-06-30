@@ -1,4 +1,4 @@
-namespace SesionesServicio.Aplicacion.ServiciosEnSegundoPlano;
+namespace SesionesServicio.Infraestructura.Configuraciones;
 
 // HU34/5.1 — Configuración del servicio en segundo plano que pasa las
 // sesiones Programadas a EnPreparacion cuando su fecha vence. Si no se

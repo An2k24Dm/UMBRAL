@@ -2,9 +2,11 @@ using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using SesionesServicio.Aplicacion.Comandos.CrearEquipo;
 using SesionesServicio.Aplicacion.Comandos.CrearSesion;
+using SesionesServicio.Aplicacion.Comandos.IngresarSesionPorCodigo;
 using SesionesServicio.Aplicacion.Comandos.ModificarEquipo;
 using SesionesServicio.Aplicacion.Comandos.ModificarSesion;
 using SesionesServicio.Aplicacion.Mapeadores;
+using SesionesServicio.Aplicacion.Mapeadores.IngresoSesion;
 using SesionesServicio.Aplicacion.Puertos;
 using SesionesServicio.Aplicacion.Validaciones;
 using SesionesServicio.Dominio.Abstract;
@@ -21,8 +23,11 @@ public static class RegistroAplicacion
         servicios.AddScoped<IValidador<CrearSesionComando>, ValidadorCrearSesion>();
         servicios.AddScoped<IValidador<ModificarSesionComando>, ValidadorModificarSesion>();
         servicios.AddScoped<IValidador<CrearEquipoComando>, ValidadorCrearEquipo>();
+        servicios.AddScoped<IValidador<IngresarSesionPorCodigoComando>,
+            ValidadorIngresarSesionPorCodigo>();
         servicios.AddScoped<IValidador<ModificarEquipoComando>, ValidadorModificarEquipo>();
-        servicios.AddScoped<Autorizacion.ValidadorParticipacionUnicaSesion>();
+        servicios.AddScoped<Autorizacion.PoliticaParticipacionUnicaSesion>();
+        servicios.AddScoped<ConstructorRespuestaIngresoSesion>();
         servicios.AddScoped<IValidadorMisionesSesion, ValidadorMisionesSesion>();
         servicios.AddSingleton<ICreadorSesion, CreadorSesionIndividual>();
         servicios.AddSingleton<ICreadorSesion, CreadorSesionGrupal>();

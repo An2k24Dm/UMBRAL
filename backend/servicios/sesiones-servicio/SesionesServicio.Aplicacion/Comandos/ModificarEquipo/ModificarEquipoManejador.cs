@@ -22,19 +22,22 @@ public sealed class ModificarEquipoManejador
     private readonly IUnidadTrabajoSesiones _unidadTrabajo;
     private readonly IUsuarioActual _usuarioActual;
     private readonly IHashContrasenaEquipo _hashContrasena;
+    private readonly INotificadorSesionesTiempoReal _notificadorTiempoReal;
 
     public ModificarEquipoManejador(
         IValidador<ModificarEquipoComando> validador,
         IRepositorioSesiones repositorio,
         IUnidadTrabajoSesiones unidadTrabajo,
         IUsuarioActual usuarioActual,
-        IHashContrasenaEquipo hashContrasena)
+        IHashContrasenaEquipo hashContrasena,
+        INotificadorSesionesTiempoReal notificadorTiempoReal)
     {
         _validador = validador;
         _repositorio = repositorio;
         _unidadTrabajo = unidadTrabajo;
         _usuarioActual = usuarioActual;
         _hashContrasena = hashContrasena;
+        _notificadorTiempoReal = notificadorTiempoReal;
     }
 
     public async Task<ModificarEquipoRespuestaDto> Handle(
@@ -79,6 +82,10 @@ public sealed class ModificarEquipoManejador
 
         await _repositorio.ActualizarAsync(sesionGrupal, cancelacion);
         await _unidadTrabajo.GuardarCambiosAsync(cancelacion);
+        await _notificadorTiempoReal.NotificarEquiposSesionActualizadosAsync(
+            sesionGrupal.Id, equipo.Id, cancelacion);
+        await _notificadorTiempoReal.NotificarEquipoActualizadoAsync(
+            sesionGrupal.Id, equipo.Id, cancelacion);
 
         return new ModificarEquipoRespuestaDto
         {

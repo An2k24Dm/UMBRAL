@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { LayoutPanel } from '../componentes/LayoutPanel'
 import { Alerta } from '../componentes/Alerta'
@@ -21,6 +21,7 @@ import {
   type BusquedaTesoroDetalleDto
 } from '../autenticacion/clienteApiJuegos'
 import { usarAutenticacion } from '../autenticacion/ProveedorAutenticacion'
+import { useSesionesTiempoReal } from '../hooks/useSesionesTiempoReal'
 import {
   formatearFechaSesion,
   nombreModoSesion,
@@ -91,6 +92,17 @@ export function PaginaDetalleSesion() {
   const [eliminando, setEliminando] = useState(false)
   const [errorEliminar, setErrorEliminar] = useState<string | null>(null)
   const [modalEliminarAbierto, setModalEliminarAbierto] = useState(false)
+  const [versionTiempoReal, setVersionTiempoReal] = useState(0)
+
+  const refrescarPorTiempoReal = useCallback(() => {
+    setVersionTiempoReal(version => version + 1)
+  }, [])
+
+  useSesionesTiempoReal({
+    token,
+    sesionId: id,
+    onSesionActualizada: refrescarPorTiempoReal
+  })
 
   function abrirModalEliminar() {
     setErrorEliminar(null)
@@ -210,7 +222,7 @@ export function PaginaDetalleSesion() {
 
     cargar()
     return () => { ref.cancelado = true }
-  }, [token, id, esOperador])
+  }, [token, id, esOperador, versionTiempoReal])
 
   if (estado === 'cargando') {
     return (
@@ -460,17 +472,21 @@ export function PaginaDetalleSesion() {
               <thead>
                 <tr>
                   <th>#</th>
-                  <th>Participante</th>
+                  <th>Alias</th>
+                  <th>Nombre</th>
+                  <th>Apellido</th>
+                  <th>Puntaje individual</th>
                   <th>Fecha de unión</th>
                 </tr>
               </thead>
               <tbody>
                 {sesion.participantesIndividuales.map((p, idx) => (
-                  <tr key={p.id}>
+                  <tr key={p.participanteSesionId}>
                     <td>{idx + 1}</td>
-                    {/* El backend hoy sólo expone el id. Cuando identidad-servicio
-                        sirva alias/nombre por id se enriquece aquí. */}
-                    <td>{p.participanteId}</td>
+                    <td>{p.alias || '—'}</td>
+                    <td>{p.nombre || '—'}</td>
+                    <td>{p.apellido || '—'}</td>
+                    <td>{p.puntaje}</td>
                     <td>{formatearFechaSesion(p.fechaUnion)}</td>
                   </tr>
                 ))}
