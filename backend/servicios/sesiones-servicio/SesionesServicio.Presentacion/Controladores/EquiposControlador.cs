@@ -44,9 +44,10 @@ public sealed class EquiposControlador : ControllerBase
             $"/api/sesiones/{sesionId}/equipos/{resultado.Id}", resultado);
     }
 
-    // HU43 — Listar equipos de una sesión grupal. Participante u Operador.
+    // HU43/HU44 — Listar equipos de una sesión grupal. Participante, Operador
+    // o Administrador (este último en modo solo lectura).
     [HttpGet("{sesionId:guid}/equipos")]
-    [Authorize(Policy = "PoliticaOperadorOParticipante")]
+    [Authorize(Policy = "PoliticaAdministradorOperadorOParticipante")]
     [ProducesResponseType(typeof(List<EquipoSesionListadoDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -100,9 +101,10 @@ public sealed class EquiposControlador : ControllerBase
         return NoContent();
     }
 
-    // HU43 — Detalle de un equipo de la sesión. Participante u Operador.
+    // HU43/HU44 — Detalle de un equipo de la sesión. Participante, Operador o
+    // Administrador (este último en modo solo lectura).
     [HttpGet("{sesionId:guid}/equipos/{equipoId:guid}")]
-    [Authorize(Policy = "PoliticaOperadorOParticipante")]
+    [Authorize(Policy = "PoliticaAdministradorOperadorOParticipante")]
     [ProducesResponseType(typeof(EquipoSesionDetalleDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]

@@ -66,4 +66,52 @@ public sealed class NotificadorSesionesTiempoReal : INotificadorSesionesTiempoRe
             .Group(SesionesHub.GrupoSesion(sesionId))
             .SendAsync("EquipoActualizado", dto, cancelacion);
     }
+
+    // HU44 — Aviso dirigido al participante expulsado. Usa el grupo de usuario
+    // que resuelve IUserIdProvider con el mismo id que IUsuarioActual.ObtenerId.
+    public Task NotificarParticipanteExpulsadoAsync(
+        Guid participanteIdentidadId,
+        Guid sesionId,
+        Guid participanteSesionId,
+        CancellationToken cancelacion)
+    {
+        var dto = new ParticipanteExpulsadoSesionDto
+        {
+            SesionId = sesionId,
+            ParticipanteSesionId = participanteSesionId,
+            FechaEventoUtc = DateTime.UtcNow
+        };
+
+        return _hub.Clients
+            .User(participanteIdentidadId.ToString())
+            .SendAsync("ParticipanteExpulsadoSesion", dto, cancelacion);
+    }
+
+    // HU44 — Aviso dirigido a cada integrante del equipo expulsado.
+    public Task NotificarEquipoExpulsadoAsync(
+        IReadOnlyCollection<Guid> participantesIdentidadIds,
+        Guid sesionId,
+        Guid equipoId,
+        string equipoNombre,
+        CancellationToken cancelacion)
+    {
+        if (participantesIdentidadIds.Count == 0)
+            return Task.CompletedTask;
+
+        var dto = new EquipoExpulsadoSesionDto
+        {
+            SesionId = sesionId,
+            EquipoId = equipoId,
+            EquipoNombre = equipoNombre,
+            FechaEventoUtc = DateTime.UtcNow
+        };
+
+        var usuarios = participantesIdentidadIds
+            .Select(id => id.ToString())
+            .ToList();
+
+        return _hub.Clients
+            .Users(usuarios)
+            .SendAsync("EquipoExpulsadoSesion", dto, cancelacion);
+    }
 }

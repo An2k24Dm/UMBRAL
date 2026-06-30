@@ -317,3 +317,44 @@ export async function eliminarSesion(id: string, token: string): Promise<void> {
   if (respuesta.status === 409) throw new Error(await leerError(respuesta))
   throw new Error('No se pudo eliminar la sesión. Intenta nuevamente.')
 }
+
+// ---------------------------------------------------------------------------
+// HU44 — Expulsar participante (sesión individual) o equipo (sesión grupal).
+// Solo el Operador creador y solo con la sesión En Preparación o Pausada. El
+// backend valida la regla y devuelve 409 con el mensaje exacto si no aplica.
+// ---------------------------------------------------------------------------
+export async function expulsarParticipanteSesion(
+  sesionId: string, participanteSesionId: string, token: string
+): Promise<void> {
+  const respuesta = await fetch(
+    `${URL_API}${ENDPOINTS.porId(sesionId)}/participantes/` +
+    `${encodeURIComponent(participanteSesionId)}/expulsar`,
+    { method: 'DELETE', headers: auth(token) }
+  )
+  if (respuesta.status === 204) return
+  if (respuesta.status === 401) lanzar401(token, 'Debe iniciar sesión.')
+  if (respuesta.status === 403) throw new Error('No tienes permisos para expulsar participantes de esta sesión.')
+  if (respuesta.status === 404) throw new Error('El participante o la sesión ya no existen.')
+  // 409: la sesión no está En Preparación ni Pausada; propagamos el mensaje
+  // exacto del backend.
+  if (respuesta.status === 409) throw new Error(await leerError(respuesta))
+  throw new Error('No se pudo expulsar al participante. Intenta nuevamente.')
+}
+
+export async function expulsarEquipoSesion(
+  sesionId: string, equipoId: string, token: string
+): Promise<void> {
+  const respuesta = await fetch(
+    `${URL_API}${ENDPOINTS.porId(sesionId)}/equipos/` +
+    `${encodeURIComponent(equipoId)}/expulsar`,
+    { method: 'DELETE', headers: auth(token) }
+  )
+  if (respuesta.status === 204) return
+  if (respuesta.status === 401) lanzar401(token, 'Debe iniciar sesión.')
+  if (respuesta.status === 403) throw new Error('No tienes permisos para expulsar equipos de esta sesión.')
+  if (respuesta.status === 404) throw new Error('El equipo o la sesión ya no existen.')
+  // 409: la sesión no está En Preparación ni Pausada; propagamos el mensaje
+  // exacto del backend.
+  if (respuesta.status === 409) throw new Error(await leerError(respuesta))
+  throw new Error('No se pudo expulsar al equipo. Intenta nuevamente.')
+}

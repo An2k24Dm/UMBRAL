@@ -1,7 +1,9 @@
 import { useEffect } from "react";
+import * as signalR from "@microsoft/signalr";
 import { useAutenticacion } from "../autenticacion/ContextoAutenticacion";
 import {
   crearConexionSesionesTiempoReal,
+  esErrorNoAutenticadoTiempoReal,
   obtenerEquipoIdEvento,
   obtenerSesionIdEvento,
   type EventoSesionTiempoReal,
@@ -22,16 +24,42 @@ export function useSesionesTiempoReal({
   onEquiposSesionActualizados,
   onEquipoActualizado,
 }: OpcionesUseSesionesTiempoReal) {
-  const { sesion } = useAutenticacion();
+  const {
+    sesion,
+    cargandoSesion,
+    estaAutenticado,
+    cerrarSesion,
+  } = useAutenticacion();
   const token = sesion?.tokenAcceso ?? null;
 
   useEffect(() => {
-    if (!token || (!sesionId && !equipoId)) return;
+    if (
+      cargandoSesion ||
+      !token ||
+      !estaAutenticado ||
+      (!sesionId && !equipoId)
+    ) {
+      return;
+    }
 
     let desmontado = false;
+    let invalidandoSesion = false;
     const conexion = crearConexionSesionesTiempoReal(token);
     const sesionActual = (sesionId ?? "").toLowerCase();
     const equipoActual = (equipoId ?? "").toLowerCase();
+
+    const manejarErrorConexion = async (error: unknown) => {
+      if (
+        desmontado ||
+        invalidandoSesion ||
+        !esErrorNoAutenticadoTiempoReal(error)
+      ) {
+        return;
+      }
+
+      invalidandoSesion = true;
+      await cerrarSesion();
+    };
 
     const coincideSesion = (evento: EventoSesionTiempoReal) =>
       !sesionActual || obtenerSesionIdEvento(evento).toLowerCase() === sesionActual;
@@ -57,14 +85,54 @@ export function useSesionesTiempoReal({
     conexion.on("EquiposSesionActualizados", manejarEquipos);
     conexion.on("EquipoActualizado", manejarEquipo);
 
+    conexion.onreconnected(async () => {
+      if (desmontado) {
+        await conexion.stop().catch(() => undefined);
+        return;
+      }
+      if (sesionId) {
+        await conexion
+          .invoke("UnirseASesion", sesionId)
+          .catch((error: unknown) => manejarErrorConexion(error));
+      }
+      if (equipoId) {
+        await conexion
+          .invoke("UnirseAEquipo", equipoId)
+          .catch((error: unknown) => manejarErrorConexion(error));
+      }
+    });
+
+    conexion.onreconnecting((error) => {
+      void manejarErrorConexion(error);
+    });
+
+    conexion.onclose((error) => {
+      void manejarErrorConexion(error);
+    });
+
     conexion
       .start()
       .then(async () => {
-        if (desmontado) return;
-        if (sesionId) await conexion.invoke("UnirseASesion", sesionId);
-        if (equipoId) await conexion.invoke("UnirseAEquipo", equipoId);
+        if (desmontado) {
+          await conexion.stop().catch(() => undefined);
+          return;
+        }
+        if (sesionId) {
+          await conexion
+            .invoke("UnirseASesion", sesionId)
+            .catch((error: unknown) => manejarErrorConexion(error));
+        }
+        if (equipoId) {
+          await conexion
+            .invoke("UnirseAEquipo", equipoId)
+            .catch((error: unknown) => manejarErrorConexion(error));
+        }
       })
-      .catch(() => undefined);
+      .catch((error: unknown) => {
+        void manejarErrorConexion(error);
+        // No mostrar pantalla roja en Expo: el detalle sigue por HTTP y el
+        // refresco manual queda como respaldo.
+      });
 
     return () => {
       desmontado = true;
@@ -72,15 +140,24 @@ export function useSesionesTiempoReal({
       conexion.off("EquiposSesionActualizados", manejarEquipos);
       conexion.off("EquipoActualizado", manejarEquipo);
 
-      Promise.all([
-        sesionId ? conexion.invoke("SalirDeSesion", sesionId).catch(() => undefined) : Promise.resolve(),
-        equipoId ? conexion.invoke("SalirDeEquipo", equipoId).catch(() => undefined) : Promise.resolve(),
-      ]).finally(() => {
-        conexion.stop().catch(() => undefined);
-      });
+      if (conexion.state === signalR.HubConnectionState.Connected) {
+        Promise.all([
+          sesionId
+            ? conexion.invoke("SalirDeSesion", sesionId).catch(() => undefined)
+            : Promise.resolve(),
+          equipoId
+            ? conexion.invoke("SalirDeEquipo", equipoId).catch(() => undefined)
+            : Promise.resolve(),
+        ]).finally(() => {
+          conexion.stop().catch(() => undefined);
+        });
+      }
     };
   }, [
     token,
+    cargandoSesion,
+    estaAutenticado,
+    cerrarSesion,
     sesionId,
     equipoId,
     onParticipantesSesionActualizados,

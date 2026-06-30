@@ -97,6 +97,17 @@ public sealed class SesionGrupal : Sesion
         return participante;
     }
 
+    public void ExpulsarEquipo(Guid equipoId)
+    {
+        ValidarPuedeExpulsar();
+
+        var equipo = _equipos.FirstOrDefault(e => e.Id == equipoId)
+            ?? throw new EquipoNoEncontradoExcepcion(
+                "El equipo indicado no pertenece a esta sesión.");
+
+        _equipos.Remove(equipo);
+    }
+
     public Equipo ModificarEquipo(
         Guid equipoId,
         Guid participanteIdentidadId,

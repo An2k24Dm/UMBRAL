@@ -330,15 +330,65 @@ public class EquiposEndpointPruebas : IClassFixture<FabricaApiPruebas>
         cuerpo.Should().NotContain("direccion");
     }
 
+    // HU44 — El Administrador pasó a tener lectura total de equipos (antes 403).
     [Fact]
-    public async Task ListarEquipos_Administrador_Responde403()
+    public async Task ListarEquipos_Administrador_Responde200()
     {
         var sesionId = await CrearSesionGrupalEnPreparacionAsync();
-        var admin = ClienteConRol("Administrador");
+        var creador = ClienteConRol("Participante", IdParticipante);
+        (await creador.PostAsJsonAsync(
+            $"/api/sesiones/{sesionId}/equipos", EquipoPublico("Rojo")))
+            .EnsureSuccessStatusCode();
 
+        var admin = ClienteConRol("Administrador");
         var respuesta = await admin.GetAsync($"/api/sesiones/{sesionId}/equipos");
 
-        respuesta.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        respuesta.StatusCode.Should().Be(HttpStatusCode.OK);
+        var equipos = await respuesta.Content
+            .ReadFromJsonAsync<List<EquipoSesionListadoDto>>(OpcionesJson);
+        equipos.Should().ContainSingle(e => e.Nombre == "Rojo");
+    }
+
+    // HU44 — El Administrador ve el detalle real del equipo, con integrantes.
+    [Fact]
+    public async Task DetalleEquipo_Administrador_Responde200_ConIntegrantes()
+    {
+        var sesionId = await CrearSesionGrupalEnPreparacionAsync();
+        var participante = ClienteConRol("Participante", IdParticipante);
+        var creado = await (await participante.PostAsJsonAsync(
+                $"/api/sesiones/{sesionId}/equipos", EquipoPublico("Rojo")))
+            .Content.ReadFromJsonAsync<CrearEquipoRespuestaDto>(OpcionesJson);
+
+        var admin = ClienteConRol("Administrador");
+        var respuesta = await admin.GetAsync(
+            $"/api/sesiones/{sesionId}/equipos/{creado!.Id}");
+
+        respuesta.StatusCode.Should().Be(HttpStatusCode.OK);
+        var detalle = await respuesta.Content
+            .ReadFromJsonAsync<EquipoSesionDetalleDto>(OpcionesJson);
+        detalle!.CantidadParticipantes.Should().Be(1);
+        detalle.Participantes.Should().ContainSingle(p => p.EsLider);
+        detalle.Participantes.Single().Alias.Should().NotBeNullOrWhiteSpace();
+    }
+
+    // HU44 — El Operador dueño también ve el detalle real con integrantes.
+    [Fact]
+    public async Task DetalleEquipo_Operador_Responde200_ConIntegrantes()
+    {
+        var sesionId = await CrearSesionGrupalEnPreparacionAsync();
+        var participante = ClienteConRol("Participante", IdParticipante);
+        var creado = await (await participante.PostAsJsonAsync(
+                $"/api/sesiones/{sesionId}/equipos", EquipoPublico("Rojo")))
+            .Content.ReadFromJsonAsync<CrearEquipoRespuestaDto>(OpcionesJson);
+
+        var operador = ClienteConRol("Operador");
+        var respuesta = await operador.GetAsync(
+            $"/api/sesiones/{sesionId}/equipos/{creado!.Id}");
+
+        respuesta.StatusCode.Should().Be(HttpStatusCode.OK);
+        var detalle = await respuesta.Content
+            .ReadFromJsonAsync<EquipoSesionDetalleDto>(OpcionesJson);
+        detalle!.Participantes.Should().ContainSingle(p => p.EsLider);
     }
 
     [Fact]

@@ -123,6 +123,24 @@ public abstract class Sesion : ISesion
                 "Solo se pueden eliminar sesiones en estado Programada.");
     }
 
+    protected void ValidarPuedeExpulsar()
+    {
+        if (Estado is EstadoSesion.EnPreparacion or EstadoSesion.Pausada)
+            return;
+
+        if (Estado == EstadoSesion.Activa)
+            throw new ExpulsionNoPermitidaExcepcion(
+                "Debes pausar la sesión antes de expulsar participantes o equipos.");
+
+        if (Estado == EstadoSesion.Finalizada)
+            throw new ExpulsionNoPermitidaExcepcion(
+                "No se pueden expulsar participantes o equipos de una sesión finalizada.");
+
+        throw new ExpulsionNoPermitidaExcepcion(
+            "Solo se pueden expulsar participantes o equipos cuando la sesión " +
+            "está En Preparación o Pausada.");
+    }
+
     public void Preparar() => _estadoActual.Preparar(this);
 
     public void Iniciar(DateTime fechaInicioUtc)

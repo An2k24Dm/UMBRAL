@@ -20,11 +20,35 @@ export function obtenerEquipoIdEvento(evento: EventoSesionTiempoReal): string {
   return evento.equipoId ?? evento.EquipoId ?? "";
 }
 
+export function esErrorNoAutenticadoTiempoReal(error: unknown): boolean {
+  if (!error) return false;
+
+  const candidato = error as {
+    statusCode?: unknown;
+    status?: unknown;
+    message?: unknown;
+  };
+
+  if (candidato.statusCode === 401 || candidato.status === 401) return true;
+
+  const mensaje =
+    typeof candidato.message === "string"
+      ? candidato.message
+      : typeof error === "string"
+        ? error
+        : "";
+
+  return /(?:\b401\b|unauthorized|no_autenticado|no autenticado)/i.test(
+    mensaje,
+  );
+}
+
 export function crearConexionSesionesTiempoReal(token: string) {
+  // Dejamos que SignalR negocie el transporte automáticamente (no forzamos
+  // WebSockets): es más robusto en Expo y evita fallos de negociación.
   return new signalR.HubConnectionBuilder()
     .withUrl(`${URL_API}/hubs/sesiones`, {
       accessTokenFactory: () => token,
-      transport: signalR.HttpTransportType.WebSockets,
     })
     .withAutomaticReconnect()
     .build();

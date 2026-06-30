@@ -33,7 +33,13 @@ internal static class AccesoConsultaEquipos
 
         var usuarioId = usuarioActual.ObtenerId();
 
-        if (usuarioActual.TieneAlgunRol("Operador"))
+        // HU44 — El Administrador tiene lectura total: puede consultar los
+        // equipos de cualquier sesión (solo consulta, nunca escritura).
+        if (usuarioActual.TieneAlgunRol("Administrador"))
+        {
+            // Sin restricción de propiedad ni de estado.
+        }
+        else if (usuarioActual.TieneAlgunRol("Operador"))
         {
             if (usuarioId is not Guid op || grupal.OperadorCreadorId != op)
                 throw new AccesoSesionNoPermitidoExcepcion(MensajeSinPermiso);

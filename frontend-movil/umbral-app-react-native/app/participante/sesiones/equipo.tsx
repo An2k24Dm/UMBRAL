@@ -43,6 +43,8 @@ function Contenido() {
 
   const navegarSeguro = useNavegacionSegura();
   useRefrescarAlEnfocar(refrescar);
+  // El aviso dirigido de expulsión de equipo lo maneja de forma global
+  // useAvisosSesionTiempoReal; aquí solo refrescamos por eventos de grupo.
   useSesionesTiempoReal({
     sesionId,
     equipoId,

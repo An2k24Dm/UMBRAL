@@ -9,7 +9,10 @@ import {
   obtenerSesion,
   eliminarSesion,
   listarEquiposSesion,
+  expulsarParticipanteSesion,
+  expulsarEquipoSesion,
   type EquipoSesionListadoDto,
+  type ParticipanteSesionDto,
   type SesionDetalleDto
 } from '../autenticacion/clienteApiSesiones'
 import {
@@ -81,6 +84,10 @@ export function PaginaDetalleSesion() {
   // Solo el Operador puede editar sesiones (el Administrador es de solo
   // lectura). El mensaje de éxito llega como state al volver de la edición.
   const esOperador = usuario?.rol === 'Operador'
+  // HU44 — Operador y Administrador consultan el listado enriquecido de
+  // equipos (listarEquiposSesion); el Administrador solo en modo lectura.
+  const puedeConsultarEquipos =
+    usuario?.rol === 'Operador' || usuario?.rol === 'Administrador'
   const mensajeExito = (ubicacion.state as { mensajeExito?: string } | null)?.mensajeExito
 
   const [estado, setEstado] = useState<'cargando' | 'error' | 'listo'>('cargando')
@@ -93,6 +100,15 @@ export function PaginaDetalleSesion() {
   const [errorEliminar, setErrorEliminar] = useState<string | null>(null)
   const [modalEliminarAbierto, setModalEliminarAbierto] = useState(false)
   const [versionTiempoReal, setVersionTiempoReal] = useState(0)
+
+  // HU44 — Expulsión de participante (individual) o equipo (grupal) por el
+  // Operador. Guardamos el objetivo seleccionado para el modal de confirmación.
+  const [participanteAExpulsar, setParticipanteAExpulsar] =
+    useState<ParticipanteSesionDto | null>(null)
+  const [equipoAExpulsar, setEquipoAExpulsar] =
+    useState<EquipoSesionListadoDto | null>(null)
+  const [expulsando, setExpulsando] = useState(false)
+  const [errorExpulsar, setErrorExpulsar] = useState<string | null>(null)
 
   const refrescarPorTiempoReal = useCallback(() => {
     setVersionTiempoReal(version => version + 1)
@@ -132,6 +148,54 @@ export function PaginaDetalleSesion() {
     }
   }
 
+  // --- HU44: expulsar participante individual ---
+  function cerrarModalExpulsarParticipante() {
+    if (expulsando) return
+    setParticipanteAExpulsar(null)
+    setErrorExpulsar(null)
+  }
+
+  async function confirmarExpulsarParticipante() {
+    if (!token || !sesion || !participanteAExpulsar) return
+    setExpulsando(true)
+    setErrorExpulsar(null)
+    try {
+      await expulsarParticipanteSesion(
+        sesion.id, participanteAExpulsar.participanteSesionId, token)
+      setParticipanteAExpulsar(null)
+      // Refetch inmediato para respuesta instantánea; SignalR también refresca.
+      refrescarPorTiempoReal()
+    } catch (e) {
+      setErrorExpulsar(
+        e instanceof Error ? e.message : 'No se pudo expulsar al participante. Intenta nuevamente.')
+    } finally {
+      setExpulsando(false)
+    }
+  }
+
+  // --- HU44: expulsar equipo grupal ---
+  function cerrarModalExpulsarEquipo() {
+    if (expulsando) return
+    setEquipoAExpulsar(null)
+    setErrorExpulsar(null)
+  }
+
+  async function confirmarExpulsarEquipo() {
+    if (!token || !sesion || !equipoAExpulsar) return
+    setExpulsando(true)
+    setErrorExpulsar(null)
+    try {
+      await expulsarEquipoSesion(sesion.id, equipoAExpulsar.id, token)
+      setEquipoAExpulsar(null)
+      refrescarPorTiempoReal()
+    } catch (e) {
+      setErrorExpulsar(
+        e instanceof Error ? e.message : 'No se pudo expulsar al equipo. Intenta nuevamente.')
+    } finally {
+      setExpulsando(false)
+    }
+  }
+
   useEffect(() => {
     const ref = { cancelado: false }
     async function cargar() {
@@ -142,7 +206,7 @@ export function PaginaDetalleSesion() {
       }
       try {
         const detalle = await obtenerSesion(id, token)
-        const equipos = esOperador && detalle.modo === 'Grupal'
+        const equipos = puedeConsultarEquipos && detalle.modo === 'Grupal'
           ? await listarEquiposSesion(id, token)
           : null
         if (ref.cancelado) return
@@ -222,7 +286,7 @@ export function PaginaDetalleSesion() {
 
     cargar()
     return () => { ref.cancelado = true }
-  }, [token, id, esOperador, versionTiempoReal])
+  }, [token, id, puedeConsultarEquipos, versionTiempoReal])
 
   if (estado === 'cargando') {
     return (
@@ -252,6 +316,11 @@ export function PaginaDetalleSesion() {
   }
 
   const esGrupal = sesion.modo === 'Grupal'
+  // HU44 — Solo el Operador puede expulsar, y solo con la sesión En
+  // Preparación o Pausada. En Activa mostramos una pista para pausar primero.
+  const puedeExpulsar =
+    esOperador && (sesion.estado === 'EnPreparacion' || sesion.estado === 'Pausada')
+  const expulsarBloqueadoPorActiva = esOperador && sesion.estado === 'Activa'
   const equiposMostrados: EquipoSesionListadoDto[] = equiposListado ?? sesion.equipos.map(eq => ({
     id: eq.id,
     sesionId: sesion.id,
@@ -463,6 +532,11 @@ export function PaginaDetalleSesion() {
               <p>Participantes: {sesion.participantesIndividuales.length} / {sesion.maximoParticipantes ?? '—'}</p>
             </div>
           </div>
+          {expulsarBloqueadoPorActiva && (
+            <Alerta tono="aviso">
+              Pausa la sesión para poder expulsar participantes.
+            </Alerta>
+          )}
           {sesion.participantesIndividuales.length === 0 ? (
             <p className="detalle-mensaje-vacio">
               Aún no hay participantes unidos a esta sesión.
@@ -477,6 +551,7 @@ export function PaginaDetalleSesion() {
                   <th>Apellido</th>
                   <th>Puntaje individual</th>
                   <th>Fecha de unión</th>
+                  {puedeExpulsar && <th>Acciones</th>}
                 </tr>
               </thead>
               <tbody>
@@ -488,6 +563,17 @@ export function PaginaDetalleSesion() {
                     <td>{p.apellido || '—'}</td>
                     <td>{p.puntaje}</td>
                     <td>{formatearFechaSesion(p.fechaUnion)}</td>
+                    {puedeExpulsar && (
+                      <td>
+                        <Boton
+                          variante="peligro"
+                          tamaño="sm"
+                          onClick={() => { setErrorExpulsar(null); setParticipanteAExpulsar(p) }}
+                        >
+                          Expulsar
+                        </Boton>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -505,6 +591,11 @@ export function PaginaDetalleSesion() {
               <p>Equipos: {equiposMostrados.length} / {sesion.maximoEquipos ?? '—'}</p>
             </div>
           </div>
+          {expulsarBloqueadoPorActiva && (
+            <Alerta tono="aviso">
+              Pausa la sesión para poder expulsar equipos.
+            </Alerta>
+          )}
           {equiposMostrados.length === 0 ? (
             <p className="detalle-mensaje-vacio">
               Aún no hay equipos unidos a esta sesión.
@@ -534,13 +625,24 @@ export function PaginaDetalleSesion() {
                     <td>{eq.cantidadParticipantes} / {eq.capacidadMaxima}</td>
                     <td>{formatearFechaSesion(eq.fechaCreacion)}</td>
                     <td>
-                      <Boton
-                        variante="primario"
-                        tamaño="sm"
-                        onClick={() => navegar(`${rutaBaseEquipos}/${eq.id}`)}
-                      >
-                        Ver
-                      </Boton>
+                      <div style={{ display: 'flex', gap: 'var(--espacio-2)', flexWrap: 'wrap' }}>
+                        <Boton
+                          variante="primario"
+                          tamaño="sm"
+                          onClick={() => navegar(`${rutaBaseEquipos}/${eq.id}`)}
+                        >
+                          Ver
+                        </Boton>
+                        {puedeExpulsar && (
+                          <Boton
+                            variante="peligro"
+                            tamaño="sm"
+                            onClick={() => { setErrorExpulsar(null); setEquipoAExpulsar(eq) }}
+                          >
+                            Expulsar
+                          </Boton>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -567,6 +669,45 @@ export function PaginaDetalleSesion() {
         <p style={{ fontSize: '0.85rem', opacity: 0.8 }}>
           Se eliminará la sesión y sus registros asociados.
         </p>
+      </ModalConfirmacion>
+
+      {/* HU44 — Confirmar expulsión de participante individual */}
+      <ModalConfirmacion
+        abierto={participanteAExpulsar !== null}
+        titulo="Expulsar participante"
+        textoConfirmar="Expulsar"
+        textoCancelar="Cancelar"
+        procesando={expulsando}
+        mensajeError={errorExpulsar}
+        onConfirmar={confirmarExpulsarParticipante}
+        onCancelar={cerrarModalExpulsarParticipante}
+      >
+        <p>¿Seguro que deseas expulsar a este participante de la sesión?</p>
+        {participanteAExpulsar && (
+          <p style={{ fontSize: '0.85rem', opacity: 0.8 }}>
+            {participanteAExpulsar.alias || participanteAExpulsar.nombre || 'Participante'}
+          </p>
+        )}
+      </ModalConfirmacion>
+
+      {/* HU44 — Confirmar expulsión de equipo grupal */}
+      <ModalConfirmacion
+        abierto={equipoAExpulsar !== null}
+        titulo="Expulsar equipo"
+        textoConfirmar="Expulsar equipo"
+        textoCancelar="Cancelar"
+        procesando={expulsando}
+        mensajeError={errorExpulsar}
+        onConfirmar={confirmarExpulsarEquipo}
+        onCancelar={cerrarModalExpulsarEquipo}
+      >
+        <p>
+          ¿Seguro que deseas expulsar este equipo? Todos sus integrantes saldrán
+          de la sesión.
+        </p>
+        {equipoAExpulsar && (
+          <p style={{ fontSize: '0.85rem', opacity: 0.8 }}>{equipoAExpulsar.nombre}</p>
+        )}
       </ModalConfirmacion>
     </LayoutPanel>
   )
