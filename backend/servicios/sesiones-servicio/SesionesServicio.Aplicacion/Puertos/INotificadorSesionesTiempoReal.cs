@@ -15,4 +15,17 @@ public interface INotificadorSesionesTiempoReal
         Guid sesionId,
         Guid equipoId,
         CancellationToken cancelacion);
+        
+    Task NotificarParticipanteExpulsadoAsync(
+        Guid participanteIdentidadId,
+        Guid sesionId,
+        Guid participanteSesionId,
+        CancellationToken cancelacion);
+
+    Task NotificarEquipoExpulsadoAsync(
+        IReadOnlyCollection<Guid> participantesIdentidadIds,
+        Guid sesionId,
+        Guid equipoId,
+        string equipoNombre,
+        CancellationToken cancelacion);
 }

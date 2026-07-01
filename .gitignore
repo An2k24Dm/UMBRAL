@@ -3,6 +3,10 @@
 **/obj/
 **/TestResults/
 **/coverage/
+artifacts/
+*.trx
+*.coverage
+coverage.cobertura.xml
 *.user
 *.suo
 .vs/

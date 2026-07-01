@@ -460,3 +460,136 @@ Cada microservicio tiene su propia base de datos PostgreSQL.
 
 ### Crear un .env en la raiz del proyecto para utilizar el SMTP de gmail
 - Leer el .env.example y tomar la estructura que aparece ahí para la creacion del env y la configuración del correo emisor
+
+# Verificación automatizada de UMBRAL
+
+Esta guía reúne los comandos usados localmente y en CI para demostrar
+compilación, pruebas, cobertura y levantamiento de los componentes. Todos los
+comandos parten de la raíz del repositorio.
+
+## Backend
+
+Requisitos: .NET SDK 9.
+
+```powershell
+dotnet restore .\UMBRAL.sln
+dotnet build .\UMBRAL.sln --no-restore --configuration Release
+dotnet test .\UMBRAL.sln --no-build --configuration Release
+```
+
+El script de verificación ejecuta restore, build, las pruebas unitarias y de
+integración con cobertura de todos los módulos backend disponibles (sesiones,
+identidad y juegos):
+
+```powershell
+.\verificar-backend.ps1
+```
+
+## Cobertura
+
+Los proyectos de pruebas usan `coverlet.collector`. Los comandos directos son:
+
+```powershell
+dotnet test .\backend\pruebas\sesiones\SesionesServicio.PruebasUnitarias\SesionesServicio.PruebasUnitarias.csproj `
+  --collect:"XPlat Code Coverage" `
+  --results-directory .\artifacts\test-results\sesiones-unitarias
+
+dotnet test .\backend\pruebas\sesiones\SesionesServicio.PruebasIntegracion\SesionesServicio.PruebasIntegracion.csproj `
+  --collect:"XPlat Code Coverage" `
+  --results-directory .\artifacts\test-results\sesiones-integracion
+```
+
+Cada ejecución genera un `coverage.cobertura.xml` dentro del directorio de
+resultados. GitHub Actions publica la carpeta completa como el artifact
+`backend-test-results-and-coverage`; no se exige todavía un porcentaje mínimo.
+
+## Frontend web
+
+El comando `build` incluye la comprobación de TypeScript y el build de Vite:
+
+```powershell
+Set-Location .\frontend-web\umbral-web-react
+npm ci
+npm run build
+```
+
+## Frontend móvil
+
+No se realiza un build nativo de Expo en CI. Se instala el lockfile y se
+comprueba TypeScript:
+
+```powershell
+Set-Location .\frontend-movil\umbral-app-react-native
+npm ci --legacy-peer-deps
+npm run typecheck
+```
+
+El proyecto móvil no tiene ESLint configurado, por lo que CI no inventa ni
+ejecuta un paso de lint. `--legacy-peer-deps` conserva la resolución compatible
+del proyecto Expo 54/React 19 y coincide con el comando usado en CI.
+
+## GitHub Actions
+
+El workflow `.github/workflows/ci.yml` se ejecuta en pushes a `develop` y
+`feature/**`, y en pull requests hacia `develop` o `main`. Contiene:
+
+- `backend`: restaura y compila `UMBRAL.sln`, ejecuta las pruebas unitarias y
+  de integración de sesiones con cobertura, y publica los resultados.
+- `frontend-web`: ejecuta `npm ci` y `npm run build`.
+- `frontend-movil`: ejecuta `npm ci --legacy-peer-deps` y
+  `npm run typecheck`.
+
+## Docker Compose
+
+Requisito: Docker Desktop o Docker Engine con Compose v2.
+
+Validar la configuración y construir las imágenes:
+
+```powershell
+docker compose config --quiet
+docker compose build
+```
+
+Levantar los componentes principales y revisar su estado:
+
+```powershell
+docker compose up -d
+docker compose ps
+```
+
+Comprobar el gateway y los tres microservicios a través de sus rutas de salud:
+
+```powershell
+Invoke-RestMethod http://localhost:5000/salud
+Invoke-RestMethod http://localhost:5000/api/identidad/salud
+Invoke-RestMethod http://localhost:5000/api/juegos/salud
+Invoke-RestMethod http://localhost:5000/api/sesiones/salud
+```
+
+Equivalente con `curl`:
+
+```bash
+curl --fail http://localhost:5000/salud
+curl --fail http://localhost:5000/api/identidad/salud
+curl --fail http://localhost:5000/api/juegos/salud
+curl --fail http://localhost:5000/api/sesiones/salud
+```
+
+Detener los contenedores sin borrar datos:
+
+```powershell
+docker compose down
+```
+
+Para una limpieza deliberada de todas las bases locales:
+
+```powershell
+docker compose down -v
+```
+
+`down -v` elimina los volúmenes de PostgreSQL y Keycloak; no debe usarse si se
+necesita conservar la información local.
+
+Los PostgreSQL ya tienen `healthcheck` con `pg_isready`. No se agregan
+healthchecks HTTP a imágenes que no garantizan disponer de `curl`, para evitar
+romper el levantamiento.

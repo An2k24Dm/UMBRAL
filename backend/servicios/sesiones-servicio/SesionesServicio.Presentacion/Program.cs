@@ -4,7 +4,9 @@ using SesionesServicio.Presentacion.Middlewares;
 using SesionesServicio.Aplicacion.Dependencias;
 using SesionesServicio.Aplicacion.Puertos;
 using SesionesServicio.Infraestructura.Dependencias;
+using Microsoft.AspNetCore.SignalR;
 using SesionesServicio.Infraestructura.Persistencia;
+using SesionesServicio.Infraestructura.TiempoReal;
 using SesionesServicio.Infraestructura.TiempoReal.Hubs;
 
 var constructor = WebApplication.CreateBuilder(args);
@@ -28,6 +30,9 @@ constructor.Services.AddSwaggerGen();
 constructor.Services.AddHttpContextAccessor();
 constructor.Services.AddScoped<IUsuarioActual, UsuarioActualHttp>();
 constructor.Services.AddScoped<IPropagadorTokenActual, PropagadorTokenActualHttp>();
+// HU44 — Mapea cada conexión SignalR al id de usuario del JWT para poder
+// dirigir avisos de expulsión con Clients.User(...).
+constructor.Services.AddSingleton<IUserIdProvider, ProveedorIdUsuarioSignalR>();
 constructor.Services.AddSignalR();
 
 constructor.Services.AgregarAplicacion();

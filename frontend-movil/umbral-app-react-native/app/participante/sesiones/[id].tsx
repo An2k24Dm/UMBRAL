@@ -23,9 +23,6 @@ import { useSesionesTiempoReal } from "../../../hooks/useSesionesTiempoReal";
 import type { SesionDetalleMovilDto } from "../../../tipos/sesiones";
 import { formatearFechaHora } from "../../../utilidades/formatoFechas";
 
-// HU — Detalle de una sesión disponible. Solo consulta: el Participante
-// puede ver misiones, etapas, modo de juego y dificultad. No hay acciones
-// para inscribirse en esta iteración del ERS.
 export default function PantallaDetalleSesionParticipante() {
   return (
     <RutaProtegidaMovil>
@@ -50,7 +47,6 @@ function ContenidoDetalle() {
   } = useDetalleSesionDisponible(sesionId ?? null);
 
   const navegarSeguro = useNavegacionSegura();
-  // Al volver desde crear/ver/editar/eliminar equipo, recarga participación.
   useRefrescarAlEnfocar(refrescar);
   useSesionesTiempoReal({
     sesionId,

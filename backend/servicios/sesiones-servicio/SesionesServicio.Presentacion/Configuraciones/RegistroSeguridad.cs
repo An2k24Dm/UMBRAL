@@ -109,6 +109,11 @@ public static class RegistroSeguridad
             opcAuth.AddPolicy("PoliticaOperadorOParticipante",
                 p => p.RequireAuthenticatedUser()
                       .RequireRole("Operador", "Participante"));
+            // HU44 — Lectura de equipos abierta también al Administrador
+            // (solo consulta; la escritura sigue restringida por rol).
+            opcAuth.AddPolicy("PoliticaAdministradorOperadorOParticipante",
+                p => p.RequireAuthenticatedUser()
+                      .RequireRole("Administrador", "Operador", "Participante"));
         });
 
         return servicios;

@@ -93,6 +93,16 @@ public sealed class ManejadorErroresMiddleware
             await EscribirCodigoAsync(contexto, HttpStatusCode.NotFound,
                 "EQUIPO_NO_ENCONTRADO", ex.Message);
         }
+        catch (ParticipanteNoEncontradoExcepcion ex)
+        {
+            await EscribirCodigoAsync(contexto, HttpStatusCode.NotFound,
+                "PARTICIPANTE_NO_ENCONTRADO", ex.Message);
+        }
+        catch (ExpulsionNoPermitidaExcepcion ex)
+        {
+            await EscribirCodigoAsync(contexto, HttpStatusCode.Conflict,
+                "EXPULSION_NO_PERMITIDA", ex.Message);
+        }
         catch (SesionNoGrupalExcepcion ex)
         {
             await EscribirCodigoAsync(contexto, HttpStatusCode.Conflict,

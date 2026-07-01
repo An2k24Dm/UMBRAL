@@ -1,0 +1,109 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - develop
+      - "feature/**"
+  pull_request:
+    branches:
+      - develop
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend (.NET 9)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Obtener código
+        uses: actions/checkout@v4
+
+      - name: Configurar .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+
+      - name: Restaurar
+        run: dotnet restore UMBRAL.sln
+
+      - name: Compilar
+        run: dotnet build UMBRAL.sln --no-restore --configuration Release
+
+      - name: Probar sesiones (unitarias y cobertura)
+        run: >
+          dotnet test
+          backend/pruebas/sesiones/SesionesServicio.PruebasUnitarias/SesionesServicio.PruebasUnitarias.csproj
+          --no-build
+          --configuration Release
+          --collect:"XPlat Code Coverage"
+          --logger "trx;LogFileName=sesiones-unitarias.trx"
+          --results-directory artifacts/test-results/sesiones-unitarias
+
+      - name: Probar sesiones (integración y cobertura)
+        run: >
+          dotnet test
+          backend/pruebas/sesiones/SesionesServicio.PruebasIntegracion/SesionesServicio.PruebasIntegracion.csproj
+          --no-build
+          --configuration Release
+          --collect:"XPlat Code Coverage"
+          --logger "trx;LogFileName=sesiones-integracion.trx"
+          --results-directory artifacts/test-results/sesiones-integracion
+
+      - name: Publicar pruebas y cobertura
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-results-and-coverage
+          path: artifacts/test-results
+          if-no-files-found: warn
+
+  frontend-web:
+    name: Frontend web
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend-web/umbral-web-react
+    steps:
+      - name: Obtener código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend-web/umbral-web-react/package-lock.json
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Compilar
+        run: npm run build
+
+  frontend-movil:
+    name: Frontend móvil
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend-movil/umbral-app-react-native
+    steps:
+      - name: Obtener código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend-movil/umbral-app-react-native/package-lock.json
+
+      - name: Instalar dependencias
+        # Expo 54 y React 19 mantienen peers opcionales incompatibles con la
+        # resolución estricta de npm; el lockfile se generó con esta opción.
+        run: npm ci --legacy-peer-deps
+
+      - name: Verificar TypeScript
+        run: npm run typecheck

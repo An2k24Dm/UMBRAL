@@ -5,7 +5,6 @@ import { Alerta } from '../componentes/Alerta'
 import { Boton } from '../componentes/Boton'
 import {
   obtenerDetalleEquipoSesion,
-  obtenerSesion,
   type EquipoSesionDetalleDto
 } from '../autenticacion/clienteApiSesiones'
 import { usarAutenticacion } from '../autenticacion/ProveedorAutenticacion'
@@ -13,8 +12,9 @@ import { formatearFechaSesion } from '../utilidades/formatoSesiones'
 
 // Detalle de un equipo dentro de una sesión grupal.
 //
-// El Operador consume el DTO dedicado de HU43, ya enriquecido por el backend
-// de sesiones con los datos básicos no sensibles de identidad.
+// Operador y Administrador consumen el MISMO DTO dedicado de HU43, ya
+// enriquecido por el backend con los datos básicos no sensibles de identidad
+// (incluidos los integrantes). El Administrador es de solo lectura.
 
 export function PaginaDetalleEquipo() {
   const { id, equipoId } = useParams<{ id: string; equipoId: string }>()
@@ -37,36 +37,11 @@ export function PaginaDetalleEquipo() {
         return
       }
       try {
-        const detalle = usuario?.rol === 'Administrador'
-          ? await obtenerSesion(id, token)
-          : null
-        const equipoDetalle = usuario?.rol === 'Administrador'
-          ? (() => {
-              const encontrado = detalle?.equipos.find(e => e.id === equipoId)
-              if (!encontrado) return null
-              return {
-                id: encontrado.id,
-                sesionId: id,
-                nombre: encontrado.nombre,
-                tipo: encontrado.tipo,
-                puntaje: encontrado.puntajeActual,
-                cantidadParticipantes: encontrado.participantes.length,
-                capacidadMaxima: encontrado.capacidadMaxima,
-                fechaCreacion: encontrado.fechaCreacion,
-                estaLleno: encontrado.participantes.length >= encontrado.capacidadMaxima,
-                liderParticipanteId: '',
-                esMiEquipo: false,
-                soyLider: false,
-                participantes: []
-              } satisfies EquipoSesionDetalleDto
-            })()
-          : await obtenerDetalleEquipoSesion(id, equipoId, token)
+        // Operador y Administrador usan el mismo endpoint real, que devuelve
+        // los integrantes. Antes el Administrador construía el DTO a mano con
+        // participantes: [], por eso nunca veía integrantes.
+        const equipoDetalle = await obtenerDetalleEquipoSesion(id, equipoId, token)
         if (ref.cancelado) return
-        if (!equipoDetalle) {
-          setEstado('error')
-          setMensajeError('El equipo solicitado no pertenece a esta sesión.')
-          return
-        }
         setEquipo(equipoDetalle)
         setEstado('listo')
       } catch (e) {

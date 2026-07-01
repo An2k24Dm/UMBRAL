@@ -50,6 +50,17 @@ public sealed class SesionIndividual : Sesion
         return participante;
     }
 
+    public void ExpulsarParticipante(Guid participanteSesionId)
+    {
+        ValidarPuedeExpulsar();
+
+        var participante = _participantes.FirstOrDefault(p => p.Id == participanteSesionId)
+            ?? throw new ParticipanteNoEncontradoExcepcion(
+                "El participante indicado no pertenece a esta sesión.");
+
+        _participantes.Remove(participante);
+    }
+
     public void ModificarCapacidad(int maximoParticipantes)
     {
         GarantizarModificable();

@@ -8,13 +8,15 @@ import {
   type ReactNode
 } from 'react'
 import { iniciarSesionApi } from '../servicios/autenticacionApi'
-import { ErrorInicioSesion } from '../tipos/errores'
+import { obtenerPerfilActualApi } from '../servicios/participantesApi'
+import { ErrorConsultaPerfil, ErrorInicioSesion } from '../tipos/errores'
 import type {
   ResultadoInicioSesion,
   UsuarioAutenticado
 } from '../tipos/autenticacion'
 import {
   eliminarSesion,
+  esTokenAccesoVigente,
   guardarSesion,
   obtenerSesion,
   type SesionPersistida
@@ -44,23 +46,47 @@ export function ProveedorAutenticacion({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let activo = true
-    obtenerSesion()
-      .then((s) => {
-        if (!activo) return
-        // Defensa visual: la app móvil es exclusiva del Participante. Si el
-        // SecureStore tenía una sesión de otro rol (por ejemplo, restaurada
-        // de un backup), se descarta en lugar de cargarla.
-        if (s && s.usuario.rol !== 'Participante') {
-          eliminarSesion().finally(() => {
-            if (activo) setSesion(null)
-          })
-        } else {
-          setSesion(s)
+
+    async function cargarSesionPersistida() {
+      try {
+        const sesionPersistida = await obtenerSesion()
+        if (!sesionPersistida) {
+          if (activo) setSesion(null)
+          return
         }
-      })
-      .finally(() => {
+
+        // La lectura de SecureStore ya comprobó estructura y expiración.
+        // El backend confirma que el JWT sigue autorizado antes de habilitar
+        // rutas protegidas o iniciar conexiones de tiempo real.
+        const perfil = await obtenerPerfilActualApi(
+          sesionPersistida.tokenAcceso
+        )
+
+        if (perfil.rol !== 'Participante') {
+          await eliminarSesion()
+          if (activo) setSesion(null)
+          return
+        }
+
+        if (activo) setSesion(sesionPersistida)
+      } catch (error) {
+        // Un 401/403 invalida definitivamente la sesión. Ante un fallo
+        // temporal de red también se bloquea la navegación protegida, pero
+        // se conserva SecureStore para poder revalidarlo en otro arranque.
+        if (
+          error instanceof ErrorConsultaPerfil &&
+          (error.estadoHttp === 401 || error.estadoHttp === 403)
+        ) {
+          await eliminarSesion()
+        }
+        if (activo) setSesion(null)
+      } finally {
         if (activo) setCargandoSesion(false)
-      })
+      }
+    }
+
+    void cargarSesionPersistida()
+
     return () => {
       activo = false
     }
@@ -82,6 +108,13 @@ export function ProveedorAutenticacion({ children }: { children: ReactNode }) {
           403
         )
       }
+      if (!esTokenAccesoVigente(resultado.tokenAcceso)) {
+        throw new ErrorInicioSesion(
+          'El servidor devolvió una sesión inválida. Intenta iniciar sesión nuevamente.',
+          'ERROR_INTERNO',
+          500
+        )
+      }
       await guardarSesion(resultado)
       setSesion({
         tokenAcceso: resultado.tokenAcceso,
@@ -96,8 +129,13 @@ export function ProveedorAutenticacion({ children }: { children: ReactNode }) {
   )
 
   const cerrarSesion = useCallback(async () => {
-    await eliminarSesion()
-    setSesion(null)
+    try {
+      await eliminarSesion()
+    } finally {
+      // El estado en memoria nunca debe conservar una sesión que el backend
+      // ya rechazó, incluso si SecureStore falla al limpiar el dispositivo.
+      setSesion(null)
+    }
   }, [])
 
   const valor = useMemo<ValorContextoAutenticacion>(
@@ -105,7 +143,7 @@ export function ProveedorAutenticacion({ children }: { children: ReactNode }) {
       sesion,
       usuario: sesion?.usuario ?? null,
       cargandoSesion,
-      estaAutenticado: sesion !== null,
+      estaAutenticado: !cargandoSesion && sesion !== null,
       iniciarSesion,
       cerrarSesion
     }),
