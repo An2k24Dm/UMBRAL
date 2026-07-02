@@ -51,6 +51,23 @@ export interface IntegranteEquipo {
   esLider: boolean;
 }
 
+// HU47 — Solicitud de ingreso a un equipo. La contraseña solo es necesaria
+// para equipos privados; el participante lo resuelve el backend desde el JWT.
+export interface IngresarEquipoSolicitud {
+  contrasena?: string | null;
+}
+
+// HU47 — Respuesta del backend al ingresar. Nunca incluye contraseña ni hash.
+export interface IngresarEquipoRespuesta {
+  sesionId: string;
+  equipoId: string;
+  equipoNombre: string;
+  tipo: TipoEquipo;
+  cantidadParticipantes: number;
+  capacidadMaxima: number;
+  esMiEquipo: boolean;
+}
+
 // HU43 — Detalle de un equipo con sus integrantes.
 export interface EquipoSesionDetalle {
   id: string;

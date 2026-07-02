@@ -2,6 +2,7 @@ using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using SesionesServicio.Aplicacion.Comandos.CrearEquipo;
 using SesionesServicio.Aplicacion.Comandos.CrearSesion;
+using SesionesServicio.Aplicacion.Comandos.IngresarEquipo;
 using SesionesServicio.Aplicacion.Comandos.IngresarSesionPorCodigo;
 using SesionesServicio.Aplicacion.Comandos.ModificarEquipo;
 using SesionesServicio.Aplicacion.Comandos.ModificarSesion;
@@ -23,6 +24,7 @@ public static class RegistroAplicacion
         servicios.AddScoped<IValidador<CrearSesionComando>, ValidadorCrearSesion>();
         servicios.AddScoped<IValidador<ModificarSesionComando>, ValidadorModificarSesion>();
         servicios.AddScoped<IValidador<CrearEquipoComando>, ValidadorCrearEquipo>();
+        servicios.AddScoped<IValidador<IngresarEquipoComando>, IngresarEquipoValidador>();
         servicios.AddScoped<IValidador<IngresarSesionPorCodigoComando>,
             ValidadorIngresarSesionPorCodigo>();
         servicios.AddScoped<IValidador<ModificarEquipoComando>, ValidadorModificarEquipo>();

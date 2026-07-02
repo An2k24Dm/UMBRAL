@@ -13,16 +13,19 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useAutenticacion } from "../../../autenticacion/ContextoAutenticacion";
 import RutaProtegidaMovil from "../../../autenticacion/RutaProtegidaMovil";
 import { PantallaBase } from "../../../componentes/PantallaBase";
+import { ModalContrasenaEquipo } from "../../../componentes/sesiones/ModalContrasenaEquipo";
 import { tema } from "../../../estilos/tema";
 import { useDetalleEquipoSesion } from "../../../hooks/useDetalleEquipoSesion";
 import { useEliminarEquipo } from "../../../hooks/useEliminarEquipo";
+import { useIngresarEquipo } from "../../../hooks/useIngresarEquipo";
 import { useNavegacionSegura } from "../../../hooks/useNavegacionSegura";
 import { useRefrescarAlEnfocar } from "../../../hooks/useRefrescarAlEnfocar";
 import { useSesionesTiempoReal } from "../../../hooks/useSesionesTiempoReal";
 import type { IntegranteEquipo } from "../../../tipos/equipos";
 import { formatearFechaHora } from "../../../utilidades/formatoFechas";
 
-// HU43 — Detalle real de un equipo de la sesión. El ingreso a un equipo es HU47.
+// HU43/HU47 — Detalle real de un equipo de la sesión, con ingreso al equipo
+// (directo si es público, con contraseña si es privado).
 export default function PantallaDetalleEquipo() {
   return (
     <RutaProtegidaMovil>
@@ -71,10 +74,26 @@ function Contenido() {
     eliminar,
   } = useEliminarEquipo(sesionId, equipoId);
 
+  // HU47 — Ingreso real al equipo.
+  const {
+    ingresando,
+    error: errorIngreso,
+    sesionExpirada: sesionExpiradaIngreso,
+    ingresarEquipo,
+    limpiarError,
+  } = useIngresarEquipo();
+  const [mostrarContrasena, setMostrarContrasena] = useState(false);
+
   useEffect(() => {
-    if (sesionExpirada || sesionExpiradaEliminar)
+    if (sesionExpirada || sesionExpiradaEliminar || sesionExpiradaIngreso)
       cerrarSesion().finally(() => enrutador.replace("/"));
-  }, [sesionExpirada, sesionExpiradaEliminar, cerrarSesion, enrutador]);
+  }, [
+    sesionExpirada,
+    sesionExpiradaEliminar,
+    sesionExpiradaIngreso,
+    cerrarSesion,
+    enrutador,
+  ]);
 
   const volverASesion = () =>
     enrutador.replace(`/participante/sesiones/${sesionId}`);
@@ -92,12 +111,30 @@ function Contenido() {
     // Otros errores (403/409) quedan en errorEliminar y se muestran en línea.
   };
 
-  const ingresarAlEquipo = () => {
-    // HU47: ingreso real (público o con contraseña si es privado).
-    Alert.alert(
-      "Ingresar al equipo",
-      "Ingresar a un equipo se implementará en la HU47.",
-    );
+  // HU47 — Ingreso real: directo si el equipo es público; con contraseña si
+  // es privado. Tras el éxito el usuario permanece en el detalle para ver
+  // toda la información asociada al equipo.
+  const alIngresoExitoso = async () => {
+    setMostrarContrasena(false);
+    Alert.alert("Equipo", "Ingresaste al equipo correctamente.");
+    await refrescar();
+  };
+
+  const ingresarAlEquipo = async () => {
+    if (!equipo) return;
+    limpiarError();
+    if (equipo.tipo === "Privado") {
+      setMostrarContrasena(true);
+      return;
+    }
+    const respuesta = await ingresarEquipo(sesionId, equipoId);
+    if (respuesta) await alIngresoExitoso();
+  };
+
+  const ingresarConContrasena = async (contrasena: string) => {
+    const respuesta = await ingresarEquipo(sesionId, equipoId, contrasena);
+    if (respuesta) await alIngresoExitoso();
+    // Si falló, el modal queda abierto mostrando el error.
   };
 
   // HU41: solo el líder puede editar el equipo.
@@ -206,17 +243,54 @@ function Contenido() {
             </View>
           ) : null}
 
-          {!equipo.esMiEquipo && (
-            <TouchableOpacity
-              style={estilos.botonPrimario}
-              onPress={ingresarAlEquipo}
-              accessibilityRole="button"
-            >
-              <Text style={estilos.botonPrimarioTexto}>Ingresar al equipo</Text>
-            </TouchableOpacity>
+          {/* HU47 — Ingresar solo si no es mi equipo y hay cupos. */}
+          {!equipo.esMiEquipo && equipo.estaLleno && (
+            <View style={estilos.tarjeta}>
+              <Text style={estilos.metaLinea}>
+                El equipo no tiene cupos disponibles.
+              </Text>
+            </View>
+          )}
+
+          {!equipo.esMiEquipo && !equipo.estaLleno && (
+            <View>
+              {errorIngreso && !mostrarContrasena ? (
+                <View style={estilos.cuadroError}>
+                  <Text style={estilos.cuadroErrorTexto}>{errorIngreso}</Text>
+                </View>
+              ) : null}
+              <TouchableOpacity
+                style={[
+                  estilos.botonPrimario,
+                  ingresando && estilos.botonDeshabilitado,
+                ]}
+                onPress={() => void ingresarAlEquipo()}
+                disabled={ingresando}
+                accessibilityRole="button"
+              >
+                {ingresando && !mostrarContrasena ? (
+                  <ActivityIndicator color={tema.colores.textoBlanco} />
+                ) : (
+                  <Text style={estilos.botonPrimarioTexto}>Ingresar al equipo</Text>
+                )}
+              </TouchableOpacity>
+            </View>
           )}
         </View>
       )}
+
+      {/* HU47 — Contraseña para equipos privados. */}
+      <ModalContrasenaEquipo
+        visible={mostrarContrasena}
+        nombreEquipo={equipo?.nombre ?? ""}
+        procesando={ingresando}
+        error={errorIngreso}
+        onIngresar={(contrasena) => void ingresarConContrasena(contrasena)}
+        onCancelar={() => {
+          setMostrarContrasena(false);
+          limpiarError();
+        }}
+      />
 
       <TouchableOpacity
         style={estilos.botonSecundario}

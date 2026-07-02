@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SesionesServicio.Aplicacion.Comandos.CrearEquipo;
 using SesionesServicio.Aplicacion.Comandos.EliminarEquipo;
+using SesionesServicio.Aplicacion.Comandos.IngresarEquipo;
 using SesionesServicio.Aplicacion.Comandos.ModificarEquipo;
 using SesionesServicio.Aplicacion.Consultas.ListarEquiposSesion;
 using SesionesServicio.Aplicacion.Consultas.ObtenerDetalleEquipoSesion;
@@ -79,6 +80,28 @@ public sealed class EquiposControlador : ControllerBase
     {
         var resultado = await _mediador.Send(
             new ModificarEquipoComando(sesionId, equipoId, dto), cancelacion);
+        return Ok(resultado);
+    }
+
+    // HU47 — Ingresar a un equipo de una sesión grupal En Preparación. Solo
+    // Participante. El participante se resuelve del usuario autenticado, no
+    // del body; si el equipo es privado, el body trae la contraseña.
+    [HttpPost("{sesionId:guid}/equipos/{equipoId:guid}/ingresar")]
+    [Authorize(Policy = "PoliticaSoloParticipante")]
+    [ProducesResponseType(typeof(IngresarEquipoRespuestaDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> IngresarEquipo(
+        Guid sesionId,
+        Guid equipoId,
+        [FromBody] IngresarEquipoDto dto,
+        CancellationToken cancelacion)
+    {
+        var resultado = await _mediador.Send(
+            new IngresarEquipoComando(sesionId, equipoId, dto), cancelacion);
         return Ok(resultado);
     }
 

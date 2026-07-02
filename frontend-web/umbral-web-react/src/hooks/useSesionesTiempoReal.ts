@@ -18,10 +18,12 @@ export function useSesionesTiempoReal({
   onSesionActualizada
 }: OpcionesUseSesionesTiempoReal) {
   useEffect(() => {
-    if (!token || !sesionId) return
+    // No abrir conexión sin token válido (evita 401 no controlados).
+    const tokenLimpio = token?.trim()
+    if (!tokenLimpio || !sesionId) return
 
     let desmontado = false
-    const conexion = crearConexionSesionesTiempoReal(token)
+    const conexion = crearConexionSesionesTiempoReal(tokenLimpio)
     const sesionActual = sesionId.toLowerCase()
 
     const manejarEvento = (evento: EventoSesionTiempoReal) => {

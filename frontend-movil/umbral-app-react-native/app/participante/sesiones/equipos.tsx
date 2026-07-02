@@ -11,15 +11,18 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useAutenticacion } from "../../../autenticacion/ContextoAutenticacion";
 import RutaProtegidaMovil from "../../../autenticacion/RutaProtegidaMovil";
 import { PantallaBase } from "../../../componentes/PantallaBase";
+import { ModalContrasenaEquipo } from "../../../componentes/sesiones/ModalContrasenaEquipo";
 import { tema } from "../../../estilos/tema";
 import { useEquiposSesion } from "../../../hooks/useEquiposSesion";
+import { useIngresarEquipo } from "../../../hooks/useIngresarEquipo";
 import { useNavegacionSegura } from "../../../hooks/useNavegacionSegura";
 import { useRefrescarAlEnfocar } from "../../../hooks/useRefrescarAlEnfocar";
 import { useSesionesTiempoReal } from "../../../hooks/useSesionesTiempoReal";
 import type { EquipoSesionListado } from "../../../tipos/equipos";
 
-// HU43 — Listado de equipos de una sesión grupal. Permite ver el detalle de
-// cada equipo. El ingreso real a un equipo es HU47.
+// HU43/HU47 — Listado de equipos de una sesión grupal. Permite ver el
+// detalle de cada equipo e ingresar a un equipo disponible (con contraseña
+// si es privado).
 export default function PantallaEquiposSesion() {
   return (
     <RutaProtegidaMovil>
@@ -57,9 +60,21 @@ function Contenido() {
     }
   }, [refrescar]);
 
+  // HU47 — Ingreso a equipo desde el listado.
+  const {
+    ingresando,
+    error: errorIngreso,
+    sesionExpirada: sesionExpiradaIngreso,
+    ingresarEquipo,
+    limpiarError,
+  } = useIngresarEquipo();
+  const [equipoPrivadoSeleccionado, setEquipoPrivadoSeleccionado] =
+    useState<EquipoSesionListado | null>(null);
+
   useEffect(() => {
-    if (sesionExpirada) cerrarSesion().finally(() => enrutador.replace("/"));
-  }, [sesionExpirada, cerrarSesion, enrutador]);
+    if (sesionExpirada || sesionExpiradaIngreso)
+      cerrarSesion().finally(() => enrutador.replace("/"));
+  }, [sesionExpirada, sesionExpiradaIngreso, cerrarSesion, enrutador]);
 
   const yaTengoEquipo = equipos.some((e) => e.esMiEquipo);
 
@@ -69,6 +84,43 @@ function Contenido() {
         `/participante/sesiones/equipo?sesionId=${sesionId}&equipoId=${equipoId}`,
       ),
     );
+
+  // Tras ingresar: refresca el listado y lleva al detalle del equipo para
+  // que el participante vea toda la información asociada.
+  const finalizarIngreso = useCallback(
+    async (equipoId: string) => {
+      setEquipoPrivadoSeleccionado(null);
+      await refrescar();
+      navegarSeguro(() =>
+        enrutador.replace(
+          `/participante/sesiones/equipo?sesionId=${sesionId}&equipoId=${equipoId}`,
+        ),
+      );
+    },
+    [refrescar, navegarSeguro, enrutador, sesionId],
+  );
+
+  const ingresarAEquipo = async (equipo: EquipoSesionListado) => {
+    limpiarError();
+    if (equipo.tipo === "Privado") {
+      // El modal pide la contraseña y luego llama al API.
+      setEquipoPrivadoSeleccionado(equipo);
+      return;
+    }
+    const respuesta = await ingresarEquipo(sesionId, equipo.id);
+    if (respuesta) await finalizarIngreso(equipo.id);
+  };
+
+  const ingresarConContrasena = async (contrasena: string) => {
+    if (!equipoPrivadoSeleccionado) return;
+    const respuesta = await ingresarEquipo(
+      sesionId,
+      equipoPrivadoSeleccionado.id,
+      contrasena,
+    );
+    if (respuesta) await finalizarIngreso(equipoPrivadoSeleccionado.id);
+    // Si falló, el modal queda abierto mostrando errorIngreso.
+  };
 
   return (
     <PantallaBase
@@ -109,6 +161,14 @@ function Contenido() {
 
       {!cargando && !error && (
         <View>
+          {/* Errores de ingreso a equipos públicos (los privados se muestran
+              dentro del modal de contraseña). */}
+          {errorIngreso && !equipoPrivadoSeleccionado ? (
+            <View style={estilos.cuadroError}>
+              <Text style={estilos.cuadroErrorTexto}>{errorIngreso}</Text>
+            </View>
+          ) : null}
+
           {equipos.length === 0 ? (
             <View style={estilos.tarjeta}>
               <Text style={estilos.vacioTexto}>
@@ -120,7 +180,10 @@ function Contenido() {
               <TarjetaEquipo
                 key={equipo.id}
                 equipo={equipo}
+                puedeIngresar={!yaTengoEquipo && !equipo.estaLleno && !equipo.esMiEquipo}
+                ingresando={ingresando}
                 onVer={() => verEquipo(equipo.id)}
+                onIngresar={() => void ingresarAEquipo(equipo)}
               />
             ))
           )}
@@ -151,16 +214,35 @@ function Contenido() {
       >
         <Text style={estilos.botonSecundarioTexto}>Volver</Text>
       </TouchableOpacity>
+
+      {/* HU47 — Contraseña para equipos privados. */}
+      <ModalContrasenaEquipo
+        visible={equipoPrivadoSeleccionado !== null}
+        nombreEquipo={equipoPrivadoSeleccionado?.nombre ?? ""}
+        procesando={ingresando}
+        error={errorIngreso}
+        onIngresar={(contrasena) => void ingresarConContrasena(contrasena)}
+        onCancelar={() => {
+          setEquipoPrivadoSeleccionado(null);
+          limpiarError();
+        }}
+      />
     </PantallaBase>
   );
 }
 
 function TarjetaEquipo({
   equipo,
+  puedeIngresar,
+  ingresando,
   onVer,
+  onIngresar,
 }: {
   equipo: EquipoSesionListado;
+  puedeIngresar: boolean;
+  ingresando: boolean;
   onVer: () => void;
+  onIngresar: () => void;
 }) {
   return (
     <View style={estilos.tarjeta}>
@@ -197,8 +279,26 @@ function TarjetaEquipo({
         onPress={onVer}
         accessibilityRole="button"
       >
-        <Text style={estilos.botonVerTexto}>Ver</Text>
+        <Text style={estilos.botonVerTexto}>
+          {equipo.esMiEquipo ? "Ver equipo" : "Ver"}
+        </Text>
       </TouchableOpacity>
+
+      {/* HU47 — Ingresar solo si no tengo equipo y hay cupos. */}
+      {puedeIngresar && (
+        <TouchableOpacity
+          style={[estilos.botonIngresar, ingresando && estilos.botonDeshabilitado]}
+          onPress={onIngresar}
+          disabled={ingresando}
+          accessibilityRole="button"
+        >
+          {ingresando ? (
+            <ActivityIndicator color={tema.colores.textoBlanco} />
+          ) : (
+            <Text style={estilos.botonIngresarTexto}>Ingresar</Text>
+          )}
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
@@ -278,6 +378,19 @@ const estilos = StyleSheet.create({
     fontWeight: tema.tipografia.pesos.bold,
     fontSize: tema.tipografia.tamanos.md,
   },
+  botonIngresar: {
+    marginTop: tema.espacios.sm,
+    paddingVertical: tema.espacios.sm,
+    borderRadius: tema.radios.boton,
+    alignItems: "center",
+    backgroundColor: tema.colores.primario,
+  },
+  botonIngresarTexto: {
+    color: tema.colores.textoBlanco,
+    fontWeight: tema.tipografia.pesos.bold,
+    fontSize: tema.tipografia.tamanos.md,
+  },
+  botonDeshabilitado: { opacity: 0.7 },
   vacioTexto: {
     color: tema.colores.textoTenue,
     fontSize: tema.tipografia.tamanos.md,

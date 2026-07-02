@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { LayoutPanel } from '../componentes/LayoutPanel'
 import { Alerta } from '../componentes/Alerta'
@@ -8,6 +8,7 @@ import {
   type EquipoSesionDetalleDto
 } from '../autenticacion/clienteApiSesiones'
 import { usarAutenticacion } from '../autenticacion/ProveedorAutenticacion'
+import { useSesionesTiempoReal } from '../hooks/useSesionesTiempoReal'
 import { formatearFechaSesion } from '../utilidades/formatoSesiones'
 
 // Detalle de un equipo dentro de una sesión grupal.
@@ -27,6 +28,18 @@ export function PaginaDetalleEquipo() {
   const [estado, setEstado] = useState<'cargando' | 'error' | 'listo'>('cargando')
   const [mensajeError, setMensajeError] = useState<string | null>(null)
   const [equipo, setEquipo] = useState<EquipoSesionDetalleDto | null>(null)
+  const [versionTiempoReal, setVersionTiempoReal] = useState(0)
+
+  // Event-driven: SignalR solo marca "datos sucios"; el detalle se vuelve a
+  // pedir por HTTP. EquipoActualizado se emite al grupo de la sesión.
+  const refrescarPorTiempoReal = useCallback(() => {
+    setVersionTiempoReal(v => v + 1)
+  }, [])
+  useSesionesTiempoReal({
+    token,
+    sesionId: id,
+    onSesionActualizada: refrescarPorTiempoReal
+  })
 
   useEffect(() => {
     const ref = { cancelado: false }
@@ -52,7 +65,7 @@ export function PaginaDetalleEquipo() {
     }
     cargar()
     return () => { ref.cancelado = true }
-  }, [token, id, equipoId, usuario?.rol])
+  }, [token, id, equipoId, usuario?.rol, versionTiempoReal])
 
   if (estado === 'cargando') {
     return (

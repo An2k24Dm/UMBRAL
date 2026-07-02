@@ -132,4 +132,16 @@ public class SesionGrupalPruebas
             Guid.NewGuid(), Guid.NewGuid(), AhoraUtc, AhoraUtc);
         accion.Should().Throw<EquipoInvalidoExcepcion>();
     }
+
+    // HU47 — El identificador del participante es obligatorio.
+    [Fact]
+    public void AgregarParticipanteAEquipo_ParticipanteVacio_Lanza()
+    {
+        var sesion = Crear();
+        var equipo = sesion.CrearEquipo("Rojo", Guid.NewGuid(), AhoraUtc, AhoraUtc);
+
+        Action accion = () => sesion.AgregarParticipanteAEquipo(
+            equipo.Id, Guid.Empty, AhoraUtc, AhoraUtc);
+        accion.Should().Throw<ParticipacionInvalidaExcepcion>();
+    }
 }

@@ -32,26 +32,36 @@ jobs:
       - name: Compilar
         run: dotnet build UMBRAL.sln --no-restore --configuration Release
 
-      - name: Probar sesiones (unitarias y cobertura)
-        run: >
-          dotnet test
-          backend/pruebas/sesiones/SesionesServicio.PruebasUnitarias/SesionesServicio.PruebasUnitarias.csproj
-          --no-build
-          --configuration Release
-          --collect:"XPlat Code Coverage"
-          --logger "trx;LogFileName=sesiones-unitarias.trx"
-          --results-directory artifacts/test-results/sesiones-unitarias
+      # Ejecuta TODAS las suites de prueba backend disponibles (sesiones,
+      # identidad y juegos) con cobertura y logger trx. No usa `set -e`: corre
+      # todas las suites aunque alguna falle (para publicar todos los
+      # resultados) y falla el paso al final si hubo algún error.
+      - name: Probar backend (todas las suites con cobertura)
+        run: |
+          fallo=0
+          suites=(
+            "sesiones-unitarias|backend/pruebas/sesiones/SesionesServicio.PruebasUnitarias/SesionesServicio.PruebasUnitarias.csproj"
+            "sesiones-integracion|backend/pruebas/sesiones/SesionesServicio.PruebasIntegracion/SesionesServicio.PruebasIntegracion.csproj"
+            "identidad-unitarias|backend/pruebas/identidad/IdentidadServicio.PruebasUnitarias/IdentidadServicio.PruebasUnitarias.csproj"
+            "identidad-integracion|backend/pruebas/identidad/IdentidadServicio.PruebasIntegracion/IdentidadServicio.PruebasIntegracion.csproj"
+            "juegos-unitarias|backend/pruebas/juegos/JuegosServicio.PruebasUnitarias/JuegosServicio.PruebasUnitarias.csproj"
+          )
+          for entrada in "${suites[@]}"; do
+            nombre="${entrada%%|*}"
+            proyecto="${entrada#*|}"
+            echo "::group::$nombre"
+            dotnet test "$proyecto" \
+              --no-build \
+              --configuration Release \
+              --collect:"XPlat Code Coverage" \
+              --logger "trx;LogFileName=$nombre.trx" \
+              --results-directory "artifacts/test-results/$nombre" || fallo=1
+            echo "::endgroup::"
+          done
+          exit $fallo
 
-      - name: Probar sesiones (integración y cobertura)
-        run: >
-          dotnet test
-          backend/pruebas/sesiones/SesionesServicio.PruebasIntegracion/SesionesServicio.PruebasIntegracion.csproj
-          --no-build
-          --configuration Release
-          --collect:"XPlat Code Coverage"
-          --logger "trx;LogFileName=sesiones-integracion.trx"
-          --results-directory artifacts/test-results/sesiones-integracion
-
+      # Publica los .trx y los coverage.cobertura.xml (XPlat Code Coverage)
+      # como evidencia técnica de pruebas y cobertura.
       - name: Publicar pruebas y cobertura
         if: always()
         uses: actions/upload-artifact@v4
