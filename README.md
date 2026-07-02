@@ -294,6 +294,7 @@ docker compose --profile movil up -d --build
 | identidad-servicio (directo) | http://localhost:5001 |
 | juegos-servicio (directo) | http://localhost:5002 |
 | Keycloak | http://localhost:8080 |
+| RabbitMQ (panel de administración) | http://localhost:15672 |
 | Swagger identidad (Development) | http://localhost:5001/swagger |
 | Swagger juegos (Development) | http://localhost:5002/swagger |
 
@@ -500,8 +501,15 @@ dotnet test .\backend\pruebas\sesiones\SesionesServicio.PruebasIntegracion\Sesio
 ```
 
 Cada ejecución genera un `coverage.cobertura.xml` dentro del directorio de
-resultados. GitHub Actions publica la carpeta completa como el artifact
-`backend-test-results-and-coverage`; no se exige todavía un porcentaje mínimo.
+resultados. El pipeline genera cobertura mediante
+`dotnet test --collect:"XPlat Code Coverage"` y publica los resultados de
+pruebas y cobertura como el artifact de GitHub Actions
+`backend-test-results-and-coverage`. Dentro del artifact se encuentran los
+archivos `.trx` y `coverage.cobertura.xml`, que sirven como evidencia técnica
+de pruebas y cobertura.
+
+El documento establece una meta académica de cobertura para el backend; el
+pipeline genera el reporte de cobertura para verificar esa meta.
 
 ## Frontend web
 
@@ -533,8 +541,12 @@ del proyecto Expo 54/React 19 y coincide con el comando usado en CI.
 El workflow `.github/workflows/ci.yml` se ejecuta en pushes a `develop` y
 `feature/**`, y en pull requests hacia `develop` o `main`. Contiene:
 
-- `backend`: restaura y compila `UMBRAL.sln`, ejecuta las pruebas unitarias y
-  de integración de sesiones con cobertura, y publica los resultados.
+- `backend`: restaura y compila `UMBRAL.sln`, ejecuta **todas las suites de
+  prueba backend disponibles** con cobertura y logger `trx`
+  (`sesiones-unitarias`, `sesiones-integracion`, `identidad-unitarias`,
+  `identidad-integracion`, `juegos-unitarias`), y publica el artifact
+  `backend-test-results-and-coverage` (con los `.trx` y los
+  `coverage.cobertura.xml`).
 - `frontend-web`: ejecuta `npm ci` y `npm run build`.
 - `frontend-movil`: ejecuta `npm ci --legacy-peer-deps` y
   `npm run typecheck`.
@@ -590,6 +602,39 @@ docker compose down -v
 `down -v` elimina los volúmenes de PostgreSQL y Keycloak; no debe usarse si se
 necesita conservar la información local.
 
-Los PostgreSQL ya tienen `healthcheck` con `pg_isready`. No se agregan
-healthchecks HTTP a imágenes que no garantizan disponer de `curl`, para evitar
-romper el levantamiento.
+Los PostgreSQL y RabbitMQ ya tienen `healthcheck` (`pg_isready` y
+`rabbitmq-diagnostics ping`). No se agregan healthchecks HTTP a imágenes que no
+garantizan disponer de `curl`, para evitar romper el levantamiento.
+
+### RabbitMQ
+
+El `docker-compose.yml` incluye **RabbitMQ** como infraestructura de mensajería
+disponible del proyecto (para eventos secundarios/asíncronos: auditoría,
+recálculo, notificaciones). Actualmente ningún microservicio lo consume todavía,
+por lo que no se fuerza `depends_on`; queda levantado y documentado.
+
+| Dato | Valor |
+|------|-------|
+| Panel de administración | http://localhost:15672 |
+| Usuario | `umbral` |
+| Contraseña | `umbral123` |
+| Puerto AMQP | `5672` |
+
+Tras `docker compose up -d`, `docker compose ps` debe mostrar `umbral-rabbitmq`
+como `healthy`.
+
+## SignalR / Tiempo real
+
+El Hub `SesionesHub` se expone en `/hubs/sesiones` y está protegido con
+`[Authorize]` (JWT): no se aceptan conexiones anónimas. El frontend envía el
+token con `accessTokenFactory` (SignalR lo pasa como `access_token` en la query
+del handshake, que el backend lee para `/hubs/sesiones`). El `api-gateway`
+habilita `UseWebSockets()` antes de `MapReverseProxy()` para reenviar el
+handshake WebSocket.
+
+SignalR **solo notifica** que algo cambió: la fuente de verdad sigue siendo
+HTTP. Al recibir un evento, el frontend vuelve a consultar por HTTP (no confía
+en el payload). Eventos actuales: `ParticipantesSesionActualizados`,
+`EquiposSesionActualizados`, `EquipoActualizado` (grupos de sesión/equipo) y los
+dirigidos al usuario `ParticipanteExpulsadoSesion` / `EquipoExpulsadoSesion`
+(vía `Clients.User`, con `IUserIdProvider`).

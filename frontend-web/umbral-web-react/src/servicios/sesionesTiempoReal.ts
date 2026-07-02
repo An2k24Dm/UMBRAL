@@ -18,9 +18,18 @@ export function obtenerSesionIdEvento(evento: EventoSesionTiempoReal): string {
 }
 
 export function crearConexionSesionesTiempoReal(token: string) {
+  // Nunca abrir una conexión sin token válido (evita 401 no controlados).
+  const tokenLimpio = token?.trim()
+  if (!tokenLimpio) {
+    throw new Error('No se puede crear conexión SignalR sin token de acceso.')
+  }
+  if (import.meta.env.DEV) {
+    // Nunca imprimir el JWT completo; solo indicar disponibilidad.
+    console.debug('[SignalR] creando conexión (token disponible).')
+  }
   return new signalR.HubConnectionBuilder()
     .withUrl(`${URL_API}/hubs/sesiones`, {
-      accessTokenFactory: () => token
+      accessTokenFactory: () => tokenLimpio
     })
     .withAutomaticReconnect()
     .build()

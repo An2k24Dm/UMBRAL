@@ -22,6 +22,26 @@ services:
       - umbral-network
     restart: unless-stopped
 
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: umbral-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: umbral
+      RABBITMQ_DEFAULT_PASS: umbral123
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - umbral-network
+    restart: unless-stopped
+
   keycloak:
     image: quay.io/keycloak/keycloak:24.0
     container_name: umbral-keycloak
@@ -259,3 +279,4 @@ volumes:
   postgres_identidad_data:
   postgres_juegos_data:
   postgres_sesiones_data:
+  rabbitmq_data:

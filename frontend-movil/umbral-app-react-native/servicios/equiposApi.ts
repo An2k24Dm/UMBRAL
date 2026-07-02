@@ -3,6 +3,8 @@ import type {
   CrearEquipoSolicitud,
   EquipoSesionDetalle,
   EquipoSesionListado,
+  IngresarEquipoRespuesta,
+  IngresarEquipoSolicitud,
 } from "../tipos/equipos";
 import {
   construirUrl,
@@ -215,6 +217,68 @@ export async function eliminarEquipoApi(
     const error = await leerCuerpoError(respuesta);
     throw mapearErrorEliminar(respuesta.status, error?.mensaje);
   }
+}
+
+// HU47 — Ingresar a un equipo. Reutiliza ErrorCrearEquipo con mensajes
+// adecuados al ingreso: 403 puede ser contraseña incorrecta o rol sin
+// permiso; 409 cubre equipo lleno, sesión no En Preparación, sesión no
+// grupal o participante ya inscrito.
+function mapearErrorIngresar(
+  estadoHttp: number,
+  mensajeBackend: string | undefined,
+): ErrorCrearEquipo {
+  if (estadoHttp === 403) {
+    return new ErrorCrearEquipo(
+      mensajeBackend ?? "No puedes ingresar a este equipo.",
+      "ACCESO_NO_PERMITIDO",
+      403,
+    );
+  }
+  if (estadoHttp === 404) {
+    return new ErrorCrearEquipo(
+      mensajeBackend ?? "La sesión o el equipo no existe.",
+      "SESION_NO_ENCONTRADA",
+      404,
+    );
+  }
+  if (estadoHttp === 400) {
+    return new ErrorCrearEquipo(
+      mensajeBackend ?? "Debes ingresar la contraseña del equipo.",
+      "VALIDACION",
+      400,
+    );
+  }
+  if (estadoHttp === 409) {
+    return new ErrorCrearEquipo(
+      mensajeBackend ?? "No puedes ingresar a este equipo en este momento.",
+      "CONFLICTO",
+      409,
+    );
+  }
+  return mapearError(estadoHttp, mensajeBackend);
+}
+
+export async function ingresarEquipoApi(
+  tokenAcceso: string,
+  sesionId: string,
+  equipoId: string,
+  solicitud: IngresarEquipoSolicitud,
+): Promise<IngresarEquipoRespuesta> {
+  const respuesta = await fetch(
+    construirUrl(`/api/sesiones/${sesionId}/equipos/${equipoId}/ingresar`),
+    {
+      method: "POST",
+      headers: obtenerEncabezadosAutenticados(tokenAcceso),
+      body: JSON.stringify({ contrasena: solicitud.contrasena ?? null }),
+    },
+  );
+
+  if (!respuesta.ok) {
+    const error = await leerCuerpoError(respuesta);
+    throw mapearErrorIngresar(respuesta.status, error?.mensaje);
+  }
+
+  return (await respuesta.json()) as IngresarEquipoRespuesta;
 }
 
 // HU43 — Mapea errores de las consultas de equipos (mismos códigos HTTP).

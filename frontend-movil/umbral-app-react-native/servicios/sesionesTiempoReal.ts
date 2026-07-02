@@ -44,11 +44,20 @@ export function esErrorNoAutenticadoTiempoReal(error: unknown): boolean {
 }
 
 export function crearConexionSesionesTiempoReal(token: string) {
+  // Nunca abrir una conexión sin token válido (evita 401 no controlados).
+  const tokenLimpio = token?.trim();
+  if (!tokenLimpio) {
+    throw new Error("No se puede crear conexión SignalR sin token de acceso.");
+  }
+  if (__DEV__) {
+    // Nunca imprimir el JWT completo; solo indicar disponibilidad.
+    console.log("[SignalR] creando conexión (token disponible).");
+  }
   // Dejamos que SignalR negocie el transporte automáticamente (no forzamos
   // WebSockets): es más robusto en Expo y evita fallos de negociación.
   return new signalR.HubConnectionBuilder()
     .withUrl(`${URL_API}/hubs/sesiones`, {
-      accessTokenFactory: () => token,
+      accessTokenFactory: () => tokenLimpio,
     })
     .withAutomaticReconnect()
     .build();
