@@ -137,6 +137,31 @@ public sealed class SesionGrupal : Sesion
             participanteSesionId, permitirExpulsarLider: actorEsOperador);
     }
 
+    // HU48 — Abandono voluntario del equipo (solo En Preparación, a
+    // diferencia de la expulsión HU45 que también permite Pausada). Si el
+    // equipo queda vacío se elimina de la sesión, liberando el cupo de
+    // equipos. El participante queda fuera de la sesión grupal y puede crear
+    // o unirse a otro equipo mientras la sesión siga En Preparación.
+    public Participante AbandonarEquipo(Guid participanteIdentidadId)
+    {
+        if (Estado != EstadoSesion.EnPreparacion)
+            throw new ParticipacionInvalidaExcepcion(
+                "Solo puedes abandonar un equipo cuando la sesión está en " +
+                "estado En Preparación.");
+
+        var equipo = _equipos.FirstOrDefault(
+                e => e.ContieneParticipanteIdentidadId(participanteIdentidadId))
+            ?? throw new ParticipanteNoEncontradoExcepcion(
+                "El participante no pertenece a ningún equipo de esta sesión.");
+
+        var participanteRemovido = equipo.AbandonarParticipante(participanteIdentidadId);
+
+        if (equipo.Participantes.Count == 0)
+            _equipos.Remove(equipo);
+
+        return participanteRemovido;
+    }
+
     public Equipo ModificarEquipo(
         Guid equipoId,
         Guid participanteIdentidadId,

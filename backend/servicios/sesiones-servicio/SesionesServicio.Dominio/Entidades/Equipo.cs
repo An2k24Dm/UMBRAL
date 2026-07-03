@@ -137,6 +137,32 @@ public sealed class Equipo
         return participante;
     }
 
+    // HU48 — Abandono voluntario. Se busca por identidad (el actor es el
+    // propio participante). Si abandona el líder y quedan integrantes, el
+    // liderazgo pasa al más antiguo; si era el único, el equipo queda vacío y
+    // la sesión lo elimina (nunca queda un equipo con integrantes sin líder).
+    internal Participante AbandonarParticipante(Guid participanteIdentidadId)
+    {
+        var participante = _participantes.FirstOrDefault(
+                p => p.ParticipanteIdentidadId == participanteIdentidadId)
+            ?? throw new ParticipanteNoEncontradoExcepcion(
+                "El participante no pertenece a este equipo.");
+
+        if (participante.Id == LiderParticipanteId)
+        {
+            var siguiente = _participantes
+                .Where(p => p.Id != LiderParticipanteId)
+                .OrderBy(p => p.FechaUnionEquipo ?? DateTime.MaxValue)
+                .FirstOrDefault();
+
+            if (siguiente is not null)
+                LiderParticipanteId = siguiente.Id;
+        }
+
+        _participantes.Remove(participante);
+        return participante;
+    }
+
     public bool ContieneParticipanteIdentidadId(Guid participanteIdentidadId)
         => _participantes.Any(p => p.ParticipanteIdentidadId == participanteIdentidadId);
 

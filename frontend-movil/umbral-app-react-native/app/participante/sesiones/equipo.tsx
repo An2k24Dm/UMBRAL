@@ -17,6 +17,7 @@ import RutaProtegidaMovil from "../../../autenticacion/RutaProtegidaMovil";
 import { PantallaBase } from "../../../componentes/PantallaBase";
 import { ModalContrasenaEquipo } from "../../../componentes/sesiones/ModalContrasenaEquipo";
 import { tema } from "../../../estilos/tema";
+import { useAbandonarSesion } from "../../../hooks/useAbandonarSesion";
 import { useDetalleEquipoSesion } from "../../../hooks/useDetalleEquipoSesion";
 import { useEliminarEquipo } from "../../../hooks/useEliminarEquipo";
 import { useExpulsarParticipanteEquipo } from "../../../hooks/useExpulsarParticipanteEquipo";
@@ -96,12 +97,22 @@ function Contenido() {
     limpiarError: limpiarErrorExpulsar,
   } = useExpulsarParticipanteEquipo();
 
+  // HU48 — Abandono voluntario del equipo.
+  const {
+    abandonando,
+    error: errorAbandonar,
+    sesionExpirada: sesionExpiradaAbandonar,
+    abandonarSesion,
+    limpiarError: limpiarErrorAbandonar,
+  } = useAbandonarSesion();
+
   useEffect(() => {
     if (
       sesionExpirada ||
       sesionExpiradaEliminar ||
       sesionExpiradaIngreso ||
-      sesionExpiradaExpulsar
+      sesionExpiradaExpulsar ||
+      sesionExpiradaAbandonar
     )
       cerrarSesion().finally(() => enrutador.replace("/"));
   }, [
@@ -109,9 +120,39 @@ function Contenido() {
     sesionExpiradaEliminar,
     sesionExpiradaIngreso,
     sesionExpiradaExpulsar,
+    sesionExpiradaAbandonar,
     cerrarSesion,
     enrutador,
   ]);
+
+  // HU48 — Tras abandonar, se navega a las opciones de equipo para que el
+  // participante pueda crear o unirse a otro si la sesión sigue En Preparación.
+  const confirmarAbandono = useCallback(async () => {
+    const ok = await abandonarSesion(sesionId);
+    if (ok) {
+      Alert.alert("Equipo", "Abandonaste el equipo correctamente.");
+      enrutador.replace(`/participante/sesiones/unirse?sesionId=${sesionId}`);
+    }
+    // Los errores (409/403/404) quedan en errorAbandonar y se muestran en línea.
+  }, [abandonarSesion, sesionId, enrutador]);
+
+  const solicitarAbandono = useCallback(() => {
+    if (abandonando) return;
+    limpiarErrorAbandonar();
+    Alert.alert(
+      "Abandonar equipo",
+      "¿Seguro que deseas abandonar este equipo? Saldrás de la sesión grupal " +
+        "y podrás crear o unirte a otro equipo si la sesión sigue en preparación.",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Abandonar",
+          style: "destructive",
+          onPress: () => void confirmarAbandono(),
+        },
+      ],
+    );
+  }, [abandonando, limpiarErrorAbandonar, confirmarAbandono]);
 
   const confirmarExpulsion = useCallback(
     async (participanteSesionId: string) => {
@@ -309,6 +350,33 @@ function Contenido() {
               <Text style={estilos.cuadroErrorTexto}>{errorEliminar}</Text>
             </View>
           ) : null}
+
+          {/* HU48 — Abandonar el equipo (cualquier integrante, incluido el
+              líder: el backend reasigna liderazgo o elimina el equipo vacío). */}
+          {equipo.esMiEquipo && (
+            <View>
+              {errorAbandonar ? (
+                <View style={estilos.cuadroError}>
+                  <Text style={estilos.cuadroErrorTexto}>{errorAbandonar}</Text>
+                </View>
+              ) : null}
+              <TouchableOpacity
+                style={[
+                  estilos.botonPeligro,
+                  abandonando && estilos.botonDeshabilitado,
+                ]}
+                onPress={solicitarAbandono}
+                disabled={abandonando}
+                accessibilityRole="button"
+              >
+                {abandonando ? (
+                  <ActivityIndicator color={tema.colores.textoBlanco} />
+                ) : (
+                  <Text style={estilos.botonPeligroTexto}>Abandonar equipo</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          )}
 
           {/* HU47 — Ingresar solo si no es mi equipo y hay cupos. */}
           {!equipo.esMiEquipo && equipo.estaLleno && (

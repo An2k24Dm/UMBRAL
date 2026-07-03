@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   RefreshControl,
   StyleSheet,
   Text,
@@ -15,6 +16,7 @@ import { BadgeEstadoSesionMovil } from "../../../componentes/sesiones/BadgeEstad
 import { BadgeModoSesionMovil } from "../../../componentes/sesiones/BadgeModoSesionMovil";
 import { ListaMisionesSesionMovil } from "../../../componentes/sesiones/ListaMisionesSesionMovil";
 import { tema } from "../../../estilos/tema";
+import { useAbandonarSesion } from "../../../hooks/useAbandonarSesion";
 import { useDetalleSesionDisponible } from "../../../hooks/useDetalleSesionDisponible";
 import { useIngresoSesion } from "../../../hooks/useIngresoSesion";
 import { useNavegacionSegura } from "../../../hooks/useNavegacionSegura";
@@ -209,13 +211,49 @@ function SeccionParticipacion({
     sesionExpirada,
     ingresarIndividual,
   } = useIngresoSesion();
+  // HU48 — Abandono voluntario de la sesión individual.
+  const {
+    abandonando,
+    error: errorAbandonar,
+    sesionExpirada: sesionExpiradaAbandonar,
+    abandonarSesion,
+    limpiarError: limpiarErrorAbandonar,
+  } = useAbandonarSesion();
   const participacion = detalle.participacionActual;
   const esGrupal = detalle.modo === "Grupal";
   const enPreparacion = detalle.estado === "EnPreparacion";
 
   useEffect(() => {
-    if (sesionExpirada) cerrarSesion().finally(() => enrutador.replace("/"));
-  }, [sesionExpirada, cerrarSesion, enrutador]);
+    if (sesionExpirada || sesionExpiradaAbandonar)
+      cerrarSesion().finally(() => enrutador.replace("/"));
+  }, [sesionExpirada, sesionExpiradaAbandonar, cerrarSesion, enrutador]);
+
+  const confirmarAbandono = useCallback(async () => {
+    const ok = await abandonarSesion(sesionId);
+    if (ok) {
+      Alert.alert("Sesión", "Abandonaste la sesión correctamente.");
+      enrutador.replace("/participante/sesiones");
+    }
+    // El 409 del backend (no EnPreparacion) queda en errorAbandonar.
+  }, [abandonarSesion, sesionId, enrutador]);
+
+  const solicitarAbandono = useCallback(() => {
+    if (abandonando) return;
+    limpiarErrorAbandonar();
+    Alert.alert(
+      "Abandonar sesión",
+      "¿Seguro que deseas abandonar esta sesión? Se liberará tu cupo y " +
+        "podrás ingresar a otra sesión si lo deseas.",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Abandonar",
+          style: "destructive",
+          onPress: () => void confirmarAbandono(),
+        },
+      ],
+    );
+  }, [abandonando, limpiarErrorAbandonar, confirmarAbandono]);
 
   // Casos B y D: el participante ya pertenece a la sesión.
   if (participacion?.estaInscrito) {
@@ -248,12 +286,30 @@ function SeccionParticipacion({
       );
     }
 
-    // Sesión individual ya ingresada.
+    // Sesión individual ya ingresada: puede abandonarla (HU48). El backend
+    // rechaza con 409 si la sesión ya no está En Preparación.
     return (
       <View style={estilos.tarjetaParticipacion}>
         <Text style={estilos.participacionTexto}>
           Ya ingresaste a esta sesión.
         </Text>
+        {errorAbandonar ? (
+          <View style={estilos.cuadroError}>
+            <Text style={estilos.cuadroErrorTexto}>{errorAbandonar}</Text>
+          </View>
+        ) : null}
+        <TouchableOpacity
+          style={[estilos.botonPeligro, abandonando && estilos.botonDeshabilitado]}
+          onPress={solicitarAbandono}
+          disabled={abandonando}
+          accessibilityRole="button"
+        >
+          {abandonando ? (
+            <ActivityIndicator color={tema.colores.textoBlanco} />
+          ) : (
+            <Text style={estilos.botonPeligroTexto}>Abandonar sesión</Text>
+          )}
+        </TouchableOpacity>
       </View>
     );
   }
@@ -438,6 +494,19 @@ const estilos = StyleSheet.create({
     alignItems: "center",
     marginTop: tema.espacios.sm,
   },
+  botonPeligro: {
+    backgroundColor: tema.colores.error,
+    paddingVertical: tema.espacios.md,
+    borderRadius: tema.radios.boton,
+    alignItems: "center",
+    marginTop: tema.espacios.sm,
+  },
+  botonPeligroTexto: {
+    color: tema.colores.textoBlanco,
+    fontWeight: tema.tipografia.pesos.bold,
+    fontSize: tema.tipografia.tamanos.lg,
+  },
+  botonDeshabilitado: { opacity: 0.7 },
   botonPrimarioTexto: {
     color: tema.colores.textoBlanco,
     fontWeight: tema.tipografia.pesos.bold,
