@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SesionesServicio.Aplicacion.Comandos.CrearEquipo;
 using SesionesServicio.Aplicacion.Comandos.EliminarEquipo;
+using SesionesServicio.Aplicacion.Comandos.ExpulsarParticipanteEquipo;
 using SesionesServicio.Aplicacion.Comandos.IngresarEquipo;
 using SesionesServicio.Aplicacion.Comandos.ModificarEquipo;
 using SesionesServicio.Aplicacion.Consultas.ListarEquiposSesion;
@@ -121,6 +122,29 @@ public sealed class EquiposControlador : ControllerBase
         CancellationToken cancelacion)
     {
         await _mediador.Send(new EliminarEquipoComando(sesionId, equipoId), cancelacion);
+        return NoContent();
+    }
+
+    // HU45 — Expulsar a un participante de un equipo. El líder del equipo
+    // (Participante) o el Operador dueño de la sesión. El Administrador no
+    // puede. El actor se resuelve del usuario autenticado, no del body.
+    [HttpDelete("{sesionId:guid}/equipos/{equipoId:guid}/participantes/{participanteSesionId:guid}/expulsar")]
+    [Authorize(Policy = "PoliticaOperadorOParticipante")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> ExpulsarParticipanteEquipo(
+        Guid sesionId,
+        Guid equipoId,
+        Guid participanteSesionId,
+        CancellationToken cancelacion)
+    {
+        await _mediador.Send(
+            new ExpulsarParticipanteEquipoComando(sesionId, equipoId, participanteSesionId),
+            cancelacion);
         return NoContent();
     }
 

@@ -281,6 +281,58 @@ export async function ingresarEquipoApi(
   return (await respuesta.json()) as IngresarEquipoRespuesta;
 }
 
+// HU45 — Expulsar a un participante de un equipo (líder del equipo u
+// Operador dueño). Reutiliza ErrorCrearEquipo con mensajes de expulsión.
+function mapearErrorExpulsarParticipante(
+  estadoHttp: number,
+  mensajeBackend: string | undefined,
+): ErrorCrearEquipo {
+  if (estadoHttp === 403) {
+    return new ErrorCrearEquipo(
+      mensajeBackend ?? "Solo el líder del equipo puede expulsar participantes.",
+      "ACCESO_NO_PERMITIDO",
+      403,
+    );
+  }
+  if (estadoHttp === 404) {
+    return new ErrorCrearEquipo(
+      mensajeBackend ?? "El participante, el equipo o la sesión ya no existe.",
+      "SESION_NO_ENCONTRADA",
+      404,
+    );
+  }
+  if (estadoHttp === 409) {
+    return new ErrorCrearEquipo(
+      mensajeBackend ??
+        "Solo puedes expulsar participantes mientras la sesión está en preparación o pausada.",
+      "CONFLICTO",
+      409,
+    );
+  }
+  return mapearError(estadoHttp, mensajeBackend);
+}
+
+export async function expulsarParticipanteEquipoApi(
+  tokenAcceso: string,
+  sesionId: string,
+  equipoId: string,
+  participanteSesionId: string,
+): Promise<void> {
+  const respuesta = await fetch(
+    construirUrl(
+      `/api/sesiones/${sesionId}/equipos/${equipoId}` +
+        `/participantes/${participanteSesionId}/expulsar`,
+    ),
+    { method: "DELETE", headers: obtenerEncabezadosAutenticados(tokenAcceso) },
+  );
+
+  // 204 No Content = éxito; sin cuerpo.
+  if (!respuesta.ok) {
+    const error = await leerCuerpoError(respuesta);
+    throw mapearErrorExpulsarParticipante(respuesta.status, error?.mensaje);
+  }
+}
+
 // HU43 — Mapea errores de las consultas de equipos (mismos códigos HTTP).
 function mapearErrorConsulta(
   estadoHttp: number,

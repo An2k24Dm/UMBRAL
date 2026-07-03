@@ -341,6 +341,29 @@ export async function expulsarParticipanteSesion(
   throw new Error('No se pudo expulsar al participante. Intenta nuevamente.')
 }
 
+// HU45 — Expulsar a un participante de un equipo. Lo puede hacer el líder
+// del equipo (Participante) o el Operador dueño de la sesión. El backend
+// valida estado (EnPreparacion/Pausada) y reasigna liderazgo si aplica.
+export async function expulsarParticipanteEquipo(
+  sesionId: string,
+  equipoId: string,
+  participanteSesionId: string,
+  token: string
+): Promise<void> {
+  const respuesta = await fetch(
+    `${URL_API}${ENDPOINTS.porId(sesionId)}/equipos/${encodeURIComponent(equipoId)}` +
+    `/participantes/${encodeURIComponent(participanteSesionId)}/expulsar`,
+    { method: 'DELETE', headers: auth(token) }
+  )
+  if (respuesta.status === 204) return
+  if (respuesta.status === 401) lanzar401(token, 'Debe iniciar sesión.')
+  if (respuesta.status === 403) throw new Error('No tienes permisos para expulsar este participante del equipo.')
+  if (respuesta.status === 404) throw new Error('El participante, equipo o sesión ya no existe.')
+  // 409: estado no permitido, líder único, etc. Propagamos el mensaje exacto.
+  if (respuesta.status === 409) throw new Error(await leerError(respuesta))
+  throw new Error('No se pudo expulsar al participante. Intenta nuevamente.')
+}
+
 export async function expulsarEquipoSesion(
   sesionId: string, equipoId: string, token: string
 ): Promise<void> {

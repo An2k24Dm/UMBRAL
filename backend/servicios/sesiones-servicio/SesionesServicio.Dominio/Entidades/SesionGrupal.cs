@@ -108,6 +108,35 @@ public sealed class SesionGrupal : Sesion
         _equipos.Remove(equipo);
     }
 
+    public Participante ExpulsarParticipanteDeEquipo(
+        Guid equipoId,
+        Guid participanteSesionId,
+        Guid actorParticipanteIdentidadId,
+        bool actorEsOperador)
+    {
+        if (Estado is not (EstadoSesion.EnPreparacion or EstadoSesion.Pausada))
+            throw new ExpulsionNoPermitidaExcepcion(
+                "Solo se pueden expulsar participantes de un equipo cuando la " +
+                "sesión está En Preparación o Pausada.");
+
+        var equipo = _equipos.FirstOrDefault(e => e.Id == equipoId)
+            ?? throw new EquipoNoEncontradoExcepcion(
+                "El equipo solicitado no existe en esta sesión.");
+
+        if (!equipo.Participantes.Any(p => p.Id == participanteSesionId))
+            throw new ParticipanteNoEncontradoExcepcion(
+                "El participante indicado no pertenece a este equipo.");
+
+        if (!actorEsOperador && !equipo.EsLider(actorParticipanteIdentidadId))
+            throw new AccesoSesionNoPermitidoExcepcion(
+                "Solo el líder del equipo puede expulsar participantes.");
+
+        // El líder participante no puede expulsar al líder (ni a sí mismo);
+        // solo el Operador puede, y el equipo reasigna el liderazgo.
+        return equipo.ExpulsarParticipante(
+            participanteSesionId, permitirExpulsarLider: actorEsOperador);
+    }
+
     public Equipo ModificarEquipo(
         Guid equipoId,
         Guid participanteIdentidadId,
