@@ -109,6 +109,34 @@ public sealed class Equipo
         Tipo = TipoEquipo.Privado;
     }
 
+    internal Participante ExpulsarParticipante(
+        Guid participanteSesionId, bool permitirExpulsarLider)
+    {
+        var participante = _participantes.FirstOrDefault(p => p.Id == participanteSesionId)
+            ?? throw new ParticipanteNoEncontradoExcepcion(
+                "El participante indicado no pertenece a este equipo.");
+
+        if (participante.Id == LiderParticipanteId)
+        {
+            if (!permitirExpulsarLider)
+                throw new EquipoInvalidoExcepcion(
+                    "No puedes expulsar al líder del equipo.");
+
+            var siguiente = _participantes
+                .Where(p => p.Id != LiderParticipanteId)
+                .OrderBy(p => p.FechaUnionEquipo ?? DateTime.MaxValue)
+                .FirstOrDefault()
+                ?? throw new EquipoInvalidoExcepcion(
+                    "No se puede expulsar al único integrante del equipo. " +
+                    "Expulsa el equipo completo.");
+
+            LiderParticipanteId = siguiente.Id;
+        }
+
+        _participantes.Remove(participante);
+        return participante;
+    }
+
     public bool ContieneParticipanteIdentidadId(Guid participanteIdentidadId)
         => _participantes.Any(p => p.ParticipanteIdentidadId == participanteIdentidadId);
 

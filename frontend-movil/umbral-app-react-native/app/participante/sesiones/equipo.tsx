@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Animated,
   Modal,
+  PanResponder,
   RefreshControl,
   StyleSheet,
   Text,
@@ -17,6 +19,7 @@ import { ModalContrasenaEquipo } from "../../../componentes/sesiones/ModalContra
 import { tema } from "../../../estilos/tema";
 import { useDetalleEquipoSesion } from "../../../hooks/useDetalleEquipoSesion";
 import { useEliminarEquipo } from "../../../hooks/useEliminarEquipo";
+import { useExpulsarParticipanteEquipo } from "../../../hooks/useExpulsarParticipanteEquipo";
 import { useIngresarEquipo } from "../../../hooks/useIngresarEquipo";
 import { useNavegacionSegura } from "../../../hooks/useNavegacionSegura";
 import { useRefrescarAlEnfocar } from "../../../hooks/useRefrescarAlEnfocar";
@@ -84,16 +87,67 @@ function Contenido() {
   } = useIngresarEquipo();
   const [mostrarContrasena, setMostrarContrasena] = useState(false);
 
+  // HU45 — El líder expulsa integrantes deslizando su tarjeta a la izquierda.
+  const {
+    expulsando: expulsandoParticipante,
+    error: errorExpulsarParticipante,
+    sesionExpirada: sesionExpiradaExpulsar,
+    expulsarParticipanteEquipo,
+    limpiarError: limpiarErrorExpulsar,
+  } = useExpulsarParticipanteEquipo();
+
   useEffect(() => {
-    if (sesionExpirada || sesionExpiradaEliminar || sesionExpiradaIngreso)
+    if (
+      sesionExpirada ||
+      sesionExpiradaEliminar ||
+      sesionExpiradaIngreso ||
+      sesionExpiradaExpulsar
+    )
       cerrarSesion().finally(() => enrutador.replace("/"));
   }, [
     sesionExpirada,
     sesionExpiradaEliminar,
     sesionExpiradaIngreso,
+    sesionExpiradaExpulsar,
     cerrarSesion,
     enrutador,
   ]);
+
+  const confirmarExpulsion = useCallback(
+    async (participanteSesionId: string) => {
+      const ok = await expulsarParticipanteEquipo(
+        sesionId, equipoId, participanteSesionId);
+      if (ok) {
+        Alert.alert(
+          "Participante expulsado",
+          "El participante fue expulsado del equipo.",
+        );
+        await refrescar();
+      }
+      // Los errores (409/403/404) quedan en errorExpulsarParticipante.
+    },
+    [expulsarParticipanteEquipo, sesionId, equipoId, refrescar],
+  );
+
+  const solicitarExpulsion = useCallback(
+    (participante: IntegranteEquipo) => {
+      if (expulsandoParticipante) return;
+      limpiarErrorExpulsar();
+      Alert.alert(
+        "Expulsar participante",
+        "¿Seguro que deseas expulsar a este participante del equipo?",
+        [
+          { text: "Cancelar", style: "cancel" },
+          {
+            text: "Expulsar",
+            style: "destructive",
+            onPress: () => void confirmarExpulsion(participante.participanteSesionId),
+          },
+        ],
+      );
+    },
+    [expulsandoParticipante, limpiarErrorExpulsar, confirmarExpulsion],
+  );
 
   const volverASesion = () =>
     enrutador.replace(`/participante/sesiones/${sesionId}`);
@@ -207,13 +261,26 @@ function Contenido() {
           </View>
 
           <Text style={estilos.tituloSeccion}>PARTICIPANTES</Text>
+          {errorExpulsarParticipante ? (
+            <View style={estilos.cuadroError}>
+              <Text style={estilos.cuadroErrorTexto}>
+                {errorExpulsarParticipante}
+              </Text>
+            </View>
+          ) : null}
           {equipo.participantes.length === 0 ? (
             <View style={estilos.tarjeta}>
               <Text style={estilos.metaLinea}>Este equipo no tiene integrantes.</Text>
             </View>
           ) : (
             equipo.participantes.map((p) => (
-              <FilaParticipante key={p.participanteSesionId} participante={p} />
+              <FilaParticipante
+                key={p.participanteSesionId}
+                participante={p}
+                // HU45 — Solo el líder desliza, nunca sobre el líder (él mismo).
+                expulsable={equipo.soyLider && !p.esLider && !expulsandoParticipante}
+                onExpulsar={() => solicitarExpulsion(p)}
+              />
             ))
           )}
 
@@ -340,21 +407,78 @@ function Contenido() {
   );
 }
 
-function FilaParticipante({ participante }: { participante: IntegranteEquipo }) {
+// HU45 — Tarjeta de integrante deslizable hacia la izquierda para expulsar.
+// El swipe solo se habilita cuando el usuario es líder y la fila no es la del
+// líder; al superar el umbral se pide confirmación y la tarjeta regresa.
+const UMBRAL_SWIPE_EXPULSAR = -80;
+const DESPLAZAMIENTO_MAXIMO = -120;
+
+function FilaParticipante({
+  participante,
+  expulsable,
+  onExpulsar,
+}: {
+  participante: IntegranteEquipo;
+  expulsable: boolean;
+  onExpulsar: () => void;
+}) {
   const nombreCompleto = `${participante.nombre} ${participante.apellido}`.trim();
+  const desplazamiento = useRef(new Animated.Value(0)).current;
+
+  const regresar = useCallback(() => {
+    Animated.spring(desplazamiento, {
+      toValue: 0,
+      useNativeDriver: true,
+    }).start();
+  }, [desplazamiento]);
+
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        // Solo capturar gestos horizontales hacia la izquierda cuando la
+        // fila es expulsable; deja pasar el scroll vertical.
+        onMoveShouldSetPanResponder: (_evento, gesto) =>
+          expulsable &&
+          gesto.dx < -10 &&
+          Math.abs(gesto.dx) > Math.abs(gesto.dy),
+        onPanResponderMove: (_evento, gesto) => {
+          if (gesto.dx < 0)
+            desplazamiento.setValue(Math.max(gesto.dx, DESPLAZAMIENTO_MAXIMO));
+        },
+        onPanResponderRelease: (_evento, gesto) => {
+          if (gesto.dx < UMBRAL_SWIPE_EXPULSAR) onExpulsar();
+          regresar();
+        },
+        onPanResponderTerminate: regresar,
+      }),
+    [expulsable, onExpulsar, desplazamiento, regresar],
+  );
+
   return (
-    <View style={estilos.tarjeta}>
-      <View style={estilos.filaTitulo}>
-        <Text style={estilos.nombreParticipante}>{nombreCompleto}</Text>
-        {participante.esLider && (
-          <Text style={[estilos.badge, estilos.badgePrimario]}>Líder</Text>
-        )}
-      </View>
-      <Text style={estilos.metaLinea}>@{participante.alias}</Text>
-      <Text style={estilos.metaLinea}>Puntaje: {participante.puntaje}</Text>
-      <Text style={estilos.metaLinea}>
-        Fecha de unión: {formatearFechaHora(participante.fechaUnion)}
-      </Text>
+    <View style={estilos.contenedorDeslizable}>
+      {expulsable && (
+        <View style={estilos.fondoExpulsar}>
+          <Text style={estilos.fondoExpulsarTexto}>Expulsar</Text>
+        </View>
+      )}
+      <Animated.View
+        style={{ transform: [{ translateX: desplazamiento }] }}
+        {...panResponder.panHandlers}
+      >
+        <View style={[estilos.tarjeta, estilos.tarjetaSinMargen]}>
+          <View style={estilos.filaTitulo}>
+            <Text style={estilos.nombreParticipante}>{nombreCompleto}</Text>
+            {participante.esLider && (
+              <Text style={[estilos.badge, estilos.badgePrimario]}>Líder</Text>
+            )}
+          </View>
+          <Text style={estilos.metaLinea}>@{participante.alias}</Text>
+          <Text style={estilos.metaLinea}>Puntaje: {participante.puntaje}</Text>
+          <Text style={estilos.metaLinea}>
+            Fecha de unión: {formatearFechaHora(participante.fechaUnion)}
+          </Text>
+        </View>
+      </Animated.View>
     </View>
   );
 }
@@ -373,6 +497,28 @@ const estilos = StyleSheet.create({
     borderColor: tema.colores.bordeTarjeta,
     padding: tema.espacios.lg,
     marginBottom: tema.espacios.md,
+  },
+  tarjetaSinMargen: { marginBottom: 0 },
+  contenedorDeslizable: {
+    marginBottom: tema.espacios.md,
+    position: "relative",
+  },
+  fondoExpulsar: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: tema.colores.error,
+    borderRadius: tema.radios.tarjeta,
+    alignItems: "flex-end",
+    justifyContent: "center",
+    paddingRight: tema.espacios.lg,
+  },
+  fondoExpulsarTexto: {
+    color: tema.colores.textoBlanco,
+    fontWeight: tema.tipografia.pesos.bold,
+    fontSize: tema.tipografia.tamanos.md,
   },
   filaTitulo: {
     flexDirection: "row",

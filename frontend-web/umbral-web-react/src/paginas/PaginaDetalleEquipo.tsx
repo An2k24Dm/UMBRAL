@@ -3,9 +3,13 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { LayoutPanel } from '../componentes/LayoutPanel'
 import { Alerta } from '../componentes/Alerta'
 import { Boton } from '../componentes/Boton'
+import { ModalConfirmacion } from '../componentes/ModalConfirmacion'
 import {
   obtenerDetalleEquipoSesion,
-  type EquipoSesionDetalleDto
+  obtenerSesion,
+  expulsarParticipanteEquipo,
+  type EquipoSesionDetalleDto,
+  type IntegranteEquipoDto
 } from '../autenticacion/clienteApiSesiones'
 import { usarAutenticacion } from '../autenticacion/ProveedorAutenticacion'
 import { useSesionesTiempoReal } from '../hooks/useSesionesTiempoReal'
@@ -28,7 +32,15 @@ export function PaginaDetalleEquipo() {
   const [estado, setEstado] = useState<'cargando' | 'error' | 'listo'>('cargando')
   const [mensajeError, setMensajeError] = useState<string | null>(null)
   const [equipo, setEquipo] = useState<EquipoSesionDetalleDto | null>(null)
+  const [estadoSesion, setEstadoSesion] = useState<string | null>(null)
   const [versionTiempoReal, setVersionTiempoReal] = useState(0)
+
+  // HU45 — Expulsión de un integrante por el Operador dueño.
+  const [integranteAExpulsar, setIntegranteAExpulsar] =
+    useState<IntegranteEquipoDto | null>(null)
+  const [expulsando, setExpulsando] = useState(false)
+  const [errorExpulsar, setErrorExpulsar] = useState<string | null>(null)
+  const [mensajeExito, setMensajeExito] = useState<string | null>(null)
 
   // Event-driven: SignalR solo marca "datos sucios"; el detalle se vuelve a
   // pedir por HTTP. EquipoActualizado se emite al grupo de la sesión.
@@ -51,11 +63,15 @@ export function PaginaDetalleEquipo() {
       }
       try {
         // Operador y Administrador usan el mismo endpoint real, que devuelve
-        // los integrantes. Antes el Administrador construía el DTO a mano con
-        // participantes: [], por eso nunca veía integrantes.
-        const equipoDetalle = await obtenerDetalleEquipoSesion(id, equipoId, token)
+        // los integrantes. La sesión se carga en paralelo para conocer su
+        // estado (HU45: expulsar solo En Preparación o Pausada).
+        const [equipoDetalle, sesionDetalle] = await Promise.all([
+          obtenerDetalleEquipoSesion(id, equipoId, token),
+          obtenerSesion(id, token)
+        ])
         if (ref.cancelado) return
         setEquipo(equipoDetalle)
+        setEstadoSesion(sesionDetalle.estado)
         setEstado('listo')
       } catch (e) {
         if (ref.cancelado) return
@@ -66,6 +82,33 @@ export function PaginaDetalleEquipo() {
     cargar()
     return () => { ref.cancelado = true }
   }, [token, id, equipoId, usuario?.rol, versionTiempoReal])
+
+  function cerrarModalExpulsar() {
+    if (expulsando) return
+    setIntegranteAExpulsar(null)
+    setErrorExpulsar(null)
+  }
+
+  async function confirmarExpulsar() {
+    if (!token || !id || !equipoId || !integranteAExpulsar) return
+    setExpulsando(true)
+    setErrorExpulsar(null)
+    setMensajeExito(null)
+    try {
+      await expulsarParticipanteEquipo(
+        id, equipoId, integranteAExpulsar.participanteSesionId, token)
+      setIntegranteAExpulsar(null)
+      setMensajeExito('Participante expulsado del equipo correctamente.')
+      // Refetch inmediato; SignalR también refresca a los demás clientes.
+      refrescarPorTiempoReal()
+    } catch (e) {
+      // 403/404/409 se muestran dentro del modal sin romper la pantalla.
+      setErrorExpulsar(
+        e instanceof Error ? e.message : 'No se pudo expulsar al participante.')
+    } finally {
+      setExpulsando(false)
+    }
+  }
 
   if (estado === 'cargando') {
     return (
@@ -94,6 +137,11 @@ export function PaginaDetalleEquipo() {
     )
   }
 
+  // HU45 — Solo el Operador (dueño) puede expulsar, y solo con la sesión
+  // En Preparación o Pausada. El Administrador nunca ve la acción.
+  const puedeExpulsar = usuario?.rol === 'Operador' &&
+    (estadoSesion === 'EnPreparacion' || estadoSesion === 'Pausada')
+
   return (
     <LayoutPanel
       titulo="Detalle de equipo"
@@ -104,6 +152,8 @@ export function PaginaDetalleEquipo() {
           ← Volver al detalle de sesión
         </Boton>
       </div>
+
+      {mensajeExito && <Alerta tono="exito">{mensajeExito}</Alerta>}
 
       <section className="seccion">
         <div className="detalle-grilla">
@@ -157,6 +207,7 @@ export function PaginaDetalleEquipo() {
                 <th>Puntaje individual</th>
                 <th>Fecha de unión</th>
                 <th>Rol</th>
+                {puedeExpulsar && <th>Acciones</th>}
               </tr>
             </thead>
             <tbody>
@@ -173,12 +224,52 @@ export function PaginaDetalleEquipo() {
                       {p.esLider ? 'Líder' : 'Integrante'}
                     </span>
                   </td>
+                  {puedeExpulsar && (
+                    <td>
+                      <Boton
+                        variante="peligro"
+                        tamaño="sm"
+                        onClick={() => {
+                          setErrorExpulsar(null)
+                          setIntegranteAExpulsar(p)
+                        }}
+                      >
+                        Expulsar
+                      </Boton>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
           </table>
         )}
       </section>
+
+      {/* HU45 — Confirmar expulsión del integrante. Si es el líder, el
+          backend reasigna el liderazgo y aquí solo se refresca. */}
+      <ModalConfirmacion
+        abierto={integranteAExpulsar !== null}
+        titulo="Expulsar participante"
+        textoConfirmar="Expulsar"
+        textoCancelar="Cancelar"
+        procesando={expulsando}
+        mensajeError={errorExpulsar}
+        onConfirmar={confirmarExpulsar}
+        onCancelar={cerrarModalExpulsar}
+      >
+        <p>
+          ¿Seguro que deseas expulsar a este participante del equipo? Quedará
+          fuera de la sesión grupal.
+        </p>
+        {integranteAExpulsar && (
+          <p style={{ fontSize: '0.85rem', opacity: 0.8 }}>
+            {integranteAExpulsar.alias}
+            {integranteAExpulsar.esLider
+              ? ' (líder: el liderazgo pasará al siguiente integrante)'
+              : ''}
+          </p>
+        )}
+      </ModalConfirmacion>
     </LayoutPanel>
   )
 }
