@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SesionesServicio.Aplicacion.Comandos.AbandonarSesion;
 using SesionesServicio.Aplicacion.Comandos.CrearSesion;
 using SesionesServicio.Aplicacion.Comandos.EliminarSesion;
 using SesionesServicio.Aplicacion.Comandos.ModificarSesion;
@@ -41,6 +42,25 @@ public sealed class SesionesControlador : ControllerBase
     {
         var resultado = await _mediador.Send(new CrearSesionComando(dto), cancelacion);
         return Created($"/api/sesiones/{resultado.Id}", resultado);
+    }
+
+    // HU48 — Abandonar la sesión (individual) o el equipo (grupal). Solo el
+    // propio Participante; el backend decide según el tipo de sesión. No se
+    // recibe equipoId: el participante solo puede estar en un equipo.
+    [HttpDelete("{sesionId:guid}/abandonar")]
+    [Authorize(Policy = "PoliticaSoloParticipante")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> AbandonarSesion(
+        Guid sesionId,
+        CancellationToken cancelacion)
+    {
+        await _mediador.Send(new AbandonarSesionComando(sesionId), cancelacion);
+        return NoContent();
     }
 
     // Modificar sesión. Solo Operador. El Operador solo puede modificar sus

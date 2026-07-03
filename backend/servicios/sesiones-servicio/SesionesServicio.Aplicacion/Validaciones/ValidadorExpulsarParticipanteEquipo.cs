@@ -1,14 +1,15 @@
-using SesionesServicio.Aplicacion.Validaciones;
+using SesionesServicio.Aplicacion.Comandos.ExpulsarParticipanteEquipo;
 
-namespace SesionesServicio.Aplicacion.Comandos.ExpulsarParticipanteEquipo;
+namespace SesionesServicio.Aplicacion.Validaciones;
 
 // HU45 — Validación de formato rápida; las reglas de negocio (estado de la
 // sesión, líder, reasignación) las protege el dominio.
-public sealed class ExpulsarParticipanteEquipoValidador
+public sealed class ValidadorExpulsarParticipanteEquipo
     : ValidadorBase<ExpulsarParticipanteEquipoComando>
 {
     protected override void ValidarSolicitud(
-        ExpulsarParticipanteEquipoComando comando, ResultadoValidacion resultado)
+        ExpulsarParticipanteEquipoComando comando,
+        ResultadoValidacion resultado)
     {
         if (comando.SesionId == Guid.Empty)
             resultado.Agregar("sesionId", "El identificador de la sesión es obligatorio.");

@@ -1,5 +1,6 @@
 using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
+using SesionesServicio.Aplicacion.Comandos.AbandonarSesion;
 using SesionesServicio.Aplicacion.Comandos.CrearEquipo;
 using SesionesServicio.Aplicacion.Comandos.CrearSesion;
 using SesionesServicio.Aplicacion.Comandos.ExpulsarParticipanteEquipo;
@@ -22,12 +23,13 @@ public static class RegistroAplicacion
     {
         var ensamblado = Assembly.GetExecutingAssembly();
         servicios.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(ensamblado));
+        servicios.AddScoped<IValidador<AbandonarSesionComando>, ValidadorAbandonarSesion>();
         servicios.AddScoped<IValidador<CrearSesionComando>, ValidadorCrearSesion>();
         servicios.AddScoped<IValidador<ModificarSesionComando>, ValidadorModificarSesion>();
         servicios.AddScoped<IValidador<CrearEquipoComando>, ValidadorCrearEquipo>();
         servicios.AddScoped<IValidador<IngresarEquipoComando>, IngresarEquipoValidador>();
         servicios.AddScoped<IValidador<ExpulsarParticipanteEquipoComando>,
-            ExpulsarParticipanteEquipoValidador>();
+            ValidadorExpulsarParticipanteEquipo>();
         servicios.AddScoped<IValidador<IngresarSesionPorCodigoComando>,
             ValidadorIngresarSesionPorCodigo>();
         servicios.AddScoped<IValidador<ModificarEquipoComando>, ValidadorModificarEquipo>();

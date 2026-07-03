@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using SesionesServicio.Aplicacion.Comandos.ExpulsarParticipanteEquipo;
 using SesionesServicio.Aplicacion.Puertos;
+using SesionesServicio.Aplicacion.Validaciones;
 using SesionesServicio.Dominio.Abstract;
 using SesionesServicio.Dominio.Entidades;
 using SesionesServicio.Dominio.Enums;
@@ -67,7 +68,7 @@ public class ExpulsarParticipanteEquipoManejadorPruebas
 
         public ExpulsarParticipanteEquipoManejador Construir()
             => new(
-                new ExpulsarParticipanteEquipoValidador(),
+                new ValidadorExpulsarParticipanteEquipo(),
                 Repo.Object,
                 Unidad.Object,
                 Usuario.Object,
