@@ -2,6 +2,7 @@ using JuegosServicio.Aplicacion.Puertos;
 using JuegosServicio.Aplicacion.Validaciones;
 using JuegosServicio.Dominio.Entidades;
 using JuegosServicio.Dominio.Excepciones;
+using JuegosServicio.Dominio.ObjetosValor;
 using MediatR;
 using Microsoft.Extensions.Logging;
 
@@ -39,7 +40,7 @@ public sealed class CrearTriviaManejador : IRequestHandler<CrearTriviaComando, G
             dto.Nombre,
             dto.Descripcion,
             comando.CreadorId,
-            dto.TiempoLimitePorPregunta,
+            Tiempo.CrearPositivo(dto.TiempoLimitePorPregunta),
             _reloj.ObtenerFechaHoraUtc());
 
         await _repositorio.AgregarTriviaAsync(trivia, cancelacion);

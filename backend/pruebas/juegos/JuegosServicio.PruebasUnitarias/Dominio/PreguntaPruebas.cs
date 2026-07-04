@@ -1,5 +1,6 @@
 using JuegosServicio.Dominio.Entidades;
 using JuegosServicio.Dominio.Excepciones;
+using JuegosServicio.Dominio.ObjetosValor;
 
 namespace JuegosServicio.PruebasUnitarias.Dominio;
 
@@ -11,7 +12,10 @@ public class PreguntaPruebas
         new(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc);
 
     private static Trivia TriviaEnBorrador() => Trivia.Crear(
-        "Trivia de Geografía", "Descripción", CreadorId, 30, FechaFija);
+        "Trivia de Geografía", "Descripción", CreadorId, Tiempo.CrearPositivo(30), FechaFija);
+
+    private static Puntaje Puntos(int valor) => Puntaje.CrearParaPregunta(valor);
+    private static Tiempo Segundos(int valor) => Tiempo.CrearParaPregunta(valor);
 
     private static IEnumerable<(string Texto, bool EsCorrecta)> OpcionesValidas() =>
     [
@@ -25,7 +29,8 @@ public class PreguntaPruebas
     {
         var trivia = TriviaEnBorrador();
 
-        var pregunta = trivia.AgregarPregunta("¿Capital de Francia?", 10, 10, OpcionesValidas());
+        var pregunta = trivia.AgregarPregunta(
+            "¿Capital de Francia?", Puntos(10), Segundos(10), OpcionesValidas());
 
         pregunta.Id.Should().NotBe(Guid.Empty);
     }
@@ -35,7 +40,8 @@ public class PreguntaPruebas
     {
         var trivia = TriviaEnBorrador();
 
-        var pregunta = trivia.AgregarPregunta("¿Capital de Francia?", 10, 10, OpcionesValidas());
+        var pregunta = trivia.AgregarPregunta(
+            "¿Capital de Francia?", Puntos(10), Segundos(10), OpcionesValidas());
 
         pregunta.TriviaId.Should().Be(trivia.Id);
     }
@@ -45,8 +51,8 @@ public class PreguntaPruebas
     {
         var trivia = TriviaEnBorrador();
 
-        trivia.AgregarPregunta("Pregunta 1", 10, 10, OpcionesValidas());
-        trivia.AgregarPregunta("Pregunta 2", 5, 10, OpcionesValidas());
+        trivia.AgregarPregunta("Pregunta 1", Puntos(10), Segundos(10), OpcionesValidas());
+        trivia.AgregarPregunta("Pregunta 2", Puntos(5), Segundos(10), OpcionesValidas());
 
         trivia.Preguntas.Should().HaveCount(2);
     }
@@ -56,7 +62,8 @@ public class PreguntaPruebas
     {
         var trivia = TriviaEnBorrador();
 
-        var pregunta = trivia.AgregarPregunta("¿Capital de Francia?", 10, 10, OpcionesValidas());
+        var pregunta = trivia.AgregarPregunta(
+            "¿Capital de Francia?", Puntos(10), Segundos(10), OpcionesValidas());
 
         pregunta.Opciones.Should().HaveCount(3);
     }
@@ -66,7 +73,8 @@ public class PreguntaPruebas
     {
         var trivia = TriviaEnBorrador();
 
-        var pregunta = trivia.AgregarPregunta("¿Capital de Francia?", 10, 10, OpcionesValidas());
+        var pregunta = trivia.AgregarPregunta(
+            "¿Capital de Francia?", Puntos(10), Segundos(10), OpcionesValidas());
 
         pregunta.Opciones.Should().ContainSingle(o => o.EsCorrecta);
         pregunta.Opciones.First(o => o.EsCorrecta).Texto.Should().Be("París");
@@ -79,12 +87,13 @@ public class PreguntaPruebas
     {
         var trivia = TriviaEnBorrador();
 
-        Action accion = () => trivia.AgregarPregunta(enunciado, 10, 10, OpcionesValidas());
+        Action accion = () => trivia.AgregarPregunta(
+            enunciado, Puntos(10), Segundos(10), OpcionesValidas());
 
         accion.Should().Throw<ExcepcionDominio>();
     }
 
-    // Regla: puntaje múltiplo de 5, máximo 100
+    // Regla: puntaje múltiplo de 5, máximo 100 (centralizada en Puntaje).
     [Theory]
     [InlineData(0)]
     [InlineData(-5)]
@@ -95,7 +104,8 @@ public class PreguntaPruebas
     {
         var trivia = TriviaEnBorrador();
 
-        Action accion = () => trivia.AgregarPregunta("¿Pregunta?", puntaje, 10, OpcionesValidas());
+        Action accion = () => trivia.AgregarPregunta(
+            "¿Pregunta?", Puntos(puntaje), Segundos(10), OpcionesValidas());
 
         accion.Should().Throw<ExcepcionDominio>();
     }
@@ -105,7 +115,8 @@ public class PreguntaPruebas
     {
         var trivia = TriviaEnBorrador();
 
-        Action accion = () => trivia.AgregarPregunta("¿Pregunta?", 105, 10, OpcionesValidas());
+        Action accion = () => trivia.AgregarPregunta(
+            "¿Pregunta?", Puntos(105), Segundos(10), OpcionesValidas());
 
         accion.Should().Throw<ExcepcionDominio>();
     }
@@ -118,7 +129,8 @@ public class PreguntaPruebas
     {
         var trivia = TriviaEnBorrador();
 
-        Action accion = () => trivia.AgregarPregunta("¿Pregunta?", puntaje, 10, OpcionesValidas());
+        Action accion = () => trivia.AgregarPregunta(
+            "¿Pregunta?", Puntos(puntaje), Segundos(10), OpcionesValidas());
 
         accion.Should().NotThrow();
     }
@@ -129,7 +141,8 @@ public class PreguntaPruebas
         var trivia = TriviaEnBorrador();
         var soloUna = new[] { ("París", true) };
 
-        Action accion = () => trivia.AgregarPregunta("¿Pregunta?", 10, 10, soloUna);
+        Action accion = () => trivia.AgregarPregunta(
+            "¿Pregunta?", Puntos(10), Segundos(10), soloUna);
 
         accion.Should().Throw<ExcepcionDominio>();
     }
@@ -140,7 +153,8 @@ public class PreguntaPruebas
         var trivia = TriviaEnBorrador();
         var sinCorrecta = new[] { ("París", false), ("Madrid", false) };
 
-        Action accion = () => trivia.AgregarPregunta("¿Pregunta?", 10, 10, sinCorrecta);
+        Action accion = () => trivia.AgregarPregunta(
+            "¿Pregunta?", Puntos(10), Segundos(10), sinCorrecta);
 
         accion.Should().Throw<ExcepcionDominio>();
     }
@@ -152,7 +166,8 @@ public class PreguntaPruebas
         var trivia = TriviaEnBorrador();
         var dosCorrectas = new[] { ("París", true), ("Madrid", true), ("Roma", false) };
 
-        Action accion = () => trivia.AgregarPregunta("¿Pregunta?", 10, 10, dosCorrectas);
+        Action accion = () => trivia.AgregarPregunta(
+            "¿Pregunta?", Puntos(10), Segundos(10), dosCorrectas);
 
         accion.Should().Throw<ExcepcionDominio>();
     }
@@ -163,9 +178,10 @@ public class PreguntaPruebas
     {
         var trivia = TriviaEnBorrador();
         for (var i = 1; i <= 20; i++)
-            trivia.AgregarPregunta($"Pregunta {i}", 5, 10, OpcionesValidas());
+            trivia.AgregarPregunta($"Pregunta {i}", Puntos(5), Segundos(10), OpcionesValidas());
 
-        Action accion = () => trivia.AgregarPregunta("Pregunta 21", 5, 10, OpcionesValidas());
+        Action accion = () => trivia.AgregarPregunta(
+            "Pregunta 21", Puntos(5), Segundos(10), OpcionesValidas());
 
         accion.Should().Throw<ExcepcionDominio>();
     }
@@ -175,9 +191,10 @@ public class PreguntaPruebas
     {
         var trivia = TriviaEnBorrador();
         for (var i = 1; i <= 19; i++)
-            trivia.AgregarPregunta($"Pregunta {i}", 5, 10, OpcionesValidas());
+            trivia.AgregarPregunta($"Pregunta {i}", Puntos(5), Segundos(10), OpcionesValidas());
 
-        Action accion = () => trivia.AgregarPregunta("Pregunta 20", 5, 10, OpcionesValidas());
+        Action accion = () => trivia.AgregarPregunta(
+            "Pregunta 20", Puntos(5), Segundos(10), OpcionesValidas());
 
         accion.Should().NotThrow();
     }
@@ -186,10 +203,11 @@ public class PreguntaPruebas
     public void AgregarPregunta_TriviaNoEnBorrador_LanzaExcepcionDominio()
     {
         var trivia = TriviaEnBorrador();
-        trivia.AgregarPregunta("Pregunta inicial", 10, 10, OpcionesValidas());
+        trivia.AgregarPregunta("Pregunta inicial", Puntos(10), Segundos(10), OpcionesValidas());
         trivia.Activar();
 
-        Action accion = () => trivia.AgregarPregunta("Nueva pregunta", 10, 10, OpcionesValidas());
+        Action accion = () => trivia.AgregarPregunta(
+            "Nueva pregunta", Puntos(10), Segundos(10), OpcionesValidas());
 
         accion.Should().Throw<ExcepcionDominio>();
     }

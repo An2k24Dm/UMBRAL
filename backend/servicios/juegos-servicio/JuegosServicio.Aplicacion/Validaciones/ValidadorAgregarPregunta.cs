@@ -1,12 +1,14 @@
 using JuegosServicio.Aplicacion.Comandos.AgregarPregunta;
+using JuegosServicio.Dominio.ObjetosValor;
 
 namespace JuegosServicio.Aplicacion.Validaciones;
 
 public sealed class ValidadorAgregarPregunta : ValidadorBase<AgregarPreguntaComando>
 {
     private const int LongitudMaximaEnunciado = 500;
-    private const int PuntajeMinimo = 5;
-    private const int TiempoMinimoSegundos = 5;
+    private const int PuntajeMinimo = Puntaje.MinimoPregunta;
+    private const int TiempoMinimoSegundos = Tiempo.MinimoPregunta;
+    // Tope de la API, más estricto que el máximo absoluto del dominio.
     private const int TiempoMaximoSegundos = 60;
     private const int MinimoOpciones = 2;
     private const int MaximoOpciones = 4;

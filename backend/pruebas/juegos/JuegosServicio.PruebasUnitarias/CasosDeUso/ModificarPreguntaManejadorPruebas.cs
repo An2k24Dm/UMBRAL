@@ -4,6 +4,7 @@ using JuegosServicio.Commons.Dtos;
 using JuegosServicio.Dominio.Entidades;
 using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Dominio.Excepciones;
+using JuegosServicio.Dominio.ObjetosValor;
 using Microsoft.Extensions.Logging;
 
 namespace JuegosServicio.PruebasUnitarias.CasosDeUso;
@@ -23,9 +24,10 @@ public class ModificarPreguntaManejadorPruebas
 
     private static Trivia TriviaConPregunta(out Guid preguntaId)
     {
-        var trivia = Trivia.Crear("Trivia Test", "Descripción", Guid.NewGuid(), 30, FechaFija);
+        var trivia = Trivia.Crear(
+            "Trivia Test", "Descripción", Guid.NewGuid(), Tiempo.CrearPositivo(30), FechaFija);
         var pregunta = trivia.AgregarPregunta(
-            "Pregunta original", 10, 10,
+            "Pregunta original", Puntaje.CrearParaPregunta(10), Tiempo.CrearParaPregunta(10),
             [("Opción A", true), ("Opción B", false)]);
         preguntaId = pregunta.Id;
         return trivia;

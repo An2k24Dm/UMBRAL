@@ -54,7 +54,7 @@ public sealed class ObtenerDetalleEquipoSesionManejador
             SesionId = equipo.SesionId,
             Nombre = equipo.Nombre.Valor,
             Tipo = equipo.Tipo.ToString(),
-            Puntaje = equipo.Puntaje,
+            Puntaje = equipo.Puntaje.Valor,
             CantidadParticipantes = equipo.Participantes.Count,
             CapacidadMaxima = equipo.CapacidadMaxima,
             FechaCreacion = equipo.FechaCreacion,
@@ -82,7 +82,7 @@ public sealed class ObtenerDetalleEquipoSesionManejador
             Nombre = datos?.Nombre ?? "Participante",
             Apellido = datos?.Apellido ?? string.Empty,
             Alias = string.IsNullOrWhiteSpace(datos?.Alias) ? "Participante" : datos!.Alias,
-            Puntaje = participante.Puntaje,
+            Puntaje = participante.Puntaje.Valor,
             FechaUnion = participante.FechaUnionEquipo ?? participante.FechaUnionSesion,
             EsLider = equipo.LiderParticipanteId == participante.Id
         };

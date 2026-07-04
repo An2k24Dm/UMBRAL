@@ -13,7 +13,7 @@ public sealed class Equipo
     public Guid SesionId { get; private set; }
     public NombreEquipo Nombre { get; private set; } = null!;
     public Guid LiderParticipanteId { get; private set; }
-    public int Puntaje { get; private set; }
+    public PuntajeSesion Puntaje { get; private set; } = null!;
     public TipoEquipo Tipo { get; private set; }
     public ContrasenaEquipoHash? ContrasenaHash { get; private set; }
     public int CapacidadMaxima { get; private set; }
@@ -47,13 +47,14 @@ public sealed class Equipo
             SesionId = sesionId,
             Nombre = nombre,
             LiderParticipanteId = lider.Id,
-            Puntaje = 0,
+            Puntaje = PuntajeSesion.Cero(),
             Tipo = tipo,
             ContrasenaHash = tipo == TipoEquipo.Privado ? contrasenaHash : null,
             CapacidadMaxima = capacidadMaxima,
             FechaCreacion = fechaCreacionUtc
         };
         equipo._participantes.Add(lider);
+        equipo.RecalcularPuntajeDesdeParticipantes();
         return equipo;
     }
 
@@ -72,6 +73,7 @@ public sealed class Equipo
                 "El participante ya forma parte de este equipo.");
 
         _participantes.Add(participante);
+        RecalcularPuntajeDesdeParticipantes();
     }
 
     internal void ModificarDatos(
@@ -134,6 +136,7 @@ public sealed class Equipo
         }
 
         _participantes.Remove(participante);
+        RecalcularPuntajeDesdeParticipantes();
         return participante;
     }
 
@@ -160,6 +163,7 @@ public sealed class Equipo
         }
 
         _participantes.Remove(participante);
+        RecalcularPuntajeDesdeParticipantes();
         return participante;
     }
 
@@ -175,13 +179,33 @@ public sealed class Equipo
 
     public bool EstaLleno() => _participantes.Count >= CapacidadMaxima;
 
-    public void SumarPuntaje(int puntos)
+    // El puntaje del equipo es derivado: siempre es la suma de los puntajes
+    // de sus integrantes. Por eso no existe un SumarPuntaje directo sobre el
+    // equipo; los puntos se suman al participante y el total se recalcula.
+    public void SumarPuntajeAParticipante(Guid participanteSesionId, PuntajeSesion puntos)
     {
-        if (puntos < 0)
-            throw new EquipoInvalidoExcepcion("El puntaje a sumar no puede ser negativo.");
-        Puntaje += puntos;
+        var participante = _participantes.FirstOrDefault(p => p.Id == participanteSesionId)
+            ?? throw new ParticipanteNoEncontradoExcepcion(
+                "El participante indicado no pertenece a este equipo.");
+
+        participante.SumarPuntaje(puntos);
+        RecalcularPuntajeDesdeParticipantes();
     }
 
+    public void SumarPuntajeAParticipante(Guid participanteSesionId, int puntos)
+        => SumarPuntajeAParticipante(participanteSesionId, PuntajeSesion.Crear(puntos));
+
+    private void RecalcularPuntajeDesdeParticipantes()
+    {
+        var total = PuntajeSesion.Cero();
+        foreach (var participante in _participantes)
+            total = total.Sumar(participante.Puntaje);
+        Puntaje = total;
+    }
+
+    // Rehidratar recibe el entero tal como está persistido y lo reconstruye
+    // con DesdePersistencia; no recalcula desde los integrantes porque la
+    // lista puede venir parcial y la fila persistida es la fuente de verdad.
     public static Equipo Rehidratar(
         Guid id, Guid sesionId, string nombre,
         Guid liderParticipanteId, int puntaje,
@@ -195,7 +219,7 @@ public sealed class Equipo
             SesionId = sesionId,
             Nombre = NombreEquipo.Crear(nombre),
             LiderParticipanteId = liderParticipanteId,
-            Puntaje = puntaje,
+            Puntaje = PuntajeSesion.DesdePersistencia(puntaje),
             Tipo = tipo,
             ContrasenaHash = tipo == TipoEquipo.Privado && !string.IsNullOrWhiteSpace(contrasenaHash)
                 ? ContrasenaEquipoHash.Crear(contrasenaHash)

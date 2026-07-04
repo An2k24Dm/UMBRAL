@@ -29,7 +29,7 @@ public sealed class MapeadorPersistenciaSesionGrupal : IMapeadorPersistenciaSesi
             SesionId = e.SesionId,
             Nombre = e.Nombre.Valor,
             LiderParticipanteId = e.LiderParticipanteId,
-            Puntaje = e.Puntaje,
+            Puntaje = e.Puntaje.Valor,
             Tipo = e.Tipo,
             ContrasenaHash = e.ContrasenaHash?.Valor,
             CapacidadMaxima = e.CapacidadMaxima,

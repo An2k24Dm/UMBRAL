@@ -7,18 +7,6 @@ using SesionesServicio.Aplicacion.Puertos;
 
 namespace SesionesServicio.Infraestructura.ServiciosExternos;
 
-// HU43 — Adaptador HTTP de IClienteIdentidadParticipantes. Reenvía el token
-// Bearer del usuario actual a identidad-servicio.
-//
-// Contrato del endpoint destino:
-//   POST /api/usuarios/participantes/por-ids
-//     body: { participantesIds: [...] }
-//     response: [ { id, nombre, apellido, alias } ]
-//
-// Política de fallos: ante cualquier problema (URL no configurada, identidad
-// caído, 4xx/5xx, JSON malformado) se registra y se devuelve un diccionario
-// con los ids que sí se resolvieron (o vacío). El manejador completa con un
-// fallback los participantes que no pudo resolver, para no romper la pantalla.
 public sealed class ClienteIdentidadParticipantes : IClienteIdentidadParticipantes
 {
     private const string Ruta = "api/usuarios/participantes/por-ids";

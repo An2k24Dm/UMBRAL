@@ -38,7 +38,7 @@ public class SesionIndividualPruebas
         p.EquipoId.Should().BeNull();
         p.FechaUnionSesion.Should().Be(AhoraUtc);
         p.FechaUnionEquipo.Should().BeNull();
-        p.Puntaje.Should().Be(0);
+        p.Puntaje.Valor.Should().Be(0);
         sesion.Participantes.Should().HaveCount(1);
     }
 

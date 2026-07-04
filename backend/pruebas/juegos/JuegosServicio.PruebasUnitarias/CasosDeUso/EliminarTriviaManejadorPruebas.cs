@@ -3,6 +3,7 @@ using JuegosServicio.Aplicacion.Puertos;
 using JuegosServicio.Dominio.Entidades;
 using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Dominio.Excepciones;
+using JuegosServicio.Dominio.ObjetosValor;
 
 namespace JuegosServicio.PruebasUnitarias.CasosDeUso;
 
@@ -18,7 +19,8 @@ public class EliminarTriviaManejadorPruebas
         new(_repositorio.Object, _repositorioMisiones.Object);
 
     private static Trivia TriviaInactiva() =>
-        Trivia.Crear("Trivia Test", "Descripción", Guid.NewGuid(), 30, FechaFija);
+        Trivia.Crear(
+            "Trivia Test", "Descripción", Guid.NewGuid(), Tiempo.CrearPositivo(30), FechaFija);
 
     public EliminarTriviaManejadorPruebas()
     {
@@ -68,7 +70,8 @@ public class EliminarTriviaManejadorPruebas
     public async Task Handle_TriviaActiva_LanzaExcepcionDominio()
     {
         var trivia = TriviaInactiva();
-        trivia.AgregarPregunta("¿Pregunta?", 10, 10,
+        trivia.AgregarPregunta(
+            "¿Pregunta?", Puntaje.CrearParaPregunta(10), Tiempo.CrearParaPregunta(10),
         [
             ("Opción A", true),
             ("Opción B", false)

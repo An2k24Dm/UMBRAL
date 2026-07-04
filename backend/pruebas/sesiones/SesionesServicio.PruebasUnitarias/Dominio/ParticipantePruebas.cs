@@ -21,7 +21,7 @@ public class ParticipantePruebas
         p.EquipoId.Should().BeNull();
         p.FechaUnionEquipo.Should().BeNull();
         p.FechaUnionSesion.Should().Be(AhoraUtc);
-        p.Puntaje.Should().Be(0);
+        p.Puntaje.Valor.Should().Be(0);
     }
 
     [Fact]
@@ -37,7 +37,7 @@ public class ParticipantePruebas
         p.EquipoId.Should().Be(equipoId);
         p.FechaUnionSesion.Should().Be(AhoraUtc);
         p.FechaUnionEquipo.Should().Be(union);
-        p.Puntaje.Should().Be(0);
+        p.Puntaje.Valor.Should().Be(0);
     }
 
     [Fact]
@@ -54,6 +54,17 @@ public class ParticipantePruebas
         Action accion = () => Participante.CrearParaSesionIndividual(
             Guid.NewGuid(), Guid.Empty, AhoraUtc);
         accion.Should().Throw<ParticipacionInvalidaExcepcion>();
+    }
+
+    [Fact]
+    public void SumarPuntaje_AcumulaCorrectamente()
+    {
+        var p = Participante.CrearParaSesionIndividual(Guid.NewGuid(), Guid.NewGuid(), AhoraUtc);
+
+        p.SumarPuntaje(10);
+        p.SumarPuntaje(5);
+
+        p.Puntaje.Valor.Should().Be(15);
     }
 
     [Fact]

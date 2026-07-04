@@ -1,4 +1,5 @@
 using JuegosServicio.Aplicacion.Comandos.CrearBusquedaTesoro;
+using JuegosServicio.Dominio.ObjetosValor;
 
 namespace JuegosServicio.Aplicacion.Validaciones;
 
@@ -7,9 +8,9 @@ public sealed class ValidadorCrearBusquedaTesoro : ValidadorBase<CrearBusquedaTe
     private const int LongitudMaximaNombre = 200;
     private const int LongitudMaximaDescripcion = 1000;
     // El tiempo de la búsqueda se expresa en minutos.
-    private const int TiempoMinimoMinutos = 5;
+    private const int TiempoMinimoMinutos = Tiempo.MinimoBusqueda;
     private const int TiempoMaximoMinutos = 60;
-    private const int PuntajeMinimo = 5;
+    private const int PuntajeMinimo = Puntaje.MinimoBusqueda;
 
     protected override void ValidarSolicitud(CrearBusquedaTesoroComando comando, ResultadoValidacion resultado)
     {

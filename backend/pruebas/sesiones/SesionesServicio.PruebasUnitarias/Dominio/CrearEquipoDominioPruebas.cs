@@ -33,7 +33,7 @@ public class CrearEquipoDominioPruebas
 
         equipo.Tipo.Should().Be(TipoEquipo.Publico);
         equipo.ContrasenaHash.Should().BeNull();
-        equipo.Puntaje.Should().Be(0);
+        equipo.Puntaje.Valor.Should().Be(0);
     }
 
     [Fact]

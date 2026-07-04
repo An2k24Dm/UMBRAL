@@ -2,6 +2,7 @@ using JuegosServicio.Aplicacion.Puertos;
 using JuegosServicio.Aplicacion.Validaciones;
 using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Dominio.Excepciones;
+using JuegosServicio.Dominio.ObjetosValor;
 using MediatR;
 using Microsoft.Extensions.Logging;
 
@@ -40,7 +41,11 @@ public sealed class AgregarPreguntaManejador : IRequestHandler<AgregarPreguntaCo
         var dto = comando.Datos;
         var opciones = dto.Opciones.Select(o => (o.Texto, o.EsCorrecta));
 
-        var pregunta = trivia.AgregarPregunta(dto.Enunciado, dto.PuntajeAsignado, dto.TiempoEstimado, opciones);
+        var pregunta = trivia.AgregarPregunta(
+            dto.Enunciado,
+            Puntaje.CrearParaPregunta(dto.PuntajeAsignado),
+            Tiempo.CrearParaPregunta(dto.TiempoEstimado),
+            opciones);
 
         await _repositorio.AgregarPreguntaAsync(trivia.Id, pregunta, cancelacion);
 

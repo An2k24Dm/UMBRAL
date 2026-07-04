@@ -67,8 +67,8 @@ public class ModificarBusquedaTesoroManejadorPruebas
 
         busqueda.Nombre.Should().Be("Búsqueda Modificada");
         busqueda.Descripcion.Should().Be("Nueva descripción");
-        busqueda.Tiempo.Should().Be(30);
-        busqueda.Puntaje.Should().Be(50);
+        busqueda.Tiempo.Valor.Should().Be(30);
+        busqueda.Puntaje.Valor.Should().Be(50);
     }
 
     [Fact]

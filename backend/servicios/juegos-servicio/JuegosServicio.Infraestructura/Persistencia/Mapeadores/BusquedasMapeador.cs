@@ -1,8 +1,8 @@
-using JuegosServicio.Dominio.Entidades;
+﻿using JuegosServicio.Dominio.Entidades;
 using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Infraestructura.Persistencia.Modelos;
 
-namespace JuegosServicio.Infraestructura.Persistencia;
+namespace JuegosServicio.Infraestructura.Persistencia.Mapeadores;
 
 public static class BusquedasMapeador
 {
@@ -16,8 +16,8 @@ public static class BusquedasMapeador
             CreadorId = busqueda.CreadorId,
             Estado = (int)busqueda.Estado,
             FechaCreacion = busqueda.FechaCreacion,
-            Tiempo = busqueda.Tiempo,
-            Puntaje = busqueda.Puntaje,
+            Tiempo = busqueda.Tiempo.Valor,
+            Puntaje = busqueda.Puntaje.Valor,
             Pistas = busqueda.Pistas.Select(AModelo).ToList()
         };
     }

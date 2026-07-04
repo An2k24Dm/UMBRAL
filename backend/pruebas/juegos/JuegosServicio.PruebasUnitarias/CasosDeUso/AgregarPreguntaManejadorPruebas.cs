@@ -5,6 +5,7 @@ using JuegosServicio.Commons.Dtos;
 using JuegosServicio.Dominio.Entidades;
 using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Dominio.Excepciones;
+using JuegosServicio.Dominio.ObjetosValor;
 using Microsoft.Extensions.Logging;
 
 namespace JuegosServicio.PruebasUnitarias.CasosDeUso;
@@ -24,7 +25,7 @@ public class AgregarPreguntaManejadorPruebas
         new(_repositorio.Object, _repositorioMisiones.Object, _validador.Object, _registro.Object);
 
     private static Trivia TriviaEnBorrador() => Trivia.Crear(
-        "Trivia de Geografía", "Descripción", Guid.NewGuid(), 30, FechaFija);
+        "Trivia de Geografía", "Descripción", Guid.NewGuid(), Tiempo.CrearPositivo(30), FechaFija);
 
     private static AgregarPreguntaComando ComandoValido(Guid triviaId) =>
         new(triviaId, new AgregarPreguntaDto

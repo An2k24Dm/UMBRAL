@@ -7,24 +7,6 @@ using SesionesServicio.Aplicacion.Puertos;
 
 namespace SesionesServicio.Infraestructura.ServiciosExternos;
 
-// HU34 — Adaptador HTTP del puerto IClienteIdentidadUsuarios.
-//
-// Reenvía el token Bearer del usuario actual para que la política
-// PoliticaAdministradorUOperador del endpoint destino se aplique de
-// forma transparente.
-//
-// Contrato del endpoint en identidad-servicio:
-//   POST /api/usuarios/internos/administradores-por-ids
-//     body: { usuariosIds: [...] }
-//     response: { administradoresIds: [...] }
-//
-// Política de fallos: cualquier problema (URL no configurada, identidad
-// caído, 4xx/5xx, JSON malformado) se reporta en el log y se traduce a
-// "ninguno es administrador". De esa forma:
-//   * Para Administrador: el listado funciona porque no llama a este
-//     puerto (lo decide ListarSesionesManejador).
-//   * Para Operador: en vez de explotar con 500, sólo ve sus propias
-//     sesiones — modo seguro. El log explica qué falló.
 public sealed class ClienteIdentidadUsuariosHttp : IClienteIdentidadUsuarios
 {
     private const string Ruta = "api/usuarios/internos/administradores-por-ids";

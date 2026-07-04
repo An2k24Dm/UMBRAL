@@ -2,6 +2,7 @@ using JuegosServicio.Aplicacion.Puertos;
 using JuegosServicio.Aplicacion.Validaciones;
 using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Dominio.Excepciones;
+using JuegosServicio.Dominio.ObjetosValor;
 using MediatR;
 
 namespace JuegosServicio.Aplicacion.Comandos.ModificarBusquedaTesoro;
@@ -37,8 +38,8 @@ public sealed class ModificarBusquedaTesoroManejador : IRequestHandler<Modificar
         busqueda.Modificar(
             comando.Dto.Nombre,
             comando.Dto.Descripcion,
-            comando.Dto.Tiempo,
-            comando.Dto.Puntaje);
+            Tiempo.CrearParaBusqueda(comando.Dto.Tiempo),
+            Puntaje.CrearParaBusqueda(comando.Dto.Puntaje));
 
         await _repositorio.ActualizarBusquedaAsync(busqueda, cancelacion);
     }

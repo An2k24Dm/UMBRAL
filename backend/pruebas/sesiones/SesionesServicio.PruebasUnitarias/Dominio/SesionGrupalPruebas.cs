@@ -36,7 +36,7 @@ public class SesionGrupalPruebas
         var equipo = sesion.CrearEquipo("Rojo", lider, AhoraUtc, AhoraUtc);
 
         equipo.Nombre.Valor.Should().Be("Rojo");
-        equipo.Puntaje.Should().Be(0);
+        equipo.Puntaje.Valor.Should().Be(0);
         equipo.LiderParticipanteId.Should().Be(equipo.Participantes.Single().Id);
         equipo.Participantes.Single().ParticipanteIdentidadId.Should().Be(lider);
         equipo.Participantes.Single().EquipoId.Should().Be(equipo.Id);

@@ -1,14 +1,14 @@
-using IdentidadServicio.Dominio.Entidades;
+﻿using IdentidadServicio.Dominio.Entidades;
 using IdentidadServicio.Dominio.Enums;
 using IdentidadServicio.Dominio.ObjetosDeValor;
 using Mapster;
 
-namespace IdentidadServicio.Infraestructura.Persistencia;
+namespace IdentidadServicio.Infraestructura.Persistencia.Mapeadores;
 
-// Mapeo dominio ↔ persistencia con Mapster.
-// El dominio NO conoce IdKeycloak: viaja como parámetro al mapear hacia los
+// Mapeo dominio â†” persistencia con Mapster.
+// El dominio NO conoce IdKeycloak: viaja como parÃ¡metro al mapear hacia los
 // modelos. Las VOs NombreUsuario/Correo/NombrePersona/DatosContacto se
-// desempaquetan vía .Map(...) explícitos.
+// desempaquetan vÃ­a .Map(...) explÃ­citos.
 public sealed class IdentidadMapeador
 {
     public sealed record ModelosAdministrador(
@@ -56,7 +56,7 @@ public sealed class IdentidadMapeador
             .Ignore(d => d.PersonaId)
             .Ignore(d => d.Persona!);
 
-        // Reverso vía ConstructUsing.
+        // Reverso vÃ­a ConstructUsing.
         _config.NewConfig<TripletaAdmin, Administrador>()
             .MapToConstructor(true)
             .ConstructUsing(t => new Administrador(

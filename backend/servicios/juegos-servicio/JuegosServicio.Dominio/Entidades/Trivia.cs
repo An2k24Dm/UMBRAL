@@ -2,6 +2,7 @@ using JuegosServicio.Dominio.Abstract;
 using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Dominio.Eventos;
 using JuegosServicio.Dominio.Excepciones;
+using JuegosServicio.Dominio.ObjetosValor;
 
 namespace JuegosServicio.Dominio.Entidades;
 
@@ -9,15 +10,13 @@ public sealed class Trivia : IComponenteJuego
 {
     private readonly List<Pregunta> _preguntas = new();
     private readonly List<EventoDominio> _eventos = new();
-
     public Guid Id { get; private set; }
     public string Nombre { get; private set; } = default!;
     public string Descripcion { get; private set; } = default!;
     public Guid CreadorId { get; private set; }
-    public int TiempoLimitePorPregunta { get; private set; }
+    public Tiempo TiempoLimitePorPregunta { get; private set; } = default!;
     public EstadoTrivia Estado { get; private set; }
     public DateTime FechaCreacion { get; private set; }
-
     public IReadOnlyList<Pregunta> Preguntas => _preguntas.AsReadOnly();
     public IReadOnlyList<EventoDominio> Eventos => _eventos.AsReadOnly();
 
@@ -27,7 +26,7 @@ public sealed class Trivia : IComponenteJuego
         string nombre,
         string descripcion,
         Guid creadorId,
-        int tiempoLimitePorPregunta,
+        Tiempo tiempoLimitePorPregunta,
         DateTime fechaCreacion)
     {
         if (string.IsNullOrWhiteSpace(nombre))
@@ -36,8 +35,8 @@ public sealed class Trivia : IComponenteJuego
             throw new ExcepcionDominio("La descripción de la trivia es obligatoria.");
         if (creadorId == Guid.Empty)
             throw new ExcepcionDominio("El identificador del creador es obligatorio.");
-        if (tiempoLimitePorPregunta <= 0)
-            throw new ExcepcionDominio("El tiempo límite por pregunta debe ser mayor a cero.");
+        if (tiempoLimitePorPregunta is null)
+            throw new ExcepcionDominio("El tiempo límite por pregunta es obligatorio.");
 
         var trivia = new Trivia
         {
@@ -55,15 +54,17 @@ public sealed class Trivia : IComponenteJuego
 
     public Pregunta AgregarPregunta(
         string enunciado,
-        int puntaje,
-        int tiempoEstimado,
+        Puntaje puntaje,
+        Tiempo tiempoEstimado,
         IEnumerable<(string Texto, bool EsCorrecta)> opciones)
     {
         if (Estado == EstadoTrivia.Activa)
             throw new ExcepcionDominio("No se pueden agregar preguntas a una trivia que está activa.");
         if (_preguntas.Count >= 20)
             throw new ExcepcionDominio("La trivia no puede tener más de 20 preguntas.");
-        if (tiempoEstimado > TiempoLimitePorPregunta)
+        if (tiempoEstimado is null)
+            throw new ExcepcionDominio("El tiempo estimado de la pregunta es obligatorio.");
+        if (tiempoEstimado.Valor > TiempoLimitePorPregunta.Valor)
             throw new ExcepcionDominio(
                 "El tiempo de la pregunta no puede superar el límite configurado para la trivia.");
 
@@ -75,7 +76,7 @@ public sealed class Trivia : IComponenteJuego
     public void ModificarPregunta(
         Guid preguntaId,
         string nuevoEnunciado,
-        int nuevoTiempoEstimado,
+        Tiempo nuevoTiempoEstimado,
         IEnumerable<(string Texto, bool EsCorrecta)> nuevasOpciones)
     {
         if (Estado == EstadoTrivia.Activa)
@@ -84,7 +85,9 @@ public sealed class Trivia : IComponenteJuego
         var pregunta = _preguntas.FirstOrDefault(p => p.Id == preguntaId)
             ?? throw new ExcepcionNoEncontrado($"No se encontró la pregunta con ID '{preguntaId}'.");
 
-        if (nuevoTiempoEstimado > TiempoLimitePorPregunta)
+        if (nuevoTiempoEstimado is null)
+            throw new ExcepcionDominio("El tiempo estimado de la pregunta es obligatorio.");
+        if (nuevoTiempoEstimado.Valor > TiempoLimitePorPregunta.Valor)
             throw new ExcepcionDominio(
                 "El tiempo de la pregunta no puede superar el límite configurado para la trivia.");
 
@@ -122,7 +125,7 @@ public sealed class Trivia : IComponenteJuego
         _eventos.Add(new TriviaArchivadaEvento(Id));
     }
 
-    public void ModificarDatos(string nuevoNombre, string nuevaDescripcion, int nuevoTiempo)
+    public void ModificarDatos(string nuevoNombre, string nuevaDescripcion, Tiempo nuevoTiempo)
     {
         if (Estado == EstadoTrivia.Activa)
             throw new ExcepcionDominio("No se puede modificar una trivia que está activa.");
@@ -130,16 +133,16 @@ public sealed class Trivia : IComponenteJuego
             throw new ExcepcionDominio("El nombre de la trivia es obligatorio.");
         if (string.IsNullOrWhiteSpace(nuevaDescripcion))
             throw new ExcepcionDominio("La descripción de la trivia es obligatoria.");
-        if (nuevoTiempo <= 0)
-            throw new ExcepcionDominio("El tiempo límite por pregunta debe ser mayor a cero.");
-        if (_preguntas.Count > 0 && nuevoTiempo < _preguntas.Max(p => p.TiempoEstimado))
+        if (nuevoTiempo is null)
+            throw new ExcepcionDominio("El tiempo límite por pregunta es obligatorio.");
+        if (_preguntas.Count > 0 && nuevoTiempo.Valor < _preguntas.Max(p => p.TiempoEstimado.Valor))
             throw new ExcepcionDominio(
                 "No se puede establecer un tiempo límite menor al tiempo de las preguntas existentes.");
 
         Nombre = nuevoNombre.Trim();
         Descripcion = nuevaDescripcion.Trim();
         TiempoLimitePorPregunta = nuevoTiempo;
-        _eventos.Add(new TriviaModificadaEvento(Id, Nombre, TiempoLimitePorPregunta));
+        _eventos.Add(new TriviaModificadaEvento(Id, Nombre, TiempoLimitePorPregunta.Valor));
     }
 
     public void LimpiarEventos() => _eventos.Clear();
@@ -160,7 +163,7 @@ public sealed class Trivia : IComponenteJuego
             Nombre = nombre,
             Descripcion = descripcion,
             CreadorId = creadorId,
-            TiempoLimitePorPregunta = tiempoLimitePorPregunta,
+            TiempoLimitePorPregunta = Tiempo.DesdePersistencia(tiempoLimitePorPregunta),
             Estado = estado,
             FechaCreacion = fechaCreacion
         };

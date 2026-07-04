@@ -3,6 +3,7 @@ using JuegosServicio.Aplicacion.Puertos;
 using JuegosServicio.Commons.Dtos;
 using JuegosServicio.Dominio.Entidades;
 using JuegosServicio.Dominio.Enums;
+using JuegosServicio.Infraestructura.Persistencia.Mapeadores;
 using JuegosServicio.Infraestructura.Persistencia.Modelos;
 using Microsoft.EntityFrameworkCore;
 
@@ -67,8 +68,8 @@ public sealed class RepositorioJuegos : IRepositorioJuegos
         if (modeloPregunta is not null)
         {
             modeloPregunta.Enunciado = pregunta.Enunciado;
-            modeloPregunta.PuntajeAsignado = pregunta.PuntajeAsignado;
-            modeloPregunta.TiempoEstimado = pregunta.TiempoEstimado;
+            modeloPregunta.PuntajeAsignado = pregunta.PuntajeAsignado.Valor;
+            modeloPregunta.TiempoEstimado = pregunta.TiempoEstimado.Valor;
         }
 
         await _contexto.SaveChangesAsync(cancelacion);
@@ -154,7 +155,7 @@ public sealed class RepositorioJuegos : IRepositorioJuegos
 
         modelo.Nombre = trivia.Nombre;
         modelo.Descripcion = trivia.Descripcion;
-        modelo.TiempoLimitePorPregunta = trivia.TiempoLimitePorPregunta;
+        modelo.TiempoLimitePorPregunta = trivia.TiempoLimitePorPregunta.Valor;
 
         _contexto.EventosSalida.Add(new EventoSalidaModelo
         {
@@ -164,7 +165,7 @@ public sealed class RepositorioJuegos : IRepositorioJuegos
             {
                 TriviaId = trivia.Id,
                 trivia.Nombre,
-                trivia.TiempoLimitePorPregunta
+                TiempoLimitePorPregunta = trivia.TiempoLimitePorPregunta.Valor
             }),
             FechaCreacion = DateTime.UtcNow,
             Procesado = false

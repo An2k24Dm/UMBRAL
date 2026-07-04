@@ -1,5 +1,6 @@
 using JuegosServicio.Dominio.Entidades;
 using JuegosServicio.Dominio.Excepciones;
+using JuegosServicio.Dominio.ObjetosValor;
 
 namespace JuegosServicio.PruebasUnitarias.Dominio;
 
@@ -20,13 +21,14 @@ public class TriviaTiempoPruebas
     ];
 
     private static Trivia TriviaConLimite(int limite) =>
-        Trivia.Crear("Trivia", "Descripción", CreadorId, limite, FechaFija);
+        Trivia.Crear("Trivia", "Descripción", CreadorId, Tiempo.CrearPositivo(limite), FechaFija);
 
     [Fact]
     public void AgregarPregunta_TiempoMayorAlLimiteDeLaTrivia_Lanza()
     {
         var trivia = TriviaConLimite(40);
-        Action accion = () => trivia.AgregarPregunta("¿?", 10, 50, Opciones());
+        Action accion = () => trivia.AgregarPregunta(
+            "¿?", Puntaje.CrearParaPregunta(10), Tiempo.CrearParaPregunta(50), Opciones());
         accion.Should().Throw<ExcepcionDominio>();
     }
 
@@ -34,7 +36,8 @@ public class TriviaTiempoPruebas
     public void AgregarPregunta_LimiteCuarenta_PreguntaCuarenta_NoLanza()
     {
         var trivia = TriviaConLimite(40);
-        Action accion = () => trivia.AgregarPregunta("¿?", 10, 40, Opciones());
+        Action accion = () => trivia.AgregarPregunta(
+            "¿?", Puntaje.CrearParaPregunta(10), Tiempo.CrearParaPregunta(40), Opciones());
         accion.Should().NotThrow();
     }
 
@@ -42,9 +45,11 @@ public class TriviaTiempoPruebas
     public void ModificarPregunta_TiempoMayorAlLimiteDeLaTrivia_Lanza()
     {
         var trivia = TriviaConLimite(40);
-        var pregunta = trivia.AgregarPregunta("¿?", 10, 30, Opciones());
+        var pregunta = trivia.AgregarPregunta(
+            "¿?", Puntaje.CrearParaPregunta(10), Tiempo.CrearParaPregunta(30), Opciones());
 
-        Action accion = () => trivia.ModificarPregunta(pregunta.Id, "¿?", 50, Opciones());
+        Action accion = () => trivia.ModificarPregunta(
+            pregunta.Id, "¿?", Tiempo.CrearParaPregunta(50), Opciones());
         accion.Should().Throw<ExcepcionDominio>();
     }
 
@@ -52,9 +57,11 @@ public class TriviaTiempoPruebas
     public void ModificarDatos_BajarLimitePorDebajoDePreguntasExistentes_Lanza()
     {
         var trivia = TriviaConLimite(50);
-        trivia.AgregarPregunta("¿?", 10, 45, Opciones());
+        trivia.AgregarPregunta(
+            "¿?", Puntaje.CrearParaPregunta(10), Tiempo.CrearParaPregunta(45), Opciones());
 
-        Action accion = () => trivia.ModificarDatos("Trivia", "Descripción", 40);
+        Action accion = () => trivia.ModificarDatos(
+            "Trivia", "Descripción", Tiempo.CrearPositivo(40));
         accion.Should().Throw<ExcepcionDominio>();
     }
 }

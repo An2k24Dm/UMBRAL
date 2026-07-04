@@ -17,7 +17,7 @@ public sealed class MapeadorDetalleSesionIndividual : MapeadorDetalleSesionBase
             {
                 ParticipanteSesionId = p.Id,
                 ParticipanteIdentidadId = p.ParticipanteIdentidadId,
-                Puntaje = p.Puntaje,
+                Puntaje = p.Puntaje.Valor,
                 FechaUnion = p.FechaUnionSesion
             }).ToList();
     }

@@ -33,7 +33,7 @@ public sealed class ListarEquiposSesionManejador
                 SesionId = equipo.SesionId,
                 Nombre = equipo.Nombre.Valor,
                 Tipo = equipo.Tipo.ToString(),
-                Puntaje = equipo.Puntaje,
+                Puntaje = equipo.Puntaje.Valor,
                 CantidadParticipantes = equipo.Participantes.Count,
                 CapacidadMaxima = equipo.CapacidadMaxima,
                 EstaLleno = equipo.EstaLleno(),

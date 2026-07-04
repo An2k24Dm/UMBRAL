@@ -12,7 +12,7 @@ internal static class MapeoParticipantePersistencia
         SesionId = p.SesionId,
         ParticipanteIdentidadId = p.ParticipanteIdentidadId,
         EquipoId = p.EquipoId,
-        Puntaje = p.Puntaje,
+        Puntaje = p.Puntaje.Valor,
         FechaUnionSesion = p.FechaUnionSesion,
         FechaUnionEquipo = p.FechaUnionEquipo
     };
