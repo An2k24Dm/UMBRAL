@@ -2,6 +2,7 @@ using JuegosServicio.Aplicacion.Puertos;
 using JuegosServicio.Aplicacion.Validaciones;
 using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Dominio.Excepciones;
+using JuegosServicio.Dominio.ObjetosValor;
 using MediatR;
 
 namespace JuegosServicio.Aplicacion.Comandos.ModificarTrivia;
@@ -36,7 +37,7 @@ public sealed class ModificarTriviaManejador : IRequestHandler<ModificarTriviaCo
         trivia.ModificarDatos(
             comando.Dto.NuevoNombre,
             comando.Dto.NuevaDescripcion,
-            comando.Dto.NuevoTiempoLimitePorPregunta);
+            Tiempo.CrearPositivo(comando.Dto.NuevoTiempoLimitePorPregunta));
 
         await _repositorio.ModificarDatosTriviaAsync(trivia, cancelacion);
     }

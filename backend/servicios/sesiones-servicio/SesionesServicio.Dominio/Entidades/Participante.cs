@@ -1,4 +1,5 @@
 using SesionesServicio.Dominio.Excepciones;
+using SesionesServicio.Dominio.ObjetosValor;
 
 namespace SesionesServicio.Dominio.Entidades;
 
@@ -8,7 +9,7 @@ public sealed class Participante
     public Guid SesionId { get; private set; }
     public Guid ParticipanteIdentidadId { get; private set; }
     public Guid? EquipoId { get; private set; }
-    public int Puntaje { get; private set; }
+    public PuntajeSesion Puntaje { get; private set; } = null!;
     public DateTime FechaUnionSesion { get; private set; }
     public DateTime? FechaUnionEquipo { get; private set; }
 
@@ -24,7 +25,7 @@ public sealed class Participante
             SesionId = sesionId,
             ParticipanteIdentidadId = participanteIdentidadId,
             EquipoId = null,
-            Puntaje = 0,
+            Puntaje = PuntajeSesion.Cero(),
             FechaUnionSesion = fechaUnionSesionUtc,
             FechaUnionEquipo = null
         };
@@ -46,12 +47,14 @@ public sealed class Participante
             SesionId = sesionId,
             ParticipanteIdentidadId = participanteIdentidadId,
             EquipoId = equipoId,
-            Puntaje = 0,
+            Puntaje = PuntajeSesion.Cero(),
             FechaUnionSesion = fechaUnionSesionUtc,
             FechaUnionEquipo = fechaUnionEquipoUtc
         };
     }
 
+    // Rehidratar recibe el entero tal como está persistido y lo reconstruye
+    // con DesdePersistencia para no invalidar registros existentes.
     public static Participante Rehidratar(
         Guid id, Guid sesionId, Guid participanteIdentidadId,
         Guid? equipoId, int puntaje,
@@ -62,18 +65,14 @@ public sealed class Participante
             SesionId = sesionId,
             ParticipanteIdentidadId = participanteIdentidadId,
             EquipoId = equipoId,
-            Puntaje = puntaje,
+            Puntaje = PuntajeSesion.DesdePersistencia(puntaje),
             FechaUnionSesion = fechaUnionSesion,
             FechaUnionEquipo = fechaUnionEquipo
         };
 
-    public void SumarPuntaje(int puntos)
-    {
-        if (puntos < 0)
-            throw new ParticipacionInvalidaExcepcion(
-                "El puntaje a sumar no puede ser negativo.");
-        Puntaje += puntos;
-    }
+    public void SumarPuntaje(int puntos) => Puntaje = Puntaje.Sumar(puntos);
+
+    public void SumarPuntaje(PuntajeSesion puntos) => Puntaje = Puntaje.Sumar(puntos);
 
     private static void ValidarObligatorios(Guid sesionId, Guid participanteIdentidadId)
     {

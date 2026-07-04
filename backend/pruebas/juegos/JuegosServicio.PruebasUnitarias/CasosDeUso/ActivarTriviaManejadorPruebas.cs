@@ -2,6 +2,7 @@ using JuegosServicio.Aplicacion.Comandos.ActivarTrivia;
 using JuegosServicio.Aplicacion.Puertos;
 using JuegosServicio.Dominio.Entidades;
 using JuegosServicio.Dominio.Excepciones;
+using JuegosServicio.Dominio.ObjetosValor;
 
 namespace JuegosServicio.PruebasUnitarias.CasosDeUso;
 
@@ -17,8 +18,11 @@ public class ActivarTriviaManejadorPruebas
 
     private static Trivia TriviaConPregunta()
     {
-        var trivia = Trivia.Crear("Trivia Test", "Descripción", Guid.NewGuid(), 30, FechaFija);
-        trivia.AgregarPregunta("¿Pregunta?", 10, 10, [("Sí", true), ("No", false)]);
+        var trivia = Trivia.Crear(
+            "Trivia Test", "Descripción", Guid.NewGuid(), Tiempo.CrearPositivo(30), FechaFija);
+        trivia.AgregarPregunta(
+            "¿Pregunta?", Puntaje.CrearParaPregunta(10), Tiempo.CrearParaPregunta(10),
+            [("Sí", true), ("No", false)]);
         return trivia;
     }
 
@@ -63,7 +67,8 @@ public class ActivarTriviaManejadorPruebas
     [Fact]
     public async Task Handle_TriviaSinPreguntas_LanzaExcepcionDominio()
     {
-        var triviaVacia = Trivia.Crear("Trivia vacía", "Descripción", Guid.NewGuid(), 30, FechaFija);
+        var triviaVacia = Trivia.Crear(
+            "Trivia vacía", "Descripción", Guid.NewGuid(), Tiempo.CrearPositivo(30), FechaFija);
         _repositorio
             .Setup(r => r.ObtenerTriviaPorIdAsync(triviaVacia.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(triviaVacia);

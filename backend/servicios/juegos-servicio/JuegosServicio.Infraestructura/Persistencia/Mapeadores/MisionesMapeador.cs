@@ -1,8 +1,8 @@
-using JuegosServicio.Dominio.Entidades;
+﻿using JuegosServicio.Dominio.Entidades;
 using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Infraestructura.Persistencia.Modelos;
 
-namespace JuegosServicio.Infraestructura.Persistencia;
+namespace JuegosServicio.Infraestructura.Persistencia.Mapeadores;
 
 public static class MisionesMapeador
 {

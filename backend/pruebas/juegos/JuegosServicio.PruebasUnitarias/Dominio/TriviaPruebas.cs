@@ -2,6 +2,7 @@ using JuegosServicio.Dominio.Entidades;
 using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Dominio.Eventos;
 using JuegosServicio.Dominio.Excepciones;
+using JuegosServicio.Dominio.ObjetosValor;
 
 namespace JuegosServicio.PruebasUnitarias.Dominio;
 
@@ -16,7 +17,7 @@ public class TriviaPruebas
         "Trivia de Geografía",
         "Preguntas sobre capitales del mundo",
         CreadorId,
-        tiempoLimitePorPregunta: 30,
+        tiempoLimitePorPregunta: Tiempo.CrearPositivo(30),
         FechaFija);
 
     [Fact]
@@ -44,7 +45,7 @@ public class TriviaPruebas
     public void Crear_ConDatosValidos_AsignaTiempoLimite()
     {
         var trivia = TriviaValida();
-        trivia.TiempoLimitePorPregunta.Should().Be(30);
+        trivia.TiempoLimitePorPregunta.Valor.Should().Be(30);
     }
 
     [Fact]
@@ -60,7 +61,7 @@ public class TriviaPruebas
         var trivia = Trivia.Crear(
             "  Trivia de Geografía  ",
             "Descripción válida",
-            CreadorId, 30, FechaFija);
+            CreadorId, Tiempo.CrearPositivo(30), FechaFija);
 
         trivia.Nombre.Should().Be("Trivia de Geografía");
     }
@@ -71,7 +72,7 @@ public class TriviaPruebas
         var trivia = Trivia.Crear(
             "Trivia válida",
             "  Descripción con espacios  ",
-            CreadorId, 30, FechaFija);
+            CreadorId, Tiempo.CrearPositivo(30), FechaFija);
 
         trivia.Descripcion.Should().Be("Descripción con espacios");
     }
@@ -96,7 +97,8 @@ public class TriviaPruebas
     [InlineData("   ")]
     public void Crear_NombreVacioOEspacios_LanzaExcepcionDominio(string nombre)
     {
-        Action accion = () => Trivia.Crear(nombre, "Descripción", CreadorId, 30, FechaFija);
+        Action accion = () => Trivia.Crear(
+            nombre, "Descripción", CreadorId, Tiempo.CrearPositivo(30), FechaFija);
         accion.Should().Throw<ExcepcionDominio>();
     }
 
@@ -105,24 +107,28 @@ public class TriviaPruebas
     [InlineData("   ")]
     public void Crear_DescripcionVaciaOEspacios_LanzaExcepcionDominio(string descripcion)
     {
-        Action accion = () => Trivia.Crear("Nombre", descripcion, CreadorId, 30, FechaFija);
+        Action accion = () => Trivia.Crear(
+            "Nombre", descripcion, CreadorId, Tiempo.CrearPositivo(30), FechaFija);
         accion.Should().Throw<ExcepcionDominio>();
     }
 
     [Fact]
     public void Crear_CreadorIdVacio_LanzaExcepcionDominio()
     {
-        Action accion = () => Trivia.Crear("Nombre", "Descripción", Guid.Empty, 30, FechaFija);
+        Action accion = () => Trivia.Crear(
+            "Nombre", "Descripción", Guid.Empty, Tiempo.CrearPositivo(30), FechaFija);
         accion.Should().Throw<ExcepcionDominio>();
     }
 
+    // La regla "mayor a cero" ahora vive en el objeto de valor Tiempo.
     [Theory]
     [InlineData(0)]
     [InlineData(-1)]
     [InlineData(-100)]
     public void Crear_TiempoLimiteMenorOIgualACero_LanzaExcepcionDominio(int tiempo)
     {
-        Action accion = () => Trivia.Crear("Nombre", "Descripción", CreadorId, tiempo, FechaFija);
+        Action accion = () => Trivia.Crear(
+            "Nombre", "Descripción", CreadorId, Tiempo.CrearPositivo(tiempo), FechaFija);
         accion.Should().Throw<ExcepcionDominio>();
     }
 }

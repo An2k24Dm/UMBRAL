@@ -3,6 +3,7 @@ using JuegosServicio.Commons.Dtos;
 using JuegosServicio.Dominio.Entidades;
 using JuegosServicio.Dominio.Enums;
 using Microsoft.EntityFrameworkCore;
+using JuegosServicio.Infraestructura.Persistencia.Mapeadores;
 using JuegosServicio.Infraestructura.Persistencia.Modelos;
 
 namespace JuegosServicio.Infraestructura.Persistencia;
@@ -116,8 +117,8 @@ public sealed class RepositorioBusquedas : IRepositorioBusquedas
 
         modelo.Nombre = busqueda.Nombre;
         modelo.Descripcion = busqueda.Descripcion;
-        modelo.Tiempo = busqueda.Tiempo;
-        modelo.Puntaje = busqueda.Puntaje;
+        modelo.Tiempo = busqueda.Tiempo.Valor;
+        modelo.Puntaje = busqueda.Puntaje.Valor;
         await _contexto.SaveChangesAsync(cancelacion);
     }
 

@@ -3,9 +3,6 @@ using SesionesServicio.Aplicacion.Puertos;
 
 namespace SesionesServicio.Infraestructura.ServiciosExternos;
 
-// Genera códigos de acceso alfanuméricos en mayúsculas de 6 caracteres
-// usando un RNG criptográfico. Excluye 0, O, 1, I para reducir
-// confusiones al transcribir desde el panel del operador a la app móvil.
 public sealed class GeneradorCodigoAccesoAleatorio : IGeneradorCodigoAcceso
 {
     private const string AlfabetoSinAmbiguos = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";

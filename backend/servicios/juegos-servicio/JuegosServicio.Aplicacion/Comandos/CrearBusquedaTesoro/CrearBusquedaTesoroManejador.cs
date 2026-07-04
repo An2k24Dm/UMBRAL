@@ -2,6 +2,7 @@ using JuegosServicio.Aplicacion.Puertos;
 using JuegosServicio.Aplicacion.Validaciones;
 using JuegosServicio.Dominio.Entidades;
 using JuegosServicio.Dominio.Excepciones;
+using JuegosServicio.Dominio.ObjetosValor;
 using MediatR;
 using Microsoft.Extensions.Logging;
 
@@ -38,8 +39,8 @@ public sealed class CrearBusquedaTesoroManejador : IRequestHandler<CrearBusqueda
             comando.Dto.Descripcion,
             comando.CreadorId,
             _reloj.ObtenerFechaHoraUtc(),
-            comando.Dto.Tiempo,
-            comando.Dto.Puntaje);
+            Tiempo.CrearParaBusqueda(comando.Dto.Tiempo),
+            Puntaje.CrearParaBusqueda(comando.Dto.Puntaje));
 
         await _repositorio.CrearBusquedaTesoroAsync(busqueda, cancelacion);
 

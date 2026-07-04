@@ -7,13 +7,6 @@ using SesionesServicio.Infraestructura.Configuraciones;
 
 namespace SesionesServicio.Infraestructura.ServiciosEnSegundoPlano;
 
-// HU34/5.1 — HostedService que dispara periódicamente el
-// ProcesadorPreparacionSesiones para que las sesiones cuya
-// FechaProgramada ya venció pasen de Programada a EnPreparacion.
-//
-// El servicio vive dentro de sesiones-servicio (no hay contenedor
-// aparte). En cada ciclo crea su propio IServiceScope para resolver
-// DbContext y repositorios sin filtrar instancias entre iteraciones.
 public sealed class ServicioPreparacionSesionesProgramadas : BackgroundService
 {
     private readonly IServiceScopeFactory _fabricaAlcances;

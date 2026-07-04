@@ -5,6 +5,7 @@ using JuegosServicio.Commons.Dtos;
 using JuegosServicio.Dominio.Entidades;
 using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Dominio.Excepciones;
+using JuegosServicio.Dominio.ObjetosValor;
 
 namespace JuegosServicio.PruebasUnitarias.CasosDeUso;
 
@@ -22,7 +23,9 @@ public class ModificarTriviaManejadorPruebas
         new(_repositorio.Object, _repositorioMisiones.Object, _validador.Object);
 
     private static Trivia TriviaEnBorrador() =>
-        Trivia.Crear("Trivia Original", "Descripción original", Guid.NewGuid(), 30, FechaFija);
+        Trivia.Crear(
+            "Trivia Original", "Descripción original", Guid.NewGuid(),
+            Tiempo.CrearPositivo(30), FechaFija);
 
     private static ModificarTriviaComando ComandoValido(Guid triviaId) =>
         new(triviaId, new ModificarTriviaDto

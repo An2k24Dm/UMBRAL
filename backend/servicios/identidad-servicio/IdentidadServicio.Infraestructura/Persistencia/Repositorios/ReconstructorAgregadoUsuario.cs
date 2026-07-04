@@ -1,5 +1,6 @@
-using IdentidadServicio.Dominio.Entidades;
+﻿using IdentidadServicio.Dominio.Entidades;
 using IdentidadServicio.Dominio.Enums;
+using IdentidadServicio.Infraestructura.Persistencia.Mapeadores;
 using Microsoft.EntityFrameworkCore;
 
 namespace IdentidadServicio.Infraestructura.Persistencia.Repositorios;

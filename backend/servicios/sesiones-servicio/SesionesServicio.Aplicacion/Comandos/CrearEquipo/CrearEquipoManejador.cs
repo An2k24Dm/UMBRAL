@@ -114,7 +114,7 @@ public sealed class CrearEquipoManejador
             CapacidadMaxima = equipo.CapacidadMaxima,
             CantidadParticipantes = equipo.Participantes.Count,
             LiderParticipanteId = equipo.LiderParticipanteId,
-            Puntaje = equipo.Puntaje,
+            Puntaje = equipo.Puntaje.Valor,
             FechaCreacion = equipo.FechaCreacion
         };
     }

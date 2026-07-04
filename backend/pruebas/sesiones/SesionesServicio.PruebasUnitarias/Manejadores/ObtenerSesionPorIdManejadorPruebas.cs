@@ -75,7 +75,7 @@ public class ObtenerSesionPorIdManejadorPruebas
         participanteDto.Alias.Should().Be("luna");
         participanteDto.Nombre.Should().Be("Luna");
         participanteDto.Apellido.Should().Be("Rivas");
-        participanteDto.Puntaje.Should().Be(participante.Puntaje);
+        participanteDto.Puntaje.Should().Be(participante.Puntaje.Valor);
         participanteDto.FechaUnion.Should().Be(participante.FechaUnionSesion);
 
         typeof(SesionesServicio.Commons.Dtos.ParticipanteSesionDto)

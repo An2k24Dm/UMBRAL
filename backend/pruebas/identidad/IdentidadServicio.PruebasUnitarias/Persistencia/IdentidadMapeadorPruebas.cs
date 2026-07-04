@@ -3,6 +3,7 @@ using IdentidadServicio.Dominio.Entidades;
 using IdentidadServicio.Dominio.Enums;
 using IdentidadServicio.Dominio.ObjetosDeValor;
 using IdentidadServicio.Infraestructura.Persistencia;
+using IdentidadServicio.Infraestructura.Persistencia.Mapeadores;
 
 namespace IdentidadServicio.PruebasUnitarias.Persistencia;
 

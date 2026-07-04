@@ -1,12 +1,12 @@
-using JuegosServicio.Dominio.Entidades;
+﻿using JuegosServicio.Dominio.Entidades;
 using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Infraestructura.Persistencia.Modelos;
 
-namespace JuegosServicio.Infraestructura.Persistencia;
+namespace JuegosServicio.Infraestructura.Persistencia.Mapeadores;
 
 public static class JuegosMapeador
 {
-    // Dominio → Modelos
+    // Dominio â†’ Modelos
 
     public static TriviaModelo AModelo(Trivia trivia)
     {
@@ -16,7 +16,7 @@ public static class JuegosMapeador
             Nombre = trivia.Nombre,
             Descripcion = trivia.Descripcion,
             CreadorId = trivia.CreadorId,
-            TiempoLimitePorPregunta = trivia.TiempoLimitePorPregunta,
+            TiempoLimitePorPregunta = trivia.TiempoLimitePorPregunta.Valor,
             Estado = (int)trivia.Estado,
             FechaCreacion = trivia.FechaCreacion,
             Preguntas = trivia.Preguntas.Select(AModelo).ToList()
@@ -30,8 +30,8 @@ public static class JuegosMapeador
             Id = pregunta.Id,
             TriviaId = pregunta.TriviaId,
             Enunciado = pregunta.Enunciado,
-            PuntajeAsignado = pregunta.PuntajeAsignado,
-            TiempoEstimado = pregunta.TiempoEstimado,
+            PuntajeAsignado = pregunta.PuntajeAsignado.Valor,
+            TiempoEstimado = pregunta.TiempoEstimado.Valor,
             Opciones = pregunta.Opciones.Select(AModelo).ToList()
         };
     }
@@ -47,7 +47,7 @@ public static class JuegosMapeador
         };
     }
 
-    // Modelos → Dominio
+    // Modelos â†’ Dominio
 
     public static Trivia ADominio(TriviaModelo modelo)
     {

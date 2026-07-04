@@ -2,6 +2,7 @@ using JuegosServicio.Aplicacion.Puertos;
 using JuegosServicio.Commons.Dtos;
 using JuegosServicio.Dominio.Entidades;
 using JuegosServicio.Dominio.Enums;
+using JuegosServicio.Infraestructura.Persistencia.Mapeadores;
 using Microsoft.EntityFrameworkCore;
 
 namespace JuegosServicio.Infraestructura.Persistencia;

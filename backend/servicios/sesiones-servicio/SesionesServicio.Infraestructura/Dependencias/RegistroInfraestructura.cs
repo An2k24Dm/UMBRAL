@@ -5,7 +5,6 @@ using Microsoft.Extensions.DependencyInjection;
 using SesionesServicio.Aplicacion.Procesos.PreparacionSesiones;
 using SesionesServicio.Aplicacion.Puertos;
 using SesionesServicio.Infraestructura.Configuraciones;
-using SesionesServicio.Infraestructura.Mapeadores;
 using SesionesServicio.Infraestructura.Persistencia;
 using SesionesServicio.Infraestructura.Persistencia.Mapeadores;
 using SesionesServicio.Infraestructura.Persistencia.Repositorios;

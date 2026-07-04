@@ -1,13 +1,13 @@
-using Mapster;
+﻿using Mapster;
 using SesionesServicio.Dominio.Entidades;
 using SesionesServicio.Infraestructura.Persistencia;
 
-namespace SesionesServicio.Infraestructura.Mapeadores;
+namespace SesionesServicio.Infraestructura.Persistencia.Mapeadores;
 
-// Punto de extensión Mapster reservado. Hoy el mapeo dominio↔persistencia
+// Punto de extensiÃ³n Mapster reservado. Hoy el mapeo dominioâ†”persistencia
 // lo hacen las estrategias MapeadorSesionesPersistencia manualmente; esta
 // config queda registrada por si historias futuras agregan proyecciones
-// automáticas.
+// automÃ¡ticas.
 public static class ConfiguracionMapsterSesiones
 {
     public static void Configurar(TypeAdapterConfig config)
