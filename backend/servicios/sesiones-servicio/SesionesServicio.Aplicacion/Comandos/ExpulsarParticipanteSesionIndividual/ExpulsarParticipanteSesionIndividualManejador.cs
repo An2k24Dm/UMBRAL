@@ -6,9 +6,6 @@ using SesionesServicio.Dominio.Excepciones;
 
 namespace SesionesServicio.Aplicacion.Comandos.ExpulsarParticipanteSesionIndividual;
 
-// HU44 — El Operador creador expulsa a un participante de su sesión individual.
-// El dominio protege la regla de estado; aquí se orquesta la autorización
-// (Operador dueño), la persistencia y la notificación en tiempo real.
 public sealed class ExpulsarParticipanteSesionIndividualManejador
     : IRequestHandler<ExpulsarParticipanteSesionIndividualComando>
 {
@@ -18,17 +15,20 @@ public sealed class ExpulsarParticipanteSesionIndividualManejador
     private readonly IUnidadTrabajoSesiones _unidadTrabajo;
     private readonly IUsuarioActual _usuarioActual;
     private readonly INotificadorSesionesTiempoReal _notificadorTiempoReal;
+    private readonly IRegistroLogsAplicacion _registroLogs;
 
     public ExpulsarParticipanteSesionIndividualManejador(
         IRepositorioSesiones repositorio,
         IUnidadTrabajoSesiones unidadTrabajo,
         IUsuarioActual usuarioActual,
-        INotificadorSesionesTiempoReal notificadorTiempoReal)
+        INotificadorSesionesTiempoReal notificadorTiempoReal,
+        IRegistroLogsAplicacion registroLogs)
     {
         _repositorio = repositorio;
         _unidadTrabajo = unidadTrabajo;
         _usuarioActual = usuarioActual;
         _notificadorTiempoReal = notificadorTiempoReal;
+        _registroLogs = registroLogs;
     }
 
     public async Task Handle(
@@ -58,9 +58,6 @@ public sealed class ExpulsarParticipanteSesionIndividualManejador
             throw new AccesoSesionNoPermitidoExcepcion(
                 "Solo el Operador creador de la sesión puede expulsar participantes o equipos.");
 
-        // Capturamos la identidad del participante antes de quitarlo, para
-        // poder avisarle directamente por SignalR luego de persistir. La
-        // validación de estado/existencia ocurre dentro de ExpulsarParticipante.
         var participanteIdentidadId = individual.Participantes
             .FirstOrDefault(p => p.Id == comando.ParticipanteSesionId)
             ?.ParticipanteIdentidadId;
@@ -69,11 +66,20 @@ public sealed class ExpulsarParticipanteSesionIndividualManejador
 
         await _repositorio.ActualizarAsync(individual, cancelacion);
         await _unidadTrabajo.GuardarCambiosAsync(cancelacion);
-        // SignalR solo notifica que algo cambió, y siempre después de guardar.
         await _notificadorTiempoReal.NotificarParticipantesSesionActualizadosAsync(
             individual.Id, cancelacion);
         if (participanteIdentidadId is Guid identidadId)
             await _notificadorTiempoReal.NotificarParticipanteExpulsadoAsync(
                 identidadId, individual.Id, comando.ParticipanteSesionId, cancelacion);
+
+        _registroLogs.Informacion(
+            evento: "ParticipanteExpulsadoSesionIndividual",
+            descripcion: "Operador expulsó un participante de una sesión individual correctamente",
+            propiedades: new Dictionary<string, object?>
+            {
+                ["SesionId"] = individual.Id,
+                ["ParticipanteSesionId"] = comando.ParticipanteSesionId,
+                ["OperadorId"] = operadorId
+            });
     }
 }

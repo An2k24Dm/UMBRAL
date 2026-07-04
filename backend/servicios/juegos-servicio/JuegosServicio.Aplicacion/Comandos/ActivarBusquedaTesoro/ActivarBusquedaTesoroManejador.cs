@@ -7,10 +7,14 @@ namespace JuegosServicio.Aplicacion.Comandos.ActivarBusquedaTesoro;
 public sealed class ActivarBusquedaTesoroManejador : IRequestHandler<ActivarBusquedaTesoroComando>
 {
     private readonly IRepositorioBusquedas _repositorio;
+    private readonly IRegistroLogsAplicacion _registroLogs;
 
-    public ActivarBusquedaTesoroManejador(IRepositorioBusquedas repositorio)
+    public ActivarBusquedaTesoroManejador(
+        IRepositorioBusquedas repositorio,
+        IRegistroLogsAplicacion registroLogs)
     {
         _repositorio = repositorio;
+        _registroLogs = registroLogs;
     }
 
     public async Task Handle(ActivarBusquedaTesoroComando comando, CancellationToken cancelacion)
@@ -22,5 +26,13 @@ public sealed class ActivarBusquedaTesoroManejador : IRequestHandler<ActivarBusq
         busqueda.Activar();
 
         await _repositorio.ActivarBusquedaTesoroAsync(busqueda, cancelacion);
+
+        _registroLogs.Informacion(
+            evento: "BusquedaTesoroActivada",
+            descripcion: "Usuario activó una búsqueda del tesoro correctamente",
+            propiedades: new Dictionary<string, object?>
+            {
+                ["BusquedaId"] = comando.BusquedaId
+            });
     }
 }

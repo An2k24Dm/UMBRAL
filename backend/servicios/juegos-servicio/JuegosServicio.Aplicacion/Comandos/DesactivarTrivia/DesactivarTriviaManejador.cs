@@ -7,10 +7,14 @@ namespace JuegosServicio.Aplicacion.Comandos.DesactivarTrivia;
 public sealed class DesactivarTriviaManejador : IRequestHandler<DesactivarTriviaComando>
 {
     private readonly IRepositorioJuegos _repositorio;
+    private readonly IRegistroLogsAplicacion _registroLogs;
 
-    public DesactivarTriviaManejador(IRepositorioJuegos repositorio)
+    public DesactivarTriviaManejador(
+        IRepositorioJuegos repositorio,
+        IRegistroLogsAplicacion registroLogs)
     {
         _repositorio = repositorio;
+        _registroLogs = registroLogs;
     }
 
     public async Task Handle(DesactivarTriviaComando comando, CancellationToken cancelacion)
@@ -21,5 +25,13 @@ public sealed class DesactivarTriviaManejador : IRequestHandler<DesactivarTrivia
 
         trivia.Desactivar();
         await _repositorio.DesactivarTriviaAsync(trivia, cancelacion);
+
+        _registroLogs.Informacion(
+            evento: "TriviaDesactivada",
+            descripcion: "Usuario desactivó una trivia correctamente",
+            propiedades: new Dictionary<string, object?>
+            {
+                ["TriviaId"] = comando.TriviaId
+            });
     }
 }

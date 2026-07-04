@@ -47,7 +47,7 @@ public sealed class RepositorioOperadores : IRepositorioOperadores
 
         if (usuario.Rol != (int)RolUsuario.Operador)
             throw new InvalidOperationException(
-                "SÃ³lo se puede actualizar mediante este mÃ©todo a usuarios con rol Operador.");
+                "Sólo se puede actualizar mediante este método a usuarios con rol Operador.");
 
         var persona = await _contexto.Personas
             .FirstOrDefaultAsync(p => p.UsuarioId == usuario.Id, cancelacion)
@@ -85,7 +85,7 @@ public sealed class RepositorioOperadores : IRepositorioOperadores
 
         if (usuario.Rol != (int)RolUsuario.Operador)
             throw new InvalidOperationException(
-                "SÃ³lo se puede eliminar mediante este mÃ©todo a usuarios con rol Operador.");
+                "Sólo se puede eliminar mediante este método a usuarios con rol Operador.");
 
         _contexto.Usuarios.Remove(usuario);
     }
@@ -107,7 +107,7 @@ public sealed class RepositorioOperadores : IRepositorioOperadores
                 $"El usuario {operador.Id} no existe en base de datos.");
         if (usuario.Rol != (int)RolUsuario.Operador)
             throw new InvalidOperationException(
-                "SÃ³lo se puede cambiar el estado mediante este mÃ©todo a usuarios con rol Operador.");
+                "Sólo se puede cambiar el estado mediante este método a usuarios con rol Operador.");
         usuario.Estado = (int)operador.Estado;
     }
 }

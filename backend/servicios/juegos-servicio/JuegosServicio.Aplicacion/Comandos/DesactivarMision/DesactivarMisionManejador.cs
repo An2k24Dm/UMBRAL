@@ -8,13 +8,16 @@ public sealed class DesactivarMisionManejador : IRequestHandler<DesactivarMision
 {
     private readonly IRepositorioMisiones _repositorio;
     private readonly IClienteSesiones _clienteSesiones;
+    private readonly IRegistroLogsAplicacion _registroLogs;
 
     public DesactivarMisionManejador(
         IRepositorioMisiones repositorio,
-        IClienteSesiones clienteSesiones)
+        IClienteSesiones clienteSesiones,
+        IRegistroLogsAplicacion registroLogs)
     {
         _repositorio = repositorio;
         _clienteSesiones = clienteSesiones;
+        _registroLogs = registroLogs;
     }
 
     public async Task Handle(DesactivarMisionComando comando, CancellationToken cancelacion)
@@ -28,5 +31,13 @@ public sealed class DesactivarMisionManejador : IRequestHandler<DesactivarMision
 
         mision.Desactivar();
         await _repositorio.DesactivarMisionAsync(mision, cancelacion);
+
+        _registroLogs.Informacion(
+            evento: "MisionDesactivada",
+            descripcion: "Usuario desactivó una misión correctamente",
+            propiedades: new Dictionary<string, object?>
+            {
+                ["MisionId"] = comando.MisionId
+            });
     }
 }

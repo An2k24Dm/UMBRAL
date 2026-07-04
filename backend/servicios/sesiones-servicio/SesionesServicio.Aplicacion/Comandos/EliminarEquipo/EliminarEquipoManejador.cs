@@ -6,9 +6,6 @@ using SesionesServicio.Dominio.Excepciones;
 
 namespace SesionesServicio.Aplicacion.Comandos.EliminarEquipo;
 
-// HU42 — Eliminar un equipo de una sesión grupal En Preparación. Solo el
-// líder puede hacerlo. El dominio protege las invariantes; aquí se orquesta
-// la autorización por rol y la persistencia.
 public sealed class EliminarEquipoManejador : IRequestHandler<EliminarEquipoComando>
 {
     private const string RolParticipante = "Participante";
@@ -17,17 +14,20 @@ public sealed class EliminarEquipoManejador : IRequestHandler<EliminarEquipoComa
     private readonly IUnidadTrabajoSesiones _unidadTrabajo;
     private readonly IUsuarioActual _usuarioActual;
     private readonly INotificadorSesionesTiempoReal _notificadorTiempoReal;
+    private readonly IRegistroLogsAplicacion _registroLogs;
 
     public EliminarEquipoManejador(
         IRepositorioSesiones repositorio,
         IUnidadTrabajoSesiones unidadTrabajo,
         IUsuarioActual usuarioActual,
-        INotificadorSesionesTiempoReal notificadorTiempoReal)
+        INotificadorSesionesTiempoReal notificadorTiempoReal,
+        IRegistroLogsAplicacion registroLogs)
     {
         _repositorio = repositorio;
         _unidadTrabajo = unidadTrabajo;
         _usuarioActual = usuarioActual;
         _notificadorTiempoReal = notificadorTiempoReal;
+        _registroLogs = registroLogs;
     }
 
     public async Task Handle(EliminarEquipoComando comando, CancellationToken cancelacion)
@@ -57,5 +57,15 @@ public sealed class EliminarEquipoManejador : IRequestHandler<EliminarEquipoComa
         await _unidadTrabajo.GuardarCambiosAsync(cancelacion);
         await _notificadorTiempoReal.NotificarEquiposSesionActualizadosAsync(
             sesionGrupal.Id, comando.EquipoId, cancelacion);
+
+        _registroLogs.Informacion(
+            evento: "EquipoEliminado",
+            descripcion: "Participante eliminó un equipo correctamente",
+            propiedades: new Dictionary<string, object?>
+            {
+                ["SesionId"] = sesionGrupal.Id,
+                ["EquipoId"] = comando.EquipoId,
+                ["ParticipanteId"] = participanteId
+            });
     }
 }

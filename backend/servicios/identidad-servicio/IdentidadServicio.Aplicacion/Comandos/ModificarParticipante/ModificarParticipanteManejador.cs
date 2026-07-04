@@ -6,7 +6,6 @@ using IdentidadServicio.Commons.Dtos;
 using IdentidadServicio.Dominio.Entidades;
 using IdentidadServicio.Dominio.Excepciones;
 using MediatR;
-using Microsoft.Extensions.Logging;
 
 namespace IdentidadServicio.Aplicacion.Comandos.ModificarParticipante;
 
@@ -20,7 +19,7 @@ public sealed class ModificarParticipanteManejador
     private readonly IValidadorAsincrono<ModificarParticipanteComando> _validadorUnicidad;
     private readonly AplicadorCambiosUsuario _aplicadorCambios;
     private readonly FabricaEstrategiaMapeoPerfilUsuario _fabricaMapeo;
-    private readonly ILogger<ModificarParticipanteManejador> _registro;
+    private readonly IRegistroLogsAplicacion _registroLogs;
 
     public ModificarParticipanteManejador(
         IRepositorioParticipantes repositorio,
@@ -30,7 +29,7 @@ public sealed class ModificarParticipanteManejador
         IValidadorAsincrono<ModificarParticipanteComando> validadorUnicidad,
         AplicadorCambiosUsuario aplicadorCambios,
         FabricaEstrategiaMapeoPerfilUsuario fabricaMapeo,
-        ILogger<ModificarParticipanteManejador> registro)
+        IRegistroLogsAplicacion registroLogs)
     {
         _repositorio = repositorio;
         _unidadTrabajo = unidadTrabajo;
@@ -39,7 +38,7 @@ public sealed class ModificarParticipanteManejador
         _validadorUnicidad = validadorUnicidad;
         _aplicadorCambios = aplicadorCambios;
         _fabricaMapeo = fabricaMapeo;
-        _registro = registro;
+        _registroLogs = registroLogs;
     }
 
     public async Task<ModificarParticipanteRespuestaDto> Handle(
@@ -63,8 +62,13 @@ public sealed class ModificarParticipanteManejador
 
         if (!cambios.HuboCambiosDatosUsuario && !cambios.CambiaContrasena)
         {
-            _registro.LogInformation(
-                "Edición HU10 sin cambios para Participante {Id}.", participante.Id);
+            _registroLogs.Informacion(
+                evento: "ParticipanteEdicionSinCambios",
+                descripcion: "Edición de Participante sin cambios para aplicar.",
+                propiedades: new Dictionary<string, object?>
+                {
+                    ["ParticipanteId"] = participante.Id
+                });
             return new ModificarParticipanteRespuestaDto
             {
                 HuboCambios = false,
@@ -80,9 +84,13 @@ public sealed class ModificarParticipanteManejador
 
         if (cambios.RequiereSincronizarKeycloak && string.IsNullOrWhiteSpace(idKeycloak))
         {
-            _registro.LogError(
-                "Participante {Id} no tiene IdKeycloak asociado: imposible sincronizar con Keycloak.",
-                participante.Id);
+            _registroLogs.Advertencia(
+                evento: "ParticipanteSinIdKeycloak",
+                descripcion: "El Participante no tiene IdKeycloak asociado: imposible sincronizar con Keycloak.",
+                propiedades: new Dictionary<string, object?>
+                {
+                    ["ParticipanteId"] = participante.Id
+                });
             throw new InvalidOperationException(
                 $"El Participante {participante.Id} no tiene IdKeycloak asociado. " +
                 "No se puede sincronizar la actualización con Keycloak.");
@@ -97,10 +105,14 @@ public sealed class ModificarParticipanteManejador
             }
             catch (Exception ex)
             {
-                _registro.LogError(ex,
-                    "Keycloak rechazó el cambio de contraseña del Participante {Id}. " +
-                    "Los cambios NO se persisten en base de datos.",
-                    participante.Id);
+                _registroLogs.Error(
+                    excepcion: ex,
+                    evento: "CambioContrasenaParticipanteKeycloakFallido",
+                    descripcion: "Keycloak rechazó el cambio de contraseña del Participante. Los cambios NO se persisten en base de datos.",
+                    propiedades: new Dictionary<string, object?>
+                    {
+                        ["ParticipanteId"] = participante.Id
+                    });
                 throw;
             }
         }
@@ -114,10 +126,14 @@ public sealed class ModificarParticipanteManejador
             }
             catch (Exception ex)
             {
-                _registro.LogError(ex,
-                    "Keycloak rechazó la actualización del Participante {Id}. " +
-                    "Los cambios NO se persisten en base de datos.",
-                    participante.Id);
+                _registroLogs.Error(
+                    excepcion: ex,
+                    evento: "ModificacionParticipanteKeycloakFallida",
+                    descripcion: "Keycloak rechazó la actualización del Participante. Los cambios NO se persisten en base de datos.",
+                    propiedades: new Dictionary<string, object?>
+                    {
+                        ["ParticipanteId"] = participante.Id
+                    });
                 throw;
             }
         }
@@ -130,9 +146,14 @@ public sealed class ModificarParticipanteManejador
         var camposRespuesta = new List<string>(cambios.CamposActualizados);
         if (cambios.CambiaContrasena) camposRespuesta.Add("contrasena");
 
-        _registro.LogInformation(
-            "Participante {Id} actualizado. Campos: {Campos}.",
-            participante.Id, string.Join(",", camposRespuesta));
+        _registroLogs.Informacion(
+            evento: "ParticipanteModificado",
+            descripcion: "Participante modificó su perfil correctamente",
+            propiedades: new Dictionary<string, object?>
+            {
+                ["ParticipanteId"] = participante.Id,
+                ["Campos"] = string.Join(",", camposRespuesta)
+            });
 
         return new ModificarParticipanteRespuestaDto
         {

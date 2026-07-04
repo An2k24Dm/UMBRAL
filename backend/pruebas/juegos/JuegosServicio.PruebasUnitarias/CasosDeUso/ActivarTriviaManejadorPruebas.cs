@@ -14,7 +14,8 @@ public class ActivarTriviaManejadorPruebas
     private static readonly DateTime FechaFija =
         new(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc);
 
-    private ActivarTriviaManejador CrearManejador() => new(_repositorio.Object);
+    private ActivarTriviaManejador CrearManejador() =>
+        new(_repositorio.Object, Mock.Of<IRegistroLogsAplicacion>());
 
     private static Trivia TriviaConPregunta()
     {

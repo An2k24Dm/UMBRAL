@@ -9,8 +9,6 @@ using IdentidadServicio.Commons.Dtos;
 using IdentidadServicio.Dominio.Entidades;
 using IdentidadServicio.Dominio.Excepciones;
 using IdentidadServicio.PruebasUnitarias.Mapeadores.Perfil;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
 namespace IdentidadServicio.PruebasUnitarias.Manejadores;
@@ -48,8 +46,7 @@ public class ModificarParticipanteManejadorPruebas
             .Returns(Task.CompletedTask);
     }
 
-    private ModificarParticipanteManejador CrearManejador(
-        ILogger<ModificarParticipanteManejador>? logger = null)
+    private ModificarParticipanteManejador CrearManejador()
     {
         var fabrica = new FabricaEstrategiaMapeoPerfilUsuario(new IEstrategiaMapeoPerfilUsuario[]
         {
@@ -65,7 +62,7 @@ public class ModificarParticipanteManejadorPruebas
             _validadorUnicidad.Object,
             new AplicadorCambiosUsuario(),
             fabrica,
-            logger ?? NullLogger<ModificarParticipanteManejador>.Instance);
+            Mock.Of<IRegistroLogsAplicacion>());
     }
 
     private void EncolarParticipante(string idKeycloak, Participante p)
@@ -307,20 +304,5 @@ public class ModificarParticipanteManejadorPruebas
         await accion.Should().ThrowAsync<InvalidOperationException>();
 
         _unidad.Verify(u => u.GuardarCambiosAsync(It.IsAny<CancellationToken>()), Times.Never);
-    }
-
-    private sealed class LoggerCapturador<T> : ILogger<T>
-    {
-        public List<string> Mensajes { get; } = new();
-        public IDisposable BeginScope<TState>(TState state) where TState : notnull => NullScope.Instancia;
-        public bool IsEnabled(LogLevel logLevel) => true;
-        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state,
-            Exception? exception, Func<TState, Exception?, string> formatter)
-            => Mensajes.Add(formatter(state, exception));
-        private sealed class NullScope : IDisposable
-        {
-            public static readonly NullScope Instancia = new();
-            public void Dispose() { }
-        }
     }
 }

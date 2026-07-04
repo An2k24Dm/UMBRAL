@@ -12,7 +12,8 @@ public class ActivarBusquedaTesoroManejadorPruebas
     private static readonly DateTime FechaFija =
         new(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc);
 
-    private ActivarBusquedaTesoroManejador CrearManejador() => new(_repositorio.Object);
+    private ActivarBusquedaTesoroManejador CrearManejador() =>
+        new(_repositorio.Object, Mock.Of<IRegistroLogsAplicacion>());
 
     // Búsqueda Inactiva con al menos una pista: la nueva regla del
     // ERS exige una pista antes de activar.

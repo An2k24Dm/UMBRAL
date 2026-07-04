@@ -12,15 +12,18 @@ public sealed class ModificarTriviaManejador : IRequestHandler<ModificarTriviaCo
     private readonly IRepositorioJuegos _repositorio;
     private readonly IRepositorioMisiones _repositorioMisiones;
     private readonly IValidador<ModificarTriviaComando> _validador;
+    private readonly IRegistroLogsAplicacion _registroLogs;
 
     public ModificarTriviaManejador(
         IRepositorioJuegos repositorio,
         IRepositorioMisiones repositorioMisiones,
-        IValidador<ModificarTriviaComando> validador)
+        IValidador<ModificarTriviaComando> validador,
+        IRegistroLogsAplicacion registroLogs)
     {
         _repositorio = repositorio;
         _repositorioMisiones = repositorioMisiones;
         _validador = validador;
+        _registroLogs = registroLogs;
     }
 
     public async Task Handle(ModificarTriviaComando comando, CancellationToken cancelacion)
@@ -40,5 +43,13 @@ public sealed class ModificarTriviaManejador : IRequestHandler<ModificarTriviaCo
             Tiempo.CrearPositivo(comando.Dto.NuevoTiempoLimitePorPregunta));
 
         await _repositorio.ModificarDatosTriviaAsync(trivia, cancelacion);
+
+        _registroLogs.Informacion(
+            evento: "TriviaModificada",
+            descripcion: "Usuario modificó una trivia correctamente",
+            propiedades: new Dictionary<string, object?>
+            {
+                ["TriviaId"] = comando.TriviaId
+            });
     }
 }

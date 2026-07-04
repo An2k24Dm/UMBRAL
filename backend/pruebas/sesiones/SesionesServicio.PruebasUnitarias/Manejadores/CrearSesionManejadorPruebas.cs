@@ -79,7 +79,8 @@ public class CrearSesionManejadorPruebas
         public CrearSesionManejador Construir()
             => new(new ValidadorCrearSesion(), Repo.Object, Unidad.Object,
                 Usuario.Object, new ValidadorMisionesSesion(Misiones.Object),
-                Generador.Object, Reloj.Object, FabricaSesionReal);
+                Generador.Object, Reloj.Object, FabricaSesionReal,
+                Mock.Of<IRegistroLogsAplicacion>());
     }
 
     private static CrearSesionSolicitudDto DtoValido(

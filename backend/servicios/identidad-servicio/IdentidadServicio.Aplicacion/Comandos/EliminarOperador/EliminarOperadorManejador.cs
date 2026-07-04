@@ -2,7 +2,6 @@ using IdentidadServicio.Aplicacion.Puertos;
 using IdentidadServicio.Commons.Dtos;
 using IdentidadServicio.Dominio.Excepciones;
 using MediatR;
-using Microsoft.Extensions.Logging;
 
 namespace IdentidadServicio.Aplicacion.Comandos.EliminarOperador;
 
@@ -12,18 +11,18 @@ public sealed class EliminarOperadorManejador
     private readonly IRepositorioOperadores _repositorio;
     private readonly IUnidadTrabajoIdentidad _unidadTrabajo;
     private readonly IProveedorIdentidad _proveedor;
-    private readonly ILogger<EliminarOperadorManejador> _registro;
+    private readonly IRegistroLogsAplicacion _registroLogs;
 
     public EliminarOperadorManejador(
         IRepositorioOperadores repositorio,
         IUnidadTrabajoIdentidad unidadTrabajo,
         IProveedorIdentidad proveedor,
-        ILogger<EliminarOperadorManejador> registro)
+        IRegistroLogsAplicacion registroLogs)
     {
         _repositorio = repositorio;
         _unidadTrabajo = unidadTrabajo;
         _proveedor = proveedor;
-        _registro = registro;
+        _registroLogs = registroLogs;
     }
 
     public async Task<EliminarOperadorRespuestaDto> Handle(
@@ -36,9 +35,13 @@ public sealed class EliminarOperadorManejador
         var idKeycloak = await _repositorio.ObtenerIdKeycloakAsync(operador.Id, cancelacion);
         if (string.IsNullOrWhiteSpace(idKeycloak))
         {
-            _registro.LogError(
-                "Operador {Id} no tiene IdKeycloak asociado: imposible sincronizar la eliminación con Keycloak.",
-                operador.Id);
+            _registroLogs.Advertencia(
+                evento: "OperadorSinIdKeycloak",
+                descripcion: "El Operador no tiene IdKeycloak asociado: imposible sincronizar la eliminación con Keycloak.",
+                propiedades: new Dictionary<string, object?>
+                {
+                    ["OperadorId"] = operador.Id
+                });
             throw new InvalidOperationException(
                 $"El Operador {operador.Id} no tiene IdKeycloak asociado. " +
                 "No se puede sincronizar la eliminación con Keycloak.");
@@ -52,18 +55,27 @@ public sealed class EliminarOperadorManejador
         }
         catch (Exception ex)
         {
-            _registro.LogError(ex,
-                "Keycloak rechazó la eliminación del Operador {Id} (KC={Kc}). " +
-                "La base de datos NO queda eliminada.",
-                operador.Id, idKeycloak);
+            _registroLogs.Error(
+                excepcion: ex,
+                evento: "EliminacionOperadorKeycloakFallida",
+                descripcion: "Keycloak rechazó la eliminación del Operador. La base de datos NO queda eliminada.",
+                propiedades: new Dictionary<string, object?>
+                {
+                    ["OperadorId"] = operador.Id,
+                    ["IdKeycloak"] = idKeycloak
+                });
             throw;
         }
 
         await _unidadTrabajo.GuardarCambiosAsync(cancelacion);
 
-        _registro.LogInformation(
-            "Operador {Id} eliminado permanentemente (Keycloak + PostgreSQL) por Administrador.",
-            operador.Id);
+        _registroLogs.Informacion(
+            evento: "OperadorEliminado",
+            descripcion: "Administrador eliminó un operador correctamente",
+            propiedades: new Dictionary<string, object?>
+            {
+                ["OperadorId"] = operador.Id
+            });
 
         return new EliminarOperadorRespuestaDto
         {

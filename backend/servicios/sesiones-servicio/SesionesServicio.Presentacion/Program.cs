@@ -11,6 +11,15 @@ using SesionesServicio.Infraestructura.TiempoReal.Hubs;
 
 var constructor = WebApplication.CreateBuilder(args);
 
+constructor.Logging.ClearProviders();
+constructor.Logging.AddSimpleConsole(opciones =>
+{
+    opciones.SingleLine = true;
+    opciones.TimestampFormat = "HH:mm:ss ";
+    opciones.IncludeScopes = true;
+});
+constructor.Logging.AddDebug();
+
 constructor.Services.AddControllers().AddJsonOptions(opciones =>
 {
     opciones.JsonSerializerOptions.Converters
@@ -42,8 +51,6 @@ constructor.Services.AgregarCorsUmbral(constructor.Configuration);
 
 var aplicacion = constructor.Build();
 
-aplicacion.UseMiddleware<ManejadorErroresMiddleware>();
-
 if (aplicacion.Environment.IsDevelopment())
 {
     aplicacion.UseSwagger();
@@ -52,6 +59,13 @@ if (aplicacion.Environment.IsDevelopment())
 
 aplicacion.UseCors(RegistroCors.PoliticaUmbral);
 aplicacion.UseAuthentication();
+
+// El logging va después de la autenticación para poder registrar el usuario y
+// el rol del token, y envuelve al manejador de errores: mide el tiempo total
+// del request y registra el código final, incluso cuando hubo una excepción
+// que el manejador de errores tradujo a respuesta JSON.
+aplicacion.UseMiddleware<LoggingSolicitudesMiddleware>();
+aplicacion.UseMiddleware<ManejadorErroresMiddleware>();
 aplicacion.UseAuthorization();
 
 aplicacion.MapControllers();

@@ -11,15 +11,18 @@ public sealed class ModificarMisionManejador : IRequestHandler<ModificarMisionCo
     private readonly IRepositorioMisiones _repositorio;
     private readonly IClienteSesiones _clienteSesiones;
     private readonly IValidador<ModificarMisionComando> _validador;
+    private readonly IRegistroLogsAplicacion _registroLogs;
 
     public ModificarMisionManejador(
         IRepositorioMisiones repositorio,
         IClienteSesiones clienteSesiones,
-        IValidador<ModificarMisionComando> validador)
+        IValidador<ModificarMisionComando> validador,
+        IRegistroLogsAplicacion registroLogs)
     {
         _repositorio = repositorio;
         _clienteSesiones = clienteSesiones;
         _validador = validador;
+        _registroLogs = registroLogs;
     }
 
     public async Task Handle(ModificarMisionComando comando, CancellationToken cancelacion)
@@ -35,5 +38,13 @@ public sealed class ModificarMisionManejador : IRequestHandler<ModificarMisionCo
 
         mision.Modificar(comando.Dto.Nombre, comando.Dto.Descripcion, (NivelDificultad)comando.Dto.Dificultad);
         await _repositorio.ActualizarMisionAsync(mision, cancelacion);
+
+        _registroLogs.Informacion(
+            evento: "MisionModificada",
+            descripcion: "Usuario modificó una misión correctamente",
+            propiedades: new Dictionary<string, object?>
+            {
+                ["MisionId"] = comando.MisionId
+            });
     }
 }

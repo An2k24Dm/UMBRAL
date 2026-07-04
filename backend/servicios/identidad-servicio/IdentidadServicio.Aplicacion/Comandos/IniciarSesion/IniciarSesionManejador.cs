@@ -5,7 +5,6 @@ using IdentidadServicio.Commons.Dtos;
 using IdentidadServicio.Dominio.Enums;
 using IdentidadServicio.Dominio.Excepciones;
 using MediatR;
-using Microsoft.Extensions.Logging;
 
 namespace IdentidadServicio.Aplicacion.Comandos.IniciarSesion;
 
@@ -15,18 +14,18 @@ public sealed class IniciarSesionManejador
     private readonly IProveedorIdentidad _proveedor;
     private readonly IRepositorioUsuariosLectura _repositorioLectura;
     private readonly IRepositorioControlContrasenaTemporal _controlContrasena;
-    private readonly ILogger<IniciarSesionManejador> _registro;
+    private readonly IRegistroLogsAplicacion _registroLogs;
 
     public IniciarSesionManejador(
         IProveedorIdentidad proveedor,
         IRepositorioUsuariosLectura repositorioLectura,
         IRepositorioControlContrasenaTemporal controlContrasena,
-        ILogger<IniciarSesionManejador> registro)
+        IRegistroLogsAplicacion registroLogs)
     {
         _proveedor = proveedor;
         _repositorioLectura = repositorioLectura;
         _controlContrasena = controlContrasena;
-        _registro = registro;
+        _registroLogs = registroLogs;
     }
 
     public async Task<ResultadoInicioSesionDto> Handle(
@@ -54,10 +53,19 @@ public sealed class IniciarSesionManejador
         var requiereCambio = await _controlContrasena.ObtenerDebeCambiarPorIdKeycloakAsync(
             autenticacion.IdKeycloak, cancelacion);
 
-        _registro.LogInformation(
-            "Inicio de sesión exitoso para {NombreUsuario} (rol {Rol}, origen {Origen}, " +
-            "requiereCambioContrasena={RequiereCambio}).",
-            usuario.NombreUsuario.Valor, usuario.Rol, comando.Origen, requiereCambio);
+        var descripcionInicio =
+            $"{usuario.Rol} inició sesión {(comando.Origen == OrigenInicioSesion.Web ? "web" : "móvil")} correctamente";
+
+        _registroLogs.Informacion(
+            evento: "InicioSesionExitoso",
+            descripcion: descripcionInicio,
+            propiedades: new Dictionary<string, object?>
+            {
+                ["NombreUsuario"] = usuario.NombreUsuario.Valor,
+                ["Rol"] = usuario.Rol.ToString(),
+                ["Origen"] = comando.Origen.ToString(),
+                ["RequiereCambioContrasena"] = requiereCambio
+            });
 
         return new ResultadoInicioSesionDto
         {

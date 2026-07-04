@@ -9,13 +9,16 @@ public sealed class ModificarPistaManejador : IRequestHandler<ModificarPistaComa
 {
     private readonly IRepositorioBusquedas _repositorio;
     private readonly IRepositorioMisiones _repositorioMisiones;
+    private readonly IRegistroLogsAplicacion _registroLogs;
 
     public ModificarPistaManejador(
         IRepositorioBusquedas repositorio,
-        IRepositorioMisiones repositorioMisiones)
+        IRepositorioMisiones repositorioMisiones,
+        IRegistroLogsAplicacion registroLogs)
     {
         _repositorio = repositorio;
         _repositorioMisiones = repositorioMisiones;
+        _registroLogs = registroLogs;
     }
 
     public async Task Handle(ModificarPistaComando comando, CancellationToken cancelacion)
@@ -32,5 +35,14 @@ public sealed class ModificarPistaManejador : IRequestHandler<ModificarPistaComa
 
         var pista = busqueda.Pistas.First(p => p.Id == comando.PistaId);
         await _repositorio.ModificarPistaAsync(pista, cancelacion);
+
+        _registroLogs.Informacion(
+            evento: "PistaModificada",
+            descripcion: "Usuario modificó una pista correctamente",
+            propiedades: new Dictionary<string, object?>
+            {
+                ["BusquedaId"] = comando.BusquedaId,
+                ["PistaId"] = comando.PistaId
+            });
     }
 }

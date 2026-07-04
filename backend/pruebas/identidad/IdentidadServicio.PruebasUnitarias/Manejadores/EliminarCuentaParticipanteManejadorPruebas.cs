@@ -3,7 +3,6 @@ using IdentidadServicio.Aplicacion.Puertos;
 using IdentidadServicio.Dominio.Entidades;
 using IdentidadServicio.Dominio.Excepciones;
 using IdentidadServicio.PruebasUnitarias.Mapeadores.Perfil;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace IdentidadServicio.PruebasUnitarias.Manejadores;
 
@@ -40,7 +39,7 @@ public class EliminarCuentaParticipanteManejadorPruebas
             _repositorio.Object,
             _unidad.Object,
             _proveedor.Object,
-            NullLogger<EliminarCuentaParticipanteManejador>.Instance);
+            Mock.Of<IRegistroLogsAplicacion>());
 
     private void EncolarParticipante(string idKeycloak, Participante p)
     {

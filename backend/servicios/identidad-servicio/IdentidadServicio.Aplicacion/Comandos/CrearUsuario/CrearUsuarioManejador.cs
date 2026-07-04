@@ -7,7 +7,6 @@ using IdentidadServicio.Aplicacion.Validaciones;
 using IdentidadServicio.Commons.Dtos;
 using IdentidadServicio.Dominio.Entidades;
 using MediatR;
-using Microsoft.Extensions.Logging;
 
 namespace IdentidadServicio.Aplicacion.Comandos.CrearUsuario;
 
@@ -25,7 +24,8 @@ public sealed class CrearUsuarioManejador
     private readonly IValidador<CrearUsuarioComando> _validador;
     private readonly IGeneradorContrasenaTemporal _generadorContrasena;
     private readonly IServicioCorreo _correo;
-    private readonly ILogger<CrearUsuarioManejador> _registro;
+    private readonly IUsuarioActual _usuarioActual;
+    private readonly IRegistroLogsAplicacion _registroLogs;
 
     public CrearUsuarioManejador(
         ValidadorUnicidadUsuario validadorUnicidad,
@@ -39,7 +39,8 @@ public sealed class CrearUsuarioManejador
         IValidador<CrearUsuarioComando> validador,
         IGeneradorContrasenaTemporal generadorContrasena,
         IServicioCorreo correo,
-        ILogger<CrearUsuarioManejador> registro)
+        IUsuarioActual usuarioActual,
+        IRegistroLogsAplicacion registroLogs)
     {
         _validadorUnicidad = validadorUnicidad;
         _repositorioOperadores = repositorioOperadores;
@@ -52,7 +53,8 @@ public sealed class CrearUsuarioManejador
         _validador = validador;
         _generadorContrasena = generadorContrasena;
         _correo = correo;
-        _registro = registro;
+        _usuarioActual = usuarioActual;
+        _registroLogs = registroLogs;
     }
 
     public async Task<CrearUsuarioRespuestaDto> Handle(
@@ -109,10 +111,18 @@ public sealed class CrearUsuarioManejador
 
             await EnviarCorreoCreacionAsync(usuario, contrasenaTemporal, cancelacion);
 
-            _registro.LogInformation(
-                "Usuario {NombreUsuario} ({Correo}) creado con rol {Rol} y código {Codigo}. " +
-                "Se envió contraseña temporal por correo.",
-                usuario.NombreUsuario.Valor, usuario.Correo.Valor, usuario.Rol, codigo);
+            _registroLogs.Informacion(
+                evento: "UsuarioCreado",
+                descripcion: "Administrador creó un usuario correctamente",
+                propiedades: new Dictionary<string, object?>
+                {
+                    ["UsuarioCreadoId"] = usuario.Id,
+                    ["NombreUsuarioCreado"] = usuario.NombreUsuario.Valor,
+                    ["CorreoCreado"] = usuario.Correo.Valor,
+                    ["RolCreado"] = usuario.Rol.ToString(),
+                    ["CodigoCreado"] = codigo,
+                    ["ActorId"] = _usuarioActual.IdKeycloak
+                });
 
             return new CrearUsuarioRespuestaDto
             {
@@ -170,10 +180,15 @@ public sealed class CrearUsuarioManejador
         }
         catch (Exception ex)
         {
-            _registro.LogError(ex,
-                "No fue posible enviar el correo de creación al usuario {Id}. " +
-                "Use el endpoint de reseteo para reintentar.",
-                usuario.Id);
+            _registroLogs.Error(
+                excepcion: ex,
+                evento: "CorreoCreacionNoEnviado",
+                descripcion: "No fue posible enviar el correo de creación al usuario. " +
+                    "Use el endpoint de reseteo para reintentar.",
+                propiedades: new Dictionary<string, object?>
+                {
+                    ["UsuarioId"] = usuario.Id
+                });
         }
     }
 
@@ -182,8 +197,14 @@ public sealed class CrearUsuarioManejador
         try { await _proveedor.EliminarUsuarioAsync(idKeycloak, CancellationToken.None); }
         catch (Exception ex)
         {
-            _registro.LogError(ex,
-                "Compensación fallida: requiere limpieza manual de {Id} en Keycloak.", idKeycloak);
+            _registroLogs.Error(
+                excepcion: ex,
+                evento: "CompensacionKeycloakFallida",
+                descripcion: "Compensación fallida: requiere limpieza manual del usuario en Keycloak.",
+                propiedades: new Dictionary<string, object?>
+                {
+                    ["IdKeycloak"] = idKeycloak
+                });
         }
     }
 }

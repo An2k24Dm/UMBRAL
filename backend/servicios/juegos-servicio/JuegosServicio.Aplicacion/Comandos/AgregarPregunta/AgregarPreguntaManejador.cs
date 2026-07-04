@@ -4,7 +4,6 @@ using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Dominio.Excepciones;
 using JuegosServicio.Dominio.ObjetosValor;
 using MediatR;
-using Microsoft.Extensions.Logging;
 
 namespace JuegosServicio.Aplicacion.Comandos.AgregarPregunta;
 
@@ -13,18 +12,18 @@ public sealed class AgregarPreguntaManejador : IRequestHandler<AgregarPreguntaCo
     private readonly IRepositorioJuegos _repositorio;
     private readonly IRepositorioMisiones _repositorioMisiones;
     private readonly IValidador<AgregarPreguntaComando> _validador;
-    private readonly ILogger<AgregarPreguntaManejador> _registro;
+    private readonly IRegistroLogsAplicacion _registroLogs;
 
     public AgregarPreguntaManejador(
         IRepositorioJuegos repositorio,
         IRepositorioMisiones repositorioMisiones,
         IValidador<AgregarPreguntaComando> validador,
-        ILogger<AgregarPreguntaManejador> registro)
+        IRegistroLogsAplicacion registroLogs)
     {
         _repositorio = repositorio;
         _repositorioMisiones = repositorioMisiones;
         _validador = validador;
-        _registro = registro;
+        _registroLogs = registroLogs;
     }
 
     public async Task<Guid> Handle(AgregarPreguntaComando comando, CancellationToken cancelacion)
@@ -49,9 +48,14 @@ public sealed class AgregarPreguntaManejador : IRequestHandler<AgregarPreguntaCo
 
         await _repositorio.AgregarPreguntaAsync(trivia.Id, pregunta, cancelacion);
 
-        _registro.LogInformation(
-            "Pregunta (ID: {PreguntaId}) agregada a la trivia {TriviaId}.",
-            pregunta.Id, trivia.Id);
+        _registroLogs.Informacion(
+            evento: "PreguntaAgregada",
+            descripcion: "Usuario agregó una pregunta correctamente",
+            propiedades: new Dictionary<string, object?>
+            {
+                ["PreguntaId"] = pregunta.Id,
+                ["TriviaId"] = trivia.Id
+            });
 
         return pregunta.Id;
     }

@@ -8,10 +8,14 @@ public sealed class DesactivarBusquedaTesoroManejador
     : IRequestHandler<DesactivarBusquedaTesoroComando>
 {
     private readonly IRepositorioBusquedas _repositorio;
+    private readonly IRegistroLogsAplicacion _registroLogs;
 
-    public DesactivarBusquedaTesoroManejador(IRepositorioBusquedas repositorio)
+    public DesactivarBusquedaTesoroManejador(
+        IRepositorioBusquedas repositorio,
+        IRegistroLogsAplicacion registroLogs)
     {
         _repositorio = repositorio;
+        _registroLogs = registroLogs;
     }
 
     public async Task Handle(
@@ -23,5 +27,13 @@ public sealed class DesactivarBusquedaTesoroManejador
 
         busqueda.Desactivar();
         await _repositorio.DesactivarBusquedaTesoroAsync(busqueda, cancelacion);
+
+        _registroLogs.Informacion(
+            evento: "BusquedaTesoroDesactivada",
+            descripcion: "Usuario desactivó una búsqueda del tesoro correctamente",
+            propiedades: new Dictionary<string, object?>
+            {
+                ["BusquedaId"] = comando.BusquedaId
+            });
     }
 }

@@ -3,7 +3,6 @@ using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Dominio.Excepciones;
 using JuegosServicio.Dominio.ObjetosValor;
 using MediatR;
-using Microsoft.Extensions.Logging;
 
 namespace JuegosServicio.Aplicacion.Comandos.ModificarPregunta;
 
@@ -11,16 +10,16 @@ public sealed class ModificarPreguntaManejador : IRequestHandler<ModificarPregun
 {
     private readonly IRepositorioJuegos _repositorio;
     private readonly IRepositorioMisiones _repositorioMisiones;
-    private readonly ILogger<ModificarPreguntaManejador> _registro;
+    private readonly IRegistroLogsAplicacion _registroLogs;
 
     public ModificarPreguntaManejador(
         IRepositorioJuegos repositorio,
         IRepositorioMisiones repositorioMisiones,
-        ILogger<ModificarPreguntaManejador> registro)
+        IRegistroLogsAplicacion registroLogs)
     {
         _repositorio = repositorio;
         _repositorioMisiones = repositorioMisiones;
-        _registro = registro;
+        _registroLogs = registroLogs;
     }
 
     public async Task Handle(ModificarPreguntaComando comando, CancellationToken cancelacion)
@@ -44,8 +43,13 @@ public sealed class ModificarPreguntaManejador : IRequestHandler<ModificarPregun
         var preguntaModificada = trivia.Preguntas.First(p => p.Id == comando.PreguntaId);
         await _repositorio.ModificarPreguntaAsync(trivia.Id, preguntaModificada, cancelacion);
 
-        _registro.LogInformation(
-            "Pregunta {PreguntaId} modificada en la trivia {TriviaId}.",
-            comando.PreguntaId, comando.TriviaId);
+        _registroLogs.Informacion(
+            evento: "PreguntaModificada",
+            descripcion: "Usuario modificó una pregunta correctamente",
+            propiedades: new Dictionary<string, object?>
+            {
+                ["PreguntaId"] = comando.PreguntaId,
+                ["TriviaId"] = comando.TriviaId
+            });
     }
 }

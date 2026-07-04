@@ -1,10 +1,7 @@
-using SesionesServicio.Aplicacion.Validaciones;
+using SesionesServicio.Aplicacion.Comandos.IngresarEquipo;
 
-namespace SesionesServicio.Aplicacion.Comandos.IngresarEquipo;
+namespace SesionesServicio.Aplicacion.Validaciones;
 
-// HU47 — Validación de formato rápida. La contraseña puede venir null porque
-// los equipos públicos no la requieren; si el equipo es privado, el manejador
-// la exige y la verifica (necesita consultar el equipo para saber su tipo).
 public sealed class IngresarEquipoValidador : ValidadorBase<IngresarEquipoComando>
 {
     protected override void ValidarSolicitud(

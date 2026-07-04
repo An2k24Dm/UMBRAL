@@ -11,15 +11,18 @@ public sealed class AgregarPistaManejador : IRequestHandler<AgregarPistaComando,
     private readonly IRepositorioBusquedas _repositorio;
     private readonly IRepositorioMisiones _repositorioMisiones;
     private readonly IValidador<AgregarPistaComando> _validador;
+    private readonly IRegistroLogsAplicacion _registroLogs;
 
     public AgregarPistaManejador(
         IRepositorioBusquedas repositorio,
         IRepositorioMisiones repositorioMisiones,
-        IValidador<AgregarPistaComando> validador)
+        IValidador<AgregarPistaComando> validador,
+        IRegistroLogsAplicacion registroLogs)
     {
         _repositorio = repositorio;
         _repositorioMisiones = repositorioMisiones;
         _validador = validador;
+        _registroLogs = registroLogs;
     }
 
     public async Task<Guid> Handle(AgregarPistaComando comando, CancellationToken cancelacion)
@@ -37,6 +40,15 @@ public sealed class AgregarPistaManejador : IRequestHandler<AgregarPistaComando,
         var pista = busqueda.AgregarPista(comando.Dto.Contenido);
 
         await _repositorio.AgregarPistaAsync(pista, cancelacion);
+
+        _registroLogs.Informacion(
+            evento: "PistaAgregada",
+            descripcion: "Usuario agregó una pista correctamente",
+            propiedades: new Dictionary<string, object?>
+            {
+                ["BusquedaId"] = comando.BusquedaId,
+                ["PistaId"] = pista.Id
+            });
 
         return pista.Id;
     }

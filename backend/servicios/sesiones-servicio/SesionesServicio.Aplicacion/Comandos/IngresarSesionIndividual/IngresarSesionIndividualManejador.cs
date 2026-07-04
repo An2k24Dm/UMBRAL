@@ -10,8 +10,6 @@ using SesionesServicio.Dominio.Excepciones;
 
 namespace SesionesServicio.Aplicacion.Comandos.IngresarSesionIndividual;
 
-// Caso de uso CQRS: ingreso individual por id de sesión. El flujo vive de
-// forma explícita en el manejador (sin servicio de aplicación intermedio).
 public sealed class IngresarSesionIndividualManejador
     : IRequestHandler<IngresarSesionIndividualComando, IngresarSesionRespuestaDto>
 {
@@ -23,6 +21,7 @@ public sealed class IngresarSesionIndividualManejador
     private readonly PoliticaParticipacionUnicaSesion _participacionUnica;
     private readonly ConstructorRespuestaIngresoSesion _constructorRespuesta;
     private readonly INotificadorSesionesTiempoReal _notificadorTiempoReal;
+    private readonly IRegistroLogsAplicacion _registroLogs;
 
     public IngresarSesionIndividualManejador(
         IRepositorioSesiones repositorio,
@@ -31,7 +30,8 @@ public sealed class IngresarSesionIndividualManejador
         IProveedorFechaHora reloj,
         PoliticaParticipacionUnicaSesion participacionUnica,
         ConstructorRespuestaIngresoSesion constructorRespuesta,
-        INotificadorSesionesTiempoReal notificadorTiempoReal)
+        INotificadorSesionesTiempoReal notificadorTiempoReal,
+        IRegistroLogsAplicacion registroLogs)
     {
         _repositorio = repositorio;
         _unidadTrabajo = unidadTrabajo;
@@ -40,6 +40,7 @@ public sealed class IngresarSesionIndividualManejador
         _participacionUnica = participacionUnica;
         _constructorRespuesta = constructorRespuesta;
         _notificadorTiempoReal = notificadorTiempoReal;
+        _registroLogs = registroLogs;
     }
 
     public async Task<IngresarSesionRespuestaDto> Handle(
@@ -70,8 +71,6 @@ public sealed class IngresarSesionIndividualManejador
 
         if (!yaPertenecia)
         {
-            // Solo cuando hay ingreso real persistimos y, recién después de
-            // guardar, notificamos por tiempo real (el puerto, no SignalR).
             await _participacionUnica.ValidarPuedeIngresarASesionAsync(
                 participanteId, individual.Id, cancelacion);
             individual.AgregarParticipante(participanteId, _reloj.ObtenerFechaHoraUtc());
@@ -79,6 +78,15 @@ public sealed class IngresarSesionIndividualManejador
             await _unidadTrabajo.GuardarCambiosAsync(cancelacion);
             await _notificadorTiempoReal.NotificarParticipantesSesionActualizadosAsync(
                 individual.Id, cancelacion);
+
+            _registroLogs.Informacion(
+                evento: "ParticipanteIngresoSesionIndividual",
+                descripcion: "Participante ingresó a una sesión individual correctamente",
+                propiedades: new Dictionary<string, object?>
+                {
+                    ["SesionId"] = individual.Id,
+                    ["ParticipanteId"] = participanteId
+                });
         }
 
         return await _constructorRespuesta.ConstruirAsync(

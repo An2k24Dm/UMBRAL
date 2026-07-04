@@ -4,7 +4,6 @@ using JuegosServicio.Dominio.Entidades;
 using JuegosServicio.Dominio.Excepciones;
 using JuegosServicio.Dominio.ObjetosValor;
 using MediatR;
-using Microsoft.Extensions.Logging;
 
 namespace JuegosServicio.Aplicacion.Comandos.CrearBusquedaTesoro;
 
@@ -13,18 +12,18 @@ public sealed class CrearBusquedaTesoroManejador : IRequestHandler<CrearBusqueda
     private readonly IRepositorioBusquedas _repositorio;
     private readonly IProveedorFechaHora _reloj;
     private readonly IValidador<CrearBusquedaTesoroComando> _validador;
-    private readonly ILogger<CrearBusquedaTesoroManejador> _registro;
+    private readonly IRegistroLogsAplicacion _registroLogs;
 
     public CrearBusquedaTesoroManejador(
         IRepositorioBusquedas repositorio,
         IProveedorFechaHora reloj,
         IValidador<CrearBusquedaTesoroComando> validador,
-        ILogger<CrearBusquedaTesoroManejador> registro)
+        IRegistroLogsAplicacion registroLogs)
     {
         _repositorio = repositorio;
         _reloj = reloj;
         _validador = validador;
-        _registro = registro;
+        _registroLogs = registroLogs;
     }
 
     public async Task<Guid> Handle(CrearBusquedaTesoroComando comando, CancellationToken cancelacion)
@@ -44,9 +43,15 @@ public sealed class CrearBusquedaTesoroManejador : IRequestHandler<CrearBusqueda
 
         await _repositorio.CrearBusquedaTesoroAsync(busqueda, cancelacion);
 
-        _registro.LogInformation(
-            "Búsqueda del tesoro '{Nombre}' (ID: {Id}) creada por el operador {CreadorId}.",
-            busqueda.Nombre, busqueda.Id, busqueda.CreadorId);
+        _registroLogs.Informacion(
+            evento: "BusquedaTesoroCreada",
+            descripcion: "Usuario creó una búsqueda del tesoro correctamente",
+            propiedades: new Dictionary<string, object?>
+            {
+                ["BusquedaId"] = busqueda.Id,
+                ["Nombre"] = busqueda.Nombre,
+                ["CreadorId"] = busqueda.CreadorId
+            });
 
         return busqueda.Id;
     }

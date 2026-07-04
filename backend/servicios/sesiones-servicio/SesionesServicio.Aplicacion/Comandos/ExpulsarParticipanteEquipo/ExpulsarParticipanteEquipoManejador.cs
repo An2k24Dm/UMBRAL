@@ -24,19 +24,22 @@ public sealed class ExpulsarParticipanteEquipoManejador
     private readonly IUnidadTrabajoSesiones _unidadTrabajo;
     private readonly IUsuarioActual _usuarioActual;
     private readonly INotificadorSesionesTiempoReal _notificadorTiempoReal;
+    private readonly IRegistroLogsAplicacion _registroLogs;
 
     public ExpulsarParticipanteEquipoManejador(
         IValidador<ExpulsarParticipanteEquipoComando> validador,
         IRepositorioSesiones repositorio,
         IUnidadTrabajoSesiones unidadTrabajo,
         IUsuarioActual usuarioActual,
-        INotificadorSesionesTiempoReal notificadorTiempoReal)
+        INotificadorSesionesTiempoReal notificadorTiempoReal,
+        IRegistroLogsAplicacion registroLogs)
     {
         _validador = validador;
         _repositorio = repositorio;
         _unidadTrabajo = unidadTrabajo;
         _usuarioActual = usuarioActual;
         _notificadorTiempoReal = notificadorTiempoReal;
+        _registroLogs = registroLogs;
     }
 
     public async Task Handle(
@@ -89,5 +92,16 @@ public sealed class ExpulsarParticipanteEquipoManejador
             sesionGrupal.Id,
             expulsado.Id,
             cancelacion);
+
+        _registroLogs.Informacion(
+            evento: "ParticipanteExpulsadoEquipo",
+            descripcion: "Usuario expulsó un participante de un equipo correctamente",
+            propiedades: new Dictionary<string, object?>
+            {
+                ["SesionId"] = sesionGrupal.Id,
+                ["EquipoId"] = comando.EquipoId,
+                ["ParticipanteSesionId"] = comando.ParticipanteSesionId,
+                ["ActorId"] = actorId
+            });
     }
 }

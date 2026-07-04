@@ -25,6 +25,7 @@ public sealed class ModificarSesionManejador
     private readonly IProveedorFechaHora _reloj;
     private readonly IFabricaSesion _fabricaSesion;
     private readonly FabricaMapeadorDetalleSesion _fabricaMapeador;
+    private readonly IRegistroLogsAplicacion _registroLogs;
 
     public ModificarSesionManejador(
         IValidador<ModificarSesionComando> validador,
@@ -34,7 +35,8 @@ public sealed class ModificarSesionManejador
         IValidadorMisionesSesion validadorMisiones,
         IProveedorFechaHora reloj,
         IFabricaSesion fabricaSesion,
-        FabricaMapeadorDetalleSesion fabricaMapeador)
+        FabricaMapeadorDetalleSesion fabricaMapeador,
+        IRegistroLogsAplicacion registroLogs)
     {
         _validador = validador;
         _repositorio = repositorio;
@@ -44,6 +46,7 @@ public sealed class ModificarSesionManejador
         _reloj = reloj;
         _fabricaSesion = fabricaSesion;
         _fabricaMapeador = fabricaMapeador;
+        _registroLogs = registroLogs;
     }
 
     public async Task<SesionDetalleDto> Handle(
@@ -83,6 +86,15 @@ public sealed class ModificarSesionManejador
 
         await _repositorio.ActualizarAsync(sesionModificada, cancelacion);
         await _unidadTrabajo.GuardarCambiosAsync(cancelacion);
+
+        _registroLogs.Informacion(
+            evento: "SesionModificada",
+            descripcion: "Operador modificó una sesión correctamente",
+            propiedades: new Dictionary<string, object?>
+            {
+                ["SesionId"] = sesionModificada.Id,
+                ["OperadorId"] = operadorId
+            });
 
         return _fabricaMapeador.Mapear(sesionModificada);
     }

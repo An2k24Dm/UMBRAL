@@ -11,10 +11,6 @@ using SesionesServicio.Dominio.Excepciones;
 
 namespace SesionesServicio.Aplicacion.Comandos.IngresarSesionPorCodigo;
 
-// Caso de uso CQRS: ingreso por código. Si el código corresponde a una
-// sesión individual ejecuta el ingreso directamente (flujo explícito, sin
-// servicio intermedio). Si es grupal solo redirige al detalle: la
-// inscripción grupal ocurre al crear o unirse a un equipo, nunca aquí.
 public sealed class IngresarSesionPorCodigoManejador
     : IRequestHandler<IngresarSesionPorCodigoComando, IngresarSesionRespuestaDto>
 {
@@ -30,6 +26,7 @@ public sealed class IngresarSesionPorCodigoManejador
     private readonly PoliticaParticipacionUnicaSesion _participacionUnica;
     private readonly ConstructorRespuestaIngresoSesion _constructorRespuesta;
     private readonly INotificadorSesionesTiempoReal _notificadorTiempoReal;
+    private readonly IRegistroLogsAplicacion _registroLogs;
 
     public IngresarSesionPorCodigoManejador(
         IValidador<IngresarSesionPorCodigoComando> validador,
@@ -39,7 +36,8 @@ public sealed class IngresarSesionPorCodigoManejador
         IProveedorFechaHora reloj,
         PoliticaParticipacionUnicaSesion participacionUnica,
         ConstructorRespuestaIngresoSesion constructorRespuesta,
-        INotificadorSesionesTiempoReal notificadorTiempoReal)
+        INotificadorSesionesTiempoReal notificadorTiempoReal,
+        IRegistroLogsAplicacion registroLogs)
     {
         _validador = validador;
         _repositorio = repositorio;
@@ -49,6 +47,7 @@ public sealed class IngresarSesionPorCodigoManejador
         _participacionUnica = participacionUnica;
         _constructorRespuesta = constructorRespuesta;
         _notificadorTiempoReal = notificadorTiempoReal;
+        _registroLogs = registroLogs;
     }
 
     public async Task<IngresarSesionRespuestaDto> Handle(
@@ -68,8 +67,6 @@ public sealed class IngresarSesionPorCodigoManejador
         if (sesion is not SesionGrupal grupal)
             throw new SesionInvalidaExcepcion("El modo de la sesión no es válido.");
 
-        // Sesión grupal: no se registra participante ni se modifica el
-        // agregado. La inscripción real es al crear o unirse a un equipo.
         var yaPertenecia = grupal.Equipos.Any(
             e => e.ContieneParticipanteIdentidadId(participanteId));
         return await _constructorRespuesta.ConstruirAsync(
@@ -93,8 +90,6 @@ public sealed class IngresarSesionPorCodigoManejador
 
         if (!yaPertenecia)
         {
-            // Persistimos y, recién después de guardar, notificamos por
-            // tiempo real a través del puerto (nunca SignalR directo aquí).
             await _participacionUnica.ValidarPuedeIngresarASesionAsync(
                 participanteId, individual.Id, cancelacion);
             individual.AgregarParticipante(participanteId, _reloj.ObtenerFechaHoraUtc());
@@ -102,6 +97,15 @@ public sealed class IngresarSesionPorCodigoManejador
             await _unidadTrabajo.GuardarCambiosAsync(cancelacion);
             await _notificadorTiempoReal.NotificarParticipantesSesionActualizadosAsync(
                 individual.Id, cancelacion);
+
+            _registroLogs.Informacion(
+                evento: "ParticipanteIngresoSesionPorCodigo",
+                descripcion: "Participante ingresó a una sesión por código correctamente",
+                propiedades: new Dictionary<string, object?>
+                {
+                    ["SesionId"] = individual.Id,
+                    ["ParticipanteId"] = participanteId
+                });
         }
 
         return await _constructorRespuesta.ConstruirAsync(

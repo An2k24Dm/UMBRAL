@@ -74,7 +74,8 @@ public class ModificarSesionManejadorPruebas
         public ModificarSesionManejador Construir()
             => new(new ValidadorModificarSesion(), Repo.Object, Unidad.Object,
                 Usuario.Object, new ValidadorMisionesSesion(Misiones.Object),
-                Reloj.Object, FabricaSesionReal, FabricaMapeador);
+                Reloj.Object, FabricaSesionReal, FabricaMapeador,
+                Mock.Of<IRegistroLogsAplicacion>());
     }
 
     private static IEnumerable<SesionMision> Misiones(Guid sesionId, params Guid[] ids)

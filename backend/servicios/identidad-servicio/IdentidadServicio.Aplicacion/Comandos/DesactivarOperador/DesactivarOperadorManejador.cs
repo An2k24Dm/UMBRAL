@@ -4,7 +4,6 @@ using IdentidadServicio.Commons.Dtos;
 using IdentidadServicio.Dominio.Enums;
 using IdentidadServicio.Dominio.Excepciones;
 using MediatR;
-using Microsoft.Extensions.Logging;
 
 namespace IdentidadServicio.Aplicacion.Comandos.DesactivarOperador;
 
@@ -14,49 +13,53 @@ public sealed class DesactivarOperadorManejador
     private readonly IAutorizadorUsuarioActivo _autorizador;
     private readonly IRepositorioOperadores _repositorio;
     private readonly IUnidadTrabajoIdentidad _unidadTrabajo;
-    private readonly ILogger<DesactivarOperadorManejador> _registro;
+    private readonly IRegistroLogsAplicacion _registroLogs;
 
     public DesactivarOperadorManejador(
         IAutorizadorUsuarioActivo autorizador,
         IRepositorioOperadores repositorio,
         IUnidadTrabajoIdentidad unidadTrabajo,
-        ILogger<DesactivarOperadorManejador> registro)
+        IRegistroLogsAplicacion registroLogs)
     {
         _autorizador = autorizador;
         _repositorio = repositorio;
         _unidadTrabajo = unidadTrabajo;
-        _registro = registro;
+        _registroLogs = registroLogs;
     }
 
     public async Task<CambiarEstadoUsuarioRespuestaDto> Handle(
         DesactivarOperadorComando comando, CancellationToken cancelacion)
     {
-        // 1) Invocador: sólo un Administrador Activo puede desactivar Operadores.
         await _autorizador.RequerirRolActivoAsync(RolUsuario.Administrador, cancelacion);
 
-        // 2) Resolver el objetivo. ObtenerPorIdAsync filtra por rol Operador,
-        //    así que devuelve null si el id pertenece a otro rol.
         var operador = await _repositorio.ObtenerPorIdAsync(comando.IdOperador, cancelacion)
             ?? throw new DatosUsuarioInvalidosExcepcion(
                 $"No existe un Operador con id {comando.IdOperador}.");
 
-        // 3) Idempotencia controlada: si ya está Inactivo, error de negocio.
         if (operador.Estado != EstadoUsuario.Activo)
         {
-            _registro.LogInformation(
-                "Solicitud HU12 sobre Operador {Id} ya Inactivo.", operador.Id);
+            _registroLogs.Advertencia(
+                evento: "OperadorYaInactivo",
+                descripcion: "Solicitud de desactivación sobre un Operador que ya está Inactivo.",
+                propiedades: new Dictionary<string, object?>
+                {
+                    ["OperadorId"] = operador.Id
+                });
             throw new UsuarioYaInactivoExcepcion();
         }
 
-        // 4) Regla de dominio: mover a Inactivo.
         operador.Desactivar();
 
-        // 5) Persistir SÓLO el Estado.
         await _repositorio.ActualizarEstadoAsync(operador, cancelacion);
         await _unidadTrabajo.GuardarCambiosAsync(cancelacion);
 
-        _registro.LogInformation(
-            "Operador {Id} desactivado por Administrador (HU12).", operador.Id);
+        _registroLogs.Informacion(
+            evento: "OperadorDesactivado",
+            descripcion: "Administrador desactivó un operador correctamente",
+            propiedades: new Dictionary<string, object?>
+            {
+                ["OperadorId"] = operador.Id
+            });
 
         return new CambiarEstadoUsuarioRespuestaDto
         {

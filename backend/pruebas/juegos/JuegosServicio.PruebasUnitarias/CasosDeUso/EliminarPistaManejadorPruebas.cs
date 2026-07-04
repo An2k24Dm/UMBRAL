@@ -14,7 +14,8 @@ public class EliminarPistaManejadorPruebas
     private static readonly DateTime FechaFija =
         new(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc);
 
-    private EliminarPistaManejador CrearManejador() => new(_repositorio.Object, _repositorioMisiones.Object);
+    private EliminarPistaManejador CrearManejador() =>
+        new(_repositorio.Object, _repositorioMisiones.Object, Mock.Of<IRegistroLogsAplicacion>());
 
     private static BusquedaTesoro BusquedaConPista(out Guid pistaId)
     {

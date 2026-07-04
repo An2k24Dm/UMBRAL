@@ -5,7 +5,6 @@ using JuegosServicio.Dominio.Entidades;
 using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Dominio.Excepciones;
 using JuegosServicio.Dominio.ObjetosValor;
-using Microsoft.Extensions.Logging;
 
 namespace JuegosServicio.PruebasUnitarias.CasosDeUso;
 
@@ -14,7 +13,7 @@ public class ModificarPreguntaManejadorPruebas
 {
     private readonly Mock<IRepositorioJuegos> _repositorio = new();
     private readonly Mock<IRepositorioMisiones> _repositorioMisiones = new();
-    private readonly Mock<ILogger<ModificarPreguntaManejador>> _registro = new();
+    private readonly Mock<IRegistroLogsAplicacion> _registro = new();
 
     private static readonly DateTime FechaFija =
         new(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc);

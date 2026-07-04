@@ -5,10 +5,10 @@ using Mapster;
 
 namespace IdentidadServicio.Infraestructura.Persistencia.Mapeadores;
 
-// Mapeo dominio â†” persistencia con Mapster.
-// El dominio NO conoce IdKeycloak: viaja como parÃ¡metro al mapear hacia los
+// Mapeo dominio ↔ persistencia con Mapster.
+// El dominio NO conoce IdKeycloak: viaja como parámetro al mapear hacia los
 // modelos. Las VOs NombreUsuario/Correo/NombrePersona/DatosContacto se
-// desempaquetan vÃ­a .Map(...) explÃ­citos.
+// desempaquetan vía .Map(...) explícitos.
 public sealed class IdentidadMapeador
 {
     public sealed record ModelosAdministrador(
@@ -56,7 +56,7 @@ public sealed class IdentidadMapeador
             .Ignore(d => d.PersonaId)
             .Ignore(d => d.Persona!);
 
-        // Reverso vÃ­a ConstructUsing.
+        // Reverso vía ConstructUsing.
         _config.NewConfig<TripletaAdmin, Administrador>()
             .MapToConstructor(true)
             .ConstructUsing(t => new Administrador(

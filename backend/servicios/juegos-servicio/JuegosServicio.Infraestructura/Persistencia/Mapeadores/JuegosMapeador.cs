@@ -6,7 +6,7 @@ namespace JuegosServicio.Infraestructura.Persistencia.Mapeadores;
 
 public static class JuegosMapeador
 {
-    // Dominio â†’ Modelos
+    // Dominio → Modelos
 
     public static TriviaModelo AModelo(Trivia trivia)
     {
@@ -47,7 +47,7 @@ public static class JuegosMapeador
         };
     }
 
-    // Modelos â†’ Dominio
+    // Modelos → Dominio
 
     public static Trivia ADominio(TriviaModelo modelo)
     {

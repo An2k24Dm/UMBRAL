@@ -88,7 +88,8 @@ public class IngresarEquipoManejadorPruebas
                 Hash.Object,
                 Reloj.Object,
                 new PoliticaParticipacionUnicaSesion(Consultas.Object),
-                Notificador.Object);
+                Notificador.Object,
+                Mock.Of<IRegistroLogsAplicacion>());
 
         public Task<IngresarEquipoRespuestaDto> Ejecutar(string? contrasena = null)
             => Construir().Handle(

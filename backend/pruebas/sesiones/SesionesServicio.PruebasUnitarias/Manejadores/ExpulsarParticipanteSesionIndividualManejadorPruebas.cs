@@ -54,7 +54,8 @@ public class ExpulsarParticipanteSesionIndividualManejadorPruebas
         }
 
         public ExpulsarParticipanteSesionIndividualManejador Construir()
-            => new(Repo.Object, Unidad.Object, Usuario.Object, Notificador.Object);
+            => new(Repo.Object, Unidad.Object, Usuario.Object, Notificador.Object,
+                Mock.Of<IRegistroLogsAplicacion>());
 
         public Task Ejecutar()
             => Construir().Handle(

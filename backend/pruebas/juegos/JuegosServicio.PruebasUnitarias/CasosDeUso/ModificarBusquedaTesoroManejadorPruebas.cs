@@ -18,7 +18,8 @@ public class ModificarBusquedaTesoroManejadorPruebas
         new(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc);
 
     private ModificarBusquedaTesoroManejador CrearManejador() =>
-        new(_repositorio.Object, _repositorioMisiones.Object, _validador.Object);
+        new(_repositorio.Object, _repositorioMisiones.Object, _validador.Object,
+            Mock.Of<IRegistroLogsAplicacion>());
 
     private static BusquedaTesoro BusquedaInactiva() =>
         BusquedaTesoro.Crear("Búsqueda Original", "Descripción original", Guid.NewGuid(), FechaFija);

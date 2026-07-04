@@ -9,11 +9,16 @@ public sealed class EliminarTriviaManejador : IRequestHandler<EliminarTriviaComa
 {
     private readonly IRepositorioJuegos _repositorio;
     private readonly IRepositorioMisiones _repositorioMisiones;
+    private readonly IRegistroLogsAplicacion _registroLogs;
 
-    public EliminarTriviaManejador(IRepositorioJuegos repositorio, IRepositorioMisiones repositorioMisiones)
+    public EliminarTriviaManejador(
+        IRepositorioJuegos repositorio,
+        IRepositorioMisiones repositorioMisiones,
+        IRegistroLogsAplicacion registroLogs)
     {
         _repositorio = repositorio;
         _repositorioMisiones = repositorioMisiones;
+        _registroLogs = registroLogs;
     }
 
     public async Task Handle(EliminarTriviaComando comando, CancellationToken cancelacion)
@@ -28,5 +33,13 @@ public sealed class EliminarTriviaManejador : IRequestHandler<EliminarTriviaComa
             throw new ExcepcionDominio("No se puede eliminar la trivia porque está asignada a una o más misiones.");
 
         await _repositorio.EliminarTriviaAsync(comando.TriviaId, cancelacion);
+
+        _registroLogs.Informacion(
+            evento: "TriviaEliminada",
+            descripcion: "Usuario eliminó o archivó una trivia correctamente",
+            propiedades: new Dictionary<string, object?>
+            {
+                ["TriviaId"] = comando.TriviaId
+            });
     }
 }
