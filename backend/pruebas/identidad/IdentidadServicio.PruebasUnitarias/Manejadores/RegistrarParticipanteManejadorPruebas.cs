@@ -8,7 +8,6 @@ using IdentidadServicio.Aplicacion.Validaciones;
 using IdentidadServicio.Commons.Dtos;
 using IdentidadServicio.Dominio.Entidades;
 using IdentidadServicio.Dominio.Enums;
-using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
 namespace IdentidadServicio.PruebasUnitarias.Manejadores;
@@ -55,7 +54,7 @@ public class RegistrarParticipanteManejadorPruebas
             _reloj.Object,
             fabrica,
             _validador.Object,
-            NullLogger<RegistrarParticipanteManejador>.Instance);
+            Mock.Of<IRegistroLogsAplicacion>());
     }
 
     private static RegistrarParticipanteDto Dto() => new()

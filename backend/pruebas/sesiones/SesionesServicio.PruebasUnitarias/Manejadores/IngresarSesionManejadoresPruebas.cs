@@ -75,7 +75,8 @@ public class IngresarSesionManejadoresPruebas
                 Reloj.Object,
                 new PoliticaParticipacionUnicaSesion(Consultas.Object),
                 ConstructorRespuesta(),
-                Notificador.Object);
+                Notificador.Object,
+                Mock.Of<IRegistroLogsAplicacion>());
 
         public IngresarSesionIndividualManejador Individual()
             => new(
@@ -85,7 +86,8 @@ public class IngresarSesionManejadoresPruebas
                 Reloj.Object,
                 new PoliticaParticipacionUnicaSesion(Consultas.Object),
                 ConstructorRespuesta(),
-                Notificador.Object);
+                Notificador.Object,
+                Mock.Of<IRegistroLogsAplicacion>());
     }
 
     private static SesionIndividual IndividualEn(EstadoSesion estado)

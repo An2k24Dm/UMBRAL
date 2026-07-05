@@ -19,17 +19,20 @@ public sealed class ExpulsarEquipoSesionGrupalManejador
     private readonly IUnidadTrabajoSesiones _unidadTrabajo;
     private readonly IUsuarioActual _usuarioActual;
     private readonly INotificadorSesionesTiempoReal _notificadorTiempoReal;
+    private readonly IRegistroLogsAplicacion _registroLogs;
 
     public ExpulsarEquipoSesionGrupalManejador(
         IRepositorioSesiones repositorio,
         IUnidadTrabajoSesiones unidadTrabajo,
         IUsuarioActual usuarioActual,
-        INotificadorSesionesTiempoReal notificadorTiempoReal)
+        INotificadorSesionesTiempoReal notificadorTiempoReal,
+        IRegistroLogsAplicacion registroLogs)
     {
         _repositorio = repositorio;
         _unidadTrabajo = unidadTrabajo;
         _usuarioActual = usuarioActual;
         _notificadorTiempoReal = notificadorTiempoReal;
+        _registroLogs = registroLogs;
     }
 
     public async Task Handle(
@@ -77,5 +80,15 @@ public sealed class ExpulsarEquipoSesionGrupalManejador
             grupal.Id, comando.EquipoId, cancelacion);
         await _notificadorTiempoReal.NotificarEquipoExpulsadoAsync(
             integrantesIdentidadIds, grupal.Id, comando.EquipoId, equipoNombre, cancelacion);
+
+        _registroLogs.Informacion(
+            evento: "EquipoExpulsadoSesionGrupal",
+            descripcion: "Operador expulsó un equipo de una sesión grupal correctamente",
+            propiedades: new Dictionary<string, object?>
+            {
+                ["SesionId"] = grupal.Id,
+                ["EquipoId"] = comando.EquipoId,
+                ["OperadorId"] = operadorId
+            });
     }
 }

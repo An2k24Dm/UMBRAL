@@ -2,7 +2,6 @@ using JuegosServicio.Aplicacion.Puertos;
 using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Dominio.Excepciones;
 using MediatR;
-using Microsoft.Extensions.Logging;
 
 namespace JuegosServicio.Aplicacion.Comandos.EliminarPregunta;
 
@@ -10,16 +9,16 @@ public sealed class EliminarPreguntaManejador : IRequestHandler<EliminarPregunta
 {
     private readonly IRepositorioJuegos _repositorio;
     private readonly IRepositorioMisiones _repositorioMisiones;
-    private readonly ILogger<EliminarPreguntaManejador> _registro;
+    private readonly IRegistroLogsAplicacion _registroLogs;
 
     public EliminarPreguntaManejador(
         IRepositorioJuegos repositorio,
         IRepositorioMisiones repositorioMisiones,
-        ILogger<EliminarPreguntaManejador> registro)
+        IRegistroLogsAplicacion registroLogs)
     {
         _repositorio = repositorio;
         _repositorioMisiones = repositorioMisiones;
-        _registro = registro;
+        _registroLogs = registroLogs;
     }
 
     public async Task Handle(EliminarPreguntaComando comando, CancellationToken cancelacion)
@@ -35,8 +34,13 @@ public sealed class EliminarPreguntaManejador : IRequestHandler<EliminarPregunta
 
         await _repositorio.EliminarPreguntaAsync(trivia.Id, comando.PreguntaId, cancelacion);
 
-        _registro.LogInformation(
-            "Pregunta {PreguntaId} eliminada de la trivia {TriviaId}.",
-            comando.PreguntaId, comando.TriviaId);
+        _registroLogs.Informacion(
+            evento: "PreguntaEliminada",
+            descripcion: "Usuario eliminó una pregunta correctamente",
+            propiedades: new Dictionary<string, object?>
+            {
+                ["PreguntaId"] = comando.PreguntaId,
+                ["TriviaId"] = comando.TriviaId
+            });
     }
 }

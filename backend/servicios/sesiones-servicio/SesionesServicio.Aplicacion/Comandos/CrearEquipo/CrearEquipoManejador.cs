@@ -11,9 +11,6 @@ using SesionesServicio.Dominio.ObjetosValor;
 
 namespace SesionesServicio.Aplicacion.Comandos.CrearEquipo;
 
-// HU40 — Crear un equipo en una sesión grupal en estado EnPreparacion. Solo
-// un Participante autenticado puede crearlo y queda como líder dentro del
-// equipo. Administrador y Operador no pueden crear equipos.
 public sealed class CrearEquipoManejador
     : IRequestHandler<CrearEquipoComando, CrearEquipoRespuestaDto>
 {
@@ -27,6 +24,7 @@ public sealed class CrearEquipoManejador
     private readonly IProveedorFechaHora _reloj;
     private readonly PoliticaParticipacionUnicaSesion _participacionUnica;
     private readonly INotificadorSesionesTiempoReal _notificadorTiempoReal;
+    private readonly IRegistroLogsAplicacion _registroLogs;
 
     public CrearEquipoManejador(
         IValidador<CrearEquipoComando> validador,
@@ -36,7 +34,8 @@ public sealed class CrearEquipoManejador
         IHashContrasenaEquipo hashContrasena,
         IProveedorFechaHora reloj,
         PoliticaParticipacionUnicaSesion participacionUnica,
-        INotificadorSesionesTiempoReal notificadorTiempoReal)
+        INotificadorSesionesTiempoReal notificadorTiempoReal,
+        IRegistroLogsAplicacion registroLogs)
     {
         _validador = validador;
         _repositorio = repositorio;
@@ -46,6 +45,7 @@ public sealed class CrearEquipoManejador
         _reloj = reloj;
         _participacionUnica = participacionUnica;
         _notificadorTiempoReal = notificadorTiempoReal;
+        _registroLogs = registroLogs;
     }
 
     public async Task<CrearEquipoRespuestaDto> Handle(
@@ -68,8 +68,6 @@ public sealed class CrearEquipoManejador
         var sesion = await _repositorio.ObtenerPorIdAsync(comando.SesionId, cancelacion)
             ?? throw new SesionNoEncontradaExcepcion("La sesión solicitada no existe.");
 
-        // Regla de participación única: bloquea si el participante ya está en
-        // otra sesión activa, o si ya pertenece a esta misma sesión.
         await _participacionUnica.ValidarPuedeIngresarASesionAsync(
             participanteId, comando.SesionId, cancelacion);
 
@@ -89,8 +87,6 @@ public sealed class CrearEquipoManejador
         ContrasenaEquipoHash? contrasenaHash = null;
         if (tipo == TipoEquipo.Privado)
         {
-            // La contraseña en texto plano solo vive aquí; se hashea antes de
-            // entrar al agregado y nunca se persiste ni se devuelve.
             var hash = _hashContrasena.Hashear(comando.Datos.Contrasena!.Trim());
             contrasenaHash = ContrasenaEquipoHash.Crear(hash);
         }
@@ -104,6 +100,16 @@ public sealed class CrearEquipoManejador
         await _unidadTrabajo.GuardarCambiosAsync(cancelacion);
         await _notificadorTiempoReal.NotificarEquiposSesionActualizadosAsync(
             sesionGrupal.Id, equipo.Id, cancelacion);
+
+        _registroLogs.Informacion(
+            evento: "EquipoCreado",
+            descripcion: "Participante creó un equipo correctamente",
+            propiedades: new Dictionary<string, object?>
+            {
+                ["SesionId"] = sesionGrupal.Id,
+                ["EquipoId"] = equipo.Id,
+                ["ParticipanteId"] = participanteId
+            });
 
         return new CrearEquipoRespuestaDto
         {

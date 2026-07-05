@@ -5,7 +5,6 @@ using IdentidadServicio.Commons.Dtos;
 using IdentidadServicio.Dominio.Enums;
 using IdentidadServicio.Dominio.Excepciones;
 using MediatR;
-using Microsoft.Extensions.Logging;
 
 namespace IdentidadServicio.Aplicacion.Comandos.ResetearContrasenaUsuario;
 
@@ -17,7 +16,7 @@ public sealed class ResetearContrasenaUsuarioManejador
     private readonly IProveedorIdentidad _proveedor;
     private readonly IGeneradorContrasenaTemporal _generador;
     private readonly IServicioCorreo _correo;
-    private readonly ILogger<ResetearContrasenaUsuarioManejador> _registro;
+    private readonly IRegistroLogsAplicacion _registroLogs;
 
     public ResetearContrasenaUsuarioManejador(
         IRepositorioUsuariosLectura lectura,
@@ -25,14 +24,14 @@ public sealed class ResetearContrasenaUsuarioManejador
         IProveedorIdentidad proveedor,
         IGeneradorContrasenaTemporal generador,
         IServicioCorreo correo,
-        ILogger<ResetearContrasenaUsuarioManejador> registro)
+        IRegistroLogsAplicacion registroLogs)
     {
         _lectura = lectura;
         _controlContrasena = controlContrasena;
         _proveedor = proveedor;
         _generador = generador;
         _correo = correo;
-        _registro = registro;
+        _registroLogs = registroLogs;
     }
 
     public async Task<ResetearContrasenaRespuestaDto> Handle(
@@ -50,19 +49,30 @@ public sealed class ResetearContrasenaUsuarioManejador
             comando.IdUsuario, cancelacion);
         if (string.IsNullOrWhiteSpace(idKeycloak))
         {
-            _registro.LogError(
-                "Reset de contraseña abortado: usuario {Id} ({NombreUsuario}, rol={Rol}) " +
-                "no tiene IdKeycloak asociado.",
-                usuario.Id, usuario.NombreUsuario.Valor, usuario.Rol);
+            _registroLogs.Advertencia(
+                evento: "UsuarioSinIdKeycloak",
+                descripcion: "Reset de contraseña abortado: el usuario no tiene IdKeycloak asociado.",
+                propiedades: new Dictionary<string, object?>
+                {
+                    ["UsuarioId"] = usuario.Id,
+                    ["NombreUsuario"] = usuario.NombreUsuario.Valor,
+                    ["Rol"] = usuario.Rol.ToString()
+                });
             throw new InvalidOperationException(
                 $"El usuario {comando.IdUsuario} no tiene IdKeycloak asociado: " +
                 "imposible resetear contraseña en Keycloak.");
         }
 
-        _registro.LogInformation(
-            "Iniciando reseteo de contraseña. Usuario={NombreUsuario}, Id={Id}, " +
-            "IdKeycloak={IdKeycloak}, Rol={Rol}.",
-            usuario.NombreUsuario.Valor, usuario.Id, idKeycloak, usuario.Rol);
+        _registroLogs.Informacion(
+            evento: "ResetContrasenaIniciado",
+            descripcion: "Iniciando reseteo de contraseña.",
+            propiedades: new Dictionary<string, object?>
+            {
+                ["NombreUsuario"] = usuario.NombreUsuario.Valor,
+                ["UsuarioId"] = usuario.Id,
+                ["IdKeycloak"] = idKeycloak,
+                ["Rol"] = usuario.Rol.ToString()
+            });
 
         var contrasenaTemporal = _generador.Generar();
 
@@ -73,10 +83,16 @@ public sealed class ResetearContrasenaUsuarioManejador
         }
         catch (Exception ex)
         {
-            _registro.LogError(ex,
-                "Keycloak rechazó el reset de contraseña. Usuario={NombreUsuario}, " +
-                "Id={Id}, IdKeycloak={IdKeycloak}. No se envía correo.",
-                usuario.NombreUsuario.Valor, usuario.Id, idKeycloak);
+            _registroLogs.Error(
+                excepcion: ex,
+                evento: "ResetContrasenaRechazado",
+                descripcion: "Keycloak rechazó el reset de contraseña. No se envía correo.",
+                propiedades: new Dictionary<string, object?>
+                {
+                    ["NombreUsuario"] = usuario.NombreUsuario.Valor,
+                    ["UsuarioId"] = usuario.Id,
+                    ["IdKeycloak"] = idKeycloak
+                });
             throw;
         }
 
@@ -94,10 +110,16 @@ public sealed class ResetearContrasenaUsuarioManejador
             cuerpo,
             cancelacion);
 
-        _registro.LogInformation(
-            "Reseteo de contraseña completado. Usuario={NombreUsuario}, Id={Id}, " +
-            "IdKeycloak={IdKeycloak}, correo={Correo}.",
-            usuario.NombreUsuario.Valor, usuario.Id, idKeycloak, usuario.Correo.Valor);
+        _registroLogs.Informacion(
+            evento: "ContrasenaUsuarioReseteada",
+            descripcion: "Administrador reseteó la contraseña temporal de un usuario correctamente",
+            propiedades: new Dictionary<string, object?>
+            {
+                ["NombreUsuario"] = usuario.NombreUsuario.Valor,
+                ["UsuarioId"] = usuario.Id,
+                ["IdKeycloak"] = idKeycloak,
+                ["Correo"] = usuario.Correo.Valor
+            });
 
         return new ResetearContrasenaRespuestaDto
         {

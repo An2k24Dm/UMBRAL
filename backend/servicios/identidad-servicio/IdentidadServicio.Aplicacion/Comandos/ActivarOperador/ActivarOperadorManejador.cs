@@ -4,7 +4,6 @@ using IdentidadServicio.Commons.Dtos;
 using IdentidadServicio.Dominio.Enums;
 using IdentidadServicio.Dominio.Excepciones;
 using MediatR;
-using Microsoft.Extensions.Logging;
 
 namespace IdentidadServicio.Aplicacion.Comandos.ActivarOperador;
 
@@ -14,18 +13,18 @@ public sealed class ActivarOperadorManejador
     private readonly IAutorizadorUsuarioActivo _autorizador;
     private readonly IRepositorioOperadores _repositorio;
     private readonly IUnidadTrabajoIdentidad _unidadTrabajo;
-    private readonly ILogger<ActivarOperadorManejador> _registro;
+    private readonly IRegistroLogsAplicacion _registroLogs;
 
     public ActivarOperadorManejador(
         IAutorizadorUsuarioActivo autorizador,
         IRepositorioOperadores repositorio,
         IUnidadTrabajoIdentidad unidadTrabajo,
-        ILogger<ActivarOperadorManejador> registro)
+        IRegistroLogsAplicacion registroLogs)
     {
         _autorizador = autorizador;
         _repositorio = repositorio;
         _unidadTrabajo = unidadTrabajo;
-        _registro = registro;
+        _registroLogs = registroLogs;
     }
 
     public async Task<CambiarEstadoUsuarioRespuestaDto> Handle(
@@ -38,8 +37,13 @@ public sealed class ActivarOperadorManejador
 
         if (operador.Estado == EstadoUsuario.Activo)
         {
-            _registro.LogInformation(
-                "Solicitud de activación sobre Operador {Id} ya Activo.", operador.Id);
+            _registroLogs.Advertencia(
+                evento: "OperadorYaActivo",
+                descripcion: "Solicitud de activación sobre un Operador que ya está Activo.",
+                propiedades: new Dictionary<string, object?>
+                {
+                    ["OperadorId"] = operador.Id
+                });
             throw new UsuarioYaActivoExcepcion();
         }
 
@@ -48,8 +52,13 @@ public sealed class ActivarOperadorManejador
         await _repositorio.ActualizarEstadoAsync(operador, cancelacion);
         await _unidadTrabajo.GuardarCambiosAsync(cancelacion);
 
-        _registro.LogInformation(
-            "Operador {Id} activado por Administrador.", operador.Id);
+        _registroLogs.Informacion(
+            evento: "OperadorActivado",
+            descripcion: "Administrador activó un operador correctamente",
+            propiedades: new Dictionary<string, object?>
+            {
+                ["OperadorId"] = operador.Id
+            });
 
         return new CambiarEstadoUsuarioRespuestaDto
         {

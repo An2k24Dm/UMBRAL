@@ -12,17 +12,20 @@ public sealed class AgregarEtapaManejador : IRequestHandler<AgregarEtapaComando,
     private readonly IRepositorioBusquedas _repositorioBusquedas;
     private readonly IRepositorioJuegos _repositorioJuegos;
     private readonly IValidador<AgregarEtapaComando> _validador;
+    private readonly IRegistroLogsAplicacion _registroLogs;
 
     public AgregarEtapaManejador(
         IRepositorioMisiones repositorioMisiones,
         IRepositorioBusquedas repositorioBusquedas,
         IRepositorioJuegos repositorioJuegos,
-        IValidador<AgregarEtapaComando> validador)
+        IValidador<AgregarEtapaComando> validador,
+        IRegistroLogsAplicacion registroLogs)
     {
         _repositorioMisiones = repositorioMisiones;
         _repositorioBusquedas = repositorioBusquedas;
         _repositorioJuegos = repositorioJuegos;
         _validador = validador;
+        _registroLogs = registroLogs;
     }
 
     public async Task<Guid> Handle(AgregarEtapaComando comando, CancellationToken cancelacion)
@@ -38,6 +41,16 @@ public sealed class AgregarEtapaManejador : IRequestHandler<AgregarEtapaComando,
 
         var etapa = mision.AgregarEtapa(tipo, comando.Dto.ModoDeJuegoId);
         await _repositorioMisiones.AgregarEtapaAsync(etapa, cancelacion);
+
+        _registroLogs.Informacion(
+            evento: "EtapaAgregada",
+            descripcion: "Usuario agregó una etapa correctamente",
+            propiedades: new Dictionary<string, object?>
+            {
+                ["MisionId"] = comando.MisionId,
+                ["EtapaId"] = etapa.Id
+            });
+
         return etapa.Id;
     }
 

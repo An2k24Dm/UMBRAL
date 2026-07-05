@@ -20,7 +20,8 @@ public class ModificarTriviaManejadorPruebas
         new(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc);
 
     private ModificarTriviaManejador CrearManejador() =>
-        new(_repositorio.Object, _repositorioMisiones.Object, _validador.Object);
+        new(_repositorio.Object, _repositorioMisiones.Object, _validador.Object,
+            Mock.Of<IRegistroLogsAplicacion>());
 
     private static Trivia TriviaEnBorrador() =>
         Trivia.Crear(

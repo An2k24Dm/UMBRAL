@@ -5,7 +5,6 @@ using IdentidadServicio.Dominio.Entidades;
 using IdentidadServicio.Dominio.Enums;
 using IdentidadServicio.Dominio.Excepciones;
 using IdentidadServicio.PruebasUnitarias.Mapeadores.Perfil;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace IdentidadServicio.PruebasUnitarias.Manejadores;
 
@@ -44,7 +43,7 @@ public class DesactivarParticipanteManejadorPruebas
             _autorizador.Object,
             _repositorio.Object,
             _unidad.Object,
-            NullLogger<DesactivarParticipanteManejador>.Instance);
+            Mock.Of<IRegistroLogsAplicacion>());
 
     [Fact]
     public async Task ParticipanteInvocador_LanzaAccesoNoPermitido()

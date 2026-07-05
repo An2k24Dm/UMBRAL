@@ -66,7 +66,8 @@ public class AbandonarSesionManejadorPruebas
                 Repo.Object,
                 Unidad.Object,
                 Usuario.Object,
-                Notificador.Object);
+                Notificador.Object,
+                Mock.Of<IRegistroLogsAplicacion>());
 
         public Task Ejecutar()
             => Construir().Handle(

@@ -6,7 +6,6 @@ using IdentidadServicio.Commons.Dtos;
 using IdentidadServicio.Dominio.Entidades;
 using IdentidadServicio.Dominio.Excepciones;
 using MediatR;
-using Microsoft.Extensions.Logging;
 
 namespace IdentidadServicio.Aplicacion.Comandos.ModificarOperador;
 
@@ -20,7 +19,7 @@ public sealed class ModificarOperadorManejador
     private readonly IValidadorAsincrono<ModificarOperadorComando> _validadorUnicidad;
     private readonly AplicadorCambiosUsuario _aplicadorCambios;
     private readonly FabricaEstrategiaMapeoPerfilUsuario _fabricaMapeo;
-    private readonly ILogger<ModificarOperadorManejador> _registro;
+    private readonly IRegistroLogsAplicacion _registroLogs;
 
     public ModificarOperadorManejador(
         IRepositorioOperadores repositorioOperadores,
@@ -30,7 +29,7 @@ public sealed class ModificarOperadorManejador
         IValidadorAsincrono<ModificarOperadorComando> validadorUnicidad,
         AplicadorCambiosUsuario aplicadorCambios,
         FabricaEstrategiaMapeoPerfilUsuario fabricaMapeo,
-        ILogger<ModificarOperadorManejador> registro)
+        IRegistroLogsAplicacion registroLogs)
     {
         _repositorioOperadores = repositorioOperadores;
         _unidadTrabajo = unidadTrabajo;
@@ -39,7 +38,7 @@ public sealed class ModificarOperadorManejador
         _validadorUnicidad = validadorUnicidad;
         _aplicadorCambios = aplicadorCambios;
         _fabricaMapeo = fabricaMapeo;
-        _registro = registro;
+        _registroLogs = registroLogs;
     }
 
     public async Task<ModificarOperadorRespuestaDto> Handle(
@@ -57,8 +56,13 @@ public sealed class ModificarOperadorManejador
 
         if (!cambios.HuboCambiosDatosUsuario)
         {
-            _registro.LogInformation(
-                "Edición HU09 sin cambios para Operador {Id}.", operador.Id);
+            _registroLogs.Informacion(
+                evento: "OperadorEdicionSinCambios",
+                descripcion: "Edición de Operador sin cambios para aplicar.",
+                propiedades: new Dictionary<string, object?>
+                {
+                    ["OperadorId"] = operador.Id
+                });
             return new ModificarOperadorRespuestaDto
             {
                 HuboCambios = false,
@@ -72,9 +76,13 @@ public sealed class ModificarOperadorManejador
 
         if (cambios.RequiereSincronizarKeycloak && string.IsNullOrWhiteSpace(idKeycloak))
         {
-            _registro.LogError(
-                "Operador {Id} no tiene IdKeycloak asociado: imposible sincronizar con Keycloak.",
-                operador.Id);
+            _registroLogs.Advertencia(
+                evento: "OperadorSinIdKeycloak",
+                descripcion: "El Operador no tiene IdKeycloak asociado: imposible sincronizar con Keycloak.",
+                propiedades: new Dictionary<string, object?>
+                {
+                    ["OperadorId"] = operador.Id
+                });
             throw new InvalidOperationException(
                 $"El Operador {operador.Id} no tiene IdKeycloak asociado. " +
                 "No se puede sincronizar la actualización con Keycloak.");
@@ -89,10 +97,15 @@ public sealed class ModificarOperadorManejador
             }
             catch (Exception ex)
             {
-                _registro.LogError(ex,
-                    "Keycloak rechazó la actualización del Operador {Id} (KC={Kc}). " +
-                    "Los cambios NO se persisten en base de datos.",
-                    operador.Id, idKeycloak);
+                _registroLogs.Error(
+                    excepcion: ex,
+                    evento: "ModificacionOperadorKeycloakFallida",
+                    descripcion: "Keycloak rechazó la actualización del Operador. Los cambios NO se persisten en base de datos.",
+                    propiedades: new Dictionary<string, object?>
+                    {
+                        ["OperadorId"] = operador.Id,
+                        ["IdKeycloak"] = idKeycloak
+                    });
                 throw;
             }
         }
@@ -104,9 +117,14 @@ public sealed class ModificarOperadorManejador
 
         var camposRespuesta = new List<string>(cambios.CamposActualizados);
 
-        _registro.LogInformation(
-            "Operador {Id} actualizado. Campos: {Campos}.",
-            operador.Id, string.Join(",", camposRespuesta));
+        _registroLogs.Informacion(
+            evento: "OperadorModificado",
+            descripcion: "Administrador modificó un operador correctamente",
+            propiedades: new Dictionary<string, object?>
+            {
+                ["OperadorId"] = operador.Id,
+                ["Campos"] = string.Join(",", camposRespuesta)
+            });
 
         return new ModificarOperadorRespuestaDto
         {

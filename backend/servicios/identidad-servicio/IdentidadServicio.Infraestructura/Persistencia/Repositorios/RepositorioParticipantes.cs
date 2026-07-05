@@ -104,7 +104,7 @@ public sealed class RepositorioParticipantes : IRepositorioParticipantes
 
         if (usuario.Rol != (int)RolUsuario.Participante)
             throw new InvalidOperationException(
-                "SÃ³lo se puede actualizar mediante este mÃ©todo a usuarios con rol Participante.");
+                "Sólo se puede actualizar mediante este método a usuarios con rol Participante.");
 
         var persona = await _contexto.Personas
             .FirstOrDefaultAsync(p => p.UsuarioId == usuario.Id, cancelacion)
@@ -121,7 +121,7 @@ public sealed class RepositorioParticipantes : IRepositorioParticipantes
         persona.Sexo = (int)participante.Sexo;
         persona.FechaNacimiento = participante.FechaNacimiento;
 
-        // HU10 â€” alias del Participante vive en la tabla Participante. Se
+        // HU10 — alias del Participante vive en la tabla Participante. Se
         // localiza por PersonaId; FechaRegistro NO se reescribe.
         var participanteModelo = await _contexto.Participantes
             .FirstOrDefaultAsync(p => p.PersonaId == persona.Id, cancelacion)
@@ -141,7 +141,7 @@ public sealed class RepositorioParticipantes : IRepositorioParticipantes
 
         if (usuario.Rol != (int)RolUsuario.Participante)
             throw new InvalidOperationException(
-                "SÃ³lo se puede eliminar mediante este mÃ©todo a usuarios con rol Participante.");
+                "Sólo se puede eliminar mediante este método a usuarios con rol Participante.");
 
         _contexto.Usuarios.Remove(usuario);
     }
@@ -154,7 +154,7 @@ public sealed class RepositorioParticipantes : IRepositorioParticipantes
                 $"El usuario {participante.Id} no existe en base de datos.");
         if (usuario.Rol != (int)RolUsuario.Participante)
             throw new InvalidOperationException(
-                "SÃ³lo se puede cambiar el estado mediante este mÃ©todo a usuarios con rol Participante.");
+                "Sólo se puede cambiar el estado mediante este método a usuarios con rol Participante.");
         usuario.Estado = (int)participante.Estado;
     }
 

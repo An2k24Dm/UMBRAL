@@ -69,6 +69,20 @@ public static class RespuestaErrorModelo
         };
     }
 
+    public static object ConstruirDesdeJsonException(
+        JsonException json, string? correlationId)
+    {
+        var ruta = json.Path ?? string.Empty;
+        var (campo, mensaje) = ResolverCampoYMensaje(ruta);
+        return new
+        {
+            codigo = "VALIDACION",
+            mensaje = "Hay errores de validación.",
+            errores = new[] { new { campo, mensaje } },
+            correlationId
+        };
+    }
+
     private static (string Campo, string Mensaje) ResolverCampoYMensaje(string clavePath)
     {
         if (string.IsNullOrWhiteSpace(clavePath))

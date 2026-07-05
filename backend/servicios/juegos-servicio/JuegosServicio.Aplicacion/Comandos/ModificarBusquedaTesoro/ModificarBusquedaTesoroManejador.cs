@@ -12,15 +12,18 @@ public sealed class ModificarBusquedaTesoroManejador : IRequestHandler<Modificar
     private readonly IRepositorioBusquedas _repositorio;
     private readonly IRepositorioMisiones _repositorioMisiones;
     private readonly IValidador<ModificarBusquedaTesoroComando> _validador;
+    private readonly IRegistroLogsAplicacion _registroLogs;
 
     public ModificarBusquedaTesoroManejador(
         IRepositorioBusquedas repositorio,
         IRepositorioMisiones repositorioMisiones,
-        IValidador<ModificarBusquedaTesoroComando> validador)
+        IValidador<ModificarBusquedaTesoroComando> validador,
+        IRegistroLogsAplicacion registroLogs)
     {
         _repositorio = repositorio;
         _repositorioMisiones = repositorioMisiones;
         _validador = validador;
+        _registroLogs = registroLogs;
     }
 
     public async Task Handle(ModificarBusquedaTesoroComando comando, CancellationToken cancelacion)
@@ -42,5 +45,13 @@ public sealed class ModificarBusquedaTesoroManejador : IRequestHandler<Modificar
             Puntaje.CrearParaBusqueda(comando.Dto.Puntaje));
 
         await _repositorio.ActualizarBusquedaAsync(busqueda, cancelacion);
+
+        _registroLogs.Informacion(
+            evento: "BusquedaTesoroModificada",
+            descripcion: "Usuario modificó una búsqueda del tesoro correctamente",
+            propiedades: new Dictionary<string, object?>
+            {
+                ["BusquedaId"] = comando.BusquedaId
+            });
     }
 }

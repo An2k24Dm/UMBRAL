@@ -9,13 +9,16 @@ public sealed class EliminarMisionManejador : IRequestHandler<EliminarMisionComa
 {
     private readonly IRepositorioMisiones _repositorio;
     private readonly IClienteSesiones _clienteSesiones;
+    private readonly IRegistroLogsAplicacion _registroLogs;
 
     public EliminarMisionManejador(
         IRepositorioMisiones repositorio,
-        IClienteSesiones clienteSesiones)
+        IClienteSesiones clienteSesiones,
+        IRegistroLogsAplicacion registroLogs)
     {
         _repositorio = repositorio;
         _clienteSesiones = clienteSesiones;
+        _registroLogs = registroLogs;
     }
 
     public async Task Handle(EliminarMisionComando comando, CancellationToken cancelacion)
@@ -31,5 +34,13 @@ public sealed class EliminarMisionManejador : IRequestHandler<EliminarMisionComa
             throw new MisionConSesionesVigentesExcepcion();
 
         await _repositorio.EliminarMisionAsync(comando.MisionId, cancelacion);
+
+        _registroLogs.Informacion(
+            evento: "MisionEliminada",
+            descripcion: "Usuario eliminó una misión correctamente",
+            propiedades: new Dictionary<string, object?>
+            {
+                ["MisionId"] = comando.MisionId
+            });
     }
 }

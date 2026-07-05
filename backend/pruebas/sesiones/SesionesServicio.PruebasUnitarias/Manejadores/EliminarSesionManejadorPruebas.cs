@@ -39,7 +39,8 @@ public class EliminarSesionManejadorPruebas
         }
 
         public EliminarSesionManejador Construir()
-            => new(Repo.Object, Unidad.Object, Usuario.Object);
+            => new(Repo.Object, Unidad.Object, Usuario.Object,
+                Mock.Of<IRegistroLogsAplicacion>());
     }
 
     private static SesionIndividual SesionDe(

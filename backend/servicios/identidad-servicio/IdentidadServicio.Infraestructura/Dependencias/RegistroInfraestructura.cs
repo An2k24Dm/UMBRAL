@@ -1,4 +1,5 @@
 using IdentidadServicio.Aplicacion.Puertos;
+using IdentidadServicio.Infraestructura.Logging;
 using IdentidadServicio.Infraestructura.Notificaciones;
 using IdentidadServicio.Infraestructura.Persistencia;
 using IdentidadServicio.Infraestructura.Persistencia.Repositorios;
@@ -38,6 +39,7 @@ public static class RegistroInfraestructura
         servicios.AddHttpClient<IProveedorIdentidad, KeycloakProveedorIdentidad>();
         servicios.Configure<OpcionesCorreo>(configuracion.GetSection(OpcionesCorreo.Seccion));
         servicios.AddScoped<IServicioCorreo, ServicioCorreoSmtp>();
+        servicios.AddScoped<IRegistroLogsAplicacion, RegistroLogsAplicacionDotNet>();
 
         return servicios;
     }

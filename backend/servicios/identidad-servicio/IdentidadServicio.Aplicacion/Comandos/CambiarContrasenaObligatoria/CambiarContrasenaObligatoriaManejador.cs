@@ -5,7 +5,6 @@ using IdentidadServicio.Commons.Dtos;
 using IdentidadServicio.Dominio.Enums;
 using IdentidadServicio.Dominio.Excepciones;
 using MediatR;
-using Microsoft.Extensions.Logging;
 
 namespace IdentidadServicio.Aplicacion.Comandos.CambiarContrasenaObligatoria;
 
@@ -16,20 +15,20 @@ public sealed class CambiarContrasenaObligatoriaManejador
     private readonly IRepositorioControlContrasenaTemporal _control;
     private readonly IProveedorIdentidad _proveedor;
     private readonly IValidador<CambiarContrasenaObligatoriaComando> _validador;
-    private readonly ILogger<CambiarContrasenaObligatoriaManejador> _registro;
+    private readonly IRegistroLogsAplicacion _registroLogs;
 
     public CambiarContrasenaObligatoriaManejador(
         IRepositorioUsuariosLectura lectura,
         IRepositorioControlContrasenaTemporal control,
         IProveedorIdentidad proveedor,
         IValidador<CambiarContrasenaObligatoriaComando> validador,
-        ILogger<CambiarContrasenaObligatoriaManejador> registro)
+        IRegistroLogsAplicacion registroLogs)
     {
         _lectura = lectura;
         _control = control;
         _proveedor = proveedor;
         _validador = validador;
-        _registro = registro;
+        _registroLogs = registroLogs;
     }
 
     public async Task<CambiarContrasenaObligatoriaRespuestaDto> Handle(
@@ -62,19 +61,30 @@ public sealed class CambiarContrasenaObligatoriaManejador
         }
         catch (Exception ex)
         {
-            _registro.LogError(ex,
-                "Keycloak rechazó el cambio obligatorio. Usuario={NombreUsuario}, " +
-                "Id={Id}, IdKeycloak={IdKeycloak}. Bandera se mantiene activa.",
-                usuario.NombreUsuario.Valor, usuario.Id, comando.IdKeycloak);
+            _registroLogs.Error(
+                excepcion: ex,
+                evento: "CambioContrasenaObligatoriaRechazado",
+                descripcion: "Keycloak rechazó el cambio obligatorio de contraseña. La bandera se mantiene activa.",
+                propiedades: new Dictionary<string, object?>
+                {
+                    ["NombreUsuario"] = usuario.NombreUsuario.Valor,
+                    ["UsuarioId"] = usuario.Id,
+                    ["IdKeycloak"] = comando.IdKeycloak
+                });
             throw;
         }
 
         await _control.LimpiarDebeCambiarPorIdKeycloakAsync(comando.IdKeycloak, cancelacion);
 
-        _registro.LogInformation(
-            "Cambio obligatorio completado. Usuario={NombreUsuario}, Id={Id}, " +
-            "IdKeycloak={IdKeycloak}.",
-            usuario.NombreUsuario.Valor, usuario.Id, comando.IdKeycloak);
+        _registroLogs.Informacion(
+            evento: "ContrasenaObligatoriaCambiada",
+            descripcion: "Usuario cambió su contraseña obligatoria correctamente",
+            propiedades: new Dictionary<string, object?>
+            {
+                ["NombreUsuario"] = usuario.NombreUsuario.Valor,
+                ["UsuarioId"] = usuario.Id,
+                ["IdKeycloak"] = comando.IdKeycloak
+            });
 
         return new CambiarContrasenaObligatoriaRespuestaDto
         {

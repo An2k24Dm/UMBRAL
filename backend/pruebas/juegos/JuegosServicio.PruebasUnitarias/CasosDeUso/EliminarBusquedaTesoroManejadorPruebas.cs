@@ -15,7 +15,7 @@ public class EliminarBusquedaTesoroManejadorPruebas
         new(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc);
 
     private EliminarBusquedaTesoroManejador CrearManejador() =>
-        new(_repositorio.Object, _repositorioMisiones.Object);
+        new(_repositorio.Object, _repositorioMisiones.Object, Mock.Of<IRegistroLogsAplicacion>());
 
     private static BusquedaTesoro BusquedaInactiva() =>
         BusquedaTesoro.Crear("Búsqueda Test", "Descripción", Guid.NewGuid(), FechaFija);

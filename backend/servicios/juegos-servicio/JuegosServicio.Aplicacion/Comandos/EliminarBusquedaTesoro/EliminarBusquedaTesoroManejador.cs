@@ -9,11 +9,16 @@ public sealed class EliminarBusquedaTesoroManejador : IRequestHandler<EliminarBu
 {
     private readonly IRepositorioBusquedas _repositorio;
     private readonly IRepositorioMisiones _repositorioMisiones;
+    private readonly IRegistroLogsAplicacion _registroLogs;
 
-    public EliminarBusquedaTesoroManejador(IRepositorioBusquedas repositorio, IRepositorioMisiones repositorioMisiones)
+    public EliminarBusquedaTesoroManejador(
+        IRepositorioBusquedas repositorio,
+        IRepositorioMisiones repositorioMisiones,
+        IRegistroLogsAplicacion registroLogs)
     {
         _repositorio = repositorio;
         _repositorioMisiones = repositorioMisiones;
+        _registroLogs = registroLogs;
     }
 
     public async Task Handle(EliminarBusquedaTesoroComando comando, CancellationToken cancelacion)
@@ -29,5 +34,13 @@ public sealed class EliminarBusquedaTesoroManejador : IRequestHandler<EliminarBu
             throw new ExcepcionDominio("No se puede eliminar la búsqueda del tesoro porque está asignada a una o más misiones.");
 
         await _repositorio.EliminarBusquedaTesoroAsync(comando.BusquedaId, cancelacion);
+
+        _registroLogs.Informacion(
+            evento: "BusquedaTesoroEliminada",
+            descripcion: "Usuario eliminó una búsqueda del tesoro correctamente",
+            propiedades: new Dictionary<string, object?>
+            {
+                ["BusquedaId"] = comando.BusquedaId
+            });
     }
 }

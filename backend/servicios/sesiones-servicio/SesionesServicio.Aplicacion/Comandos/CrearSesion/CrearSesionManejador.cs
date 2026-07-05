@@ -23,6 +23,7 @@ public sealed class CrearSesionManejador
     private readonly IGeneradorCodigoAcceso _generadorCodigo;
     private readonly IProveedorFechaHora _reloj;
     private readonly IFabricaSesion _fabricaSesion;
+    private readonly IRegistroLogsAplicacion _registroLogs;
 
     public CrearSesionManejador(
         IValidador<CrearSesionComando> validador,
@@ -32,7 +33,8 @@ public sealed class CrearSesionManejador
         IValidadorMisionesSesion validadorMisiones,
         IGeneradorCodigoAcceso generadorCodigo,
         IProveedorFechaHora reloj,
-        IFabricaSesion fabricaSesion)
+        IFabricaSesion fabricaSesion,
+        IRegistroLogsAplicacion registroLogs)
     {
         _validador = validador;
         _repositorio = repositorio;
@@ -42,6 +44,7 @@ public sealed class CrearSesionManejador
         _generadorCodigo = generadorCodigo;
         _reloj = reloj;
         _fabricaSesion = fabricaSesion;
+        _registroLogs = registroLogs;
     }
 
     public async Task<CrearSesionRespuestaDto> Handle(
@@ -89,6 +92,16 @@ public sealed class CrearSesionManejador
 
         await _repositorio.AgregarAsync(sesion, cancelacion);
         await _unidadTrabajo.GuardarCambiosAsync(cancelacion);
+
+        _registroLogs.Informacion(
+            evento: "SesionCreada",
+            descripcion: "Operador creó una sesión correctamente",
+            propiedades: new Dictionary<string, object?>
+            {
+                ["SesionId"] = sesion.Id,
+                ["Modo"] = sesion.TipoSesion,
+                ["OperadorId"] = operadorId
+            });
 
         return new CrearSesionRespuestaDto
         {

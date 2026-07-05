@@ -66,7 +66,8 @@ public class CrearEquipoManejadorPruebas
             => new(new ValidadorCrearEquipo(), Repo.Object, Unidad.Object,
                 Usuario.Object, Hash.Object, Reloj.Object,
                 new PoliticaParticipacionUnicaSesion(Consultas.Object),
-                Notificador.Object);
+                Notificador.Object,
+                Mock.Of<IRegistroLogsAplicacion>());
     }
 
     private static SesionGrupal SesionGrupalEnPreparacion(

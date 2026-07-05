@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging.Abstractions;
 using SesionesServicio.Aplicacion.Procesos.PreparacionSesiones;
 using SesionesServicio.Aplicacion.Puertos;
 using SesionesServicio.Dominio.Abstract;
@@ -46,7 +45,7 @@ public class ProcesadorPreparacionSesionesPruebas
         reloj.Setup(r => r.ObtenerFechaHoraUtc()).Returns(AhoraUtc);
         var procesador = new ProcesadorPreparacionSesiones(
             consultas.Object, repo.Object, unidad.Object, reloj.Object,
-            NullLogger<ProcesadorPreparacionSesiones>.Instance);
+            Mock.Of<IRegistroLogsAplicacion>());
         return (procesador, consultas, repo, unidad, reloj);
     }
 

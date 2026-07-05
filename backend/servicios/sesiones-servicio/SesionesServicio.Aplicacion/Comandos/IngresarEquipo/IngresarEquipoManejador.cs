@@ -10,11 +10,6 @@ using SesionesServicio.Dominio.Excepciones;
 
 namespace SesionesServicio.Aplicacion.Comandos.IngresarEquipo;
 
-// HU47 — Un Participante ingresa a un equipo de una sesión grupal En
-// Preparación. Si el equipo es privado debe verificar la contraseña del
-// líder (nunca en texto plano contra el hash almacenado). Las invariantes
-// (capacidad, pertenencia única dentro de la sesión) las protege el dominio
-// en SesionGrupal.AgregarParticipanteAEquipo.
 public sealed class IngresarEquipoManejador
     : IRequestHandler<IngresarEquipoComando, IngresarEquipoRespuestaDto>
 {
@@ -28,6 +23,7 @@ public sealed class IngresarEquipoManejador
     private readonly IProveedorFechaHora _reloj;
     private readonly PoliticaParticipacionUnicaSesion _participacionUnica;
     private readonly INotificadorSesionesTiempoReal _notificadorTiempoReal;
+    private readonly IRegistroLogsAplicacion _registroLogs;
 
     public IngresarEquipoManejador(
         IValidador<IngresarEquipoComando> validador,
@@ -37,7 +33,8 @@ public sealed class IngresarEquipoManejador
         IHashContrasenaEquipo hashContrasena,
         IProveedorFechaHora reloj,
         PoliticaParticipacionUnicaSesion participacionUnica,
-        INotificadorSesionesTiempoReal notificadorTiempoReal)
+        INotificadorSesionesTiempoReal notificadorTiempoReal,
+        IRegistroLogsAplicacion registroLogs)
     {
         _validador = validador;
         _repositorio = repositorio;
@@ -47,6 +44,7 @@ public sealed class IngresarEquipoManejador
         _reloj = reloj;
         _participacionUnica = participacionUnica;
         _notificadorTiempoReal = notificadorTiempoReal;
+        _registroLogs = registroLogs;
     }
 
     public async Task<IngresarEquipoRespuestaDto> Handle(
@@ -122,6 +120,16 @@ public sealed class IngresarEquipoManejador
             sesionGrupal.Id, comando.EquipoId, cancelacion);
         await _notificadorTiempoReal.NotificarEquipoActualizadoAsync(
             sesionGrupal.Id, comando.EquipoId, cancelacion);
+
+        _registroLogs.Informacion(
+            evento: "ParticipanteIngresoEquipo",
+            descripcion: "Participante ingresó a un equipo correctamente",
+            propiedades: new Dictionary<string, object?>
+            {
+                ["SesionId"] = sesionGrupal.Id,
+                ["EquipoId"] = comando.EquipoId,
+                ["ParticipanteId"] = participanteId
+            });
 
         return new IngresarEquipoRespuestaDto
         {

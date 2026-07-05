@@ -6,7 +6,6 @@ using JuegosServicio.Dominio.Entidades;
 using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Dominio.Excepciones;
 using JuegosServicio.Dominio.ObjetosValor;
-using Microsoft.Extensions.Logging;
 
 namespace JuegosServicio.PruebasUnitarias.CasosDeUso;
 
@@ -15,7 +14,7 @@ public class AgregarPreguntaManejadorPruebas
 {
     private readonly Mock<IRepositorioJuegos> _repositorio = new();
     private readonly Mock<IRepositorioMisiones> _repositorioMisiones = new();
-    private readonly Mock<ILogger<AgregarPreguntaManejador>> _registro = new();
+    private readonly Mock<IRegistroLogsAplicacion> _registro = new();
     private readonly Mock<IValidador<AgregarPreguntaComando>> _validador = new();
 
     private static readonly DateTime FechaFija =

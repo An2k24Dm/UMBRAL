@@ -16,15 +16,18 @@ public sealed class EliminarSesionManejador
     private readonly IRepositorioSesiones _repositorio;
     private readonly IUnidadTrabajoSesiones _unidadTrabajo;
     private readonly IUsuarioActual _usuarioActual;
+    private readonly IRegistroLogsAplicacion _registroLogs;
 
     public EliminarSesionManejador(
         IRepositorioSesiones repositorio,
         IUnidadTrabajoSesiones unidadTrabajo,
-        IUsuarioActual usuarioActual)
+        IUsuarioActual usuarioActual,
+        IRegistroLogsAplicacion registroLogs)
     {
         _repositorio = repositorio;
         _unidadTrabajo = unidadTrabajo;
         _usuarioActual = usuarioActual;
+        _registroLogs = registroLogs;
     }
 
     public async Task Handle(EliminarSesionComando comando, CancellationToken cancelacion)
@@ -53,5 +56,14 @@ public sealed class EliminarSesionManejador
 
         await _repositorio.EliminarAsync(sesion, cancelacion);
         await _unidadTrabajo.GuardarCambiosAsync(cancelacion);
+
+        _registroLogs.Informacion(
+            evento: "SesionEliminada",
+            descripcion: "Operador eliminó una sesión correctamente",
+            propiedades: new Dictionary<string, object?>
+            {
+                ["SesionId"] = sesion.Id,
+                ["OperadorId"] = operadorId
+            });
     }
 }

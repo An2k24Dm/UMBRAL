@@ -23,6 +23,7 @@ public sealed class ModificarEquipoManejador
     private readonly IUsuarioActual _usuarioActual;
     private readonly IHashContrasenaEquipo _hashContrasena;
     private readonly INotificadorSesionesTiempoReal _notificadorTiempoReal;
+    private readonly IRegistroLogsAplicacion _registroLogs;
 
     public ModificarEquipoManejador(
         IValidador<ModificarEquipoComando> validador,
@@ -30,7 +31,8 @@ public sealed class ModificarEquipoManejador
         IUnidadTrabajoSesiones unidadTrabajo,
         IUsuarioActual usuarioActual,
         IHashContrasenaEquipo hashContrasena,
-        INotificadorSesionesTiempoReal notificadorTiempoReal)
+        INotificadorSesionesTiempoReal notificadorTiempoReal,
+        IRegistroLogsAplicacion registroLogs)
     {
         _validador = validador;
         _repositorio = repositorio;
@@ -38,6 +40,7 @@ public sealed class ModificarEquipoManejador
         _usuarioActual = usuarioActual;
         _hashContrasena = hashContrasena;
         _notificadorTiempoReal = notificadorTiempoReal;
+        _registroLogs = registroLogs;
     }
 
     public async Task<ModificarEquipoRespuestaDto> Handle(
@@ -86,6 +89,16 @@ public sealed class ModificarEquipoManejador
             sesionGrupal.Id, equipo.Id, cancelacion);
         await _notificadorTiempoReal.NotificarEquipoActualizadoAsync(
             sesionGrupal.Id, equipo.Id, cancelacion);
+
+        _registroLogs.Informacion(
+            evento: "EquipoModificado",
+            descripcion: "Participante modificó un equipo correctamente",
+            propiedades: new Dictionary<string, object?>
+            {
+                ["SesionId"] = sesionGrupal.Id,
+                ["EquipoId"] = equipo.Id,
+                ["ParticipanteId"] = participanteId
+            });
 
         return new ModificarEquipoRespuestaDto
         {

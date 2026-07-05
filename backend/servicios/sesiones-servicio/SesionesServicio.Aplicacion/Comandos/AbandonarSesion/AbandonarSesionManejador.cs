@@ -7,13 +7,6 @@ using SesionesServicio.Dominio.Excepciones;
 
 namespace SesionesServicio.Aplicacion.Comandos.AbandonarSesion;
 
-// HU48 — Abandono voluntario. Solo el propio Participante (Administrador y
-// Operador no pueden usar esta acción) y solo con la sesión En Preparación.
-// En sesión individual elimina su participación; en sesión grupal lo saca de
-// su equipo (reasignando liderazgo, o eliminando el equipo si quedó vacío).
-// El dominio protege las reglas; aquí se orquesta autorización, persistencia
-// y notificación en tiempo real (solo eventos generales, nunca el aviso de
-// expulsado: fue un abandono voluntario, y siempre después de guardar).
 public sealed class AbandonarSesionManejador : IRequestHandler<AbandonarSesionComando>
 {
     private const string RolParticipante = "Participante";
@@ -23,19 +16,22 @@ public sealed class AbandonarSesionManejador : IRequestHandler<AbandonarSesionCo
     private readonly IUnidadTrabajoSesiones _unidadTrabajo;
     private readonly IUsuarioActual _usuarioActual;
     private readonly INotificadorSesionesTiempoReal _notificadorTiempoReal;
+    private readonly IRegistroLogsAplicacion _registroLogs;
 
     public AbandonarSesionManejador(
         IValidador<AbandonarSesionComando> validador,
         IRepositorioSesiones repositorio,
         IUnidadTrabajoSesiones unidadTrabajo,
         IUsuarioActual usuarioActual,
-        INotificadorSesionesTiempoReal notificadorTiempoReal)
+        INotificadorSesionesTiempoReal notificadorTiempoReal,
+        IRegistroLogsAplicacion registroLogs)
     {
         _validador = validador;
         _repositorio = repositorio;
         _unidadTrabajo = unidadTrabajo;
         _usuarioActual = usuarioActual;
         _notificadorTiempoReal = notificadorTiempoReal;
+        _registroLogs = registroLogs;
     }
 
     public async Task Handle(AbandonarSesionComando comando, CancellationToken cancelacion)
@@ -65,6 +61,15 @@ public sealed class AbandonarSesionManejador : IRequestHandler<AbandonarSesionCo
             await _unidadTrabajo.GuardarCambiosAsync(cancelacion);
             await _notificadorTiempoReal.NotificarParticipantesSesionActualizadosAsync(
                 individual.Id, cancelacion);
+
+            _registroLogs.Informacion(
+                evento: "SesionAbandonada",
+                descripcion: "Participante abandonó la sesión correctamente",
+                propiedades: new Dictionary<string, object?>
+                {
+                    ["SesionId"] = individual.Id,
+                    ["ParticipanteId"] = participanteId
+                });
             return;
         }
 
@@ -82,12 +87,19 @@ public sealed class AbandonarSesionManejador : IRequestHandler<AbandonarSesionCo
         await _notificadorTiempoReal.NotificarEquiposSesionActualizadosAsync(
             grupal.Id, equipoId, cancelacion);
 
-        // Si el equipo quedó vacío fue eliminado del agregado: no se emite
-        // EquipoActualizado para no llevar a los clientes a un detalle
-        // inexistente; con EquiposSesionActualizados basta para los listados.
         var equipoSigueExistiendo = grupal.Equipos.Any(e => e.Id == equipoId);
         if (equipoSigueExistiendo)
             await _notificadorTiempoReal.NotificarEquipoActualizadoAsync(
                 grupal.Id, equipoId, cancelacion);
+
+        _registroLogs.Informacion(
+            evento: "EquipoAbandonado",
+            descripcion: "Participante abandonó el equipo correctamente",
+            propiedades: new Dictionary<string, object?>
+            {
+                ["SesionId"] = grupal.Id,
+                ["ParticipanteId"] = participanteId,
+                ["EquipoId"] = equipoId
+            });
     }
 }

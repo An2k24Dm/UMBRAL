@@ -67,7 +67,8 @@ public class ModificarEquipoManejadorPruebas
 
         public ModificarEquipoManejador Construir()
             => new(new ValidadorModificarEquipo(), Repo.Object, Unidad.Object,
-                Usuario.Object, Hash.Object, Notificador.Object);
+                Usuario.Object, Hash.Object, Notificador.Object,
+                Mock.Of<IRegistroLogsAplicacion>());
     }
 
     private static SesionGrupal SesionConEquipo(

@@ -16,7 +16,7 @@ public class EliminarTriviaManejadorPruebas
         new(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc);
 
     private EliminarTriviaManejador CrearManejador() =>
-        new(_repositorio.Object, _repositorioMisiones.Object);
+        new(_repositorio.Object, _repositorioMisiones.Object, Mock.Of<IRegistroLogsAplicacion>());
 
     private static Trivia TriviaInactiva() =>
         Trivia.Crear(

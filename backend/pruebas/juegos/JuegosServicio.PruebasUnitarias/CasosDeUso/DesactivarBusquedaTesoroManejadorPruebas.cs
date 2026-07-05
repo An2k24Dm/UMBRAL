@@ -21,7 +21,7 @@ public class DesactivarBusquedaTesoroManejadorPruebas
         new(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc);
 
     private DesactivarBusquedaTesoroManejador CrearManejador() =>
-        new(_repositorio.Object);
+        new(_repositorio.Object, Mock.Of<IRegistroLogsAplicacion>());
 
     private static BusquedaTesoro BusquedaActivaConUnaPista()
     {

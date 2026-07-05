@@ -6,7 +6,6 @@ using IdentidadServicio.Commons.Dtos;
 using IdentidadServicio.Dominio.Entidades;
 using IdentidadServicio.Dominio.Enums;
 using MediatR;
-using Microsoft.Extensions.Logging;
 
 namespace IdentidadServicio.Aplicacion.Comandos.RegistrarParticipante;
 
@@ -20,7 +19,7 @@ public sealed class RegistrarParticipanteManejador
     private readonly IProveedorFechaHora _reloj;
     private readonly FabricaEstrategiaCreacionUsuario _fabrica;
     private readonly IValidador<RegistrarParticipanteComando> _validador;
-    private readonly ILogger<RegistrarParticipanteManejador> _registro;
+    private readonly IRegistroLogsAplicacion _registroLogs;
 
     public RegistrarParticipanteManejador(
         ValidadorUnicidadUsuario validadorUnicidad,
@@ -30,7 +29,7 @@ public sealed class RegistrarParticipanteManejador
         IProveedorFechaHora reloj,
         FabricaEstrategiaCreacionUsuario fabrica,
         IValidador<RegistrarParticipanteComando> validador,
-        ILogger<RegistrarParticipanteManejador> registro)
+        IRegistroLogsAplicacion registroLogs)
     {
         _validadorUnicidad = validadorUnicidad;
         _repositorioParticipantes = repositorioParticipantes;
@@ -39,7 +38,7 @@ public sealed class RegistrarParticipanteManejador
         _reloj = reloj;
         _fabrica = fabrica;
         _validador = validador;
-        _registro = registro;
+        _registroLogs = registroLogs;
     }
 
     public async Task<CrearUsuarioRespuestaDto> Handle(
@@ -87,9 +86,15 @@ public sealed class RegistrarParticipanteManejador
             await _repositorioParticipantes.AgregarAsync(participante, idKeycloak, cancelacion);
             await _unidadTrabajo.GuardarCambiosAsync(cancelacion);
 
-            _registro.LogInformation(
-                "Participante {NombreUsuario} ({Correo}) registrado desde la app móvil.",
-                usuario.NombreUsuario.Valor, usuario.Correo.Valor);
+            _registroLogs.Informacion(
+                evento: "ParticipanteRegistrado",
+                descripcion: "Participante se registró correctamente",
+                propiedades: new Dictionary<string, object?>
+                {
+                    ["ParticipanteId"] = usuario.Id,
+                    ["NombreUsuario"] = usuario.NombreUsuario.Valor,
+                    ["Correo"] = usuario.Correo.Valor
+                });
 
             return new CrearUsuarioRespuestaDto
             {
@@ -114,8 +119,14 @@ public sealed class RegistrarParticipanteManejador
         try { await _proveedor.EliminarUsuarioAsync(idKeycloak, CancellationToken.None); }
         catch (Exception ex)
         {
-            _registro.LogError(ex,
-                "Compensación fallida: requiere limpieza manual de {Id} en Keycloak.", idKeycloak);
+            _registroLogs.Error(
+                excepcion: ex,
+                evento: "CompensacionKeycloakFallida",
+                descripcion: "Compensación fallida: requiere limpieza manual del usuario en Keycloak.",
+                propiedades: new Dictionary<string, object?>
+                {
+                    ["IdKeycloak"] = idKeycloak
+                });
         }
     }
 }

@@ -4,7 +4,6 @@ using IdentidadServicio.Commons.Dtos;
 using IdentidadServicio.Dominio.Enums;
 using IdentidadServicio.Dominio.Excepciones;
 using MediatR;
-using Microsoft.Extensions.Logging;
 
 namespace IdentidadServicio.Aplicacion.Comandos.ActivarParticipante;
 
@@ -14,18 +13,18 @@ public sealed class ActivarParticipanteManejador
     private readonly IAutorizadorUsuarioActivo _autorizador;
     private readonly IRepositorioParticipantes _repositorio;
     private readonly IUnidadTrabajoIdentidad _unidadTrabajo;
-    private readonly ILogger<ActivarParticipanteManejador> _registro;
+    private readonly IRegistroLogsAplicacion _registroLogs;
 
     public ActivarParticipanteManejador(
         IAutorizadorUsuarioActivo autorizador,
         IRepositorioParticipantes repositorio,
         IUnidadTrabajoIdentidad unidadTrabajo,
-        ILogger<ActivarParticipanteManejador> registro)
+        IRegistroLogsAplicacion registroLogs)
     {
         _autorizador = autorizador;
         _repositorio = repositorio;
         _unidadTrabajo = unidadTrabajo;
-        _registro = registro;
+        _registroLogs = registroLogs;
     }
 
     public async Task<CambiarEstadoUsuarioRespuestaDto> Handle(
@@ -40,9 +39,14 @@ public sealed class ActivarParticipanteManejador
 
         if (participante.Estado == EstadoUsuario.Activo)
         {
-            _registro.LogInformation(
-                "Solicitud de activación sobre Participante {Id} ya Activo (invocador {Invocador}).",
-                participante.Id, invocador.Id);
+            _registroLogs.Advertencia(
+                evento: "ParticipanteYaActivo",
+                descripcion: "Solicitud de activación sobre un Participante que ya está Activo.",
+                propiedades: new Dictionary<string, object?>
+                {
+                    ["ParticipanteId"] = participante.Id,
+                    ["ActorId"] = invocador.Id
+                });
             throw new UsuarioYaActivoExcepcion();
         }
 
@@ -51,9 +55,14 @@ public sealed class ActivarParticipanteManejador
         await _repositorio.ActualizarEstadoAsync(participante, cancelacion);
         await _unidadTrabajo.GuardarCambiosAsync(cancelacion);
 
-        _registro.LogInformation(
-            "Participante {Id} activado por usuario {Invocador}.",
-            participante.Id, invocador.Id);
+        _registroLogs.Informacion(
+            evento: "ParticipanteActivado",
+            descripcion: "Usuario activó un participante correctamente",
+            propiedades: new Dictionary<string, object?>
+            {
+                ["ParticipanteId"] = participante.Id,
+                ["ActorId"] = invocador.Id
+            });
 
         return new CambiarEstadoUsuarioRespuestaDto
         {

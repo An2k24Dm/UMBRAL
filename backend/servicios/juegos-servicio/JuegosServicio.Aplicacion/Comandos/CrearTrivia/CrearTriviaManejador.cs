@@ -4,7 +4,6 @@ using JuegosServicio.Dominio.Entidades;
 using JuegosServicio.Dominio.Excepciones;
 using JuegosServicio.Dominio.ObjetosValor;
 using MediatR;
-using Microsoft.Extensions.Logging;
 
 namespace JuegosServicio.Aplicacion.Comandos.CrearTrivia;
 
@@ -13,18 +12,18 @@ public sealed class CrearTriviaManejador : IRequestHandler<CrearTriviaComando, G
     private readonly IRepositorioJuegos _repositorio;
     private readonly IProveedorFechaHora _reloj;
     private readonly IValidador<CrearTriviaComando> _validador;
-    private readonly ILogger<CrearTriviaManejador> _registro;
+    private readonly IRegistroLogsAplicacion _registroLogs;
 
     public CrearTriviaManejador(
         IRepositorioJuegos repositorio,
         IProveedorFechaHora reloj,
         IValidador<CrearTriviaComando> validador,
-        ILogger<CrearTriviaManejador> registro)
+        IRegistroLogsAplicacion registroLogs)
     {
         _repositorio = repositorio;
         _reloj = reloj;
         _validador = validador;
-        _registro = registro;
+        _registroLogs = registroLogs;
     }
 
     public async Task<Guid> Handle(CrearTriviaComando comando, CancellationToken cancelacion)
@@ -45,9 +44,15 @@ public sealed class CrearTriviaManejador : IRequestHandler<CrearTriviaComando, G
 
         await _repositorio.AgregarTriviaAsync(trivia, cancelacion);
 
-        _registro.LogInformation(
-            "Trivia '{Nombre}' (ID: {Id}) creada por el operador {CreadorId}.",
-            trivia.Nombre, trivia.Id, trivia.CreadorId);
+        _registroLogs.Informacion(
+            evento: "TriviaCreada",
+            descripcion: "Usuario creó una trivia correctamente",
+            propiedades: new Dictionary<string, object?>
+            {
+                ["TriviaId"] = trivia.Id,
+                ["Nombre"] = trivia.Nombre,
+                ["CreadorId"] = trivia.CreadorId
+            });
 
         return trivia.Id;
     }

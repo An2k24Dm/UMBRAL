@@ -32,11 +32,14 @@ public sealed class ManejadorErroresMiddleware
         }
         catch (ExcepcionValidacion ex)
         {
+            _registro.LogWarning(
+                "Solicitud rechazada por validación: {Mensaje}", ex.Message);
             await EscribirJsonAsync(contexto, HttpStatusCode.BadRequest, new
             {
                 codigo = "VALIDACION",
                 mensaje = ex.Message,
-                errores = ex.Errores.Select(e => new { campo = e.Campo, mensaje = e.Mensaje })
+                errores = ex.Errores.Select(e => new { campo = e.Campo, mensaje = e.Mensaje }),
+                correlationId = ObtenerCorrelationId(contexto)
             });
         }
         catch (CuentaDesactivadaExcepcion ex)
@@ -68,13 +71,23 @@ public sealed class ManejadorErroresMiddleware
         }
         catch (JsonException ex)
         {
+            var correlationId = ObtenerCorrelationId(contexto);
+            _registro.LogWarning(
+                ex,
+                "Solicitud rechazada por JSON inválido. CorrelationId={CorrelationId}",
+                correlationId);
             await EscribirJsonAsync(contexto, HttpStatusCode.BadRequest,
-                RespuestaErrorModelo.ConstruirDesdeJsonException(ex));
+                RespuestaErrorModelo.ConstruirDesdeJsonException(ex, correlationId));
         }
         catch (BadHttpRequestException ex) when (ex.InnerException is JsonException jsonInner)
         {
+            var correlationId = ObtenerCorrelationId(contexto);
+            _registro.LogWarning(
+                ex,
+                "Solicitud rechazada por JSON inválido. CorrelationId={CorrelationId}",
+                correlationId);
             await EscribirJsonAsync(contexto, HttpStatusCode.BadRequest,
-                RespuestaErrorModelo.ConstruirDesdeJsonException(jsonInner));
+                RespuestaErrorModelo.ConstruirDesdeJsonException(jsonInner, correlationId));
         }
         catch (Exception ex)
         {
@@ -84,11 +97,26 @@ public sealed class ManejadorErroresMiddleware
         }
     }
 
-    private static Task EscribirCodigoAsync(
+    private Task EscribirCodigoAsync(
         HttpContext contexto, HttpStatusCode estado, string codigo, string mensaje)
     {
-        return EscribirJsonAsync(contexto, estado, new { codigo, mensaje });
+        // Los rechazos por reglas de negocio/seguridad quedan como warning;
+        // los errores no controlados ya se registran como LogError.
+        if ((int)estado < 500)
+            _registro.LogWarning(
+                "Solicitud rechazada con {CodigoError} ({CodigoEstado}): {Mensaje}",
+                codigo, (int)estado, mensaje);
+
+        return EscribirJsonAsync(contexto, estado, new
+        {
+            codigo,
+            mensaje,
+            correlationId = ObtenerCorrelationId(contexto)
+        });
     }
+
+    private static string? ObtenerCorrelationId(HttpContext contexto)
+        => contexto.Items.TryGetValue("CorrelationId", out var valor) ? valor as string : null;
 
     private static Task EscribirJsonAsync(HttpContext contexto, HttpStatusCode estado, object cuerpo)
     {

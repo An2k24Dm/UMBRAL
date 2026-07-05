@@ -9,13 +9,16 @@ public sealed class EliminarPistaManejador : IRequestHandler<EliminarPistaComand
 {
     private readonly IRepositorioBusquedas _repositorio;
     private readonly IRepositorioMisiones _repositorioMisiones;
+    private readonly IRegistroLogsAplicacion _registroLogs;
 
     public EliminarPistaManejador(
         IRepositorioBusquedas repositorio,
-        IRepositorioMisiones repositorioMisiones)
+        IRepositorioMisiones repositorioMisiones,
+        IRegistroLogsAplicacion registroLogs)
     {
         _repositorio = repositorio;
         _repositorioMisiones = repositorioMisiones;
+        _registroLogs = registroLogs;
     }
 
     public async Task Handle(EliminarPistaComando comando, CancellationToken cancelacion)
@@ -31,5 +34,14 @@ public sealed class EliminarPistaManejador : IRequestHandler<EliminarPistaComand
         busqueda.EliminarPista(comando.PistaId);
 
         await _repositorio.EliminarPistaAsync(comando.PistaId, cancelacion);
+
+        _registroLogs.Informacion(
+            evento: "PistaEliminada",
+            descripcion: "Usuario eliminó una pista correctamente",
+            propiedades: new Dictionary<string, object?>
+            {
+                ["BusquedaId"] = comando.BusquedaId,
+                ["PistaId"] = comando.PistaId
+            });
     }
 }

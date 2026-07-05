@@ -15,7 +15,7 @@ public class EliminarMisionManejadorPruebas
         new(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc);
 
     private EliminarMisionManejador CrearManejador() =>
-        new(_repositorio.Object, _clienteSesiones.Object);
+        new(_repositorio.Object, _clienteSesiones.Object, Mock.Of<IRegistroLogsAplicacion>());
 
     private static Mision MisionInactiva() =>
         Mision.Crear("Misión Test", "Descripción", Guid.NewGuid(), FechaFija);
