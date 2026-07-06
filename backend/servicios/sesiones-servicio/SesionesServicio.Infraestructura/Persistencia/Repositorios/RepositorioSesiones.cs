@@ -233,4 +233,25 @@ public sealed class RepositorioSesiones : IRepositorioSesiones, IConsultasSesion
 
         return modelos.Select(_mapeador.HaciaDominio).ToList();
     }
+
+    public async Task<EstadoPartidaParticipanteDto?> ObtenerEstadoPartidaAsync(
+        Guid sesionId, Guid participanteIdentidadId, CancellationToken cancelacion)
+    {
+        var sesion = await _contexto.Sesiones.AsNoTracking()
+            .Where(s => s.Id == sesionId)
+            .Select(s => new { s.Estado })
+            .FirstOrDefaultAsync(cancelacion);
+
+        if (sesion is null) return null;
+
+        var participante = await _contexto.Participantes.AsNoTracking()
+            .Where(p => p.SesionId == sesionId && p.ParticipanteIdentidadId == participanteIdentidadId)
+            .Select(p => new { p.EquipoId })
+            .FirstOrDefaultAsync(cancelacion);
+
+        return new EstadoPartidaParticipanteDto(
+            sesion.Estado.ToString(),
+            participante is not null,
+            participante?.EquipoId);
+    }
 }

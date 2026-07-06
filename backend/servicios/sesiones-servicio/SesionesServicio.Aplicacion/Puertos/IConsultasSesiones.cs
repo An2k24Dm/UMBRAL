@@ -19,6 +19,11 @@ public interface IConsultasSesiones
     Task<SesionParticipacionActivaDto?> ObtenerParticipacionActivaDeParticipanteAsync(
         Guid participanteIdentidadId,
         CancellationToken cancelacion);
+
+    Task<EstadoPartidaParticipanteDto?> ObtenerEstadoPartidaAsync(
+        Guid sesionId,
+        Guid participanteIdentidadId,
+        CancellationToken cancelacion);
 }
 public sealed record SesionParticipacionActivaDto(
     Guid SesionId,
@@ -27,3 +32,8 @@ public sealed record SesionParticipacionActivaDto(
     ModoSesion Modo,
     Guid? EquipoId,
     string? EquipoNombre);
+
+public sealed record EstadoPartidaParticipanteDto(
+    string Estado,
+    bool ParticipanteInscrito,
+    Guid? EquipoId);
