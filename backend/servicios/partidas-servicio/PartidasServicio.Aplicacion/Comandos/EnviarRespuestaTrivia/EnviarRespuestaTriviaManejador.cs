@@ -120,8 +120,33 @@ public sealed class EnviarRespuestaTriviaManejador
             tiempoTardadoMs: comando.Dto.TiempoTardadoMs,
             fechaRespuestaUtc: _reloj.ObtenerFechaHoraUtc());
 
-        await _repositorio.AgregarAsync(respuesta, cancelacion);
-        await _unidadTrabajo.GuardarCambiosAsync(cancelacion);
+        try
+        {
+            await _repositorio.AgregarAsync(respuesta, cancelacion);
+            await _unidadTrabajo.GuardarCambiosAsync(cancelacion);
+        }
+        catch (RespuestaDuplicadaExcepcion)
+        {
+            // Carrera entre dos miembros del mismo equipo: el repositorio tradujo
+            // la violación de unique constraint a excepción de dominio.
+            _logs.Advertencia(
+                evento: "ConcurrenciaRespuestaTrivia",
+                descripcion: "Colisión de concurrencia al guardar respuesta; ya existe para este equipo/participante.",
+                propiedades: new Dictionary<string, object?>
+                {
+                    ["SesionId"] = comando.SesionId,
+                    ["PreguntaId"] = comando.Dto.PreguntaId,
+                    ["EquipoId"] = contexto.EquipoId
+                });
+
+            return new RespuestaTriviaResultadoDto
+            {
+                YaRespondida = true,
+                EsCorrecta = false,
+                PuntosGanados = 0,
+                Mensaje = "Tu equipo ya respondió esta pregunta."
+            };
+        }
 
         _logs.Informacion(
             evento: "RespuestaTriviaRegistrada",
@@ -151,4 +176,5 @@ public sealed class EnviarRespuestaTriviaManejador
                 : "Respuesta incorrecta."
         };
     }
+
 }

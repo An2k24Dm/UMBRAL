@@ -3,6 +3,7 @@ using PartidasServicio.Aplicacion.Puertos;
 using PartidasServicio.Commons.Dtos;
 using PartidasServicio.Dominio.Abstract;
 using PartidasServicio.Dominio.Entidades;
+using PartidasServicio.Dominio.Excepciones;
 using PartidasServicio.Infraestructura.Persistencia.Modelos;
 
 namespace PartidasServicio.Infraestructura.Persistencia.Repositorios;
@@ -33,9 +34,24 @@ public sealed class RepositorioRespuestas : IRepositorioRespuestas, IConsultasPa
             TiempoTardadoMs = respuesta.TiempoTardadoMs,
             FechaRespuestaUtc = respuesta.FechaRespuestaUtc
         };
-        await _contexto.RespuestasTrivia.AddAsync(modelo, cancelacion);
-        await _contexto.SaveChangesAsync(cancelacion);
+
+        try
+        {
+            await _contexto.RespuestasTrivia.AddAsync(modelo, cancelacion);
+            await _contexto.SaveChangesAsync(cancelacion);
+        }
+        catch (DbUpdateException ex) when (EsViolacionUniqueConstraint(ex))
+        {
+            // Dos requests concurrentes pasaron el pre-check del eslabón.
+            // La DB rechaza el segundo con 23505; traducimos a excepción de dominio.
+            throw new RespuestaDuplicadaExcepcion();
+        }
     }
+
+    private static bool EsViolacionUniqueConstraint(DbUpdateException ex)
+        => ex.InnerException?.Message.Contains("23505", StringComparison.Ordinal) == true
+           || ex.InnerException?.Message.Contains("unique constraint", StringComparison.OrdinalIgnoreCase) == true
+           || ex.InnerException?.Message.Contains("duplicate key", StringComparison.OrdinalIgnoreCase) == true;
 
     public Task<bool> YaRespondioEquipoAsync(
         Guid sesionId, Guid preguntaId, Guid equipoId, CancellationToken cancelacion)
