@@ -2,9 +2,13 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SesionesServicio.Aplicacion.Comandos.AbandonarSesion;
+using SesionesServicio.Aplicacion.Comandos.CancelarSesion;
 using SesionesServicio.Aplicacion.Comandos.CrearSesion;
 using SesionesServicio.Aplicacion.Comandos.EliminarSesion;
+using SesionesServicio.Aplicacion.Comandos.IniciarSesion;
 using SesionesServicio.Aplicacion.Comandos.ModificarSesion;
+using SesionesServicio.Aplicacion.Comandos.PausarSesion;
+using SesionesServicio.Aplicacion.Comandos.ReanudarSesion;
 using SesionesServicio.Aplicacion.Consultas.ListarSesiones;
 using SesionesServicio.Aplicacion.Consultas.ObtenerSesionPorId;
 using SesionesServicio.Aplicacion.Puertos;
@@ -97,7 +101,62 @@ public sealed class SesionesControlador : ControllerBase
         return NoContent();
     }
 
-    // Listado de sesiones. Administrador ve todas, Operador sólo las propias.
+    [HttpPatch("{id:guid}/iniciar")]
+    [Authorize(Policy = "PoliticaSoloOperador")]
+    [ProducesResponseType(typeof(OperacionSesionRespuestaDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> IniciarSesion(Guid id, CancellationToken cancelacion)
+    {
+        var resultado = await _mediador.Send(new IniciarSesionComando(id), cancelacion);
+        return Ok(resultado);
+    }
+
+    [HttpPatch("{id:guid}/pausar")]
+    [Authorize(Policy = "PoliticaSoloOperador")]
+    [ProducesResponseType(typeof(OperacionSesionRespuestaDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> PausarSesion(Guid id, CancellationToken cancelacion)
+    {
+        var resultado = await _mediador.Send(new PausarSesionComando(id), cancelacion);
+        return Ok(resultado);
+    }
+
+    [HttpPatch("{id:guid}/reanudar")]
+    [Authorize(Policy = "PoliticaSoloOperador")]
+    [ProducesResponseType(typeof(OperacionSesionRespuestaDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> ReanudarSesion(Guid id, CancellationToken cancelacion)
+    {
+        var resultado = await _mediador.Send(new ReanudarSesionComando(id), cancelacion);
+        return Ok(resultado);
+    }
+
+    [HttpPatch("{id:guid}/cancelar")]
+    [Authorize(Policy = "PoliticaSoloOperador")]
+    [ProducesResponseType(typeof(OperacionSesionRespuestaDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> CancelarSesion(Guid id, CancellationToken cancelacion)
+    {
+        var resultado = await _mediador.Send(new CancelarSesionComando(id), cancelacion);
+        return Ok(resultado);
+    }
+
     [HttpGet]
     [Authorize(Policy = "PoliticaAdministradorUOperador")]
     [ProducesResponseType(typeof(List<SesionListadoDto>), StatusCodes.Status200OK)]
@@ -126,8 +185,6 @@ public sealed class SesionesControlador : ControllerBase
         return Ok(resultado);
     }
 
-    // Detalle de una sesión. Administrador puede ver cualquiera; Operador,
-    // sólo las que él creó.
     [HttpGet("{id:guid}")]
     [Authorize(Policy = "PoliticaAdministradorUOperador")]
     [ProducesResponseType(typeof(SesionDetalleDto), StatusCodes.Status200OK)]

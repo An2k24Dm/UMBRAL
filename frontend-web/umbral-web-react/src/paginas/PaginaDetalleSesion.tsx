@@ -11,7 +11,12 @@ import {
   listarEquiposSesion,
   expulsarParticipanteSesion,
   expulsarEquipoSesion,
+  iniciarSesionOperacion,
+  pausarSesionOperacion,
+  reanudarSesionOperacion,
+  cancelarSesionOperacion,
   type EquipoSesionListadoDto,
+  type OperacionSesionRespuestaDto,
   type ParticipanteSesionDto,
   type SesionDetalleDto
 } from '../autenticacion/clienteApiSesiones'
@@ -71,6 +76,50 @@ function formatearDuracionSegundos(segundos: number | null | undefined): string 
   return `${minutos} min ${segundosRestantes} s`
 }
 
+// HU52 — Operaciones del ciclo de vida de la sesión (patrón Facade en backend).
+type AccionOperacionSesion = 'iniciar' | 'pausar' | 'reanudar' | 'cancelar'
+
+// Configuración declarativa de cada operación: qué función de API ejecutar y
+// los textos del modal de confirmación y del mensaje de éxito.
+const OPERACIONES_SESION: Record<AccionOperacionSesion, {
+  titulo: string
+  textoConfirmar: string
+  confirmacion: string
+  ejecutar: (id: string, token: string) => Promise<OperacionSesionRespuestaDto>
+  exito: string
+}> = {
+  iniciar: {
+    titulo: 'Iniciar sesión',
+    textoConfirmar: 'Iniciar',
+    confirmacion:
+      '¿Deseas iniciar esta sesión? Los participantes inscritos podrán comenzar a jugar.',
+    ejecutar: iniciarSesionOperacion,
+    exito: 'Sesión iniciada correctamente.'
+  },
+  pausar: {
+    titulo: 'Pausar sesión',
+    textoConfirmar: 'Pausar',
+    confirmacion: '¿Deseas pausar esta sesión? Podrás reanudarla más tarde.',
+    ejecutar: pausarSesionOperacion,
+    exito: 'Sesión pausada correctamente.'
+  },
+  reanudar: {
+    titulo: 'Reanudar sesión',
+    textoConfirmar: 'Reanudar',
+    confirmacion: '¿Deseas reanudar esta sesión?',
+    ejecutar: reanudarSesionOperacion,
+    exito: 'Sesión reanudada correctamente.'
+  },
+  cancelar: {
+    titulo: 'Cancelar sesión',
+    textoConfirmar: 'Cancelar sesión',
+    confirmacion:
+      '¿Seguro que deseas cancelar esta sesión? Esta acción no se puede deshacer.',
+    ejecutar: cancelarSesionOperacion,
+    exito: 'Sesión cancelada correctamente.'
+  }
+}
+
 export function PaginaDetalleSesion() {
   const { id } = useParams<{ id: string }>()
   const { token, usuario } = usarAutenticacion()
@@ -110,14 +159,28 @@ export function PaginaDetalleSesion() {
   const [expulsando, setExpulsando] = useState(false)
   const [errorExpulsar, setErrorExpulsar] = useState<string | null>(null)
 
-  const refrescarPorTiempoReal = useCallback(() => {
+  // HU52 — Operación del ciclo de vida. accionOperacion no nula ⇒ modal abierto.
+  const [accionOperacion, setAccionOperacion] = useState<AccionOperacionSesion | null>(null)
+  const [operandoSesion, setOperandoSesion] = useState(false)
+  const [errorOperacion, setErrorOperacion] = useState<string | null>(null)
+  const [mensajeOperacion, setMensajeOperacion] = useState<string | null>(null)
+
+  const refrescarDetalleTiempoReal = useCallback(() => {
+    if (import.meta.env.DEV) {
+      console.debug('[DetalleSesion Web] refresco solicitado por SignalR')
+    }
     setVersionTiempoReal(version => version + 1)
   }, [])
 
   useSesionesTiempoReal({
     token,
     sesionId: id,
-    onSesionActualizada: refrescarPorTiempoReal
+    onParticipantesSesionActualizados: refrescarDetalleTiempoReal,
+    onEquiposSesionActualizados: refrescarDetalleTiempoReal,
+    onEquipoActualizado: refrescarDetalleTiempoReal,
+    onSesionActualizada: refrescarDetalleTiempoReal,
+    onParticipanteExpulsado: refrescarDetalleTiempoReal,
+    onEquipoExpulsado: refrescarDetalleTiempoReal
   })
 
   function abrirModalEliminar() {
@@ -164,7 +227,7 @@ export function PaginaDetalleSesion() {
         sesion.id, participanteAExpulsar.participanteSesionId, token)
       setParticipanteAExpulsar(null)
       // Refetch inmediato para respuesta instantánea; SignalR también refresca.
-      refrescarPorTiempoReal()
+      refrescarDetalleTiempoReal()
     } catch (e) {
       setErrorExpulsar(
         e instanceof Error ? e.message : 'No se pudo expulsar al participante. Intenta nuevamente.')
@@ -187,12 +250,53 @@ export function PaginaDetalleSesion() {
     try {
       await expulsarEquipoSesion(sesion.id, equipoAExpulsar.id, token)
       setEquipoAExpulsar(null)
-      refrescarPorTiempoReal()
+      refrescarDetalleTiempoReal()
     } catch (e) {
       setErrorExpulsar(
         e instanceof Error ? e.message : 'No se pudo expulsar al equipo. Intenta nuevamente.')
     } finally {
       setExpulsando(false)
+    }
+  }
+
+  // --- HU52: operación de ciclo de vida (la coordina la fachada en backend) ---
+  function abrirOperacion(accion: AccionOperacionSesion) {
+    setErrorOperacion(null)
+    setMensajeOperacion(null)
+    setAccionOperacion(accion)
+  }
+
+  function cerrarModalOperacion() {
+    if (operandoSesion) return
+    setAccionOperacion(null)
+    setErrorOperacion(null)
+  }
+
+  async function confirmarOperacion() {
+    if (!token || !sesion || !accionOperacion) return
+    const config = OPERACIONES_SESION[accionOperacion]
+    setOperandoSesion(true)
+    setErrorOperacion(null)
+    try {
+      const resultado = await config.ejecutar(sesion.id, token)
+      // Actualizamos el estado local con el estado retornado por el backend.
+      setSesion(prev => prev
+        ? {
+            ...prev,
+            estado: resultado.estado,
+            fechaInicioUtc: resultado.fechaInicioUtc,
+            fechaFinalizacionUtc: resultado.fechaFinalizacionUtc
+          }
+        : prev)
+      setAccionOperacion(null)
+      setMensajeOperacion(config.exito)
+      // SignalR también avisa; refrescamos para dejar el detalle consistente.
+      refrescarDetalleTiempoReal()
+    } catch (e) {
+      setErrorOperacion(
+        e instanceof Error ? e.message : 'No se pudo completar la operación. Intenta nuevamente.')
+    } finally {
+      setOperandoSesion(false)
     }
   }
 
@@ -205,6 +309,9 @@ export function PaginaDetalleSesion() {
         return
       }
       try {
+        if (import.meta.env.DEV) {
+          console.debug('[DetalleSesion Web] cargando detalle', id)
+        }
         const detalle = await obtenerSesion(id, token)
         const equipos = puedeConsultarEquipos && detalle.modo === 'Grupal'
           ? await listarEquiposSesion(id, token)
@@ -213,6 +320,16 @@ export function PaginaDetalleSesion() {
         setSesion(detalle)
         setEquiposListado(equipos)
         setEstado('listo')
+        if (import.meta.env.DEV) {
+          console.debug('[DetalleSesion Web] detalle recargado', detalle.estado)
+          console.debug(
+            '[DetalleSesion Web] participantes individuales:',
+            detalle.participantesIndividuales?.length ?? 0
+          )
+          if (equipos) {
+            console.debug('[DetalleSesion Web] equipos recargados:', equipos.length)
+          }
+        }
 
         const inicial: MisionEnriquecida[] = detalle.misiones
           .slice()
@@ -386,11 +503,53 @@ export function PaginaDetalleSesion() {
                 Eliminar
               </Boton>
             )}
+
+            {/* HU52 — Operación del ciclo de vida. El backend valida cada
+                transición con la fachada y el patrón State. */}
+            {(sesion.estado === 'EnPreparacion' || sesion.estado === 'Programada') && (
+              <Boton
+                variante="primario"
+                onClick={() => abrirOperacion('iniciar')}
+                disabled={operandoSesion}
+              >
+                Iniciar
+              </Boton>
+            )}
+            {sesion.estado === 'Activa' && (
+              <Boton
+                variante="secundario"
+                onClick={() => abrirOperacion('pausar')}
+                disabled={operandoSesion}
+              >
+                Pausar
+              </Boton>
+            )}
+            {sesion.estado === 'Pausada' && (
+              <Boton
+                variante="primario"
+                onClick={() => abrirOperacion('reanudar')}
+                disabled={operandoSesion}
+              >
+                Reanudar
+              </Boton>
+            )}
+            {(sesion.estado === 'EnPreparacion' ||
+              sesion.estado === 'Activa' ||
+              sesion.estado === 'Pausada') && (
+              <Boton
+                variante="peligro"
+                onClick={() => abrirOperacion('cancelar')}
+                disabled={operandoSesion}
+              >
+                Cancelar
+              </Boton>
+            )}
           </div>
         )}
       </div>
 
       {mensajeExito && <Alerta tono="exito">{mensajeExito}</Alerta>}
+      {mensajeOperacion && <Alerta tono="exito">{mensajeOperacion}</Alerta>}
 
       {/* Cabecera con nombre + badge de estado + código de acceso */}
       <section className="seccion">
@@ -708,6 +867,21 @@ export function PaginaDetalleSesion() {
         {equipoAExpulsar && (
           <p style={{ fontSize: '0.85rem', opacity: 0.8 }}>{equipoAExpulsar.nombre}</p>
         )}
+      </ModalConfirmacion>
+
+      {/* HU52 — Confirmar operación de ciclo de vida (iniciar/pausar/reanudar/
+          cancelar). El backend aplica la regla y devuelve el estado resultante. */}
+      <ModalConfirmacion
+        abierto={accionOperacion !== null}
+        titulo={accionOperacion ? OPERACIONES_SESION[accionOperacion].titulo : ''}
+        textoConfirmar={accionOperacion ? OPERACIONES_SESION[accionOperacion].textoConfirmar : ''}
+        textoCancelar="Volver"
+        procesando={operandoSesion}
+        mensajeError={errorOperacion}
+        onConfirmar={confirmarOperacion}
+        onCancelar={cerrarModalOperacion}
+      >
+        <p>{accionOperacion ? OPERACIONES_SESION[accionOperacion].confirmacion : ''}</p>
       </ModalConfirmacion>
     </LayoutPanel>
   )

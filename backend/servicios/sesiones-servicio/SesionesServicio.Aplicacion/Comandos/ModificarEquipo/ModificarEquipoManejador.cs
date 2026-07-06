@@ -89,6 +89,8 @@ public sealed class ModificarEquipoManejador
             sesionGrupal.Id, equipo.Id, cancelacion);
         await _notificadorTiempoReal.NotificarEquipoActualizadoAsync(
             sesionGrupal.Id, equipo.Id, cancelacion);
+        await _notificadorTiempoReal.NotificarSesionActualizadaAsync(
+            sesionGrupal.Id, sesionGrupal.Estado.ToString(), cancelacion);
 
         _registroLogs.Informacion(
             evento: "EquipoModificado",

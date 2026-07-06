@@ -71,6 +71,8 @@ public sealed class ExpulsarParticipanteSesionIndividualManejador
         if (participanteIdentidadId is Guid identidadId)
             await _notificadorTiempoReal.NotificarParticipanteExpulsadoAsync(
                 identidadId, individual.Id, comando.ParticipanteSesionId, cancelacion);
+        await _notificadorTiempoReal.NotificarSesionActualizadaAsync(
+            individual.Id, individual.Estado.ToString(), cancelacion);
 
         _registroLogs.Informacion(
             evento: "ParticipanteExpulsadoSesionIndividual",

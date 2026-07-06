@@ -8,10 +8,12 @@ using SesionesServicio.Aplicacion.Comandos.IngresarEquipo;
 using SesionesServicio.Aplicacion.Comandos.IngresarSesionPorCodigo;
 using SesionesServicio.Aplicacion.Comandos.ModificarEquipo;
 using SesionesServicio.Aplicacion.Comandos.ModificarSesion;
+using SesionesServicio.Aplicacion.Fachadas;
 using SesionesServicio.Aplicacion.Mapeadores;
 using SesionesServicio.Aplicacion.Mapeadores.IngresoSesion;
 using SesionesServicio.Aplicacion.Puertos;
 using SesionesServicio.Aplicacion.Validaciones;
+using SesionesServicio.Aplicacion.Validaciones.OperacionSesion;
 using SesionesServicio.Dominio.Abstract;
 using SesionesServicio.Dominio.Fabricas;
 
@@ -33,6 +35,10 @@ public static class RegistroAplicacion
         servicios.AddScoped<IValidador<IngresarSesionPorCodigoComando>,
             ValidadorIngresarSesionPorCodigo>();
         servicios.AddScoped<IValidador<ModificarEquipoComando>, ValidadorModificarEquipo>();
+        servicios.AddScoped<IFachadaOperacionSesion, FachadaOperacionSesion>();
+        servicios.AddScoped<ValidadorInicioSesionOperacion>();
+        servicios.AddScoped<ValidadorCancelacionSesionOperacion>();
+        servicios.AddScoped<ValidadorAccionJuegoSesion>();
         servicios.AddScoped<Autorizacion.PoliticaParticipacionUnicaSesion>();
         servicios.AddScoped<ConstructorRespuestaIngresoSesion>();
         servicios.AddScoped<IValidadorMisionesSesion, ValidadorMisionesSesion>();

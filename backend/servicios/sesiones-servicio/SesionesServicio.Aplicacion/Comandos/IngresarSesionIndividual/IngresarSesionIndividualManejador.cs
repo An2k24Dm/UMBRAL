@@ -78,6 +78,10 @@ public sealed class IngresarSesionIndividualManejador
             await _unidadTrabajo.GuardarCambiosAsync(cancelacion);
             await _notificadorTiempoReal.NotificarParticipantesSesionActualizadosAsync(
                 individual.Id, cancelacion);
+            // El listado (web y móvil) muestra el contador de inscritos: aunque
+            // el estado no cambie, avisamos para que se refresque el conteo.
+            await _notificadorTiempoReal.NotificarSesionActualizadaAsync(
+                individual.Id, individual.Estado.ToString(), cancelacion);
 
             _registroLogs.Informacion(
                 evento: "ParticipanteIngresoSesionIndividual",

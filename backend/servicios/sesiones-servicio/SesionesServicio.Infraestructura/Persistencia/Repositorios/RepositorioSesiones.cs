@@ -158,7 +158,8 @@ public sealed class RepositorioSesiones : IRepositorioSesiones, IConsultasSesion
     {
         EstadoSesion.Programada,
         EstadoSesion.EnPreparacion,
-        EstadoSesion.Activa
+        EstadoSesion.Activa,
+        EstadoSesion.Pausada
     };
 
     private static readonly EstadoSesion[] EstadosBloqueantes =

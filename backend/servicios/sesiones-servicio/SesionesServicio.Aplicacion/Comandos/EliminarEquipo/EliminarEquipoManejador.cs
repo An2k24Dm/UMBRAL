@@ -57,6 +57,8 @@ public sealed class EliminarEquipoManejador : IRequestHandler<EliminarEquipoComa
         await _unidadTrabajo.GuardarCambiosAsync(cancelacion);
         await _notificadorTiempoReal.NotificarEquiposSesionActualizadosAsync(
             sesionGrupal.Id, comando.EquipoId, cancelacion);
+        await _notificadorTiempoReal.NotificarSesionActualizadaAsync(
+            sesionGrupal.Id, sesionGrupal.Estado.ToString(), cancelacion);
 
         _registroLogs.Informacion(
             evento: "EquipoEliminado",

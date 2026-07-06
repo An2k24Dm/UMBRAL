@@ -58,6 +58,9 @@ public class AbandonarSesionManejadorPruebas
             Notificador.Setup(n => n.NotificarEquipoActualizadoAsync(
                     It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
                 .Returns(Task.CompletedTask);
+            Notificador.Setup(n => n.NotificarSesionActualizadaAsync(
+                    It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
         }
 
         public AbandonarSesionManejador Construir()
@@ -117,6 +120,9 @@ public class AbandonarSesionManejadorPruebas
         ctx.Unidad.Verify(u => u.GuardarCambiosAsync(It.IsAny<CancellationToken>()), Times.Once);
         ctx.Notificador.Verify(n => n.NotificarParticipantesSesionActualizadosAsync(
             ctx.SesionId, It.IsAny<CancellationToken>()), Times.Once);
+        ctx.Notificador.Verify(n => n.NotificarSesionActualizadaAsync(
+            ctx.SesionId, EstadoSesion.EnPreparacion.ToString(), It.IsAny<CancellationToken>()),
+            Times.Once);
         // No es una expulsión: nunca se envía el aviso dirigido.
         ctx.Notificador.Verify(n => n.NotificarParticipanteExpulsadoAsync(
             It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(),
@@ -137,6 +143,9 @@ public class AbandonarSesionManejadorPruebas
             ctx.SesionId, equipoId, It.IsAny<CancellationToken>()), Times.Once);
         ctx.Notificador.Verify(n => n.NotificarEquipoActualizadoAsync(
             ctx.SesionId, equipoId, It.IsAny<CancellationToken>()), Times.Once);
+        ctx.Notificador.Verify(n => n.NotificarSesionActualizadaAsync(
+            ctx.SesionId, EstadoSesion.EnPreparacion.ToString(), It.IsAny<CancellationToken>()),
+            Times.Once);
         ctx.Notificador.Verify(n => n.NotificarParticipanteExpulsadoAsync(
             It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(),
             It.IsAny<CancellationToken>()), Times.Never);
@@ -172,6 +181,9 @@ public class AbandonarSesionManejadorPruebas
         // El equipo ya no existe: no se lleva a los clientes a su detalle.
         ctx.Notificador.Verify(n => n.NotificarEquipoActualizadoAsync(
             It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+        ctx.Notificador.Verify(n => n.NotificarSesionActualizadaAsync(
+            ctx.SesionId, EstadoSesion.EnPreparacion.ToString(), It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     [Theory]
@@ -261,5 +273,7 @@ public class AbandonarSesionManejadorPruebas
             It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
         ctx.Notificador.Verify(n => n.NotificarEquiposSesionActualizadosAsync(
             It.IsAny<Guid>(), It.IsAny<Guid?>(), It.IsAny<CancellationToken>()), Times.Never);
+        ctx.Notificador.Verify(n => n.NotificarSesionActualizadaAsync(
+            It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 }

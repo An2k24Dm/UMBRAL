@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { listarSesiones } from '../servicios/sesionesApi'
 import type {
   EstadoSesion,
@@ -16,6 +16,8 @@ interface EstadoUseSesiones {
   cargando: boolean
   vacio: boolean
   error: string | null
+  // Fuerza una recarga del listado (lo usa SignalR para refrescar en vivo).
+  refrescar: () => void
 }
 
 // Trae el listado del backend aplicando el filtro de estado del lado
@@ -25,6 +27,9 @@ export function useSesiones({ token, estado }: OpcionesUseSesiones): EstadoUseSe
   const [sesiones, setSesiones] = useState<SesionListadoDto[]>([])
   const [cargando, setCargando] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [version, setVersion] = useState(0)
+
+  const refrescar = useCallback(() => setVersion(v => v + 1), [])
 
   useEffect(() => {
     if (!token) {
@@ -53,12 +58,13 @@ export function useSesiones({ token, estado }: OpcionesUseSesiones): EstadoUseSe
     }
     cargar()
     return () => { ref.cancelado = true }
-  }, [token, estado])
+  }, [token, estado, version])
 
   return {
     sesiones,
     cargando,
     error,
     vacio: !cargando && !error && sesiones.length === 0,
+    refrescar,
   }
 }

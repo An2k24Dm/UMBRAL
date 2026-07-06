@@ -5,6 +5,7 @@ import {
   crearConexionSesionesTiempoReal,
   esErrorNoAutenticadoTiempoReal,
   obtenerEquipoIdEvento,
+  obtenerEstadoEvento,
   obtenerSesionIdEvento,
   type EventoSesionTiempoReal,
 } from "../servicios/sesionesTiempoReal";
@@ -15,6 +16,10 @@ interface OpcionesUseSesionesTiempoReal {
   onParticipantesSesionActualizados?: () => void | Promise<void>;
   onEquiposSesionActualizados?: () => void | Promise<void>;
   onEquipoActualizado?: () => void | Promise<void>;
+  // HU52 — cambio de estado del ciclo de vida (iniciar/pausar/reanudar/
+  // cancelar/finalizar). Recibe el nuevo estado para que la pantalla decida
+  // (banner de pausa, mensaje de cancelación, etc.).
+  onSesionActualizada?: (estado: string | undefined) => void | Promise<void>;
 }
 
 export function useSesionesTiempoReal({
@@ -23,6 +28,7 @@ export function useSesionesTiempoReal({
   onParticipantesSesionActualizados,
   onEquiposSesionActualizados,
   onEquipoActualizado,
+  onSesionActualizada,
 }: OpcionesUseSesionesTiempoReal) {
   const {
     sesion,
@@ -68,37 +74,76 @@ export function useSesionesTiempoReal({
       !equipoActual || obtenerEquipoIdEvento(evento).toLowerCase() === equipoActual;
 
     const manejarParticipantes = (evento: EventoSesionTiempoReal) => {
-      if (coincideSesion(evento)) void onParticipantesSesionActualizados?.();
+      if (coincideSesion(evento)) {
+        if (__DEV__) {
+          console.log("[SignalR Movil Detalle] ParticipantesSesionActualizados recibido");
+        }
+        void onParticipantesSesionActualizados?.();
+      }
     };
 
     const manejarEquipos = (evento: EventoSesionTiempoReal) => {
-      if (coincideSesion(evento)) void onEquiposSesionActualizados?.();
+      if (coincideSesion(evento)) {
+        if (__DEV__) {
+          console.log("[SignalR Movil Detalle] EquiposSesionActualizados recibido");
+        }
+        void onEquiposSesionActualizados?.();
+      }
     };
 
     const manejarEquipo = (evento: EventoSesionTiempoReal) => {
       if (coincideSesion(evento) && coincideEquipo(evento)) {
+        if (__DEV__) {
+          console.log("[SignalR Movil Detalle] EquipoActualizado recibido");
+        }
         void onEquipoActualizado?.();
+      }
+    };
+
+    const manejarSesion = (evento: EventoSesionTiempoReal) => {
+      if (coincideSesion(evento)) {
+        if (__DEV__) {
+          console.log("[SignalR Movil Detalle] SesionActualizada recibida");
+        }
+        void onSesionActualizada?.(obtenerEstadoEvento(evento));
       }
     };
 
     conexion.on("ParticipantesSesionActualizados", manejarParticipantes);
     conexion.on("EquiposSesionActualizados", manejarEquipos);
     conexion.on("EquipoActualizado", manejarEquipo);
+    conexion.on("SesionActualizada", manejarSesion);
 
     conexion.onreconnected(async () => {
       if (desmontado) {
         await conexion.stop().catch(() => undefined);
         return;
       }
+      if (__DEV__) {
+        console.log("[SignalR Movil Detalle] reconectado");
+      }
       if (sesionId) {
         await conexion
           .invoke("UnirseASesion", sesionId)
+          .then(() => {
+            if (__DEV__) {
+              console.log("[SignalR Movil Detalle] unido a sesion");
+            }
+          })
           .catch((error: unknown) => manejarErrorConexion(error));
       }
       if (equipoId) {
         await conexion
           .invoke("UnirseAEquipo", equipoId)
+          .then(() => {
+            if (__DEV__) {
+              console.log("[SignalR Movil Detalle] unido a equipo");
+            }
+          })
           .catch((error: unknown) => manejarErrorConexion(error));
+      }
+      if (!desmontado) {
+        void onSesionActualizada?.(undefined);
       }
     });
 
@@ -113,6 +158,9 @@ export function useSesionesTiempoReal({
     conexion
       .start()
       .then(async () => {
+        if (__DEV__) {
+          console.log("[SignalR Movil Detalle] conexion SignalR movil creada");
+        }
         if (desmontado) {
           await conexion.stop().catch(() => undefined);
           return;
@@ -120,11 +168,21 @@ export function useSesionesTiempoReal({
         if (sesionId) {
           await conexion
             .invoke("UnirseASesion", sesionId)
+            .then(() => {
+              if (__DEV__) {
+                console.log("[SignalR Movil Detalle] unido a sesion");
+              }
+            })
             .catch((error: unknown) => manejarErrorConexion(error));
         }
         if (equipoId) {
           await conexion
             .invoke("UnirseAEquipo", equipoId)
+            .then(() => {
+              if (__DEV__) {
+                console.log("[SignalR Movil Detalle] unido a equipo");
+              }
+            })
             .catch((error: unknown) => manejarErrorConexion(error));
         }
       })
@@ -139,6 +197,7 @@ export function useSesionesTiempoReal({
       conexion.off("ParticipantesSesionActualizados", manejarParticipantes);
       conexion.off("EquiposSesionActualizados", manejarEquipos);
       conexion.off("EquipoActualizado", manejarEquipo);
+      conexion.off("SesionActualizada", manejarSesion);
 
       if (conexion.state === signalR.HubConnectionState.Connected) {
         Promise.all([
@@ -163,5 +222,6 @@ export function useSesionesTiempoReal({
     onParticipantesSesionActualizados,
     onEquiposSesionActualizados,
     onEquipoActualizado,
+    onSesionActualizada,
   ]);
 }

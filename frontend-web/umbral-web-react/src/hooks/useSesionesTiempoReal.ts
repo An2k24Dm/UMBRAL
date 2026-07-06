@@ -1,85 +1,196 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import * as signalR from '@microsoft/signalr'
 import {
   crearConexionSesionesTiempoReal,
+  esErrorNoAutenticadoTiempoReal,
+  obtenerEquipoIdEvento,
+  obtenerEstadoEvento,
   obtenerSesionIdEvento,
   type EventoSesionTiempoReal
 } from '../servicios/sesionesTiempoReal'
 
 interface OpcionesUseSesionesTiempoReal {
   token: string | null
-  sesionId?: string
-  onSesionActualizada: () => void
+  sesionId?: string | null
+  equipoId?: string | null
+  onParticipantesSesionActualizados?: () => void | Promise<void>
+  onEquiposSesionActualizados?: () => void | Promise<void>
+  onEquipoActualizado?: () => void | Promise<void>
+  onSesionActualizada?: (estado?: string) => void | Promise<void>
+  onParticipanteExpulsado?: () => void | Promise<void>
+  onEquipoExpulsado?: () => void | Promise<void>
+}
+
+type CallbacksTiempoReal = Omit<OpcionesUseSesionesTiempoReal, 'token' | 'sesionId' | 'equipoId'>
+
+function logDetalle(mensaje: string, ...datos: unknown[]) {
+  if (import.meta.env.DEV) {
+    console.debug(`[SignalR Web Detalle] ${mensaje}`, ...datos)
+  }
 }
 
 export function useSesionesTiempoReal({
   token,
   sesionId,
-  onSesionActualizada
+  equipoId,
+  onParticipantesSesionActualizados,
+  onEquiposSesionActualizados,
+  onEquipoActualizado,
+  onSesionActualizada,
+  onParticipanteExpulsado,
+  onEquipoExpulsado
 }: OpcionesUseSesionesTiempoReal) {
+  const callbacksRef = useRef<CallbacksTiempoReal>({})
+  callbacksRef.current = {
+    onParticipantesSesionActualizados,
+    onEquiposSesionActualizados,
+    onEquipoActualizado,
+    onSesionActualizada,
+    onParticipanteExpulsado,
+    onEquipoExpulsado
+  }
+
+  const tokenLimpio = token?.trim() ?? ''
+
   useEffect(() => {
-    // No abrir conexión sin token válido (evita 401 no controlados).
-    const tokenLimpio = token?.trim()
-    if (!tokenLimpio || !sesionId) return
+    if (!tokenLimpio || (!sesionId && !equipoId)) return
 
     let desmontado = false
     const conexion = crearConexionSesionesTiempoReal(tokenLimpio)
-    const sesionActual = sesionId.toLowerCase()
+    const sesionActual = (sesionId ?? '').toLowerCase()
+    const equipoActual = (equipoId ?? '').toLowerCase()
 
-    const manejarEvento = (evento: EventoSesionTiempoReal) => {
-      if (obtenerSesionIdEvento(evento).toLowerCase() === sesionActual) {
-        onSesionActualizada()
+    logDetalle('conexión creada')
+
+    const manejarErrorConexion = (error: unknown) => {
+      if (esErrorNoAutenticadoTiempoReal(error)) {
+        logDetalle('cerrado')
       }
     }
 
-    conexion.on('ParticipantesSesionActualizados', manejarEvento)
-    conexion.on('EquiposSesionActualizados', manejarEvento)
-    conexion.on('EquipoActualizado', manejarEvento)
+    const coincideSesion = (evento: EventoSesionTiempoReal) =>
+      !sesionActual || obtenerSesionIdEvento(evento).toLowerCase() === sesionActual
 
-    // Tras una reconexión automática SignalR pierde la membresía de grupos:
-    // hay que volver a unirse a la sesión y refrescar, porque el estado pudo
-    // cambiar mientras el canal estuvo caído.
+    const coincideEquipo = (evento: EventoSesionTiempoReal) =>
+      !equipoActual || obtenerEquipoIdEvento(evento).toLowerCase() === equipoActual
+
+    const refrescar = (accion: (() => void | Promise<void>) | undefined) => {
+      logDetalle('refrescando detalle')
+      void accion?.()
+    }
+
+    const manejarParticipantes = (evento: EventoSesionTiempoReal) => {
+      logDetalle('evento recibido', 'ParticipantesSesionActualizados', evento)
+      if (coincideSesion(evento)) {
+        refrescar(callbacksRef.current.onParticipantesSesionActualizados)
+      }
+    }
+
+    const manejarEquipos = (evento: EventoSesionTiempoReal) => {
+      logDetalle('evento recibido', 'EquiposSesionActualizados', evento)
+      if (coincideSesion(evento)) {
+        refrescar(callbacksRef.current.onEquiposSesionActualizados)
+      }
+    }
+
+    const manejarEquipo = (evento: EventoSesionTiempoReal) => {
+      logDetalle('evento recibido', 'EquipoActualizado', evento)
+      if (coincideSesion(evento) && coincideEquipo(evento)) {
+        refrescar(callbacksRef.current.onEquipoActualizado)
+      }
+    }
+
+    const manejarSesion = (evento: EventoSesionTiempoReal) => {
+      logDetalle('evento recibido', 'SesionActualizada', evento)
+      if (coincideSesion(evento)) {
+        logDetalle('refrescando detalle')
+        void callbacksRef.current.onSesionActualizada?.(obtenerEstadoEvento(evento))
+      }
+    }
+
+    const manejarParticipanteExpulsado = (evento: EventoSesionTiempoReal) => {
+      logDetalle('evento recibido', 'ParticipanteExpulsadoSesion', evento)
+      if (coincideSesion(evento)) {
+        refrescar(callbacksRef.current.onParticipanteExpulsado)
+      }
+    }
+
+    const manejarEquipoExpulsado = (evento: EventoSesionTiempoReal) => {
+      logDetalle('evento recibido', 'EquipoExpulsadoSesion', evento)
+      if (coincideSesion(evento) && coincideEquipo(evento)) {
+        refrescar(callbacksRef.current.onEquipoExpulsado)
+      }
+    }
+
+    const unirseAGrupos = async () => {
+      if (sesionId) {
+        await conexion.invoke('UnirseASesion', sesionId)
+        logDetalle('unido a sesión', sesionId)
+      }
+      if (equipoId) {
+        await conexion.invoke('UnirseAEquipo', equipoId)
+        logDetalle('unido a equipo', equipoId)
+      }
+    }
+
+    conexion.on('ParticipantesSesionActualizados', manejarParticipantes)
+    conexion.on('EquiposSesionActualizados', manejarEquipos)
+    conexion.on('EquipoActualizado', manejarEquipo)
+    conexion.on('SesionActualizada', manejarSesion)
+    conexion.on('ParticipanteExpulsadoSesion', manejarParticipanteExpulsado)
+    conexion.on('EquipoExpulsadoSesion', manejarEquipoExpulsado)
+
     conexion.onreconnected(() => {
       if (desmontado) return
-      conexion
-        .invoke('UnirseASesion', sesionId)
-        .then(() => onSesionActualizada())
-        .catch(() => undefined)
+      logDetalle('reconectado')
+      unirseAGrupos()
+        .then(() => {
+          if (!desmontado) {
+            logDetalle('refrescando detalle')
+            void callbacksRef.current.onSesionActualizada?.(undefined)
+          }
+        })
+        .catch(manejarErrorConexion)
+    })
+
+    conexion.onreconnecting(manejarErrorConexion)
+    conexion.onclose((error) => {
+      logDetalle('cerrado')
+      manejarErrorConexion(error)
     })
 
     conexion
       .start()
       .then(() => {
-        // Si la pantalla se desmontó mientras negociaba, recién aquí (ya
-        // conectada) es seguro detenerla, sin cortar la negociación.
+        logDetalle('conectado')
         if (desmontado) {
           return conexion.stop().catch(() => undefined)
         }
-        return conexion.invoke('UnirseASesion', sesionId).catch(() => undefined)
+        return unirseAGrupos().catch(manejarErrorConexion)
       })
-      .catch(() => {
-        // El detalle sigue funcionando por HTTP; si el canal en tiempo real no
-        // conecta, el usuario mantiene la recarga manual como respaldo.
-      })
+      .catch(manejarErrorConexion)
 
     return () => {
       desmontado = true
-      conexion.off('ParticipantesSesionActualizados', manejarEvento)
-      conexion.off('EquiposSesionActualizados', manejarEvento)
-      conexion.off('EquipoActualizado', manejarEvento)
+      conexion.off('ParticipantesSesionActualizados', manejarParticipantes)
+      conexion.off('EquiposSesionActualizados', manejarEquipos)
+      conexion.off('EquipoActualizado', manejarEquipo)
+      conexion.off('SesionActualizada', manejarSesion)
+      conexion.off('ParticipanteExpulsadoSesion', manejarParticipanteExpulsado)
+      conexion.off('EquipoExpulsadoSesion', manejarEquipoExpulsado)
 
-      // Solo cerramos si ya está Conectada. Si está Connecting/Reconnecting,
-      // NO llamamos stop aquí (cortaría la negociación y dispara
-      // "The connection was stopped during negotiation"); el then de start ve
-      // `desmontado` y la cierra al terminar. Si está Disconnected, nada.
       if (conexion.state === signalR.HubConnectionState.Connected) {
-        conexion
-          .invoke('SalirDeSesion', sesionId)
-          .catch(() => undefined)
-          .finally(() => {
-            conexion.stop().catch(() => undefined)
-          })
+        Promise.all([
+          sesionId
+            ? conexion.invoke('SalirDeSesion', sesionId).catch(() => undefined)
+            : Promise.resolve(),
+          equipoId
+            ? conexion.invoke('SalirDeEquipo', equipoId).catch(() => undefined)
+            : Promise.resolve()
+        ]).finally(() => {
+          conexion.stop().catch(() => undefined)
+        })
       }
     }
-  }, [token, sesionId, onSesionActualizada])
+  }, [tokenLimpio, sesionId, equipoId])
 }

@@ -12,11 +12,15 @@ public sealed class ObtenerDetalleSesionDisponibleParticipanteManejador
     : IRequestHandler<ObtenerDetalleSesionDisponibleParticipanteConsulta,
         SesionDetalleMovilDto>
 {
+    // Pausada sigue disponible: el participante inscrito debe poder ver el
+    // detalle (misiones, etapas, contenido) aunque no pueda jugar. Solo
+    // Cancelada y Finalizada quedan fuera del detalle disponible.
     private static readonly EstadoSesion[] EstadosDisponibles =
     {
         EstadoSesion.Programada,
         EstadoSesion.EnPreparacion,
-        EstadoSesion.Activa
+        EstadoSesion.Activa,
+        EstadoSesion.Pausada
     };
 
     private readonly IRepositorioSesiones _repositorio;
