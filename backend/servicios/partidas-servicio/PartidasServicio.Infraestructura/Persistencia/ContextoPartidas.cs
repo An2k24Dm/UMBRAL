@@ -1,17 +1,36 @@
 using Microsoft.EntityFrameworkCore;
+using PartidasServicio.Aplicacion.Puertos;
 using PartidasServicio.Infraestructura.Persistencia.Modelos;
 
 namespace PartidasServicio.Infraestructura.Persistencia;
 
-public sealed class ContextoPartidas : DbContext
+public sealed class ContextoPartidas : DbContext, IUnidadTrabajoPartidas
 {
     public ContextoPartidas(DbContextOptions<ContextoPartidas> opciones) : base(opciones) { }
 
+    public Task GuardarCambiosAsync(CancellationToken cancelacion) =>
+        SaveChangesAsync(cancelacion);
+
     public DbSet<RespuestaTriviaModelo> RespuestasTrivia => Set<RespuestaTriviaModelo>();
+    public DbSet<PartidaModelo> Partidas => Set<PartidaModelo>();
 
     protected override void OnModelCreating(ModelBuilder constructor)
     {
         constructor.HasDefaultSchema("partidas");
+
+        constructor.Entity<PartidaModelo>(e =>
+        {
+            e.ToTable("Partida");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.SesionId).HasColumnName("sesion_id").IsRequired();
+            e.Property(x => x.Estado).HasColumnName("estado").HasMaxLength(20).IsRequired();
+            e.Property(x => x.FechaCreacionUtc).HasColumnName("fecha_creacion_utc").IsRequired();
+            e.Property(x => x.FechaInicioUtc).HasColumnName("fecha_inicio_utc");
+            e.Property(x => x.FechaFinUtc).HasColumnName("fecha_fin_utc");
+
+            e.HasIndex(x => x.SesionId).IsUnique();
+        });
 
         constructor.Entity<RespuestaTriviaModelo>(e =>
         {

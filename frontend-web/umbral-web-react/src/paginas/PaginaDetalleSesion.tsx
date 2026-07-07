@@ -11,10 +11,20 @@ import {
   listarEquiposSesion,
   expulsarParticipanteSesion,
   expulsarEquipoSesion,
+  iniciarSesion,
+  pausarSesion,
+  reanudarSesion,
+  cancelarSesion,
   type EquipoSesionListadoDto,
   type ParticipanteSesionDto,
   type SesionDetalleDto
 } from '../autenticacion/clienteApiSesiones'
+import {
+  iniciarPartida,
+  pausarPartida,
+  reanudarPartida,
+  cancelarPartida
+} from '../autenticacion/clienteApiPartidas'
 import {
   obtenerDetalleMision,
   obtenerDetalleTrivia,
@@ -110,6 +120,13 @@ export function PaginaDetalleSesion() {
   const [expulsando, setExpulsando] = useState(false)
   const [errorExpulsar, setErrorExpulsar] = useState<string | null>(null)
 
+  // Transiciones de estado (iniciar, pausar, reanudar, cancelar)
+  const [modalTransicion, setModalTransicion] = useState<
+    'iniciar' | 'pausar' | 'reanudar' | 'cancelar' | null
+  >(null)
+  const [ejecutandoTransicion, setEjecutandoTransicion] = useState(false)
+  const [errorTransicion, setErrorTransicion] = useState<string | null>(null)
+
   const refrescarPorTiempoReal = useCallback(() => {
     setVersionTiempoReal(version => version + 1)
   }, [])
@@ -193,6 +210,51 @@ export function PaginaDetalleSesion() {
         e instanceof Error ? e.message : 'No se pudo expulsar al equipo. Intenta nuevamente.')
     } finally {
       setExpulsando(false)
+    }
+  }
+
+  // --- Transiciones de estado ---
+  function abrirModalTransicion(accion: 'iniciar' | 'pausar' | 'reanudar' | 'cancelar') {
+    setErrorTransicion(null)
+    setModalTransicion(accion)
+  }
+
+  function cerrarModalTransicion() {
+    if (ejecutandoTransicion) return
+    setModalTransicion(null)
+    setErrorTransicion(null)
+  }
+
+  async function confirmarTransicion() {
+    if (!token || !sesion || !modalTransicion) return
+    setEjecutandoTransicion(true)
+    setErrorTransicion(null)
+    try {
+      const accionesSesion = {
+        iniciar: () => iniciarSesion(sesion.id, token),
+        pausar: () => pausarSesion(sesion.id, token),
+        reanudar: () => reanudarSesion(sesion.id, token),
+        cancelar: () => cancelarSesion(sesion.id, token)
+      }
+      await accionesSesion[modalTransicion]()
+
+      // Sincronizar estado de la partida con el de la sesión.
+      // Los errores aquí son no bloqueantes: la sesión ya cambió de estado.
+      const accionesPartida: Record<'iniciar' | 'pausar' | 'reanudar' | 'cancelar', () => Promise<void>> = {
+        iniciar: () => iniciarPartida(sesion.id, token),
+        pausar: () => pausarPartida(sesion.id, token),
+        reanudar: () => reanudarPartida(sesion.id, token),
+        cancelar: () => cancelarPartida(sesion.id, token)
+      }
+      await accionesPartida[modalTransicion]().catch(() => undefined)
+
+      setModalTransicion(null)
+      refrescarPorTiempoReal()
+    } catch (e) {
+      setErrorTransicion(
+        e instanceof Error ? e.message : 'No se pudo realizar la acción. Intenta nuevamente.')
+    } finally {
+      setEjecutandoTransicion(false)
     }
   }
 
@@ -357,34 +419,84 @@ export function PaginaDetalleSesion() {
         {/* Acciones de escritura: solo Operador. */}
         {esOperador && (
           <div style={{ display: 'flex', gap: 'var(--espacio-3)', flexWrap: 'wrap' }}>
-            {/* Editar: activo solo si la sesión está Programada. */}
-            {sesion.estado === 'Programada' ? (
-              <Boton
-                variante="primario"
-                onClick={() => navegar(`${rutaListado}/${sesion.id}/editar`)}
-                disabled={eliminando}
-              >
-                Editar
-              </Boton>
-            ) : (
-              <Boton
-                variante="primario"
-                disabled
-                title="Solo se pueden editar sesiones en estado Programada."
-              >
-                Editar
-              </Boton>
+            {/* Estado Programada: Editar + Eliminar */}
+            {sesion.estado === 'Programada' && (
+              <>
+                <Boton
+                  variante="primario"
+                  onClick={() => navegar(`${rutaListado}/${sesion.id}/editar`)}
+                  disabled={eliminando}
+                >
+                  Editar
+                </Boton>
+                <Boton
+                  variante="peligro"
+                  onClick={abrirModalEliminar}
+                  disabled={eliminando}
+                >
+                  Eliminar
+                </Boton>
+              </>
             )}
 
-            {/* Eliminar: solo visible si la sesión está Programada (HU39). */}
-            {sesion.estado === 'Programada' && (
-              <Boton
-                variante="peligro"
-                onClick={abrirModalEliminar}
-                disabled={eliminando}
-              >
-                Eliminar
-              </Boton>
+            {/* Estado EnPreparacion: Iniciar + Cancelar */}
+            {sesion.estado === 'EnPreparacion' && (
+              <>
+                <Boton
+                  variante="primario"
+                  onClick={() => abrirModalTransicion('iniciar')}
+                  disabled={ejecutandoTransicion}
+                >
+                  Iniciar sesión
+                </Boton>
+                <Boton
+                  variante="peligro"
+                  onClick={() => abrirModalTransicion('cancelar')}
+                  disabled={ejecutandoTransicion}
+                >
+                  Cancelar sesión
+                </Boton>
+              </>
+            )}
+
+            {/* Estado Activa: Pausar + Cancelar */}
+            {sesion.estado === 'Activa' && (
+              <>
+                <Boton
+                  variante="primario"
+                  onClick={() => abrirModalTransicion('pausar')}
+                  disabled={ejecutandoTransicion}
+                >
+                  Pausar sesión
+                </Boton>
+                <Boton
+                  variante="peligro"
+                  onClick={() => abrirModalTransicion('cancelar')}
+                  disabled={ejecutandoTransicion}
+                >
+                  Cancelar sesión
+                </Boton>
+              </>
+            )}
+
+            {/* Estado Pausada: Reanudar + Cancelar */}
+            {sesion.estado === 'Pausada' && (
+              <>
+                <Boton
+                  variante="primario"
+                  onClick={() => abrirModalTransicion('reanudar')}
+                  disabled={ejecutandoTransicion}
+                >
+                  Reanudar sesión
+                </Boton>
+                <Boton
+                  variante="peligro"
+                  onClick={() => abrirModalTransicion('cancelar')}
+                  disabled={ejecutandoTransicion}
+                >
+                  Cancelar sesión
+                </Boton>
+              </>
             )}
           </div>
         )}
@@ -708,6 +820,64 @@ export function PaginaDetalleSesion() {
         {equipoAExpulsar && (
           <p style={{ fontSize: '0.85rem', opacity: 0.8 }}>{equipoAExpulsar.nombre}</p>
         )}
+      </ModalConfirmacion>
+
+      {/* Modales de transición de estado */}
+      <ModalConfirmacion
+        abierto={modalTransicion === 'iniciar'}
+        titulo="Iniciar sesión"
+        textoConfirmar="Iniciar"
+        textoCancelar="Cancelar"
+        procesando={ejecutandoTransicion}
+        mensajeError={errorTransicion}
+        onConfirmar={confirmarTransicion}
+        onCancelar={cerrarModalTransicion}
+      >
+        <p>¿Deseas iniciar la sesión? Los participantes podrán comenzar a jugar.</p>
+      </ModalConfirmacion>
+
+      <ModalConfirmacion
+        abierto={modalTransicion === 'pausar'}
+        titulo="Pausar sesión"
+        textoConfirmar="Pausar"
+        textoCancelar="Cancelar"
+        procesando={ejecutandoTransicion}
+        mensajeError={errorTransicion}
+        onConfirmar={confirmarTransicion}
+        onCancelar={cerrarModalTransicion}
+      >
+        <p>¿Deseas pausar la sesión? Los participantes no podrán continuar hasta que la reanudes.</p>
+      </ModalConfirmacion>
+
+      <ModalConfirmacion
+        abierto={modalTransicion === 'reanudar'}
+        titulo="Reanudar sesión"
+        textoConfirmar="Reanudar"
+        textoCancelar="Cancelar"
+        procesando={ejecutandoTransicion}
+        mensajeError={errorTransicion}
+        onConfirmar={confirmarTransicion}
+        onCancelar={cerrarModalTransicion}
+      >
+        <p>¿Deseas reanudar la sesión? Los participantes podrán continuar jugando.</p>
+      </ModalConfirmacion>
+
+      <ModalConfirmacion
+        abierto={modalTransicion === 'cancelar'}
+        titulo="Cancelar sesión"
+        textoConfirmar="Cancelar sesión"
+        textoCancelar="Volver"
+        procesando={ejecutandoTransicion}
+        mensajeError={errorTransicion}
+        onConfirmar={confirmarTransicion}
+        onCancelar={cerrarModalTransicion}
+      >
+        <p>
+          ¿Estás seguro de que deseas cancelar esta sesión? Esta acción no se puede deshacer.
+        </p>
+        <p style={{ fontSize: '0.85rem', opacity: 0.8 }}>
+          La sesión quedará en estado Cancelada y no podrá retomarse.
+        </p>
       </ModalConfirmacion>
     </LayoutPanel>
   )

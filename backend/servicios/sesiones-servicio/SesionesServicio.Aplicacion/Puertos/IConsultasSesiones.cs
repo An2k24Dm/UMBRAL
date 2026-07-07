@@ -24,6 +24,10 @@ public interface IConsultasSesiones
         Guid sesionId,
         Guid participanteIdentidadId,
         CancellationToken cancelacion);
+
+    Task<NombresRankingDto> ObtenerNombresRankingAsync(
+        Guid sesionId,
+        CancellationToken cancelacion);
 }
 public sealed record SesionParticipacionActivaDto(
     Guid SesionId,
@@ -37,3 +41,21 @@ public sealed record EstadoPartidaParticipanteDto(
     string Estado,
     bool ParticipanteInscrito,
     Guid? EquipoId);
+
+public sealed class NombresRankingDto
+{
+    public List<NombreEquipoDto> Equipos { get; set; } = new();
+    public List<NombreParticipanteDto> Participantes { get; set; } = new();
+}
+
+public sealed class NombreEquipoDto
+{
+    public Guid Id { get; set; }
+    public string Nombre { get; set; } = string.Empty;
+}
+
+public sealed class NombreParticipanteDto
+{
+    public Guid IdentidadId { get; set; }
+    public string Alias { get; set; } = string.Empty;
+}

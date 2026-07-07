@@ -222,6 +222,7 @@ function SeccionParticipacion({
   const participacion = detalle.participacionActual;
   const esGrupal = detalle.modo === "Grupal";
   const enPreparacion = detalle.estado === "EnPreparacion";
+  const esActiva = detalle.estado === "Activa" || detalle.estado === "Pausada";
 
   useEffect(() => {
     if (sesionExpirada || sesionExpiradaAbandonar)
@@ -268,8 +269,25 @@ function SeccionParticipacion({
               Equipo: {participacion.equipoNombre}
             </Text>
           ) : null}
+
+          {esActiva && (
+            <TouchableOpacity
+              style={estilos.botonPrimario}
+              onPress={() =>
+                navegarSeguro(() =>
+                  enrutador.push(
+                    `/participante/sesiones/jugar?sesionId=${sesionId}`,
+                  ),
+                )
+              }
+              accessibilityRole="button"
+            >
+              <Text style={estilos.botonPrimarioTexto}>¡Jugar ahora!</Text>
+            </TouchableOpacity>
+          )}
+
           <TouchableOpacity
-            style={estilos.botonPrimario}
+            style={esActiva ? estilos.botonSecundario : estilos.botonPrimario}
             onPress={() =>
               navegarSeguro(() =>
                 enrutador.push(
@@ -280,36 +298,56 @@ function SeccionParticipacion({
             }
             accessibilityRole="button"
           >
-            <Text style={estilos.botonPrimarioTexto}>Ver equipo</Text>
+            <Text style={esActiva ? estilos.botonSecundarioTexto : estilos.botonPrimarioTexto}>
+              Ver equipo
+            </Text>
           </TouchableOpacity>
         </View>
       );
     }
 
-    // Sesión individual ya ingresada: puede abandonarla (HU48). El backend
-    // rechaza con 409 si la sesión ya no está En Preparación.
+    // Sesión individual ya ingresada.
     return (
       <View style={estilos.tarjetaParticipacion}>
         <Text style={estilos.participacionTexto}>
           Ya ingresaste a esta sesión.
         </Text>
+
+        {esActiva && (
+          <TouchableOpacity
+            style={estilos.botonPrimario}
+            onPress={() =>
+              navegarSeguro(() =>
+                enrutador.push(
+                  `/participante/sesiones/jugar?sesionId=${sesionId}`,
+                ),
+              )
+            }
+            accessibilityRole="button"
+          >
+            <Text style={estilos.botonPrimarioTexto}>¡Jugar ahora!</Text>
+          </TouchableOpacity>
+        )}
+
         {errorAbandonar ? (
           <View style={estilos.cuadroError}>
             <Text style={estilos.cuadroErrorTexto}>{errorAbandonar}</Text>
           </View>
         ) : null}
-        <TouchableOpacity
-          style={[estilos.botonPeligro, abandonando && estilos.botonDeshabilitado]}
-          onPress={solicitarAbandono}
-          disabled={abandonando}
-          accessibilityRole="button"
-        >
-          {abandonando ? (
-            <ActivityIndicator color={tema.colores.textoBlanco} />
-          ) : (
-            <Text style={estilos.botonPeligroTexto}>Abandonar sesión</Text>
-          )}
-        </TouchableOpacity>
+        {enPreparacion && (
+          <TouchableOpacity
+            style={[estilos.botonPeligro, abandonando && estilos.botonDeshabilitado]}
+            onPress={solicitarAbandono}
+            disabled={abandonando}
+            accessibilityRole="button"
+          >
+            {abandonando ? (
+              <ActivityIndicator color={tema.colores.textoBlanco} />
+            ) : (
+              <Text style={estilos.botonPeligroTexto}>Abandonar sesión</Text>
+            )}
+          </TouchableOpacity>
+        )}
       </View>
     );
   }

@@ -2,9 +2,13 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SesionesServicio.Aplicacion.Comandos.AbandonarSesion;
+using SesionesServicio.Aplicacion.Comandos.CancelarSesion;
 using SesionesServicio.Aplicacion.Comandos.CrearSesion;
 using SesionesServicio.Aplicacion.Comandos.EliminarSesion;
+using SesionesServicio.Aplicacion.Comandos.IniciarSesion;
 using SesionesServicio.Aplicacion.Comandos.ModificarSesion;
+using SesionesServicio.Aplicacion.Comandos.PausarSesion;
+using SesionesServicio.Aplicacion.Comandos.ReanudarSesion;
 using SesionesServicio.Aplicacion.Consultas.ListarSesiones;
 using SesionesServicio.Aplicacion.Consultas.ObtenerSesionPorId;
 using SesionesServicio.Aplicacion.Puertos;
@@ -94,6 +98,62 @@ public sealed class SesionesControlador : ControllerBase
     public async Task<IActionResult> EliminarSesion(Guid id, CancellationToken cancelacion)
     {
         await _mediador.Send(new EliminarSesionComando(id), cancelacion);
+        return NoContent();
+    }
+
+    // Iniciar sesión (EnPreparacion → Activa). Solo el Operador dueño.
+    [HttpPost("{id:guid}/iniciar")]
+    [Authorize(Policy = "PoliticaSoloOperador")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> IniciarSesion(Guid id, CancellationToken cancelacion)
+    {
+        await _mediador.Send(new IniciarSesionComando(id), cancelacion);
+        return NoContent();
+    }
+
+    // Pausar sesión (Activa → Pausada). Solo el Operador dueño.
+    [HttpPost("{id:guid}/pausar")]
+    [Authorize(Policy = "PoliticaSoloOperador")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> PausarSesion(Guid id, CancellationToken cancelacion)
+    {
+        await _mediador.Send(new PausarSesionComando(id), cancelacion);
+        return NoContent();
+    }
+
+    // Reanudar sesión (Pausada → Activa). Solo el Operador dueño.
+    [HttpPost("{id:guid}/reanudar")]
+    [Authorize(Policy = "PoliticaSoloOperador")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> ReanudarSesion(Guid id, CancellationToken cancelacion)
+    {
+        await _mediador.Send(new ReanudarSesionComando(id), cancelacion);
+        return NoContent();
+    }
+
+    // Cancelar sesión (cualquier estado → Cancelada). Solo el Operador dueño.
+    [HttpPost("{id:guid}/cancelar")]
+    [Authorize(Policy = "PoliticaSoloOperador")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> CancelarSesion(Guid id, CancellationToken cancelacion)
+    {
+        await _mediador.Send(new CancelarSesionComando(id), cancelacion);
         return NoContent();
     }
 

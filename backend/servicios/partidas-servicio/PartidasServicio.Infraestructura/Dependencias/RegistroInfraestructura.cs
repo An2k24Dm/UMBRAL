@@ -29,9 +29,14 @@ public static class RegistroInfraestructura
                 p.EnableRetryOnFailure(5, TimeSpan.FromSeconds(10), null);
             }));
 
+        servicios.AddScoped<IUnidadTrabajoPartidas>(
+            sp => sp.GetRequiredService<ContextoPartidas>());
+
         servicios.AddScoped<RepositorioRespuestas>();
         servicios.AddScoped<IRepositorioRespuestas>(sp => sp.GetRequiredService<RepositorioRespuestas>());
         servicios.AddScoped<IConsultasPartidas>(sp => sp.GetRequiredService<RepositorioRespuestas>());
+
+        servicios.AddScoped<IRepositorioPartidas, RepositorioPartidas>();
 
         servicios.AddScoped<INotificadorPartidasTiempoReal, NotificadorPartidasTiempoReal>();
         servicios.AddSingleton<IProveedorFechaHora, ProveedorFechaHoraSistema>();

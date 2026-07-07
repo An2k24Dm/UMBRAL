@@ -254,4 +254,28 @@ public sealed class RepositorioSesiones : IRepositorioSesiones, IConsultasSesion
             participante is not null,
             participante?.EquipoId);
     }
+
+    public async Task<NombresRankingDto> ObtenerNombresRankingAsync(
+        Guid sesionId, CancellationToken cancelacion)
+    {
+        var equipos = await _contexto.Equipos.AsNoTracking()
+            .Where(e => e.SesionId == sesionId)
+            .Select(e => new NombreEquipoDto { Id = e.Id, Nombre = e.Nombre })
+            .ToListAsync(cancelacion);
+
+        var participanteIds = await _contexto.Participantes.AsNoTracking()
+            .Where(p => p.SesionId == sesionId && p.EquipoId == null)
+            .Select(p => p.ParticipanteIdentidadId)
+            .ToListAsync(cancelacion);
+
+        var participantes = participanteIds
+            .Select((id, idx) => new NombreParticipanteDto
+            {
+                IdentidadId = id,
+                Alias = $"Jugador {idx + 1}"
+            })
+            .ToList();
+
+        return new NombresRankingDto { Equipos = equipos, Participantes = participantes };
+    }
 }

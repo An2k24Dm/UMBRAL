@@ -20,11 +20,12 @@ public sealed class EnviarRespuestaTriviaManejador
     private readonly IProveedorFechaHora _reloj;
     private readonly IClienteJuegos _clienteJuegos;
     private readonly IConsultasPartidas _consultas;
+    private readonly IClienteSesiones _clienteSesiones;
     private readonly INotificadorPartidasTiempoReal _notificador;
     private readonly ICalculadoraPuntaje _calculadora;
     private readonly IRegistroLogsAplicacion _logs;
 
-    // Cadena de responsabilidad: Estado → Participante → Concurrencia
+    // Cadena: EstadoPartida → EstadoSesion → Participante → Concurrencia
     private readonly IReadOnlyList<IEslabonValidacion> _cadena;
 
     public EnviarRespuestaTriviaManejador(
@@ -35,9 +36,11 @@ public sealed class EnviarRespuestaTriviaManejador
         IProveedorFechaHora reloj,
         IClienteJuegos clienteJuegos,
         IConsultasPartidas consultas,
+        IClienteSesiones clienteSesiones,
         INotificadorPartidasTiempoReal notificador,
         ICalculadoraPuntaje calculadora,
         IRegistroLogsAplicacion logs,
+        EslabonEstadoPartida eslabonEstadoPartida,
         EslabonEstadoSesion eslabonEstado,
         EslabonParticipanteEnSesion eslabonParticipante,
         EslabonConcurrencia eslabonConcurrencia)
@@ -50,9 +53,10 @@ public sealed class EnviarRespuestaTriviaManejador
         _clienteJuegos = clienteJuegos;
         _consultas = consultas;
         _notificador = notificador;
+        _clienteSesiones = clienteSesiones;
         _calculadora = calculadora;
         _logs = logs;
-        _cadena = [eslabonEstado, eslabonParticipante, eslabonConcurrencia];
+        _cadena = [eslabonEstado, eslabonEstadoPartida, eslabonParticipante, eslabonConcurrencia];
     }
 
     public async Task<RespuestaTriviaResultadoDto> Handle(
@@ -63,7 +67,6 @@ public sealed class EnviarRespuestaTriviaManejador
         var participanteId = _usuarioActual.ObtenerId()
             ?? throw new ExcepcionDominio("No se pudo obtener el participante autenticado.");
 
-        // Ejecutar la cadena de responsabilidad
         var contexto = new ContextoValidacionRespuesta
         {
             SesionId = comando.SesionId,
@@ -74,39 +77,26 @@ public sealed class EnviarRespuestaTriviaManejador
         foreach (var eslabon in _cadena)
             await eslabon.ValidarAsync(contexto, cancelacion);
 
-        // Si ya fue respondida por el equipo/participante, retornar DTO informativo
         if (contexto.PreguntaYaRespondida)
         {
-            _logs.Informacion(
-                evento: "PreguntaYaRespondida",
-                descripcion: "El equipo ya respondió esta pregunta previamente.",
-                propiedades: new Dictionary<string, object?>
-                {
-                    ["SesionId"] = comando.SesionId,
-                    ["PreguntaId"] = comando.Dto.PreguntaId,
-                    ["EquipoId"] = contexto.EquipoId
-                });
+            _logs.Informacion("PreguntaYaRespondida", "El equipo ya respondió esta pregunta.",
+                new Dictionary<string, object?> { ["SesionId"] = comando.SesionId, ["PreguntaId"] = comando.Dto.PreguntaId });
 
             return new RespuestaTriviaResultadoDto
             {
-                YaRespondida = true,
-                EsCorrecta = false,
-                PuntosGanados = 0,
+                YaRespondida = true, EsCorrecta = false, PuntosGanados = 0,
                 Mensaje = "Tu equipo ya respondió esta pregunta."
             };
         }
 
-        // Verificar correctitud contra juegos-servicio (Strategy necesita el puntaje base)
         var verificacion = await _clienteJuegos.VerificarRespuestaAsync(
             comando.TriviaId, comando.Dto.PreguntaId, comando.Dto.OpcionSeleccionadaId, cancelacion)
             ?? throw new PreguntaNoEncontradaExcepcion(comando.Dto.PreguntaId);
 
-        // Calcular puntaje si es correcta (Strategy)
         var puntosGanados = verificacion.EsCorrecta
             ? _calculadora.Calcular(verificacion.PuntajeBase, comando.Dto.TiempoTardadoMs, verificacion.TiempoLimiteMs)
             : 0;
 
-        // Crear y persistir la respuesta
         var respuesta = RespuestaTrivia.Crear(
             sesionId: comando.SesionId,
             misionId: comando.MisionId,
@@ -127,42 +117,35 @@ public sealed class EnviarRespuestaTriviaManejador
         }
         catch (RespuestaDuplicadaExcepcion)
         {
-            // Carrera entre dos miembros del mismo equipo: el repositorio tradujo
-            // la violación de unique constraint a excepción de dominio.
-            _logs.Advertencia(
-                evento: "ConcurrenciaRespuestaTrivia",
-                descripcion: "Colisión de concurrencia al guardar respuesta; ya existe para este equipo/participante.",
-                propiedades: new Dictionary<string, object?>
-                {
-                    ["SesionId"] = comando.SesionId,
-                    ["PreguntaId"] = comando.Dto.PreguntaId,
-                    ["EquipoId"] = contexto.EquipoId
-                });
+            _logs.Advertencia("ConcurrenciaRespuestaTrivia", "Colisión de concurrencia al guardar respuesta.",
+                new Dictionary<string, object?> { ["SesionId"] = comando.SesionId, ["EquipoId"] = contexto.EquipoId });
 
             return new RespuestaTriviaResultadoDto
             {
-                YaRespondida = true,
-                EsCorrecta = false,
-                PuntosGanados = 0,
+                YaRespondida = true, EsCorrecta = false, PuntosGanados = 0,
                 Mensaje = "Tu equipo ya respondió esta pregunta."
             };
         }
 
-        _logs.Informacion(
-            evento: "RespuestaTriviaRegistrada",
-            descripcion: "Respuesta de trivia registrada correctamente.",
-            propiedades: new Dictionary<string, object?>
-            {
-                ["SesionId"] = comando.SesionId,
-                ["PreguntaId"] = comando.Dto.PreguntaId,
-                ["EsCorrecta"] = verificacion.EsCorrecta,
-                ["PuntosGanados"] = puntosGanados
-            });
+        _logs.Informacion("RespuestaTriviaRegistrada", "Respuesta registrada.",
+            new Dictionary<string, object?> { ["SesionId"] = comando.SesionId, ["EsCorrecta"] = verificacion.EsCorrecta, ["PuntosGanados"] = puntosGanados });
 
-        // Notificar ranking actualizado en tiempo real (SignalR)
+        // Notificar SIEMPRE que se registra una respuesta (correcta o no)
+        await _notificador.NotificarRespuestaRegistradaAsync(
+            comando.SesionId, comando.Dto.PreguntaId, contexto.EquipoId,
+            verificacion.EsCorrecta, puntosGanados, cancelacion);
+
+        // Notificar ranking solo si cambió (respuesta correcta)
         if (verificacion.EsCorrecta)
         {
             var ranking = await _consultas.ObtenerRankingAsync(comando.SesionId, cancelacion);
+            try
+            {
+                var nombres = await _clienteSesiones.ObtenerNombresRankingAsync(comando.SesionId, cancelacion);
+                if (nombres is not null)
+                    EnriquecerNombres(ranking, nombres);
+            }
+            catch { /* non-fatal */ }
             await _notificador.NotificarPuntajeActualizadoAsync(comando.SesionId, ranking, cancelacion);
         }
 
@@ -177,4 +160,18 @@ public sealed class EnviarRespuestaTriviaManejador
         };
     }
 
+    private static void EnriquecerNombres(
+        IReadOnlyList<RankingEntradaDto> ranking,
+        NombresRankingClienteDto nombres)
+    {
+        var equiposPorId = nombres.Equipos.ToDictionary(e => e.Id, e => e.Nombre);
+        var participantesPorId = nombres.Participantes.ToDictionary(p => p.IdentidadId, p => p.Alias);
+        foreach (var entrada in ranking)
+        {
+            if (entrada.EquipoId is Guid eqId && equiposPorId.TryGetValue(eqId, out var nombre))
+                entrada.Nombre = nombre;
+            else if (entrada.ParticipanteId is Guid partId && participantesPorId.TryGetValue(partId, out var alias))
+                entrada.Nombre = alias;
+        }
+    }
 }

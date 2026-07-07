@@ -10,6 +10,7 @@ using JuegosServicio.Aplicacion.Comandos.ModificarTrivia;
 using JuegosServicio.Aplicacion.Consultas.ObtenerDetalleTrivia;
 using JuegosServicio.Aplicacion.Consultas.ObtenerTriviasActivas;
 using JuegosServicio.Aplicacion.Consultas.ObtenerTriviasEnBorrador;
+using JuegosServicio.Aplicacion.Consultas.ObtenerTriviaParticipante;
 using JuegosServicio.Commons.Dtos;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -57,6 +58,23 @@ public sealed class TriviasControlador : ControllerBase
     public async Task<IActionResult> ObtenerDetalle(Guid triviaId, CancellationToken cancelacion)
     {
         var resultado = await _mediador.Send(new ObtenerDetalleTriviaConsulta(triviaId), cancelacion);
+        if (resultado is null) return NotFound(new { mensaje = "Trivia no encontrada." });
+        return Ok(resultado);
+    }
+
+    // Endpoint para el participante móvil: devuelve las preguntas y opciones
+    // de una trivia sin revelar cuál opción es correcta.
+    [HttpGet("{triviaId:guid}/participante")]
+    [Authorize(Policy = "PoliticaSoloParticipante")]
+    [ProducesResponseType(typeof(TriviaParticipanteDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ObtenerDetalleParticipante(
+        Guid triviaId, CancellationToken cancelacion)
+    {
+        var resultado = await _mediador.Send(
+            new ObtenerTriviaParticipanteConsulta(triviaId), cancelacion);
         if (resultado is null) return NotFound(new { mensaje = "Trivia no encontrada." });
         return Ok(resultado);
     }

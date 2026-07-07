@@ -4,6 +4,7 @@ using PartidasServicio.Aplicacion.Cadena;
 using PartidasServicio.Aplicacion.Comandos.EnviarRespuestaTrivia;
 using PartidasServicio.Aplicacion.Estrategias;
 using PartidasServicio.Aplicacion.Puertos;
+using PartidasServicio.Aplicacion.Servicios;
 using PartidasServicio.Aplicacion.Validaciones;
 
 namespace PartidasServicio.Aplicacion.Dependencias;
@@ -20,12 +21,16 @@ public static class RegistroAplicacion
             ValidadorEnviarRespuestaTrivia>();
 
         // Cadena de responsabilidad
+        servicios.AddScoped<EslabonEstadoPartida>();
         servicios.AddScoped<EslabonEstadoSesion>();
         servicios.AddScoped<EslabonParticipanteEnSesion>();
         servicios.AddScoped<EslabonConcurrencia>();
 
         // Strategy
         servicios.AddSingleton<ICalculadoraPuntaje, CalculadoraPuntajePorTiempo>();
+
+        // Facade
+        servicios.AddScoped<IServicioPartidas, ServicioPartidas>();
 
         return servicios;
     }

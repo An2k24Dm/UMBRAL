@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SesionesServicio.Aplicacion.Puertos;
 using SesionesServicio.Commons.Dtos;
+using EstadoPartidaDto = SesionesServicio.Commons.Dtos.EstadoPartidaDto;
 
 namespace SesionesServicio.Presentacion.Controladores;
 
@@ -49,5 +50,19 @@ public sealed class SesionesPartidaControlador : ControllerBase
             ParticipanteInscrito = resultado.ParticipanteInscrito,
             EquipoId = resultado.EquipoId
         });
+    }
+
+    /// <summary>
+    /// Devuelve nombres de equipos e IDs de participantes individuales para enriquecer el ranking.
+    /// Llamado por partidas-servicio.
+    /// </summary>
+    [HttpGet("{sesionId:guid}/nombres-ranking")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> ObtenerNombresRanking(
+        Guid sesionId, CancellationToken cancelacion)
+    {
+        var resultado = await _consultas.ObtenerNombresRankingAsync(sesionId, cancelacion);
+        return Ok(resultado);
     }
 }

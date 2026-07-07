@@ -55,6 +55,16 @@ public sealed class ManejadorErroresMiddleware
             await EscribirCodigoAsync(contexto, HttpStatusCode.NotFound,
                 "PREGUNTA_NO_ENCONTRADA", ex.Message);
         }
+        catch (PartidaNoEncontradaExcepcion ex)
+        {
+            await EscribirCodigoAsync(contexto, HttpStatusCode.NotFound,
+                "PARTIDA_NO_ENCONTRADA", ex.Message);
+        }
+        catch (TransicionEstadoInvalidaExcepcion ex)
+        {
+            await EscribirCodigoAsync(contexto, HttpStatusCode.UnprocessableEntity,
+                "TRANSICION_ESTADO_INVALIDA", ex.Message);
+        }
         catch (JsonException ex)
         {
             var correlationId = ObtenerCorrelationId(contexto);

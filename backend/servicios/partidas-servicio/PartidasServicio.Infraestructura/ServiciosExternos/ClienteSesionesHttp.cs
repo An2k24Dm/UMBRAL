@@ -32,4 +32,20 @@ public sealed class ClienteSesionesHttp : IClienteSesiones
 
         return await respuesta.Content.ReadFromJsonAsync<InfoPartidaSesionDto>(cancelacion);
     }
+
+    public async Task<NombresRankingClienteDto?> ObtenerNombresRankingAsync(
+        Guid sesionId, CancellationToken cancelacion)
+    {
+        var tokenValor = _token.ObtenerTokenActual();
+        using var solicitud = new HttpRequestMessage(
+            HttpMethod.Get, $"api/sesiones/{sesionId}/nombres-ranking");
+
+        if (!string.IsNullOrWhiteSpace(tokenValor))
+            solicitud.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokenValor);
+
+        var respuesta = await _http.SendAsync(solicitud, cancelacion);
+        if (!respuesta.IsSuccessStatusCode) return null;
+
+        return await respuesta.Content.ReadFromJsonAsync<NombresRankingClienteDto>(cancelacion);
+    }
 }

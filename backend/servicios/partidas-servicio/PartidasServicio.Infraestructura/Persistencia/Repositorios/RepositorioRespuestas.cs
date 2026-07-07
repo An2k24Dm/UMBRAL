@@ -66,6 +66,25 @@ public sealed class RepositorioRespuestas : IRepositorioRespuestas, IConsultasPa
                  && r.EquipoId == null && r.ParticipanteId == participanteId,
             cancelacion);
 
+    public async Task<IReadOnlyList<Guid>> ObtenerPreguntasRespondidasAsync(
+        Guid sesionId, Guid misionId, Guid etapaId,
+        Guid? equipoId, Guid? participanteId,
+        CancellationToken cancelacion)
+    {
+        var consulta = _contexto.RespuestasTrivia
+            .Where(r => r.SesionId == sesionId && r.MisionId == misionId && r.EtapaId == etapaId);
+
+        if (equipoId.HasValue)
+            consulta = consulta.Where(r => r.EquipoId == equipoId.Value);
+        else if (participanteId.HasValue)
+            consulta = consulta.Where(r => r.EquipoId == null && r.ParticipanteId == participanteId.Value);
+
+        return await consulta
+            .Select(r => r.PreguntaId)
+            .Distinct()
+            .ToListAsync(cancelacion);
+    }
+
     public async Task<IReadOnlyList<RankingEntradaDto>> ObtenerRankingAsync(
         Guid sesionId, CancellationToken cancelacion)
     {

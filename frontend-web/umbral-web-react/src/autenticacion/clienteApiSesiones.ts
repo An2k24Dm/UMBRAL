@@ -376,8 +376,61 @@ export async function expulsarEquipoSesion(
   if (respuesta.status === 401) lanzar401(token, 'Debe iniciar sesión.')
   if (respuesta.status === 403) throw new Error('No tienes permisos para expulsar equipos de esta sesión.')
   if (respuesta.status === 404) throw new Error('El equipo o la sesión ya no existen.')
-  // 409: la sesión no está En Preparación ni Pausada; propagamos el mensaje
-  // exacto del backend.
   if (respuesta.status === 409) throw new Error(await leerError(respuesta))
   throw new Error('No se pudo expulsar al equipo. Intenta nuevamente.')
+}
+
+// ---------------------------------------------------------------------------
+// Transiciones de estado de sesión (solo Operador dueño)
+// ---------------------------------------------------------------------------
+export async function iniciarSesion(id: string, token: string): Promise<void> {
+  const respuesta = await fetch(`${URL_API}${ENDPOINTS.porId(id)}/iniciar`, {
+    method: 'POST',
+    headers: auth(token)
+  })
+  if (respuesta.status === 204) return
+  if (respuesta.status === 401) lanzar401(token, 'Debe iniciar sesión.')
+  if (respuesta.status === 403) throw new Error('No tiene permisos para iniciar esta sesión.')
+  if (respuesta.status === 404) throw new Error('Sesión no encontrada.')
+  if (respuesta.status === 409) throw new Error(await leerError(respuesta))
+  throw new Error('No se pudo iniciar la sesión. Intenta nuevamente.')
+}
+
+export async function pausarSesion(id: string, token: string): Promise<void> {
+  const respuesta = await fetch(`${URL_API}${ENDPOINTS.porId(id)}/pausar`, {
+    method: 'POST',
+    headers: auth(token)
+  })
+  if (respuesta.status === 204) return
+  if (respuesta.status === 401) lanzar401(token, 'Debe iniciar sesión.')
+  if (respuesta.status === 403) throw new Error('No tiene permisos para pausar esta sesión.')
+  if (respuesta.status === 404) throw new Error('Sesión no encontrada.')
+  if (respuesta.status === 409) throw new Error(await leerError(respuesta))
+  throw new Error('No se pudo pausar la sesión. Intenta nuevamente.')
+}
+
+export async function reanudarSesion(id: string, token: string): Promise<void> {
+  const respuesta = await fetch(`${URL_API}${ENDPOINTS.porId(id)}/reanudar`, {
+    method: 'POST',
+    headers: auth(token)
+  })
+  if (respuesta.status === 204) return
+  if (respuesta.status === 401) lanzar401(token, 'Debe iniciar sesión.')
+  if (respuesta.status === 403) throw new Error('No tiene permisos para reanudar esta sesión.')
+  if (respuesta.status === 404) throw new Error('Sesión no encontrada.')
+  if (respuesta.status === 409) throw new Error(await leerError(respuesta))
+  throw new Error('No se pudo reanudar la sesión. Intenta nuevamente.')
+}
+
+export async function cancelarSesion(id: string, token: string): Promise<void> {
+  const respuesta = await fetch(`${URL_API}${ENDPOINTS.porId(id)}/cancelar`, {
+    method: 'POST',
+    headers: auth(token)
+  })
+  if (respuesta.status === 204) return
+  if (respuesta.status === 401) lanzar401(token, 'Debe iniciar sesión.')
+  if (respuesta.status === 403) throw new Error('No tiene permisos para cancelar esta sesión.')
+  if (respuesta.status === 404) throw new Error('Sesión no encontrada.')
+  if (respuesta.status === 409) throw new Error(await leerError(respuesta))
+  throw new Error('No se pudo cancelar la sesión. Intenta nuevamente.')
 }
