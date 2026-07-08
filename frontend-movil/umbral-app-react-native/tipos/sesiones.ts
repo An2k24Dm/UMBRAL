@@ -34,6 +34,8 @@ export interface EtapaSesionMovilDto {
   orden: number;
   // Discriminador del modo: "Trivia" o "BusquedaDelTesoro".
   tipoModoDeJuego: string;
+  // ID del objeto de juego (triviaId, etc.).
+  modoDeJuegoId: string;
   // Nombre amigable que carga juegos-servicio.
   nombreModoDeJuego: string;
   // Tiempo estimado en segundos para esa etapa.

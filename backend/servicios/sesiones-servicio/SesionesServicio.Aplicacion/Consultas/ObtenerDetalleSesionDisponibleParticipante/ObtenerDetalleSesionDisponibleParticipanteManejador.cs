@@ -89,6 +89,7 @@ public sealed class ObtenerDetalleSesionDisponibleParticipanteManejador
                         Id = e.Id,
                         Orden = e.Orden,
                         TipoModoDeJuego = e.TipoModoDeJuego,
+                        ModoDeJuegoId = e.ModoDeJuegoId,
                         NombreModoDeJuego = e.NombreModoDeJuego,
                         TiempoEstimadoSegundos = e.TiempoEstimado
                     }).ToList()

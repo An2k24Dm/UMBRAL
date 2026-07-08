@@ -57,19 +57,21 @@ public sealed class RepositorioRespuestasTrivia : IRepositorioRespuestasTrivia
                 cancelacion);
 
     // Cuenta cuántos jugadores distintos han respondido todas las preguntas de la etapa.
-    // Para sesiones individuales: cuenta participanteIdentidadId distintos con totalPreguntas respuestas.
-    // Para sesiones grupales: el mismo participante representa al equipo; la lógica es la misma.
+    // Se trae la data a memoria para evitar que EF Core falle al traducir el GroupBy condicional.
     public async Task<int> ContarJugadoresQueCompletaronEtapaAsync(
         Guid sesionId, Guid etapaId, int totalPreguntas, CancellationToken cancelacion)
     {
-        var conteos = await _contexto.RespuestasTrivia
+        var registros = await _contexto.RespuestasTrivia
             .AsNoTracking()
             .Where(r => r.SesionId == sesionId && r.EtapaId == etapaId)
-            .GroupBy(r => r.EquipoId.HasValue ? (object)r.EquipoId.Value : r.ParticipanteIdentidadId)
-            .Select(g => g.Count())
+            .Select(r => new { r.EquipoId, r.ParticipanteIdentidadId })
             .ToListAsync(cancelacion);
 
-        return conteos.Count(c => c >= totalPreguntas);
+        return registros
+            .GroupBy(r => r.EquipoId.HasValue
+                ? $"e:{r.EquipoId}"
+                : $"p:{r.ParticipanteIdentidadId}")
+            .Count(g => g.Count() >= totalPreguntas);
     }
 
     public async Task<IReadOnlyList<Guid>> ObtenerPreguntasRespondidasAsync(

@@ -61,6 +61,8 @@ function ContenidoJuego() {
   const [tiempoInicio, setTiempoInicio] = useState<number>(0);
   const [etapaTerminada, setEtapaTerminada] = useState(false);
   const [enviando, setEnviando] = useState(false);
+  const [puntosGanadosUltima, setPuntosGanadosUltima] = useState<number | null>(null);
+  const [puntosAcumulados, setPuntosAcumulados] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const preguntaActual: PreguntaTrivia | undefined = trivia?.preguntas[indicePregunta];
@@ -164,6 +166,8 @@ function ContenidoJuego() {
       );
 
       setEstadoPregunta(resultado.esCorrecta ? "correcta" : "incorrecta");
+      setPuntosGanadosUltima(resultado.puntosGanados);
+      setPuntosAcumulados((prev) => prev + resultado.puntosGanados);
 
       // Avanzar automáticamente después de mostrar el resultado
       setTimeout(() => {
@@ -173,6 +177,7 @@ function ContenidoJuego() {
           setIndicePregunta((i) => i + 1);
           setOpcionSeleccionada(null);
           setEstadoPregunta("esperando");
+          setPuntosGanadosUltima(null);
         } else {
           // Última pregunta respondida, esperando que los demás terminen
           setEtapaTerminada(true);
@@ -269,6 +274,10 @@ function ContenidoJuego() {
       <PantallaBase>
         <View style={estilos.centrado}>
           <Text style={estilos.textoExito}>¡Etapa completada!</Text>
+          <View style={estilos.cajaResumen}>
+            <Text style={estilos.resumenEtiqueta}>TUS PUNTOS EN ESTA ETAPA</Text>
+            <Text style={estilos.resumenPuntos}>{puntosAcumulados} pts</Text>
+          </View>
           <Text style={estilos.textoInfo}>
             Todos los participantes han terminado. Espera la siguiente etapa.
           </Text>
@@ -303,10 +312,15 @@ function ContenidoJuego() {
   return (
     <PantallaBase>
       <View style={estilos.contenedor}>
-        {/* Progreso */}
-        <Text style={estilos.progreso}>
-          Pregunta {indicePregunta + 1} / {trivia.preguntas.length}
-        </Text>
+        {/* Progreso y puntos acumulados */}
+        <View style={estilos.filaProgreso}>
+          <Text style={estilos.progreso}>
+            Pregunta {indicePregunta + 1} / {trivia.preguntas.length}
+          </Text>
+          <Text style={estilos.puntosTotal}>
+            Total: {puntosAcumulados} pts
+          </Text>
+        </View>
 
         {/* Temporizador */}
         <View style={estilos.temporizadorContenedor}>
@@ -358,13 +372,25 @@ function ContenidoJuego() {
 
         {/* Feedback */}
         {estadoPregunta === "correcta" && (
-          <Text style={estilos.feedbackCorrecto}>¡Correcto!</Text>
+          <View style={estilos.feedbackContenedor}>
+            <Text style={estilos.feedbackCorrecto}>¡Correcto!</Text>
+            <Text style={estilos.feedbackPuntos}>
+              +{puntosGanadosUltima ?? 0} pts
+              {puntosGanadosUltima === 0 ? " (tiempo agotado)" : ""}
+            </Text>
+          </View>
         )}
         {estadoPregunta === "incorrecta" && (
-          <Text style={estilos.feedbackIncorrecto}>Incorrecto</Text>
+          <View style={estilos.feedbackContenedor}>
+            <Text style={estilos.feedbackIncorrecto}>Incorrecto</Text>
+            <Text style={estilos.feedbackPuntos}>+0 pts</Text>
+          </View>
         )}
         {estadoPregunta === "tiempo_agotado" && (
-          <Text style={estilos.feedbackIncorrecto}>¡Tiempo agotado!</Text>
+          <View style={estilos.feedbackContenedor}>
+            <Text style={estilos.feedbackIncorrecto}>¡Tiempo agotado!</Text>
+            <Text style={estilos.feedbackPuntos}>+0 pts</Text>
+          </View>
         )}
       </View>
     </PantallaBase>
@@ -376,6 +402,49 @@ const estilos = StyleSheet.create({
     flex: 1,
     padding: 16,
   },
+  filaProgreso: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  puntosTotal: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: tema.colores.primario,
+  },
+  feedbackContenedor: {
+    alignItems: "center",
+    marginTop: 20,
+  },
+  feedbackPuntos: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: tema.colores.textoTenue,
+    marginTop: 4,
+  },
+  cajaResumen: {
+    backgroundColor: tema.colores.fondoTarjeta,
+    borderWidth: 1,
+    borderColor: tema.colores.bordeTarjeta,
+    borderRadius: tema.radios.tarjeta,
+    padding: 20,
+    alignItems: "center",
+    marginVertical: 16,
+    minWidth: 180,
+  },
+  resumenEtiqueta: {
+    fontSize: 11,
+    color: tema.colores.textoTenue,
+    letterSpacing: 1,
+    textTransform: "uppercase",
+  },
+  resumenPuntos: {
+    fontSize: 40,
+    fontWeight: "700",
+    color: tema.colores.primario,
+    marginTop: 4,
+  },
   centrado: {
     flex: 1,
     justifyContent: "center",
@@ -386,8 +455,6 @@ const estilos = StyleSheet.create({
   progreso: {
     fontSize: 14,
     color: tema.colores.textoTenue,
-    textAlign: "center",
-    marginBottom: 8,
   },
   temporizadorContenedor: {
     height: 8,
