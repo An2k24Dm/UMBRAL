@@ -49,4 +49,11 @@ public interface INotificadorSesionesTiempoReal
         Guid misionId,
         Guid etapaId,
         CancellationToken cancelacion);
+
+    Task NotificarPistaLiberadaAsync(
+        Guid sesionId,
+        Guid etapaId,
+        Guid? pistaId,
+        string contenido,
+        CancellationToken cancelacion);
 }

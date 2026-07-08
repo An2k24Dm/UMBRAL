@@ -9,6 +9,7 @@ import {
   View,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import * as SecureStore from "expo-secure-store";
 import { useAutenticacion } from "../../../autenticacion/ContextoAutenticacion";
 import RutaProtegidaMovil from "../../../autenticacion/RutaProtegidaMovil";
 import { PantallaBase } from "../../../componentes/PantallaBase";
@@ -24,6 +25,7 @@ import { useRefrescarAlEnfocar } from "../../../hooks/useRefrescarAlEnfocar";
 import { useSesionesTiempoReal } from "../../../hooks/useSesionesTiempoReal";
 import type { SesionDetalleMovilDto } from "../../../tipos/sesiones";
 import { formatearFechaHora } from "../../../utilidades/formatoFechas";
+import { claveEtapaCompletada } from "./tesoro";
 
 export default function PantallaDetalleSesionParticipante() {
   return (
@@ -48,8 +50,35 @@ function ContenidoDetalle() {
     refrescar,
   } = useDetalleSesionDisponible(sesionId ?? null);
 
+  const [etapasCompletadas, setEtapasCompletadas] = useState<Set<string>>(new Set());
+
+  // Carga qué etapas ya completó el participante (persistido en SecureStore).
+  const cargarProgreso = useCallback(async () => {
+    if (!sesionId || !detalle) return;
+    const todasEtapas = detalle.misiones.flatMap((m) => m.etapas.map((e) => e.id));
+    const resultados = await Promise.all(
+      todasEtapas.map((etapaId) =>
+        SecureStore.getItemAsync(claveEtapaCompletada(sesionId, etapaId))
+          .then((v) => ({ etapaId, completada: v === "1" }))
+          .catch(() => ({ etapaId, completada: false })),
+      ),
+    );
+    setEtapasCompletadas(
+      new Set(resultados.filter((r) => r.completada).map((r) => r.etapaId)),
+    );
+  }, [sesionId, detalle]);
+
+  useEffect(() => {
+    void cargarProgreso();
+  }, [cargarProgreso]);
+
+  const refrescarTodo = useCallback(async () => {
+    await refrescar();
+    await cargarProgreso();
+  }, [refrescar, cargarProgreso]);
+
   const navegarSeguro = useNavegacionSegura();
-  useRefrescarAlEnfocar(refrescar);
+  useRefrescarAlEnfocar(refrescarTodo);
 
   // HU52 — cambio de estado en vivo. Si el operador cancela, avisamos y
   // volvemos al listado; para pausa/reanudación recargamos el detalle para
@@ -86,11 +115,11 @@ function ContenidoDetalle() {
   const alRefrescar = useCallback(async () => {
     setRefrescando(true);
     try {
-      await refrescar();
+      await refrescarTodo();
     } finally {
       setRefrescando(false);
     }
-  }, [refrescar]);
+  }, [refrescarTodo]);
 
   useEffect(() => {
     if (sesionExpirada) {
@@ -222,7 +251,8 @@ function ContenidoDetalle() {
             sesionId={sesionId}
             enrutador={enrutador}
             navegarSeguro={navegarSeguro}
-            refrescar={refrescar}
+            refrescar={refrescarTodo}
+            etapasCompletadas={etapasCompletadas}
           />
         </>
       )}
@@ -246,12 +276,14 @@ function SeccionParticipacion({
   enrutador,
   navegarSeguro,
   refrescar,
+  etapasCompletadas,
 }: {
   detalle: SesionDetalleMovilDto;
   sesionId: string;
   enrutador: ReturnType<typeof useRouter>;
   navegarSeguro: (accion: () => void) => void;
   refrescar: () => Promise<void>;
+  etapasCompletadas: Set<string>;
 }) {
   const { cerrarSesion } = useAutenticacion();
   const {
@@ -306,12 +338,90 @@ function SeccionParticipacion({
 
   // Casos B y D: el participante ya pertenece a la sesión.
   if (participacion?.estaInscrito) {
-    const etapasTrivia = detalle.misiones.flatMap((m) =>
-      m.etapas
-        .filter((e) => e.tipoModoDeJuego === "Trivia")
-        .map((e) => ({ misionId: m.id, etapa: e })),
-    );
     const sesionActiva = detalle.estado === "Activa";
+
+    // Para cada misión, renderiza botones de etapas con orden secuencial:
+    // solo se puede jugar la etapa N si se completó la etapa N-1.
+    const botonesEtapasPorMision = detalle.misiones.map((mision) => {
+      const etapasOrdenadas = [...mision.etapas].sort((a, b) => a.orden - b.orden);
+
+      return etapasOrdenadas.map((etapa, idx) => {
+        const tipo = etapa.tipoModoDeJuego;
+        if (tipo !== "Trivia" && tipo !== "BusquedaTesoro") return null;
+
+        const yaCompletada = etapasCompletadas.has(etapa.id);
+        const etapaAnterior = idx > 0 ? etapasOrdenadas[idx - 1] : null;
+        const anteriorCompletada = etapaAnterior ? etapasCompletadas.has(etapaAnterior.id) : true;
+        const bloqueada = !anteriorCompletada;
+
+        if (yaCompletada) {
+          // Etapa ya completada: mostrar badge informativo (no botón)
+          return (
+            <View key={etapa.id} style={estilos.etapaCompletada}>
+              <Text style={estilos.etapaCompletadaTexto}>
+                ✓ {etapa.nombreModoDeJuego} — completada
+              </Text>
+            </View>
+          );
+        }
+
+        if (bloqueada) {
+          // Etapa bloqueada: mostrar pero deshabilitada
+          return (
+            <View key={etapa.id} style={estilos.etapaBloqueada}>
+              <Text style={estilos.etapaBloqueadaTexto}>
+                🔒 {etapa.nombreModoDeJuego} — completa la etapa anterior
+              </Text>
+            </View>
+          );
+        }
+
+        // Etapa disponible para jugar
+        if (tipo === "Trivia") {
+          return (
+            <TouchableOpacity
+              key={etapa.id}
+              style={estilos.botonJugar}
+              onPress={() =>
+                navegarSeguro(() =>
+                  enrutador.push(
+                    `/participante/sesiones/jugar?sesionId=${sesionId}` +
+                      `&misionId=${mision.id}&etapaId=${etapa.id}` +
+                      `&triviaId=${etapa.modoDeJuegoId}`,
+                  ),
+                )
+              }
+              accessibilityRole="button"
+            >
+              <Text style={estilos.botonJugarTexto}>
+                Trivia: {etapa.nombreModoDeJuego}
+              </Text>
+            </TouchableOpacity>
+          );
+        }
+
+        return (
+          <TouchableOpacity
+            key={etapa.id}
+            style={estilos.botonJugarTesoro}
+            onPress={() =>
+              navegarSeguro(() =>
+                enrutador.push(
+                  `/participante/sesiones/tesoro?sesionId=${sesionId}` +
+                    `&misionId=${mision.id}&etapaId=${etapa.id}` +
+                    `&busquedaId=${etapa.modoDeJuegoId}`,
+                ),
+              )
+            }
+            accessibilityRole="button"
+          >
+            <Text style={estilos.botonJugarTexto}>
+              Tesoro: {etapa.nombreModoDeJuego}
+            </Text>
+          </TouchableOpacity>
+        );
+      });
+    });
 
     if (participacion.tipo === "Equipo") {
       return (
@@ -340,27 +450,7 @@ function SeccionParticipacion({
               <Text style={estilos.botonPrimarioTexto}>Ver equipo</Text>
             </TouchableOpacity>
           </View>
-          {sesionActiva &&
-            etapasTrivia.map(({ misionId, etapa }) => (
-              <TouchableOpacity
-                key={etapa.id}
-                style={estilos.botonJugar}
-                onPress={() =>
-                  navegarSeguro(() =>
-                    enrutador.push(
-                      `/participante/sesiones/jugar?sesionId=${sesionId}` +
-                        `&misionId=${misionId}&etapaId=${etapa.id}` +
-                        `&triviaId=${etapa.modoDeJuegoId}`,
-                    ),
-                  )
-                }
-                accessibilityRole="button"
-              >
-                <Text style={estilos.botonJugarTexto}>
-                  Jugar: {etapa.nombreModoDeJuego}
-                </Text>
-              </TouchableOpacity>
-            ))}
+          {sesionActiva && botonesEtapasPorMision}
         </View>
       );
     }
@@ -392,27 +482,7 @@ function SeccionParticipacion({
             </TouchableOpacity>
           )}
         </View>
-        {sesionActiva &&
-          etapasTrivia.map(({ misionId, etapa }) => (
-            <TouchableOpacity
-              key={etapa.id}
-              style={estilos.botonJugar}
-              onPress={() =>
-                navegarSeguro(() =>
-                  enrutador.push(
-                    `/participante/sesiones/jugar?sesionId=${sesionId}` +
-                      `&misionId=${misionId}&etapaId=${etapa.id}` +
-                      `&triviaId=${etapa.modoDeJuegoId}`,
-                  ),
-                )
-              }
-              accessibilityRole="button"
-            >
-              <Text style={estilos.botonJugarTexto}>
-                Jugar: {etapa.nombreModoDeJuego}
-              </Text>
-            </TouchableOpacity>
-          ))}
+        {sesionActiva && botonesEtapasPorMision}
       </View>
     );
   }
@@ -694,9 +764,43 @@ const estilos = StyleSheet.create({
     alignItems: "center",
     marginTop: tema.espacios.sm,
   },
+  botonJugarTesoro: {
+    backgroundColor: "#d97706",
+    paddingVertical: tema.espacios.md,
+    borderRadius: tema.radios.boton,
+    alignItems: "center",
+    marginTop: tema.espacios.sm,
+  },
   botonJugarTexto: {
     color: tema.colores.textoBlanco,
     fontWeight: tema.tipografia.pesos.bold,
     fontSize: tema.tipografia.tamanos.lg,
+  },
+  etapaCompletada: {
+    backgroundColor: "#d1fae5",
+    paddingVertical: tema.espacios.sm,
+    paddingHorizontal: tema.espacios.md,
+    borderRadius: tema.radios.boton,
+    marginTop: tema.espacios.sm,
+    borderWidth: 1,
+    borderColor: "#34d399",
+  },
+  etapaCompletadaTexto: {
+    color: "#065f46",
+    fontWeight: tema.tipografia.pesos.bold,
+    fontSize: tema.tipografia.tamanos.md,
+  },
+  etapaBloqueada: {
+    backgroundColor: "#f3f4f6",
+    paddingVertical: tema.espacios.sm,
+    paddingHorizontal: tema.espacios.md,
+    borderRadius: tema.radios.boton,
+    marginTop: tema.espacios.sm,
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+  },
+  etapaBloqueadaTexto: {
+    color: "#6b7280",
+    fontSize: tema.tipografia.tamanos.md,
   },
 });

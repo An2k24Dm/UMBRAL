@@ -11,6 +11,8 @@ public sealed class ContextoSesiones : DbContext
     public DbSet<EquipoModelo> Equipos => Set<EquipoModelo>();
     public DbSet<ParticipanteModelo> Participantes => Set<ParticipanteModelo>();
     public DbSet<RespuestaTriviaModelo> RespuestasTrivia => Set<RespuestaTriviaModelo>();
+    public DbSet<EvidenciaTesoroModelo> EvidenciasTesoro => Set<EvidenciaTesoroModelo>();
+    public DbSet<PistaLiberadaModelo> PistasLiberadas => Set<PistaLiberadaModelo>();
 
     protected override void OnModelCreating(ModelBuilder constructor)
     {
@@ -124,6 +126,42 @@ public sealed class ContextoSesiones : DbContext
             // Cada jugador (participante individual o equipo) solo puede responder una vez por pregunta en la misma sesión/etapa.
             e.HasIndex(x => new { x.SesionId, x.EtapaId, x.PreguntaId, x.ParticipanteIdentidadId }).IsUnique();
             e.HasIndex(x => new { x.SesionId, x.EtapaId, x.ParticipanteIdentidadId });
+            e.HasIndex(x => new { x.SesionId, x.EtapaId });
+        });
+
+        constructor.Entity<EvidenciaTesoroModelo>(e =>
+        {
+            e.ToTable("EvidenciaTesoro");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.SesionId).HasColumnName("sesion_id").IsRequired();
+            e.Property(x => x.MisionId).HasColumnName("mision_id").IsRequired();
+            e.Property(x => x.EtapaId).HasColumnName("etapa_id").IsRequired();
+            e.Property(x => x.BusquedaId).HasColumnName("busqueda_id").IsRequired();
+            e.Property(x => x.ParticipanteIdentidadId).HasColumnName("participante_identidad_id").IsRequired();
+            e.Property(x => x.CodigoEnviado).HasColumnName("codigo_enviado").HasMaxLength(64).IsRequired();
+            e.Property(x => x.EsValida).HasColumnName("es_valida").IsRequired();
+            e.Property(x => x.PuntosGanados).HasColumnName("puntos_ganados").IsRequired();
+            e.Property(x => x.FechaEnvioUtc).HasColumnName("fecha_envio_utc").IsRequired();
+            // Un participante solo puede enviar una evidencia válida por etapa
+            e.HasIndex(x => new { x.SesionId, x.EtapaId, x.ParticipanteIdentidadId }).IsUnique();
+            e.HasIndex(x => new { x.SesionId, x.EtapaId });
+        });
+
+        constructor.Entity<PistaLiberadaModelo>(e =>
+        {
+            e.ToTable("PistaLiberada");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.SesionId).HasColumnName("sesion_id").IsRequired();
+            e.Property(x => x.EtapaId).HasColumnName("etapa_id").IsRequired();
+            e.Property(x => x.PistaId).HasColumnName("pista_id");
+            e.Property(x => x.Contenido).HasColumnName("contenido").HasMaxLength(1000).IsRequired();
+            e.Property(x => x.FechaLiberacionUtc).HasColumnName("fecha_liberacion_utc").IsRequired();
+            // No se puede liberar la misma pista predefinida dos veces en la misma sesión/etapa
+            e.HasIndex(x => new { x.SesionId, x.EtapaId, x.PistaId })
+                .IsUnique()
+                .HasFilter("pista_id IS NOT NULL");
             e.HasIndex(x => new { x.SesionId, x.EtapaId });
         });
     }

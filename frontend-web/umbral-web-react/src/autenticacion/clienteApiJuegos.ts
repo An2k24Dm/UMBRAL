@@ -52,6 +52,11 @@ const ENDPOINTS = {
     `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}`,
   eliminarBusqueda: (busquedaId: string) =>
     `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}/eliminar`,
+  // HU-49/50 — QR y participante
+  codigoQrBusqueda: (busquedaId: string) =>
+    `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}/codigo-qr`,
+  busquedaParticipante: (busquedaId: string) =>
+    `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}/participante`,
   // Pistas directamente bajo /busquedas/{id}/pistas
   agregarPista: (busquedaId: string) =>
     `/api/juegos/busquedas/${encodeURIComponent(busquedaId)}/pistas`,
@@ -230,6 +235,7 @@ export interface BusquedaTesoroDetalleDto {
   fechaCreacion: string;
   tiempo: number;
   puntaje: number;
+  codigoQr: string;
   pistas: PistaDetalleDto[];
 }
 
@@ -924,6 +930,26 @@ export async function modificarPista(
     throw new Error(err?.mensaje ?? "No se puede realizar esta operación.");
   }
   if (!respuesta.ok) throw new Error(await leerError(respuesta));
+}
+
+// ---------------------------------------------------------------------------
+// HU-49 — Obtener código QR de una búsqueda del tesoro (solo operadores)
+// ---------------------------------------------------------------------------
+export async function obtenerCodigoQrBusqueda(
+  busquedaId: string,
+  token: string,
+): Promise<string> {
+  const respuesta = await fetch(
+    `${URL_API}${ENDPOINTS.codigoQrBusqueda(busquedaId)}`,
+    { headers: auth(token) },
+  );
+  if (respuesta.status === 401) lanzar401("Debe iniciar sesión.");
+  if (respuesta.status === 403) throw new Error("No tiene permisos.");
+  if (respuesta.status === 404)
+    throw new Error("Búsqueda del tesoro no encontrada.");
+  if (!respuesta.ok) throw new Error(await leerError(respuesta));
+  const cuerpo = (await respuesta.json()) as { codigoQr: string };
+  return cuerpo.codigoQr;
 }
 
 // ---------------------------------------------------------------------------

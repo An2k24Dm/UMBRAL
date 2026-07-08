@@ -18,6 +18,7 @@ public sealed class BusquedaTesoro : IComponenteJuego
     public DateTime FechaCreacion { get; private set; }
     public Tiempo Tiempo { get; private set; } = default!;
     public Puntaje Puntaje { get; private set; } = default!;
+    public string CodigoQr { get; private set; } = default!;
     public IReadOnlyList<Pista> Pistas => _pistas.AsReadOnly();
     public IReadOnlyList<EventoDominio> Eventos => _eventos.AsReadOnly();
 
@@ -47,7 +48,8 @@ public sealed class BusquedaTesoro : IComponenteJuego
             Estado = EstadoBusqueda.Inactiva,
             FechaCreacion = fechaCreacion,
             Tiempo = tiempo ?? Tiempo.CrearParaBusqueda(Tiempo.MinimoBusqueda),
-            Puntaje = puntaje ?? Puntaje.Cero
+            Puntaje = puntaje ?? Puntaje.Cero,
+            CodigoQr = Guid.NewGuid().ToString("N")
         };
         busqueda._eventos.Add(new BusquedaCreadaEvento(busqueda.Id, busqueda.Nombre));
         return busqueda;
@@ -133,7 +135,8 @@ public sealed class BusquedaTesoro : IComponenteJuego
         DateTime fechaCreacion,
         int tiempo = 0,
         int puntaje = 0,
-        IEnumerable<Pista>? pistas = null)
+        IEnumerable<Pista>? pistas = null,
+        string codigoQr = "")
     {
         var busqueda = new BusquedaTesoro
         {
@@ -144,7 +147,8 @@ public sealed class BusquedaTesoro : IComponenteJuego
             Estado = estado,
             FechaCreacion = fechaCreacion,
             Tiempo = ObjetosValor.Tiempo.DesdePersistencia(tiempo),
-            Puntaje = ObjetosValor.Puntaje.DesdePersistencia(puntaje)
+            Puntaje = ObjetosValor.Puntaje.DesdePersistencia(puntaje),
+            CodigoQr = codigoQr
         };
         if (pistas is not null) busqueda._pistas.AddRange(pistas);
         return busqueda;

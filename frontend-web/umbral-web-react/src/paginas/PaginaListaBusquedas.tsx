@@ -9,6 +9,7 @@ import {
   desactivarBusqueda,
   activarBusqueda,
   eliminarBusqueda,
+  obtenerCodigoQrBusqueda,
   type BusquedaTesoroResumenDto
 } from '../autenticacion/clienteApiJuegos'
 import { usarAutenticacion } from '../autenticacion/ProveedorAutenticacion'
@@ -31,6 +32,10 @@ export function PaginaListaBusquedas() {
   const [busquedas, setBusquedas] = useState<BusquedaTesoroResumenDto[]>([])
   const [filtro, setFiltro] = useState<Filtro>('todas')
   const [procesandoId, setProcesandoId] = useState<string | null>(null)
+  const [modalQrId, setModalQrId] = useState<string | null>(null)
+  const [codigoQrModal, setCodigoQrModal] = useState<string | null>(null)
+  const [cargandoQr, setCargandoQr] = useState(false)
+  const [errorQr, setErrorQr] = useState<string | null>(null)
 
   async function cargar(ref?: { cancelado: boolean }) {
     if (!token) { setMensajeError('Debe iniciar sesión.'); setCargando(false); return }
@@ -88,6 +93,29 @@ export function PaginaListaBusquedas() {
     try { await eliminarBusqueda(busquedaId, token); await cargar() }
     catch (err) { setMensajeError(err instanceof Error ? err.message : 'No fue posible eliminar la búsqueda.') }
     finally { setProcesandoId(null) }
+  }
+
+  async function abrirQr(e: React.MouseEvent, busquedaId: string) {
+    e.stopPropagation()
+    if (!token) return
+    setModalQrId(busquedaId)
+    setCodigoQrModal(null)
+    setErrorQr(null)
+    setCargandoQr(true)
+    try {
+      const data = await obtenerCodigoQrBusqueda(busquedaId, token)
+      setCodigoQrModal(data.codigoQr)
+    } catch (err) {
+      setErrorQr(err instanceof Error ? err.message : 'No fue posible obtener el QR.')
+    } finally {
+      setCargandoQr(false)
+    }
+  }
+
+  function cerrarQr() {
+    setModalQrId(null)
+    setCodigoQrModal(null)
+    setErrorQr(null)
   }
 
   const busquedasVisibles = busquedas.filter(b =>
@@ -177,9 +205,14 @@ export function PaginaListaBusquedas() {
                       </Boton>
                     </>
                   ) : (
-                    <Boton variante="peligro" onClick={(e) => manejarDesactivar(e, b.id)} disabled={procesandoId === b.id}>
-                      {procesandoId === b.id ? 'Desactivando…' : 'Desactivar'}
-                    </Boton>
+                    <>
+                      <Boton variante="secundario" onClick={(e) => abrirQr(e, b.id)}>
+                        Ver QR
+                      </Boton>
+                      <Boton variante="peligro" onClick={(e) => manejarDesactivar(e, b.id)} disabled={procesandoId === b.id}>
+                        {procesandoId === b.id ? 'Desactivando…' : 'Desactivar'}
+                      </Boton>
+                    </>
                   )}
                 </div>
               </div>
@@ -187,6 +220,45 @@ export function PaginaListaBusquedas() {
           </div>
         )}
       </section>
+
+      {/* Modal QR */}
+      {modalQrId && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
+          }}
+          onClick={cerrarQr}
+        >
+          <div
+            style={{
+              background: '#fff', borderRadius: 12, padding: 32, maxWidth: 360, width: '90%',
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>Código QR de la búsqueda</h3>
+            {cargandoQr && <p style={{ color: '#6b7280' }}>Cargando QR…</p>}
+            {errorQr && <Alerta tono="error">{errorQr}</Alerta>}
+            {codigoQrModal && (
+              <>
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(codigoQrModal)}`}
+                  alt="Código QR"
+                  style={{ border: '1px solid #e5e7eb', borderRadius: 8 }}
+                  width={240}
+                  height={240}
+                />
+                <p style={{ margin: 0, color: '#6b7280', fontSize: 12, wordBreak: 'break-all', textAlign: 'center' }}>
+                  {codigoQrModal}
+                </p>
+                <Boton variante="secundario" onClick={() => window.print()}>Imprimir</Boton>
+              </>
+            )}
+            <Boton variante="fantasma" onClick={cerrarQr}>Cerrar</Boton>
+          </div>
+        </div>
+      )}
     </LayoutPanel>
   )
 }

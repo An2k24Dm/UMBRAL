@@ -8,6 +8,7 @@ import {
   View,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import * as SecureStore from "expo-secure-store";
 import { useAutenticacion } from "../../../autenticacion/ContextoAutenticacion";
 import RutaProtegidaMovil from "../../../autenticacion/RutaProtegidaMovil";
 import { PantallaBase } from "../../../componentes/PantallaBase";
@@ -23,6 +24,7 @@ import {
   crearConexionSesionesTiempoReal,
   esErrorNoAutenticadoTiempoReal,
 } from "../../../servicios/sesionesTiempoReal";
+import { claveEtapaCompletada } from "./tesoro";
 
 export default function PantallaJugar() {
   return (
@@ -170,10 +172,16 @@ function ContenidoJuego() {
       setPuntosAcumulados((prev) => prev + resultado.puntosGanados);
 
       // Avanzar automáticamente después de mostrar el resultado
+      const esUltimaPregunta = indicePregunta >= trivia.preguntas.length - 1;
+      if (esUltimaPregunta || resultado.etapaCompletada) {
+        // Persistir compleción individual para el orden secuencial de etapas
+        await SecureStore.setItemAsync(claveEtapaCompletada(sesionId, etapaId), "1");
+      }
+
       setTimeout(() => {
         if (resultado.etapaCompletada) {
           setEtapaTerminada(true);
-        } else if (indicePregunta < trivia.preguntas.length - 1) {
+        } else if (!esUltimaPregunta) {
           setIndicePregunta((i) => i + 1);
           setOpcionSeleccionada(null);
           setEstadoPregunta("esperando");

@@ -433,8 +433,38 @@ export async function expulsarEquipoSesion(
   if (respuesta.status === 401) lanzar401(token, 'Debe iniciar sesión.')
   if (respuesta.status === 403) throw new Error('No tienes permisos para expulsar equipos de esta sesión.')
   if (respuesta.status === 404) throw new Error('El equipo o la sesión ya no existen.')
-  // 409: la sesión no está En Preparación ni Pausada; propagamos el mensaje
-  // exacto del backend.
   if (respuesta.status === 409) throw new Error(await leerError(respuesta))
   throw new Error('No se pudo expulsar al equipo. Intenta nuevamente.')
+}
+
+// ---------------------------------------------------------------------------
+// HU-50 — Liberar pista en una etapa de la sesión (solo operadores)
+// pistaId nulo → pista personalizada (requiere contenido).
+// pistaId no nulo → pista predefinida de la búsqueda del tesoro.
+// ---------------------------------------------------------------------------
+export async function liberarPista(
+  sesionId: string,
+  etapaId: string,
+  pistaId: string | null,
+  contenido: string,
+  token: string
+): Promise<void> {
+  const respuesta = await fetch(
+    `${URL_API}${ENDPOINTS.porId(sesionId)}/etapas/${encodeURIComponent(etapaId)}/pistas-liberadas`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...auth(token) },
+      body: JSON.stringify({ pistaId, contenido })
+    }
+  )
+  if (respuesta.status === 204) return
+  if (respuesta.status === 401) lanzar401(token, 'Debe iniciar sesión.')
+  if (respuesta.status === 403) throw new Error('No tienes permisos para liberar pistas.')
+  if (respuesta.status === 404) throw new Error('Sesión o etapa no encontrada.')
+  if (respuesta.status === 409) {
+    const cuerpo = (await respuesta.json().catch(() => null)) as { mensaje?: string } | null
+    throw new Error(cuerpo?.mensaje ?? 'Esta pista ya fue liberada.')
+  }
+  if (respuesta.status === 422) throw new Error(await leerError(respuesta))
+  throw new Error('No se pudo liberar la pista. Intenta nuevamente.')
 }

@@ -28,6 +28,7 @@ import {
   type TriviaDetalleDto,
   type BusquedaTesoroDetalleDto
 } from '../autenticacion/clienteApiJuegos'
+import { liberarPista } from '../autenticacion/clienteApiSesiones'
 import { usarAutenticacion } from '../autenticacion/ProveedorAutenticacion'
 import { useSesionesTiempoReal } from '../hooks/useSesionesTiempoReal'
 import {
@@ -668,7 +669,15 @@ export function PaginaDetalleSesion() {
                         )}
 
                         {etapa.trivia && <BloqueTrivia trivia={etapa.trivia} />}
-                        {etapa.busqueda && <BloqueBusqueda busqueda={etapa.busqueda} />}
+                        {etapa.busqueda && (
+                          <BloqueBusqueda
+                            busqueda={etapa.busqueda}
+                            sesionId={sesion.id}
+                            etapaId={etapa.id}
+                            sesionActiva={sesion.estado === 'Activa'}
+                            esOperador={esOperador}
+                          />
+                        )}
                         {!etapa.trivia && !etapa.busqueda && !etapa.errorContenido && (
                           <p className="detalle-mensaje-vacio">Cargando contenido de la etapa…</p>
                         )}
@@ -931,24 +940,224 @@ function BloqueTrivia({ trivia }: { trivia: TriviaDetalleDto }) {
   )
 }
 
-function BloqueBusqueda({ busqueda }: { busqueda: BusquedaTesoroDetalleDto }) {
+function BloqueBusqueda({
+  busqueda,
+  sesionId,
+  etapaId,
+  sesionActiva,
+  esOperador
+}: {
+  busqueda: BusquedaTesoroDetalleDto
+  sesionId: string
+  etapaId: string
+  sesionActiva: boolean
+  esOperador: boolean
+}) {
+  const { token } = usarAutenticacion()
+  const [liberando, setLiberando] = useState<string | null>(null)
+  const [pistasLiberadasIds, setPistasLiberadasIds] = useState<Set<string>>(new Set())
+  const [pistaPersonalizada, setPistaPersonalizada] = useState('')
+  const [enviandoPersonalizada, setEnviandoPersonalizada] = useState(false)
+  const [errorPista, setErrorPista] = useState<string | null>(null)
+  const [exitoPista, setExitoPista] = useState<string | null>(null)
+
+  const urlQr = busqueda.codigoQr
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(busqueda.codigoQr)}`
+    : null
+
+  async function handleLiberarPista(pistaId: string, contenido: string) {
+    if (!token || liberando) return
+    setLiberando(pistaId)
+    setErrorPista(null)
+    setExitoPista(null)
+    try {
+      await liberarPista(sesionId, etapaId, pistaId, contenido, token)
+      setPistasLiberadasIds(prev => new Set([...prev, pistaId]))
+      setExitoPista(`Pista liberada: "${contenido.slice(0, 40)}${contenido.length > 40 ? '…' : ''}"`)
+    } catch (e) {
+      setErrorPista(e instanceof Error ? e.message : 'No se pudo liberar la pista.')
+    } finally {
+      setLiberando(null)
+    }
+  }
+
+  async function handleLiberarPersonalizada() {
+    if (!token || !pistaPersonalizada.trim() || enviandoPersonalizada) return
+    setEnviandoPersonalizada(true)
+    setErrorPista(null)
+    setExitoPista(null)
+    try {
+      await liberarPista(sesionId, etapaId, null, pistaPersonalizada.trim(), token)
+      setExitoPista(`Pista personalizada enviada: "${pistaPersonalizada.trim().slice(0, 40)}${pistaPersonalizada.length > 40 ? '…' : ''}"`)
+      setPistaPersonalizada('')
+    } catch (e) {
+      setErrorPista(e instanceof Error ? e.message : 'No se pudo enviar la pista.')
+    } finally {
+      setEnviandoPersonalizada(false)
+    }
+  }
+
   return (
     <div>
       <p style={{ marginTop: 12 }}>
         <strong>Búsqueda del Tesoro:</strong> {busqueda.nombre}
         {busqueda.descripcion && <span> — {busqueda.descripcion}</span>}
       </p>
+      <p style={{ fontSize: '0.85rem', color: 'var(--color-texto-tenue)' }}>
+        Tiempo: {busqueda.tiempo} min · Puntaje base: {busqueda.puntaje} pts
+      </p>
+
+      {/* QR del tesoro — solo operadores */}
+      {esOperador && busqueda.codigoQr && (
+        <div style={{
+          marginTop: 16,
+          padding: 16,
+          background: 'var(--color-fondo-tarjeta)',
+          border: '1px solid var(--color-borde-tarjeta)',
+          borderRadius: 8,
+          display: 'inline-flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 12
+        }}>
+          <p style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: 1, opacity: 0.6, margin: 0 }}>
+            Código QR del tesoro
+          </p>
+          {urlQr && (
+            <img
+              src={urlQr}
+              alt="Código QR del tesoro"
+              width={200}
+              height={200}
+              style={{ display: 'block', borderRadius: 4 }}
+            />
+          )}
+          <code style={{
+            fontSize: '0.75rem',
+            padding: '4px 8px',
+            background: 'var(--color-fondo)',
+            borderRadius: 4,
+            letterSpacing: 2,
+            userSelect: 'all'
+          }}>
+            {busqueda.codigoQr}
+          </code>
+          <button
+            type="button"
+            style={{
+              fontSize: '0.8rem',
+              padding: '4px 12px',
+              cursor: 'pointer',
+              borderRadius: 4,
+              border: '1px solid var(--color-borde-tarjeta)',
+              background: 'transparent'
+            }}
+            onClick={() => window.print()}
+          >
+            Imprimir QR
+          </button>
+        </div>
+      )}
+
+      {/* Pistas predefinidas */}
       {busqueda.pistas.length === 0 ? (
         <p className="detalle-mensaje-vacio">Esta búsqueda no tiene pistas registradas.</p>
       ) : (
-        <ul className="lista-pistas">
-          {busqueda.pistas.map((p, idx) => (
-            <li key={p.id} className="pista-item">
-              <span className="pista-orden">{idx + 1}</span>
-              <span>{p.contenido}</span>
-            </li>
-          ))}
+        <ul className="lista-pistas" style={{ marginTop: 16 }}>
+          {busqueda.pistas.map((p, idx) => {
+            const yaLiberada = pistasLiberadasIds.has(p.id)
+            return (
+              <li key={p.id} className="pista-item" style={{ alignItems: 'center', gap: 12 }}>
+                <span className="pista-orden">{idx + 1}</span>
+                <span style={{ flex: 1 }}>{p.contenido}</span>
+                {esOperador && sesionActiva && (
+                  <button
+                    type="button"
+                    disabled={yaLiberada || liberando === p.id}
+                    onClick={() => void handleLiberarPista(p.id, p.contenido)}
+                    style={{
+                      fontSize: '0.8rem',
+                      padding: '4px 10px',
+                      borderRadius: 4,
+                      border: 'none',
+                      cursor: yaLiberada ? 'default' : 'pointer',
+                      background: yaLiberada ? '#6b7280' : 'var(--color-exito, #22c55e)',
+                      color: '#fff',
+                      opacity: liberando && liberando !== p.id ? 0.5 : 1,
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    {yaLiberada ? 'Liberada' : liberando === p.id ? '…' : 'Liberar'}
+                  </button>
+                )}
+              </li>
+            )
+          })}
         </ul>
+      )}
+
+      {/* Panel de pista personalizada — solo operadores con sesión activa */}
+      {esOperador && sesionActiva && (
+        <div style={{
+          marginTop: 20,
+          padding: 16,
+          background: 'var(--color-fondo-tarjeta)',
+          border: '1px solid var(--color-borde-tarjeta)',
+          borderRadius: 8
+        }}>
+          <p style={{ margin: '0 0 10px', fontWeight: 600, fontSize: '0.9rem' }}>
+            Enviar pista personalizada
+          </p>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <input
+              type="text"
+              placeholder="Escribe una pista para los participantes…"
+              value={pistaPersonalizada}
+              onChange={e => setPistaPersonalizada(e.target.value)}
+              maxLength={1000}
+              style={{
+                flex: 1,
+                minWidth: 200,
+                padding: '8px 12px',
+                borderRadius: 6,
+                border: '1px solid var(--color-borde-tarjeta)',
+                background: 'var(--color-fondo)',
+                color: 'inherit',
+                fontSize: '0.9rem'
+              }}
+            />
+            <button
+              type="button"
+              disabled={enviandoPersonalizada || !pistaPersonalizada.trim()}
+              onClick={() => void handleLiberarPersonalizada()}
+              style={{
+                padding: '8px 18px',
+                borderRadius: 6,
+                border: 'none',
+                background: 'var(--color-primario, #6366f1)',
+                color: '#fff',
+                cursor: enviandoPersonalizada || !pistaPersonalizada.trim() ? 'not-allowed' : 'pointer',
+                opacity: enviandoPersonalizada || !pistaPersonalizada.trim() ? 0.6 : 1,
+                fontWeight: 600,
+                fontSize: '0.9rem'
+              }}
+            >
+              {enviandoPersonalizada ? 'Enviando…' : 'Enviar pista'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Mensajes de feedback */}
+      {exitoPista && (
+        <div style={{ marginTop: 12 }}>
+          <Alerta tono="exito">{exitoPista}</Alerta>
+        </div>
+      )}
+      {errorPista && (
+        <div style={{ marginTop: 12 }}>
+          <Alerta tono="error">{errorPista}</Alerta>
+        </div>
       )}
     </div>
   )

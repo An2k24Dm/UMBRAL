@@ -18,4 +18,6 @@ public interface IRepositorioBusquedas
     Task ActivarBusquedaTesoroAsync(BusquedaTesoro busqueda, CancellationToken cancelacion);
     Task DesactivarBusquedaTesoroAsync(BusquedaTesoro busqueda, CancellationToken cancelacion);
     Task EliminarBusquedaTesoroAsync(Guid busquedaId, CancellationToken cancelacion);
+    Task<BusquedaTesoroParticipanteDto?> ObtenerBusquedaParaParticipanteAsync(Guid busquedaId, CancellationToken cancelacion);
+    Task<string?> ObtenerCodigoQrAsync(Guid busquedaId, CancellationToken cancelacion);
 }

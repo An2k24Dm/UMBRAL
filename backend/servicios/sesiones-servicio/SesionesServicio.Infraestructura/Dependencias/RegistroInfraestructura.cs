@@ -54,9 +54,12 @@ public static class RegistroInfraestructura
             configuracion.GetSection(OpcionesIdentidadServicio.Seccion));
         servicios.AddHttpClient<IClienteJuegosMisiones, ClienteJuegosMisionesHttp>();
         servicios.AddHttpClient<IClienteJuegosTrivia, ClienteJuegosTriviaHttp>();
+        servicios.AddHttpClient<IClienteBusquedaTesoro, ClienteBusquedaTesoroHttp>();
         servicios.AddHttpClient<IClienteIdentidadUsuarios, ClienteIdentidadUsuariosHttp>();
         servicios.AddHttpClient<IClienteIdentidadParticipantes, ClienteIdentidadParticipantes>();
         servicios.AddScoped<IRepositorioRespuestasTrivia, RepositorioRespuestasTrivia>();
+        servicios.AddScoped<IRepositorioEvidenciasTesoro, RepositorioEvidenciasTesoro>();
+        servicios.AddScoped<IRepositorioPistasLiberadas, RepositorioPistasLiberadas>();
         servicios.Configure<OpcionesPreparacionSesiones>(
             configuracion.GetSection(OpcionesPreparacionSesiones.Seccion));
         servicios.AddScoped<ProcesadorPreparacionSesiones>();

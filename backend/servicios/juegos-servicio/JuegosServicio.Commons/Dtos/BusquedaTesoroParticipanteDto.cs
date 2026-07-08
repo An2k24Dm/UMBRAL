@@ -1,14 +1,11 @@
 namespace JuegosServicio.Commons.Dtos;
 
-public sealed class BusquedaTesoroDetalleDto
+public sealed class BusquedaTesoroParticipanteDto
 {
     public Guid Id { get; set; }
     public string Nombre { get; set; } = default!;
     public string Descripcion { get; set; } = default!;
-    public string Estado { get; set; } = default!;
-    public DateTime FechaCreacion { get; set; }
     public int Tiempo { get; set; }
     public int Puntaje { get; set; }
-    public string CodigoQr { get; set; } = default!;
     public List<PistaDetalleDto> Pistas { get; set; } = new();
 }
