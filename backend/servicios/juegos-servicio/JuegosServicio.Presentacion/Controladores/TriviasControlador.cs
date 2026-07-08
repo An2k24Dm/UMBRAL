@@ -10,6 +10,8 @@ using JuegosServicio.Aplicacion.Comandos.ModificarTrivia;
 using JuegosServicio.Aplicacion.Consultas.ObtenerDetalleTrivia;
 using JuegosServicio.Aplicacion.Consultas.ObtenerTriviasActivas;
 using JuegosServicio.Aplicacion.Consultas.ObtenerTriviasEnBorrador;
+using JuegosServicio.Aplicacion.Consultas.ObtenerTriviaParticipante;
+using JuegosServicio.Aplicacion.Consultas.VerificarRespuestaTrivia;
 using JuegosServicio.Commons.Dtos;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -201,6 +203,43 @@ public sealed class TriviasControlador : ControllerBase
     {
         await _mediador.Send(new EliminarPreguntaComando(triviaId, preguntaId), cancelacion);
         return NoContent();
+    }
+
+    // HU-37 — Vista de la trivia para participantes: sin EsCorrecta en las opciones.
+    [HttpGet("{triviaId:guid}/participante")]
+    [Authorize]
+    [ProducesResponseType(typeof(TriviaParticipanteDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ObtenerTriviaParticipante(
+        Guid triviaId, CancellationToken cancelacion)
+    {
+        var resultado = await _mediador.Send(
+            new ObtenerTriviaParticipanteConsulta(triviaId), cancelacion);
+        if (resultado is null) return NotFound(new { mensaje = "Trivia no encontrada." });
+        return Ok(resultado);
+    }
+
+    // HU-37 — Verificación server-side de respuesta. Llamado por sesiones-servicio
+    // con el token del participante propagado; devuelve corrección + puntaje + límite.
+    [HttpPost("{triviaId:guid}/preguntas/{preguntaId:guid}/verificar")]
+    [Authorize]
+    [ProducesResponseType(typeof(VerificacionRespuestaTriviaDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> VerificarRespuesta(
+        Guid triviaId,
+        Guid preguntaId,
+        [FromBody] VerificarRespuestaSolicitudDto solicitud,
+        CancellationToken cancelacion)
+    {
+        var resultado = await _mediador.Send(
+            new VerificarRespuestaTriviaConsulta(triviaId, preguntaId, solicitud.OpcionSeleccionadaId),
+            cancelacion);
+        if (resultado is null)
+            return NotFound(new { mensaje = "Pregunta u opción no encontrada." });
+        return Ok(resultado);
     }
 
     private Guid ObtenerCreadorId()

@@ -306,59 +306,113 @@ function SeccionParticipacion({
 
   // Casos B y D: el participante ya pertenece a la sesión.
   if (participacion?.estaInscrito) {
+    const etapasTrivia = detalle.misiones.flatMap((m) =>
+      m.etapas
+        .filter((e) => e.tipoModoDeJuego === "Trivia")
+        .map((e) => ({ misionId: m.id, etapa: e })),
+    );
+    const sesionActiva = detalle.estado === "Activa";
+
     if (participacion.tipo === "Equipo") {
       return (
-        <View style={estilos.tarjetaParticipacion}>
-          <Text style={estilos.participacionTexto}>
-            Ya perteneces a un equipo en esta sesión.
-          </Text>
-          {participacion.equipoNombre ? (
-            <Text style={estilos.participacionDetalle}>
-              Equipo: {participacion.equipoNombre}
+        <View>
+          <View style={estilos.tarjetaParticipacion}>
+            <Text style={estilos.participacionTexto}>
+              Ya perteneces a un equipo en esta sesión.
             </Text>
-          ) : null}
-          <TouchableOpacity
-            style={estilos.botonPrimario}
-            onPress={() =>
-              navegarSeguro(() =>
-                enrutador.push(
-                  `/participante/sesiones/equipo?sesionId=${sesionId}` +
-                    `&equipoId=${participacion.equipoId ?? ""}`,
-                ),
-              )
-            }
-            accessibilityRole="button"
-          >
-            <Text style={estilos.botonPrimarioTexto}>Ver equipo</Text>
-          </TouchableOpacity>
+            {participacion.equipoNombre ? (
+              <Text style={estilos.participacionDetalle}>
+                Equipo: {participacion.equipoNombre}
+              </Text>
+            ) : null}
+            <TouchableOpacity
+              style={estilos.botonPrimario}
+              onPress={() =>
+                navegarSeguro(() =>
+                  enrutador.push(
+                    `/participante/sesiones/equipo?sesionId=${sesionId}` +
+                      `&equipoId=${participacion.equipoId ?? ""}`,
+                  ),
+                )
+              }
+              accessibilityRole="button"
+            >
+              <Text style={estilos.botonPrimarioTexto}>Ver equipo</Text>
+            </TouchableOpacity>
+          </View>
+          {sesionActiva &&
+            etapasTrivia.map(({ misionId, etapa }) => (
+              <TouchableOpacity
+                key={etapa.id}
+                style={estilos.botonJugar}
+                onPress={() =>
+                  navegarSeguro(() =>
+                    enrutador.push(
+                      `/participante/sesiones/jugar?sesionId=${sesionId}` +
+                        `&misionId=${misionId}&etapaId=${etapa.id}` +
+                        `&triviaId=${etapa.modoDeJuegoId}`,
+                    ),
+                  )
+                }
+                accessibilityRole="button"
+              >
+                <Text style={estilos.botonJugarTexto}>
+                  Jugar: {etapa.nombreModoDeJuego}
+                </Text>
+              </TouchableOpacity>
+            ))}
         </View>
       );
     }
 
-    // Sesión individual ya ingresada: puede abandonarla (HU48). El backend
-    // rechaza con 409 si la sesión ya no está En Preparación.
+    // Sesión individual ya ingresada.
     return (
-      <View style={estilos.tarjetaParticipacion}>
-        <Text style={estilos.participacionTexto}>
-          Ya ingresaste a esta sesión.
-        </Text>
-        {errorAbandonar ? (
-          <View style={estilos.cuadroError}>
-            <Text style={estilos.cuadroErrorTexto}>{errorAbandonar}</Text>
-          </View>
-        ) : null}
-        <TouchableOpacity
-          style={[estilos.botonPeligro, abandonando && estilos.botonDeshabilitado]}
-          onPress={solicitarAbandono}
-          disabled={abandonando}
-          accessibilityRole="button"
-        >
-          {abandonando ? (
-            <ActivityIndicator color={tema.colores.textoBlanco} />
-          ) : (
-            <Text style={estilos.botonPeligroTexto}>Abandonar sesión</Text>
+      <View>
+        <View style={estilos.tarjetaParticipacion}>
+          <Text style={estilos.participacionTexto}>
+            Ya ingresaste a esta sesión.
+          </Text>
+          {errorAbandonar ? (
+            <View style={estilos.cuadroError}>
+              <Text style={estilos.cuadroErrorTexto}>{errorAbandonar}</Text>
+            </View>
+          ) : null}
+          {enPreparacion && (
+            <TouchableOpacity
+              style={[estilos.botonPeligro, abandonando && estilos.botonDeshabilitado]}
+              onPress={solicitarAbandono}
+              disabled={abandonando}
+              accessibilityRole="button"
+            >
+              {abandonando ? (
+                <ActivityIndicator color={tema.colores.textoBlanco} />
+              ) : (
+                <Text style={estilos.botonPeligroTexto}>Abandonar sesión</Text>
+              )}
+            </TouchableOpacity>
           )}
-        </TouchableOpacity>
+        </View>
+        {sesionActiva &&
+          etapasTrivia.map(({ misionId, etapa }) => (
+            <TouchableOpacity
+              key={etapa.id}
+              style={estilos.botonJugar}
+              onPress={() =>
+                navegarSeguro(() =>
+                  enrutador.push(
+                    `/participante/sesiones/jugar?sesionId=${sesionId}` +
+                      `&misionId=${misionId}&etapaId=${etapa.id}` +
+                      `&triviaId=${etapa.modoDeJuegoId}`,
+                  ),
+                )
+              }
+              accessibilityRole="button"
+            >
+              <Text style={estilos.botonJugarTexto}>
+                Jugar: {etapa.nombreModoDeJuego}
+              </Text>
+            </TouchableOpacity>
+          ))}
       </View>
     );
   }
@@ -632,5 +686,17 @@ const estilos = StyleSheet.create({
     color: tema.colores.texto,
     fontWeight: tema.tipografia.pesos.bold,
     fontSize: tema.tipografia.tamanos.md,
+  },
+  botonJugar: {
+    backgroundColor: tema.colores.exito,
+    paddingVertical: tema.espacios.md,
+    borderRadius: tema.radios.boton,
+    alignItems: "center",
+    marginTop: tema.espacios.sm,
+  },
+  botonJugarTexto: {
+    color: tema.colores.textoBlanco,
+    fontWeight: tema.tipografia.pesos.bold,
+    fontSize: tema.tipografia.tamanos.lg,
   },
 });

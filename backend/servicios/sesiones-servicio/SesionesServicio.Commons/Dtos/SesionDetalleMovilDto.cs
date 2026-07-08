@@ -43,6 +43,7 @@ public sealed class EtapaSesionMovilDto
     public Guid Id { get; set; }
     public int Orden { get; set; }
     public string TipoModoDeJuego { get; set; } = string.Empty;
+    public Guid ModoDeJuegoId { get; set; }
     public string NombreModoDeJuego { get; set; } = string.Empty;
     public int? TiempoEstimadoSegundos { get; set; }
 }

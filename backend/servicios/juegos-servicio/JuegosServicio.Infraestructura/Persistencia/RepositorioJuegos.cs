@@ -245,4 +245,62 @@ public sealed class RepositorioJuegos : IRepositorioJuegos
             })
             .ToListAsync(cancelacion);
     }
+
+    public async Task<TriviaParticipanteDto?> ObtenerTriviaParticipanteAsync(
+        Guid triviaId, CancellationToken cancelacion)
+    {
+        var modelo = await _contexto.Trivias
+            .AsNoTracking()
+            .Include(t => t.Preguntas)
+                .ThenInclude(p => p.Opciones)
+            .FirstOrDefaultAsync(t => t.Id == triviaId, cancelacion);
+
+        if (modelo is null) return null;
+
+        return new TriviaParticipanteDto
+        {
+            Id = modelo.Id,
+            Nombre = modelo.Nombre,
+            Descripcion = modelo.Descripcion,
+            TiempoLimitePorPregunta = modelo.TiempoLimitePorPregunta,
+            Preguntas = modelo.Preguntas.Select(p => new PreguntaParticipanteDto
+            {
+                Id = p.Id,
+                Enunciado = p.Enunciado,
+                PuntajeAsignado = p.PuntajeAsignado,
+                TiempoEstimado = p.TiempoEstimado > 0 ? p.TiempoEstimado : modelo.TiempoLimitePorPregunta,
+                Opciones = p.Opciones.Select(o => new OpcionParticipanteDto
+                {
+                    Id = o.Id,
+                    Texto = o.Texto
+                }).ToList()
+            }).ToList()
+        };
+    }
+
+    public async Task<VerificacionRespuestaTriviaDto?> VerificarRespuestaAsync(
+        Guid triviaId, Guid preguntaId, Guid opcionSeleccionadaId, CancellationToken cancelacion)
+    {
+        var pregunta = await _contexto.Preguntas
+            .AsNoTracking()
+            .Include(p => p.Opciones)
+            .Include(p => p.Trivia)
+            .FirstOrDefaultAsync(p => p.Id == preguntaId && p.TriviaId == triviaId, cancelacion);
+
+        if (pregunta is null) return null;
+
+        var opcion = pregunta.Opciones.FirstOrDefault(o => o.Id == opcionSeleccionadaId);
+        if (opcion is null) return null;
+
+        var tiempoLimite = pregunta.TiempoEstimado > 0
+            ? pregunta.TiempoEstimado
+            : pregunta.Trivia?.TiempoLimitePorPregunta ?? 10;
+
+        return new VerificacionRespuestaTriviaDto
+        {
+            EsCorrecta = opcion.EsCorrecta,
+            PuntajeBase = pregunta.PuntajeAsignado,
+            TiempoLimiteSegundos = tiempoLimite
+        };
+    }
 }
