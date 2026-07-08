@@ -92,6 +92,8 @@ public sealed class ExpulsarParticipanteEquipoManejador
             sesionGrupal.Id,
             expulsado.Id,
             cancelacion);
+        await _notificadorTiempoReal.NotificarSesionActualizadaAsync(
+            sesionGrupal.Id, sesionGrupal.Estado.ToString(), cancelacion);
 
         _registroLogs.Informacion(
             evento: "ParticipanteExpulsadoEquipo",

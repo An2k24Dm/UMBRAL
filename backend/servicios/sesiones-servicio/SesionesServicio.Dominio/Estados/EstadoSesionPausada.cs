@@ -5,10 +5,6 @@ using SesionesServicio.Dominio.Excepciones;
 
 namespace SesionesServicio.Dominio.Estados;
 
-// Transiciones permitidas desde Pausada:
-//   Reanudar   → Activa
-//   Finalizar  → Finalizada
-//   Cancelar   → Cancelada
 internal sealed class EstadoSesionPausada : IEstadoSesion
 {
     public EstadoSesion Estado => EstadoSesion.Pausada;

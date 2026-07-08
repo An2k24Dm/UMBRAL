@@ -194,6 +194,16 @@ export interface ModificarSesionSolicitud {
   maximoParticipantesPorEquipo: number | null
 }
 
+// Respuesta de las operaciones de ciclo de vida (iniciar/pausar/reanudar/
+// cancelar). El estado retornado es el resultante tras la operación.
+export interface OperacionSesionRespuestaDto {
+  sesionId: string
+  estado: EstadoSesionApi
+  fechaInicioUtc: string | null
+  fechaFinalizacionUtc: string | null
+  mensaje: string
+}
+
 // ---------------------------------------------------------------------------
 // Crear sesión (solo Operador)
 // ---------------------------------------------------------------------------
@@ -316,6 +326,53 @@ export async function eliminarSesion(id: string, token: string): Promise<void> {
   // ("Solo se pueden eliminar sesiones en estado Programada."); lo propagamos.
   if (respuesta.status === 409) throw new Error(await leerError(respuesta))
   throw new Error('No se pudo eliminar la sesión. Intenta nuevamente.')
+}
+
+// ---------------------------------------------------------------------------
+// HU52 — Operación del ciclo de vida de la sesión (solo Operador dueño).
+// El backend coordina el cambio de estado con la fachada y el patrón State y
+// devuelve el estado resultante. 409 (transición/estado inválido) y 400
+// (regla de negocio, p. ej. sin inscritos o fecha futura) traen el mensaje
+// exacto del backend.
+// ---------------------------------------------------------------------------
+type AccionSesion = 'iniciar' | 'pausar' | 'reanudar' | 'cancelar'
+
+async function operarSesion(
+  id: string, accion: AccionSesion, token: string
+): Promise<OperacionSesionRespuestaDto> {
+  const respuesta = await fetch(`${URL_API}${ENDPOINTS.porId(id)}/${accion}`, {
+    method: 'PATCH',
+    headers: auth(token)
+  })
+  if (respuesta.status === 401) lanzar401(token, 'Debe iniciar sesión.')
+  if (respuesta.status === 403) throw new Error('No tienes permisos para operar esta sesión.')
+  if (respuesta.status === 404) throw new Error('La sesión no existe o ya fue eliminada.')
+  if (!respuesta.ok) throw new Error(await leerError(respuesta))
+  return (await respuesta.json()) as OperacionSesionRespuestaDto
+}
+
+export function iniciarSesionOperacion(
+  id: string, token: string
+): Promise<OperacionSesionRespuestaDto> {
+  return operarSesion(id, 'iniciar', token)
+}
+
+export function pausarSesionOperacion(
+  id: string, token: string
+): Promise<OperacionSesionRespuestaDto> {
+  return operarSesion(id, 'pausar', token)
+}
+
+export function reanudarSesionOperacion(
+  id: string, token: string
+): Promise<OperacionSesionRespuestaDto> {
+  return operarSesion(id, 'reanudar', token)
+}
+
+export function cancelarSesionOperacion(
+  id: string, token: string
+): Promise<OperacionSesionRespuestaDto> {
+  return operarSesion(id, 'cancelar', token)
 }
 
 // ---------------------------------------------------------------------------

@@ -50,10 +50,36 @@ function ContenidoDetalle() {
 
   const navegarSeguro = useNavegacionSegura();
   useRefrescarAlEnfocar(refrescar);
+
+  // HU52 — cambio de estado en vivo. Si el operador cancela, avisamos y
+  // volvemos al listado; para pausa/reanudación recargamos el detalle para
+  // que el banner y las acciones reflejen el nuevo estado.
+  const manejarCambioEstado = useCallback(
+    (estado: string | undefined) => {
+      if (estado === "Cancelada") {
+        Alert.alert(
+          "Sesión cancelada",
+          "La sesión fue cancelada por el operador.",
+          [
+            {
+              text: "Volver al listado",
+              onPress: () => enrutador.replace("/participante/sesiones"),
+            },
+          ],
+        );
+        return;
+      }
+      void refrescar();
+    },
+    [refrescar, enrutador],
+  );
+
   useSesionesTiempoReal({
     sesionId,
     onParticipantesSesionActualizados: refrescar,
     onEquiposSesionActualizados: refrescar,
+    onEquipoActualizado: refrescar,
+    onSesionActualizada: manejarCambioEstado,
   });
 
   const [refrescando, setRefrescando] = useState(false);
@@ -164,6 +190,29 @@ function ContenidoDetalle() {
               </Text>
             </View>
           </View>
+
+          {detalle.estado === "Pausada" && (
+            <View style={estilos.bannerPausa}>
+              <Text style={estilos.bannerPausaTitulo}>
+                Sesión pausada por el operador.
+              </Text>
+              <Text style={estilos.bannerPausaTexto}>
+                Puedes seguir viendo la información de la sesión, pero el juego
+                está detenido hasta que el operador la reanude.
+              </Text>
+            </View>
+          )}
+
+          {detalle.estado === "Cancelada" && (
+            <View style={estilos.bannerCancelada}>
+              <Text style={estilos.bannerCanceladaTitulo}>
+                La sesión fue cancelada por el operador.
+              </Text>
+              <Text style={estilos.bannerCanceladaTexto}>
+                Ya no es posible jugar en esta sesión.
+              </Text>
+            </View>
+          )}
 
           <Text style={estilos.tituloSeccion}>MISIONES</Text>
           <ListaMisionesSesionMovil misiones={detalle.misiones} />
@@ -463,6 +512,44 @@ const estilos = StyleSheet.create({
     marginBottom: tema.espacios.sm,
     marginLeft: tema.espacios.xs,
     fontWeight: tema.tipografia.pesos.bold,
+  },
+  bannerPausa: {
+    backgroundColor: tema.colores.avisoSuave,
+    borderColor: tema.colores.aviso,
+    borderWidth: 1,
+    borderRadius: tema.radios.entrada,
+    padding: tema.espacios.md,
+    marginBottom: tema.espacios.md,
+  },
+  bannerPausaTitulo: {
+    color: tema.colores.aviso,
+    fontSize: tema.tipografia.tamanos.md,
+    fontWeight: tema.tipografia.pesos.bold,
+  },
+  bannerPausaTexto: {
+    color: tema.colores.texto,
+    fontSize: tema.tipografia.tamanos.sm,
+    marginTop: tema.espacios.xs,
+    lineHeight: 18,
+  },
+  bannerCancelada: {
+    backgroundColor: tema.colores.errorSuave,
+    borderColor: tema.colores.error,
+    borderWidth: 1,
+    borderRadius: tema.radios.entrada,
+    padding: tema.espacios.md,
+    marginBottom: tema.espacios.md,
+  },
+  bannerCanceladaTitulo: {
+    color: tema.colores.error,
+    fontSize: tema.tipografia.tamanos.md,
+    fontWeight: tema.tipografia.pesos.bold,
+  },
+  bannerCanceladaTexto: {
+    color: tema.colores.texto,
+    fontSize: tema.tipografia.tamanos.sm,
+    marginTop: tema.espacios.xs,
+    lineHeight: 18,
   },
   contenedorEstado: {
     alignItems: "center",

@@ -61,6 +61,9 @@ public sealed class AbandonarSesionManejador : IRequestHandler<AbandonarSesionCo
             await _unidadTrabajo.GuardarCambiosAsync(cancelacion);
             await _notificadorTiempoReal.NotificarParticipantesSesionActualizadosAsync(
                 individual.Id, cancelacion);
+            // Refresca el conteo de inscritos en el listado (web y móvil).
+            await _notificadorTiempoReal.NotificarSesionActualizadaAsync(
+                individual.Id, individual.Estado.ToString(), cancelacion);
 
             _registroLogs.Informacion(
                 evento: "SesionAbandonada",
@@ -91,6 +94,9 @@ public sealed class AbandonarSesionManejador : IRequestHandler<AbandonarSesionCo
         if (equipoSigueExistiendo)
             await _notificadorTiempoReal.NotificarEquipoActualizadoAsync(
                 grupal.Id, equipoId, cancelacion);
+        // Refresca el conteo de equipos/participantes en el listado.
+        await _notificadorTiempoReal.NotificarSesionActualizadaAsync(
+            grupal.Id, grupal.Estado.ToString(), cancelacion);
 
         _registroLogs.Informacion(
             evento: "EquipoAbandonado",

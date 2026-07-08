@@ -17,6 +17,7 @@ import { tema } from "../../../estilos/tema";
 import { useNavegacionSegura } from "../../../hooks/useNavegacionSegura";
 import { useRefrescarAlEnfocar } from "../../../hooks/useRefrescarAlEnfocar";
 import { useSesionesDisponibles } from "../../../hooks/useSesionesDisponibles";
+import { useListadoSesionesTiempoReal } from "../../../hooks/useListadoSesionesTiempoReal";
 import type { FiltroModoSesion } from "../../../tipos/sesiones";
 
 // HU — Listado de sesiones disponibles para el Participante.
@@ -43,6 +44,9 @@ function ContenidoListado() {
   const navegarSeguro = useNavegacionSegura();
   // Refresca al volver a esta pantalla (gesto atrás) con datos frescos.
   useRefrescarAlEnfocar(refrescar);
+  // HU52 — refresco en vivo del listado cuando cambia el estado o el conteo de
+  // una sesión (SignalR); si no conecta, sigue el pull-to-refresh por HTTP.
+  useListadoSesionesTiempoReal({ onListadoActualizado: refrescar });
 
   const [refrescando, setRefrescando] = useState(false);
   const alRefrescar = useCallback(async () => {

@@ -97,6 +97,9 @@ public sealed class IngresarSesionPorCodigoManejador
             await _unidadTrabajo.GuardarCambiosAsync(cancelacion);
             await _notificadorTiempoReal.NotificarParticipantesSesionActualizadosAsync(
                 individual.Id, cancelacion);
+            // Refresca el conteo de inscritos en el listado (web y móvil).
+            await _notificadorTiempoReal.NotificarSesionActualizadaAsync(
+                individual.Id, individual.Estado.ToString(), cancelacion);
 
             _registroLogs.Informacion(
                 evento: "ParticipanteIngresoSesionPorCodigo",

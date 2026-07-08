@@ -50,7 +50,12 @@ export function PaginaDetalleEquipo() {
   useSesionesTiempoReal({
     token,
     sesionId: id,
-    onSesionActualizada: refrescarPorTiempoReal
+    equipoId,
+    onEquiposSesionActualizados: refrescarPorTiempoReal,
+    onEquipoActualizado: refrescarPorTiempoReal,
+    onSesionActualizada: refrescarPorTiempoReal,
+    onParticipanteExpulsado: refrescarPorTiempoReal,
+    onEquipoExpulsado: refrescarPorTiempoReal
   })
 
   useEffect(() => {

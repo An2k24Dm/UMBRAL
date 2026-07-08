@@ -7,6 +7,7 @@ import { Paginacion } from '../componentes/Paginacion'
 import { TablaSesiones } from '../componentes/sesiones/TablaSesiones'
 import { usarAutenticacion } from '../autenticacion/ProveedorAutenticacion'
 import { useSesiones } from '../hooks/useSesiones'
+import { useListadoSesionesTiempoReal } from '../hooks/useListadoSesionesTiempoReal'
 import type { EstadoSesion } from '../tipos/sesiones'
 
 // Listado de sesiones con filtros (Estado, Modo, Buscar por nombre).
@@ -38,7 +39,11 @@ export function PaginaSesiones() {
   const [filtroNombre, setFiltroNombre] = useState('')
   const [pagina, setPagina] = useState(1)
 
-  const { sesiones, cargando, error } = useSesiones({ token, estado: filtroEstado })
+  const { sesiones, cargando, error, refrescar } = useSesiones({ token, estado: filtroEstado })
+
+  // El listado se refresca en vivo cuando cambia el estado de una sesión o su
+  // conteo de participantes/equipos (SignalR); si falla, sigue por HTTP.
+  useListadoSesionesTiempoReal({ token, onListadoActualizado: refrescar })
 
   useEffect(() => { setPagina(1) }, [filtroEstado, filtroModo, filtroNombre])
 

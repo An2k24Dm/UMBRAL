@@ -61,6 +61,9 @@ public class IngresarSesionManejadoresPruebas
             Notificador.Setup(n => n.NotificarParticipantesSesionActualizadosAsync(
                     It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
                 .Returns(Task.CompletedTask);
+            Notificador.Setup(n => n.NotificarSesionActualizadaAsync(
+                    It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
         }
 
         private ConstructorRespuestaIngresoSesion ConstructorRespuesta()
@@ -125,6 +128,9 @@ public class IngresarSesionManejadoresPruebas
             It.IsAny<CancellationToken>()), Times.Once);
         contexto.Notificador.Verify(n => n.NotificarParticipantesSesionActualizadosAsync(
             SesionId, It.IsAny<CancellationToken>()), Times.Once);
+        contexto.Notificador.Verify(n => n.NotificarSesionActualizadaAsync(
+            SesionId, EstadoSesion.EnPreparacion.ToString(), It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     [Fact]
@@ -152,8 +158,29 @@ public class IngresarSesionManejadoresPruebas
             It.IsAny<CancellationToken>()), Times.Never);
         contexto.Notificador.Verify(n => n.NotificarParticipantesSesionActualizadosAsync(
             It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+        contexto.Notificador.Verify(n => n.NotificarSesionActualizadaAsync(
+            It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
         contexto.Consultas.Verify(c => c.ObtenerParticipacionActivaDeParticipanteAsync(
             It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task EndpointIndividual_RegistraParticipanteYNotificaSesionActualizada()
+    {
+        var sesion = IndividualEn(EstadoSesion.EnPreparacion);
+        var contexto = new Contexto(sesion);
+
+        var respuesta = await contexto.Individual().Handle(
+            new IngresarSesionIndividualComando(SesionId), CancellationToken.None);
+
+        respuesta.IngresoRegistrado.Should().BeTrue();
+        sesion.Participantes.Should().ContainSingle(
+            p => p.ParticipanteIdentidadId == ParticipanteId);
+        contexto.Notificador.Verify(n => n.NotificarParticipantesSesionActualizadosAsync(
+            SesionId, It.IsAny<CancellationToken>()), Times.Once);
+        contexto.Notificador.Verify(n => n.NotificarSesionActualizadaAsync(
+            SesionId, EstadoSesion.EnPreparacion.ToString(), It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     [Fact]
@@ -236,6 +263,8 @@ public class IngresarSesionManejadoresPruebas
             It.IsAny<Sesion>(), It.IsAny<CancellationToken>()), Times.Never);
         contexto.Notificador.Verify(n => n.NotificarParticipantesSesionActualizadosAsync(
             It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+        contexto.Notificador.Verify(n => n.NotificarSesionActualizadaAsync(
+            It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -252,6 +281,8 @@ public class IngresarSesionManejadoresPruebas
         await accion.Should().ThrowAsync<InvalidOperationException>();
         contexto.Notificador.Verify(n => n.NotificarParticipantesSesionActualizadosAsync(
             It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+        contexto.Notificador.Verify(n => n.NotificarSesionActualizadaAsync(
+            It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Theory]

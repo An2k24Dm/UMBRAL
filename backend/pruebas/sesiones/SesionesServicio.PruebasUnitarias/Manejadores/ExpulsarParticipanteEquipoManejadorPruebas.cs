@@ -64,6 +64,9 @@ public class ExpulsarParticipanteEquipoManejadorPruebas
                     It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(),
                     It.IsAny<CancellationToken>()))
                 .Returns(Task.CompletedTask);
+            Notificador.Setup(n => n.NotificarSesionActualizadaAsync(
+                    It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
         }
 
         public ExpulsarParticipanteEquipoManejador Construir()
@@ -127,6 +130,8 @@ public class ExpulsarParticipanteEquipoManejadorPruebas
         ctx.Notificador.Verify(n => n.NotificarParticipanteExpulsadoAsync(
             MiembroIdentidad, ctx.SesionId, miembroId, It.IsAny<CancellationToken>()),
             Times.Once);
+        ctx.Notificador.Verify(n => n.NotificarSesionActualizadaAsync(
+            ctx.SesionId, estado.ToString(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -298,5 +303,7 @@ public class ExpulsarParticipanteEquipoManejadorPruebas
         ctx.Notificador.Verify(n => n.NotificarParticipanteExpulsadoAsync(
             It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(),
             It.IsAny<CancellationToken>()), Times.Never);
+        ctx.Notificador.Verify(n => n.NotificarSesionActualizadaAsync(
+            It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 }

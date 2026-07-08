@@ -50,6 +50,29 @@ function Contenido() {
 
   const navegarSeguro = useNavegacionSegura();
   useRefrescarAlEnfocar(refrescar);
+
+  // HU52 — si el operador cancela la sesión mientras el participante está en el
+  // equipo, avisamos y volvemos al listado; pausa/reanudación solo refrescan.
+  const manejarCambioEstado = useCallback(
+    (estado: string | undefined) => {
+      if (estado === "Cancelada") {
+        Alert.alert(
+          "Sesión cancelada",
+          "La sesión fue cancelada por el operador.",
+          [
+            {
+              text: "Volver al listado",
+              onPress: () => enrutador.replace("/participante/sesiones"),
+            },
+          ],
+        );
+        return;
+      }
+      void refrescar();
+    },
+    [refrescar, enrutador],
+  );
+
   // El aviso dirigido de expulsión de equipo lo maneja de forma global
   // useAvisosSesionTiempoReal; aquí solo refrescamos por eventos de grupo.
   useSesionesTiempoReal({
@@ -57,6 +80,7 @@ function Contenido() {
     equipoId,
     onEquiposSesionActualizados: refrescar,
     onEquipoActualizado: refrescar,
+    onSesionActualizada: manejarCambioEstado,
   });
 
   const [refrescando, setRefrescando] = useState(false);

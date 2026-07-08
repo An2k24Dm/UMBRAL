@@ -80,6 +80,8 @@ public sealed class ExpulsarEquipoSesionGrupalManejador
             grupal.Id, comando.EquipoId, cancelacion);
         await _notificadorTiempoReal.NotificarEquipoExpulsadoAsync(
             integrantesIdentidadIds, grupal.Id, comando.EquipoId, equipoNombre, cancelacion);
+        await _notificadorTiempoReal.NotificarSesionActualizadaAsync(
+            grupal.Id, grupal.Estado.ToString(), cancelacion);
 
         _registroLogs.Informacion(
             evento: "EquipoExpulsadoSesionGrupal",

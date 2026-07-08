@@ -60,6 +60,12 @@ public class CrearEquipoManejadorPruebas
             Notificador.Setup(n => n.NotificarEquiposSesionActualizadosAsync(
                     It.IsAny<Guid>(), It.IsAny<Guid?>(), It.IsAny<CancellationToken>()))
                 .Returns(Task.CompletedTask);
+            Notificador.Setup(n => n.NotificarEquipoActualizadoAsync(
+                    It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
+            Notificador.Setup(n => n.NotificarSesionActualizadaAsync(
+                    It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
         }
 
         public CrearEquipoManejador Construir()
@@ -108,6 +114,11 @@ public class CrearEquipoManejadorPruebas
         ctx.Unidad.Verify(u => u.GuardarCambiosAsync(It.IsAny<CancellationToken>()), Times.Once);
         ctx.Notificador.Verify(n => n.NotificarEquiposSesionActualizadosAsync(
             SesionId, dto.Id, It.IsAny<CancellationToken>()), Times.Once);
+        ctx.Notificador.Verify(n => n.NotificarEquipoActualizadoAsync(
+            SesionId, dto.Id, It.IsAny<CancellationToken>()), Times.Once);
+        ctx.Notificador.Verify(n => n.NotificarSesionActualizadaAsync(
+            SesionId, EstadoSesion.EnPreparacion.ToString(), It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     [Fact]

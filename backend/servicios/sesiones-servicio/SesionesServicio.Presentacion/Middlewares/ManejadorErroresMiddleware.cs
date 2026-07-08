@@ -131,6 +131,11 @@ public sealed class ManejadorErroresMiddleware
             await EscribirCodigoAsync(contexto, HttpStatusCode.Conflict,
                 "TRANSICION_INVALIDA", ex.Message);
         }
+        catch (OperacionSesionInvalidaExcepcion ex)
+        {
+            await EscribirCodigoAsync(contexto, HttpStatusCode.Conflict,
+                "OPERACION_SESION_INVALIDA", ex.Message);
+        }
         catch (JsonException ex)
         {
             var correlationId = ObtenerCorrelationId(contexto);

@@ -100,6 +100,11 @@ public sealed class CrearEquipoManejador
         await _unidadTrabajo.GuardarCambiosAsync(cancelacion);
         await _notificadorTiempoReal.NotificarEquiposSesionActualizadosAsync(
             sesionGrupal.Id, equipo.Id, cancelacion);
+        await _notificadorTiempoReal.NotificarEquipoActualizadoAsync(
+            sesionGrupal.Id, equipo.Id, cancelacion);
+        // Refresca el conteo de equipos en el listado (web y móvil).
+        await _notificadorTiempoReal.NotificarSesionActualizadaAsync(
+            sesionGrupal.Id, sesionGrupal.Estado.ToString(), cancelacion);
 
         _registroLogs.Informacion(
             evento: "EquipoCreado",

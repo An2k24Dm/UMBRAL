@@ -6,6 +6,9 @@ export interface EventoSesionTiempoReal {
   SesionId?: string;
   equipoId?: string | null;
   EquipoId?: string | null;
+  // Estado del ciclo de vida: solo lo trae el evento "SesionActualizada".
+  estado?: string;
+  Estado?: string;
   tipoEvento?: string;
   TipoEvento?: string;
   fechaEventoUtc?: string;
@@ -14,6 +17,12 @@ export interface EventoSesionTiempoReal {
 
 export function obtenerSesionIdEvento(evento: EventoSesionTiempoReal): string {
   return evento.sesionId ?? evento.SesionId ?? "";
+}
+
+export function obtenerEstadoEvento(
+  evento: EventoSesionTiempoReal,
+): string | undefined {
+  return evento.estado ?? evento.Estado;
 }
 
 export function obtenerEquipoIdEvento(evento: EventoSesionTiempoReal): string {

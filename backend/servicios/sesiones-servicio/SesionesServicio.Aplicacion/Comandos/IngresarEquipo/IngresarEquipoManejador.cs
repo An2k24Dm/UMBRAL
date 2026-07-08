@@ -120,6 +120,9 @@ public sealed class IngresarEquipoManejador
             sesionGrupal.Id, comando.EquipoId, cancelacion);
         await _notificadorTiempoReal.NotificarEquipoActualizadoAsync(
             sesionGrupal.Id, comando.EquipoId, cancelacion);
+        // Refresca el conteo de participantes por equipo en el listado.
+        await _notificadorTiempoReal.NotificarSesionActualizadaAsync(
+            sesionGrupal.Id, sesionGrupal.Estado.ToString(), cancelacion);
 
         _registroLogs.Informacion(
             evento: "ParticipanteIngresoEquipo",

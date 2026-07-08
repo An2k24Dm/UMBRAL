@@ -67,6 +67,29 @@ public sealed class NotificadorSesionesTiempoReal : INotificadorSesionesTiempoRe
             .SendAsync("EquipoActualizado", dto, cancelacion);
     }
 
+    public async Task NotificarSesionActualizadaAsync(
+        Guid sesionId,
+        string estado,
+        CancellationToken cancelacion)
+    {
+        var dto = new SesionActualizadaTiempoRealDto
+        {
+            SesionId = sesionId,
+            Estado = estado,
+            FechaEventoUtc = DateTime.UtcNow
+        };
+
+        // Grupo de la sesión: refresca la pantalla de detalle abierta.
+        await _hub.Clients
+            .Group(SesionesHub.GrupoSesion(sesionId))
+            .SendAsync("SesionActualizada", dto, cancelacion);
+
+        // Grupo del listado: refresca la lista de sesiones del operador.
+        await _hub.Clients
+            .Group(SesionesHub.GrupoListadoSesiones)
+            .SendAsync("SesionActualizada", dto, cancelacion);
+    }
+
     // HU44 — Aviso dirigido al participante expulsado. Usa el grupo de usuario
     // que resuelve IUserIdProvider con el mismo id que IUsuarioActual.ObtenerId.
     public Task NotificarParticipanteExpulsadoAsync(

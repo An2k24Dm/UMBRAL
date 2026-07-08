@@ -54,6 +54,13 @@ public class ExpulsarEquipoSesionGrupalManejadorPruebas
             Notificador.Setup(n => n.NotificarEquiposSesionActualizadosAsync(
                     It.IsAny<Guid>(), It.IsAny<Guid?>(), It.IsAny<CancellationToken>()))
                 .Returns(Task.CompletedTask);
+            Notificador.Setup(n => n.NotificarEquipoExpulsadoAsync(
+                    It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<Guid>(),
+                    It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
+            Notificador.Setup(n => n.NotificarSesionActualizadaAsync(
+                    It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
         }
 
         public ExpulsarEquipoSesionGrupalManejador Construir()
@@ -102,6 +109,8 @@ public class ExpulsarEquipoSesionGrupalManejadorPruebas
         ctx.Notificador.Verify(n => n.NotificarEquipoExpulsadoAsync(
             It.Is<IReadOnlyCollection<Guid>>(ids => ids.Contains(Lider)),
             ctx.SesionId, ctx.EquipoId, "Rojo", It.IsAny<CancellationToken>()), Times.Once);
+        ctx.Notificador.Verify(n => n.NotificarSesionActualizadaAsync(
+            ctx.SesionId, estado.ToString(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -218,5 +227,7 @@ public class ExpulsarEquipoSesionGrupalManejadorPruebas
             It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<Guid>(),
             It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
             Times.Never);
+        ctx.Notificador.Verify(n => n.NotificarSesionActualizadaAsync(
+            It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 }
