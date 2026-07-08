@@ -61,3 +61,23 @@ public sealed class ParticipanteModelo
     public DateTime FechaUnionSesion { get; set; }
     public DateTime? FechaUnionEquipo { get; set; }
 }
+
+// Registro de cada respuesta enviada durante el juego de trivia.
+// Clave lógica (sesion_id, etapa_id, pregunta_id, participante_identidad_id)
+// garantiza que cada jugador solo responde una vez por pregunta.
+public sealed class RespuestaTriviaModelo
+{
+    public Guid Id { get; set; }
+    public Guid SesionId { get; set; }
+    public Guid MisionId { get; set; }
+    public Guid EtapaId { get; set; }
+    public Guid TriviaId { get; set; }
+    public Guid PreguntaId { get; set; }
+    public Guid OpcionSeleccionadaId { get; set; }
+    public Guid ParticipanteIdentidadId { get; set; }
+    public Guid? EquipoId { get; set; }
+    public bool EsCorrecta { get; set; }
+    public int PuntosGanados { get; set; }
+    public int TiempoTardadoMs { get; set; }
+    public DateTime FechaRespuestaUtc { get; set; }
+}

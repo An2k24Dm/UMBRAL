@@ -33,4 +33,20 @@ public interface INotificadorSesionesTiempoReal
         Guid equipoId,
         string equipoNombre,
         CancellationToken cancelacion);
+
+    Task NotificarRespuestaRegistradaAsync(
+        Guid sesionId,
+        Guid etapaId,
+        Guid preguntaId,
+        Guid participanteIdentidadId,
+        Guid? equipoId,
+        bool esCorrecta,
+        int puntosGanados,
+        CancellationToken cancelacion);
+
+    Task NotificarEtapaCompletadaAsync(
+        Guid sesionId,
+        Guid misionId,
+        Guid etapaId,
+        CancellationToken cancelacion);
 }

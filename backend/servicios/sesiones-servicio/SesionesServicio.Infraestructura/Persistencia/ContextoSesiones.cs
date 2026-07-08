@@ -10,6 +10,7 @@ public sealed class ContextoSesiones : DbContext
     public DbSet<SesionMisionModelo> SesionMisiones => Set<SesionMisionModelo>();
     public DbSet<EquipoModelo> Equipos => Set<EquipoModelo>();
     public DbSet<ParticipanteModelo> Participantes => Set<ParticipanteModelo>();
+    public DbSet<RespuestaTriviaModelo> RespuestasTrivia => Set<RespuestaTriviaModelo>();
 
     protected override void OnModelCreating(ModelBuilder constructor)
     {
@@ -100,6 +101,30 @@ public sealed class ContextoSesiones : DbContext
 
             e.HasIndex(x => new { x.SesionId, x.ParticipanteIdentidadId }).IsUnique();
             e.HasIndex(x => x.EquipoId);
+        });
+
+        constructor.Entity<RespuestaTriviaModelo>(e =>
+        {
+            e.ToTable("RespuestaTrivia");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.SesionId).HasColumnName("sesion_id").IsRequired();
+            e.Property(x => x.MisionId).HasColumnName("mision_id").IsRequired();
+            e.Property(x => x.EtapaId).HasColumnName("etapa_id").IsRequired();
+            e.Property(x => x.TriviaId).HasColumnName("trivia_id").IsRequired();
+            e.Property(x => x.PreguntaId).HasColumnName("pregunta_id").IsRequired();
+            e.Property(x => x.OpcionSeleccionadaId).HasColumnName("opcion_seleccionada_id").IsRequired();
+            e.Property(x => x.ParticipanteIdentidadId).HasColumnName("participante_identidad_id").IsRequired();
+            e.Property(x => x.EquipoId).HasColumnName("equipo_id");
+            e.Property(x => x.EsCorrecta).HasColumnName("es_correcta").IsRequired();
+            e.Property(x => x.PuntosGanados).HasColumnName("puntos_ganados").IsRequired();
+            e.Property(x => x.TiempoTardadoMs).HasColumnName("tiempo_tardado_ms").IsRequired();
+            e.Property(x => x.FechaRespuestaUtc).HasColumnName("fecha_respuesta_utc").IsRequired();
+
+            // Cada jugador (participante individual o equipo) solo puede responder una vez por pregunta en la misma sesión/etapa.
+            e.HasIndex(x => new { x.SesionId, x.EtapaId, x.PreguntaId, x.ParticipanteIdentidadId }).IsUnique();
+            e.HasIndex(x => new { x.SesionId, x.EtapaId, x.ParticipanteIdentidadId });
+            e.HasIndex(x => new { x.SesionId, x.EtapaId });
         });
     }
 }

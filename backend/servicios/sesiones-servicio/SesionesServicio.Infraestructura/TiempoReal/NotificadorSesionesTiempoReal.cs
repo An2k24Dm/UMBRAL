@@ -137,4 +137,52 @@ public sealed class NotificadorSesionesTiempoReal : INotificadorSesionesTiempoRe
             .Users(usuarios)
             .SendAsync("EquipoExpulsadoSesion", dto, cancelacion);
     }
+
+    // HU-37 — Notifica al grupo de la sesión que un jugador respondió una pregunta.
+    public Task NotificarRespuestaRegistradaAsync(
+        Guid sesionId,
+        Guid etapaId,
+        Guid preguntaId,
+        Guid participanteIdentidadId,
+        Guid? equipoId,
+        bool esCorrecta,
+        int puntosGanados,
+        CancellationToken cancelacion)
+    {
+        var dto = new RespuestaRegistradaDto
+        {
+            SesionId = sesionId,
+            EtapaId = etapaId,
+            PreguntaId = preguntaId,
+            ParticipanteIdentidadId = participanteIdentidadId,
+            EquipoId = equipoId,
+            EsCorrecta = esCorrecta,
+            PuntosGanados = puntosGanados,
+            FechaEventoUtc = DateTime.UtcNow
+        };
+
+        return _hub.Clients
+            .Group(SesionesHub.GrupoSesion(sesionId))
+            .SendAsync("RespuestaRegistrada", dto, cancelacion);
+    }
+
+    // HU-37 — Notifica que todos los jugadores completaron la etapa; el cliente avanza.
+    public Task NotificarEtapaCompletadaAsync(
+        Guid sesionId,
+        Guid misionId,
+        Guid etapaId,
+        CancellationToken cancelacion)
+    {
+        var dto = new EtapaCompletadaDto
+        {
+            SesionId = sesionId,
+            MisionId = misionId,
+            EtapaId = etapaId,
+            FechaEventoUtc = DateTime.UtcNow
+        };
+
+        return _hub.Clients
+            .Group(SesionesHub.GrupoSesion(sesionId))
+            .SendAsync("EtapaCompletada", dto, cancelacion);
+    }
 }

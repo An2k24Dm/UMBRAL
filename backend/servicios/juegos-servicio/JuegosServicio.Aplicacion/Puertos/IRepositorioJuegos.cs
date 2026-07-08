@@ -21,4 +21,7 @@ public interface IRepositorioJuegos
     Task<List<TriviaResumenDto>> ObtenerTriviasEnBorradorAsync(Guid? creadorId, CancellationToken cancelacion);
     Task<TriviaDetalleDto?> ObtenerDetalleTriviaAsync(Guid triviaId, CancellationToken cancelacion);
     Task<List<TriviaResumenDto>> ObtenerTriviasActivasAsync(CancellationToken cancelacion);
+    Task<TriviaParticipanteDto?> ObtenerTriviaParticipanteAsync(Guid triviaId, CancellationToken cancelacion);
+    Task<VerificacionRespuestaTriviaDto?> VerificarRespuestaAsync(
+        Guid triviaId, Guid preguntaId, Guid opcionSeleccionadaId, CancellationToken cancelacion);
 }

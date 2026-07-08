@@ -8,6 +8,7 @@ using SesionesServicio.Infraestructura.Configuraciones;
 using SesionesServicio.Infraestructura.Logging;
 using SesionesServicio.Infraestructura.Persistencia;
 using SesionesServicio.Infraestructura.Persistencia.Mapeadores;
+using SesionesServicio.Dominio.Abstract;
 using SesionesServicio.Infraestructura.Persistencia.Repositorios;
 using SesionesServicio.Infraestructura.ServiciosEnSegundoPlano;
 using SesionesServicio.Infraestructura.Seguridad;
@@ -52,8 +53,10 @@ public static class RegistroInfraestructura
         servicios.Configure<OpcionesIdentidadServicio>(
             configuracion.GetSection(OpcionesIdentidadServicio.Seccion));
         servicios.AddHttpClient<IClienteJuegosMisiones, ClienteJuegosMisionesHttp>();
+        servicios.AddHttpClient<IClienteJuegosTrivia, ClienteJuegosTriviaHttp>();
         servicios.AddHttpClient<IClienteIdentidadUsuarios, ClienteIdentidadUsuariosHttp>();
         servicios.AddHttpClient<IClienteIdentidadParticipantes, ClienteIdentidadParticipantes>();
+        servicios.AddScoped<IRepositorioRespuestasTrivia, RepositorioRespuestasTrivia>();
         servicios.Configure<OpcionesPreparacionSesiones>(
             configuracion.GetSection(OpcionesPreparacionSesiones.Seccion));
         servicios.AddScoped<ProcesadorPreparacionSesiones>();
