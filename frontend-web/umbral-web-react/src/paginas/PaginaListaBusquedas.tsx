@@ -103,8 +103,8 @@ export function PaginaListaBusquedas() {
     setErrorQr(null)
     setCargandoQr(true)
     try {
-      const data = await obtenerCodigoQrBusqueda(busquedaId, token)
-      setCodigoQrModal(data.codigoQr)
+      const codigoQr = await obtenerCodigoQrBusqueda(busquedaId, token)
+      setCodigoQrModal(codigoQr)
     } catch (err) {
       setErrorQr(err instanceof Error ? err.message : 'No fue posible obtener el QR.')
     } finally {
