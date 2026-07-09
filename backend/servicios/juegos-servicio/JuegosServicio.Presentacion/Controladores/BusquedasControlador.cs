@@ -9,6 +9,8 @@ using JuegosServicio.Aplicacion.Comandos.ModificarBusquedaTesoro;
 using JuegosServicio.Aplicacion.Comandos.ModificarPista;
 using JuegosServicio.Aplicacion.Consultas.ObtenerBusquedasActivas;
 using JuegosServicio.Aplicacion.Consultas.ObtenerBusquedasEnBorrador;
+using JuegosServicio.Aplicacion.Consultas.ObtenerBusquedaParticipante;
+using JuegosServicio.Aplicacion.Consultas.ObtenerCodigoQrBusqueda;
 using JuegosServicio.Aplicacion.Consultas.ObtenerDetalleBusqueda;
 using JuegosServicio.Commons.Dtos;
 using MediatR;
@@ -181,6 +183,54 @@ public sealed class BusquedasControlador : ControllerBase
     {
         await _mediador.Send(new EliminarPistaComando(busquedaId, pistaId), cancelacion);
         return NoContent();
+    }
+
+    [HttpGet("{busquedaId:guid}/participante")]
+    [Authorize]
+    [ProducesResponseType(typeof(BusquedaTesoroParticipanteDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ObtenerBusquedaParaParticipante(
+        Guid busquedaId, CancellationToken cancelacion)
+    {
+        var resultado = await _mediador.Send(
+            new ObtenerBusquedaParticipanteConsulta(busquedaId), cancelacion);
+        return resultado is null ? NotFound() : Ok(resultado);
+    }
+
+    [HttpGet("{busquedaId:guid}/codigo-qr")]
+    [Authorize(Policy = "PoliticaOperador")]
+    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ObtenerCodigoQr(
+        Guid busquedaId, CancellationToken cancelacion)
+    {
+        var codigo = await _mediador.Send(
+            new ObtenerCodigoQrBusquedaConsulta(busquedaId), cancelacion);
+        return codigo is null ? NotFound() : Ok(new { busquedaId, codigoQr = codigo });
+    }
+
+    // Endpoint de validación usado por sesiones-servicio con el token del participante.
+    // Solo devuelve un bool — nunca expone el código QR real.
+    [HttpPost("{busquedaId:guid}/validar-codigo-qr")]
+    [Authorize]
+    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ValidarCodigoQr(
+        Guid busquedaId,
+        [FromBody] ValidarCodigoQrDto dto,
+        CancellationToken cancelacion)
+    {
+        var codigoEsperado = await _mediador.Send(
+            new ObtenerCodigoQrBusquedaConsulta(busquedaId), cancelacion);
+
+        if (codigoEsperado is null) return NotFound();
+
+        var esValida = string.Equals(
+            dto.CodigoEscaneado.Trim(),
+            codigoEsperado.Trim(),
+            StringComparison.OrdinalIgnoreCase);
+
+        return Ok(new { esValida });
     }
 
     private Guid ObtenerCreadorId()

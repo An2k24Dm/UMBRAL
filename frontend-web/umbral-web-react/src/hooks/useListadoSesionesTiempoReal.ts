@@ -48,12 +48,18 @@ export function useListadoSesionesTiempoReal({
       refrescarListado()
     }
 
+    const manejarParticipantes = (evento: EventoSesionTiempoReal) => {
+      logListado('ParticipantesSesionActualizados recibido', evento)
+      refrescarListado()
+    }
+
     const unirseAlListado = async () => {
       await conexion.invoke('UnirseAListadoSesiones')
       logListado('unido al listado')
     }
 
     conexion.on('SesionActualizada', manejarListado)
+    conexion.on('ParticipantesSesionActualizados', manejarParticipantes)
 
     conexion.onreconnected(() => {
       if (desmontado) return
@@ -79,6 +85,7 @@ export function useListadoSesionesTiempoReal({
     return () => {
       desmontado = true
       conexion.off('SesionActualizada', manejarListado)
+      conexion.off('ParticipantesSesionActualizados', manejarParticipantes)
 
       if (conexion.state === signalR.HubConnectionState.Connected) {
         conexion

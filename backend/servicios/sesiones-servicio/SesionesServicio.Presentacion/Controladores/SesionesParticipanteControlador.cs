@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SesionesServicio.Aplicacion.Consultas.ListarSesionesDisponiblesParticipante;
 using SesionesServicio.Aplicacion.Consultas.ObtenerDetalleSesionDisponibleParticipante;
+using SesionesServicio.Aplicacion.Consultas.ObtenerMisParticipaciones;
+using SesionesServicio.Aplicacion.Consultas.ObtenerProgresoSesion;
 using SesionesServicio.Commons.Dtos;
 
 namespace SesionesServicio.Presentacion.Controladores;
@@ -47,6 +49,34 @@ public sealed class SesionesParticipanteControlador : ControllerBase
     {
         var resultado = await _mediador.Send(
             new ObtenerDetalleSesionDisponibleParticipanteConsulta(sesionId),
+            cancelacion);
+        return Ok(resultado);
+    }
+
+    // GET /api/sesiones/participante/disponibles/{sesionId}/progreso
+    [HttpGet("{sesionId:guid}/progreso")]
+    [ProducesResponseType(typeof(List<ProgresoSesionParticipanteDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> ObtenerProgresoSesion(
+        Guid sesionId, CancellationToken cancelacion)
+    {
+        var resultado = await _mediador.Send(
+            new ObtenerProgresoSesionConsulta(sesionId), cancelacion);
+        return Ok(resultado);
+    }
+
+    // GET /api/sesiones/participante/disponibles/finalizadas?limite=20
+    [HttpGet("finalizadas")]
+    [ProducesResponseType(typeof(List<MiParticipacionDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> ObtenerMisParticipaciones(
+        [FromQuery] int limite = 20,
+        CancellationToken cancelacion = default)
+    {
+        var resultado = await _mediador.Send(
+            new ObtenerMisParticipacionesConsulta(limite),
             cancelacion);
         return Ok(resultado);
     }

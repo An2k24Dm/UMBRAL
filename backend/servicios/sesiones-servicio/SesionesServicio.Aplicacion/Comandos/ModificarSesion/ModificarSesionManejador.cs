@@ -111,6 +111,7 @@ public sealed class ModificarSesionManejador
             sesion.ReemplazarMisiones(datos.MisionesIds);
             sesion.AplicarCapacidad(
                 datos.MaximoParticipantes, datos.MaximoEquipos, datos.MaximoParticipantesPorEquipo);
+            sesion.AplicarDuracion(datos.DuracionMinutosLimite);
             return sesion;
         }
 
@@ -133,7 +134,8 @@ public sealed class ModificarSesionManejador
             datos.MisionesIds,
             datos.MaximoParticipantes,
             datos.MaximoEquipos,
-            datos.MaximoParticipantesPorEquipo);
+            datos.MaximoParticipantesPorEquipo,
+            datos.DuracionMinutosLimite);
 
         return _fabricaSesion.Reconstruir(datosReconstruccion);
     }

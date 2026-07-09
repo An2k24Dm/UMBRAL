@@ -20,6 +20,7 @@ public sealed class SesionDetalleDto
     public int? MaximoParticipantes { get; set; }
     public int? MaximoEquipos { get; set; }
     public int? MaximoParticipantesPorEquipo { get; set; }
+    public int? DuracionMinutosLimite { get; set; }
 
     public List<SesionMisionDto> Misiones { get; set; } = new();
     public List<EquipoSesionDto> Equipos { get; set; } = new();

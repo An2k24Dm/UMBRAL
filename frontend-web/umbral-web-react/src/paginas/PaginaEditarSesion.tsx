@@ -260,6 +260,23 @@ export function PaginaEditarSesion() {
             />
           </CampoFormulario>
 
+          <CampoFormulario
+            etiqueta="Duración límite (minutos, opcional)"
+            htmlFor="duracionMinutosLimite"
+            ayuda="Si se indica, la sesión se finalizará automáticamente al cumplirse ese tiempo desde que se inicia. Déjelo vacío para no establecer límite de tiempo."
+          >
+            <input
+              id="duracionMinutosLimite"
+              type="number"
+              min={1}
+              step={1}
+              placeholder="Ej: 60"
+              value={datos.duracionMinutosLimite}
+              onChange={(e) => actualizarCampo('duracionMinutosLimite', e.target.value)}
+              disabled={enviando}
+            />
+          </CampoFormulario>
+
           <SelectorMisiones
             misionesActivas={misionesActivas}
             misionesSeleccionadasIds={datos.misionesIds}

@@ -26,6 +26,7 @@ public abstract class MapeadorDetalleSesionBase : IMapeadorDetalleSesion
             FechaCreacion = sesion.FechaCreacion,
             FechaInicioUtc = sesion.FechaInicioUtc,
             FechaFinalizacionUtc = sesion.FechaFinalizacionUtc,
+            DuracionMinutosLimite = sesion.DuracionMinutosLimite,
             Misiones = sesion.Misiones
                 .OrderBy(m => m.Orden)
                 .Select(m => new SesionMisionDto

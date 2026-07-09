@@ -30,6 +30,14 @@ namespace JuegosServicio.Infraestructura.Persistencia.Migraciones
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<string>("CodigoQr")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasDefaultValue("")
+                        .HasColumnName("codigo_qr");
+
                     b.Property<Guid>("CreadorId")
                         .HasColumnType("uuid")
                         .HasColumnName("creador_id");

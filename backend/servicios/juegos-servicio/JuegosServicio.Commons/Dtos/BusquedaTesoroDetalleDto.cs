@@ -9,5 +9,6 @@ public sealed class BusquedaTesoroDetalleDto
     public DateTime FechaCreacion { get; set; }
     public int Tiempo { get; set; }
     public int Puntaje { get; set; }
+    public string CodigoQr { get; set; } = default!;
     public List<PistaDetalleDto> Pistas { get; set; } = new();
 }

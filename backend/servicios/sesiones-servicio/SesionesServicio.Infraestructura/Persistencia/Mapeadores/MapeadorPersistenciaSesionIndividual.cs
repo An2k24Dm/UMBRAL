@@ -39,6 +39,6 @@ public sealed class MapeadorPersistenciaSesionIndividual : IMapeadorPersistencia
             modelo.FechaProgramada, modelo.CodigoAcceso,
             modelo.OperadorCreadorId, modelo.FechaCreacion,
             modelo.FechaInicioUtc, modelo.FechaFinalizacionUtc,
-            maximoParticipantes, misiones, participantes);
+            maximoParticipantes, misiones, participantes, modelo.DuracionMinutosLimite);
     }
 }

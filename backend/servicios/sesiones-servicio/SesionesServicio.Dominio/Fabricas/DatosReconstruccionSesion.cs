@@ -21,4 +21,5 @@ public sealed record DatosReconstruccionSesion(
     IReadOnlyList<Guid> MisionesIds,
     int? MaximoParticipantes,
     int? MaximoEquipos,
-    int? MaximoParticipantesPorEquipo);
+    int? MaximoParticipantesPorEquipo,
+    int? DuracionMinutosLimite = null);

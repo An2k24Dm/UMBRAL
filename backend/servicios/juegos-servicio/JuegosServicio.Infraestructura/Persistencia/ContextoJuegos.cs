@@ -91,6 +91,7 @@ public sealed class ContextoJuegos : DbContext
             e.Property(x => x.FechaCreacion).HasColumnName("fecha_creacion").IsRequired();
             e.Property(x => x.Tiempo).HasColumnName("tiempo").IsRequired().HasDefaultValue(0);
             e.Property(x => x.Puntaje).HasColumnName("puntaje").IsRequired().HasDefaultValue(0);
+            e.Property(x => x.CodigoQr).HasColumnName("codigo_qr").HasMaxLength(32).IsRequired().HasDefaultValue("");
             e.HasIndex(x => x.Nombre).IsUnique();
             e.HasMany(x => x.Pistas)
                 .WithOne(p => p.BusquedaTesoro)

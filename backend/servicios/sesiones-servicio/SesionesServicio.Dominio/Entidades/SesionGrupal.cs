@@ -19,7 +19,7 @@ public sealed class SesionGrupal : Sesion
     public static SesionGrupal Crear(
         string nombre, string descripcion, DateTime fechaProgramada,
         string codigoAcceso, Guid operadorCreadorId, DateTime fechaCreacionUtc,
-        int maximoEquipos, int maximoParticipantesPorEquipo)
+        int maximoEquipos, int maximoParticipantesPorEquipo, int? duracionMinutosLimite = null)
     {
         PoliticaCapacidadSesion.ValidarCapacidadGrupal(
             maximoEquipos, maximoParticipantesPorEquipo);
@@ -29,6 +29,7 @@ public sealed class SesionGrupal : Sesion
             codigoAcceso, operadorCreadorId, fechaCreacionUtc);
         sesion.MaximoEquipos = maximoEquipos;
         sesion.MaximoParticipantesPorEquipo = maximoParticipantesPorEquipo;
+        sesion.DuracionMinutosLimite = duracionMinutosLimite;
         return sesion;
     }
 
@@ -243,14 +244,15 @@ public sealed class SesionGrupal : Sesion
         DateTime? fechaInicioUtc, DateTime? fechaFinalizacionUtc,
         int maximoEquipos, int maximoParticipantesPorEquipo,
         IEnumerable<SesionMision>? misiones = null,
-        IEnumerable<Equipo>? equipos = null)
+        IEnumerable<Equipo>? equipos = null,
+        int? duracionMinutosLimite = null)
     {
         var sesion = new SesionGrupal();
         sesion.EstablecerDatosBase(
             id, nombre, descripcion, estado,
             fechaProgramada, codigoAcceso,
             operadorCreadorId, fechaCreacion,
-            fechaInicioUtc, fechaFinalizacionUtc, misiones);
+            fechaInicioUtc, fechaFinalizacionUtc, misiones, duracionMinutosLimite);
         sesion.MaximoEquipos = maximoEquipos;
         sesion.MaximoParticipantesPorEquipo = maximoParticipantesPorEquipo;
         if (equipos is not null) sesion._equipos.AddRange(equipos);

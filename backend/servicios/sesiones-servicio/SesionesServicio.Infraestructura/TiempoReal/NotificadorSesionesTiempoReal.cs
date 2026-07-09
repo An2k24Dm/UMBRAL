@@ -14,7 +14,7 @@ public sealed class NotificadorSesionesTiempoReal : INotificadorSesionesTiempoRe
         _hub = hub;
     }
 
-    public Task NotificarParticipantesSesionActualizadosAsync(
+    public async Task NotificarParticipantesSesionActualizadosAsync(
         Guid sesionId,
         CancellationToken cancelacion)
     {
@@ -24,8 +24,14 @@ public sealed class NotificadorSesionesTiempoReal : INotificadorSesionesTiempoRe
             FechaEventoUtc = DateTime.UtcNow
         };
 
-        return _hub.Clients
+        // Grupo de la sesión: refresca la pantalla de detalle del operador.
+        await _hub.Clients
             .Group(SesionesHub.GrupoSesion(sesionId))
+            .SendAsync("ParticipantesSesionActualizados", dto, cancelacion);
+
+        // Grupo del listado: actualiza la columna de participantes en la lista.
+        await _hub.Clients
+            .Group(SesionesHub.GrupoListadoSesiones)
             .SendAsync("ParticipantesSesionActualizados", dto, cancelacion);
     }
 
@@ -184,5 +190,27 @@ public sealed class NotificadorSesionesTiempoReal : INotificadorSesionesTiempoRe
         return _hub.Clients
             .Group(SesionesHub.GrupoSesion(sesionId))
             .SendAsync("EtapaCompletada", dto, cancelacion);
+    }
+
+    // HU-50 — Notifica a todos los participantes de la sesión que el operador liberó una pista.
+    public Task NotificarPistaLiberadaAsync(
+        Guid sesionId,
+        Guid etapaId,
+        Guid? pistaId,
+        string contenido,
+        CancellationToken cancelacion)
+    {
+        var dto = new PistaLiberadaDto
+        {
+            SesionId = sesionId,
+            EtapaId = etapaId,
+            PistaId = pistaId,
+            Contenido = contenido,
+            FechaEventoUtc = DateTime.UtcNow
+        };
+
+        return _hub.Clients
+            .Group(SesionesHub.GrupoSesion(sesionId))
+            .SendAsync("PistaLiberada", dto, cancelacion);
     }
 }

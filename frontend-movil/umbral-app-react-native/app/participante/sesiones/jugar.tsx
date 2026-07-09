@@ -8,6 +8,7 @@ import {
   View,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import * as SecureStore from "expo-secure-store";
 import { useAutenticacion } from "../../../autenticacion/ContextoAutenticacion";
 import RutaProtegidaMovil from "../../../autenticacion/RutaProtegidaMovil";
 import { PantallaBase } from "../../../componentes/PantallaBase";
@@ -23,6 +24,7 @@ import {
   crearConexionSesionesTiempoReal,
   esErrorNoAutenticadoTiempoReal,
 } from "../../../servicios/sesionesTiempoReal";
+import { claveEtapaCompletada } from "./tesoro";
 
 export default function PantallaJugar() {
   return (
@@ -64,6 +66,8 @@ function ContenidoJuego() {
   const [puntosGanadosUltima, setPuntosGanadosUltima] = useState<number | null>(null);
   const [puntosAcumulados, setPuntosAcumulados] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Previene que SignalR corte la ventana de 1500ms donde se muestra el puntaje de la última respuesta.
+  const mostrandoResultadoRef = useRef(false);
 
   const preguntaActual: PreguntaTrivia | undefined = trivia?.preguntas[indicePregunta];
   const tiempoLimite = preguntaActual?.tiempoEstimado ?? trivia?.tiempoLimitePorPregunta ?? 10;
@@ -170,10 +174,18 @@ function ContenidoJuego() {
       setPuntosAcumulados((prev) => prev + resultado.puntosGanados);
 
       // Avanzar automáticamente después de mostrar el resultado
+      const esUltimaPregunta = indicePregunta >= trivia.preguntas.length - 1;
+      if (esUltimaPregunta || resultado.etapaCompletada) {
+        // Persistir compleción individual para el orden secuencial de etapas
+        await SecureStore.setItemAsync(claveEtapaCompletada(sesionId, etapaId), "1");
+      }
+
+      mostrandoResultadoRef.current = true;
       setTimeout(() => {
+        mostrandoResultadoRef.current = false;
         if (resultado.etapaCompletada) {
           setEtapaTerminada(true);
-        } else if (indicePregunta < trivia.preguntas.length - 1) {
+        } else if (!esUltimaPregunta) {
           setIndicePregunta((i) => i + 1);
           setOpcionSeleccionada(null);
           setEstadoPregunta("esperando");
@@ -203,7 +215,13 @@ function ContenidoJuego() {
       const sid = (evento.sesionId ?? evento.SesionId ?? "").toLowerCase();
       const eid = (evento.etapaId ?? evento.EtapaId ?? "").toLowerCase();
       if (sid === sesionId.toLowerCase() && eid === etapaId.toLowerCase()) {
-        if (!desmontado) setEtapaTerminada(true);
+        if (desmontado) return;
+        // Si estamos mostrando el puntaje de la última respuesta, esperar que la ventana termine.
+        if (mostrandoResultadoRef.current) {
+          setTimeout(() => { if (!desmontado) setEtapaTerminada(true); }, 1600);
+        } else {
+          setEtapaTerminada(true);
+        }
       }
     };
 

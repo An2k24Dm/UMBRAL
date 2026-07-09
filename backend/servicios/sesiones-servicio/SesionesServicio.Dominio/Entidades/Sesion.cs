@@ -20,6 +20,7 @@ public abstract class Sesion : ISesion
     public DateTime FechaCreacion { get; protected set; }
     public DateTime? FechaInicioUtc { get; protected set; }
     public DateTime? FechaFinalizacionUtc { get; protected set; }
+    public int? DuracionMinutosLimite { get; protected set; }
     public abstract string TipoSesion { get; }
     public IReadOnlyList<SesionMision> Misiones => _misiones.AsReadOnly();
     public abstract bool TieneInscritos { get; }
@@ -109,6 +110,12 @@ public abstract class Sesion : ISesion
         int? maximoEquipos,
         int? maximoParticipantesPorEquipo);
 
+    public void AplicarDuracion(int? duracionMinutosLimite)
+    {
+        GarantizarModificable();
+        DuracionMinutosLimite = duracionMinutosLimite;
+    }
+
     protected void GarantizarModificable()
     {
         if (Estado != EstadoSesion.Programada)
@@ -168,7 +175,8 @@ public abstract class Sesion : ISesion
         DateTime fechaProgramada, string codigoAcceso,
         Guid operadorCreadorId, DateTime fechaCreacion,
         DateTime? fechaInicioUtc, DateTime? fechaFinalizacionUtc,
-        IEnumerable<SesionMision>? misiones)
+        IEnumerable<SesionMision>? misiones,
+        int? duracionMinutosLimite = null)
     {
         Id = id;
         Nombre = nombre;
@@ -180,6 +188,7 @@ public abstract class Sesion : ISesion
         FechaCreacion = fechaCreacion;
         FechaInicioUtc = fechaInicioUtc;
         FechaFinalizacionUtc = fechaFinalizacionUtc;
+        DuracionMinutosLimite = duracionMinutosLimite;
         _estadoActual = FabricaEstadoSesion.Crear(estado);
         _misiones.Clear();
         if (misiones is not null) _misiones.AddRange(misiones);

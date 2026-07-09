@@ -17,4 +17,5 @@ public sealed class ModificarSesionDto
     public int? MaximoParticipantes { get; set; }
     public int? MaximoEquipos { get; set; }
     public int? MaximoParticipantesPorEquipo { get; set; }
+    public int? DuracionMinutosLimite { get; set; }
 }

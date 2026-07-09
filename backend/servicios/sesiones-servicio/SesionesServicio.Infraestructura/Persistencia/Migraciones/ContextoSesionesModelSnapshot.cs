@@ -73,6 +73,82 @@ namespace SesionesServicio.Infraestructura.Persistencia.Migraciones
                     b.ToTable("Equipo", "sesiones");
                 });
 
+            modelBuilder.Entity("SesionesServicio.Infraestructura.Persistencia.EtapaCompletadaModelo", b =>
+                {
+                    b.Property<Guid>("SesionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("sesion_id");
+
+                    b.Property<Guid>("EtapaId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("etapa_id");
+
+                    b.Property<DateTime>("FechaCompletadaUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("fecha_completada_utc");
+
+                    b.HasKey("SesionId", "EtapaId");
+
+                    b.HasIndex("SesionId");
+
+                    b.ToTable("EtapaCompletada", "sesiones");
+                });
+
+            modelBuilder.Entity("SesionesServicio.Infraestructura.Persistencia.EvidenciaTesoroModelo", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("BusquedaId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("busqueda_id");
+
+                    b.Property<string>("CodigoEnviado")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("codigo_enviado");
+
+                    b.Property<bool>("EsValida")
+                        .HasColumnType("boolean")
+                        .HasColumnName("es_valida");
+
+                    b.Property<Guid>("EtapaId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("etapa_id");
+
+                    b.Property<DateTime>("FechaEnvioUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("fecha_envio_utc");
+
+                    b.Property<Guid>("MisionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("mision_id");
+
+                    b.Property<Guid>("ParticipanteIdentidadId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("participante_identidad_id");
+
+                    b.Property<int>("PuntosGanados")
+                        .HasColumnType("integer")
+                        .HasColumnName("puntos_ganados");
+
+                    b.Property<Guid>("SesionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("sesion_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SesionId", "EtapaId");
+
+                    b.HasIndex("SesionId", "EtapaId", "ParticipanteIdentidadId")
+                        .IsUnique();
+
+                    b.ToTable("EvidenciaTesoro", "sesiones");
+                });
+
             modelBuilder.Entity("SesionesServicio.Infraestructura.Persistencia.ParticipanteModelo", b =>
                 {
                     b.Property<Guid>("Id")
@@ -112,6 +188,46 @@ namespace SesionesServicio.Infraestructura.Persistencia.Migraciones
                         .IsUnique();
 
                     b.ToTable("Participante", "sesiones");
+                });
+
+            modelBuilder.Entity("SesionesServicio.Infraestructura.Persistencia.PistaLiberadaModelo", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Contenido")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("contenido");
+
+                    b.Property<Guid>("EtapaId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("etapa_id");
+
+                    b.Property<DateTime>("FechaLiberacionUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("fecha_liberacion_utc");
+
+                    b.Property<Guid?>("PistaId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("pista_id");
+
+                    b.Property<Guid>("SesionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("sesion_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SesionId", "EtapaId");
+
+                    b.HasIndex("SesionId", "EtapaId", "PistaId")
+                        .IsUnique()
+                        .HasFilter("pista_id IS NOT NULL");
+
+                    b.ToTable("PistaLiberada", "sesiones");
                 });
 
             modelBuilder.Entity("SesionesServicio.Infraestructura.Persistencia.RespuestaTriviaModelo", b =>
@@ -228,6 +344,10 @@ namespace SesionesServicio.Infraestructura.Persistencia.Migraciones
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)")
                         .HasColumnName("descripcion");
+
+                    b.Property<int?>("DuracionMinutosLimite")
+                        .HasColumnType("integer")
+                        .HasColumnName("duracion_minutos_limite");
 
                     b.Property<int>("Estado")
                         .HasColumnType("integer")

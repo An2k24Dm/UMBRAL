@@ -17,7 +17,7 @@ public sealed class SesionIndividual : Sesion
     public static SesionIndividual Crear(
         string nombre, string descripcion, DateTime fechaProgramada,
         string codigoAcceso, Guid operadorCreadorId, DateTime fechaCreacionUtc,
-        int maximoParticipantes)
+        int maximoParticipantes, int? duracionMinutosLimite = null)
     {
         PoliticaCapacidadSesion.ValidarCapacidadIndividual(maximoParticipantes);
 
@@ -25,6 +25,7 @@ public sealed class SesionIndividual : Sesion
         sesion.InicializarBase(nombre, descripcion, fechaProgramada,
             codigoAcceso, operadorCreadorId, fechaCreacionUtc);
         sesion.MaximoParticipantes = maximoParticipantes;
+        sesion.DuracionMinutosLimite = duracionMinutosLimite;
         return sesion;
     }
 
@@ -105,14 +106,15 @@ public sealed class SesionIndividual : Sesion
         DateTime? fechaInicioUtc, DateTime? fechaFinalizacionUtc,
         int maximoParticipantes,
         IEnumerable<SesionMision>? misiones = null,
-        IEnumerable<Participante>? participantes = null)
+        IEnumerable<Participante>? participantes = null,
+        int? duracionMinutosLimite = null)
     {
         var sesion = new SesionIndividual();
         sesion.EstablecerDatosBase(
             id, nombre, descripcion, estado,
             fechaProgramada, codigoAcceso,
             operadorCreadorId, fechaCreacion,
-            fechaInicioUtc, fechaFinalizacionUtc, misiones);
+            fechaInicioUtc, fechaFinalizacionUtc, misiones, duracionMinutosLimite);
         sesion.MaximoParticipantes = maximoParticipantes;
         if (participantes is not null) sesion._participantes.AddRange(participantes);
         return sesion;

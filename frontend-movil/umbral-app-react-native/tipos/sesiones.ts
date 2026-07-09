@@ -73,6 +73,8 @@ export interface SesionDetalleMovilDto {
   modo: ModoSesion;
   estado: EstadoSesion;
   fechaProgramada: string;
+  fechaInicioUtc: string | null;
+  duracionMinutosLimite: number | null;
   codigoAcceso: string;
   misiones: MisionSesionMovilDto[];
   participacionActual: ParticipacionActual;
@@ -83,6 +85,29 @@ export interface SesionDetalleMovilDto {
   motivoNoPuedeIngresar: string | null;
   sesionActualId: string | null;
   sesionActualNombre: string | null;
+}
+
+// Progreso combinado (trivia + tesoro) de cada participante en la sesión.
+export interface ProgresoSesionParticipanteDto {
+  participanteIdentidadId: string;
+  triviaRespondidas: number;
+  triviaCorrectas: number;
+  triviaIncorrectas: number;
+  triviaPuntosGanados: number;
+  tesoroIntentosEnviados: number;
+  tesoroEtapasCompletadas: number;
+  tesoroPuntosGanados: number;
+  totalPuntosGanados: number;
+}
+
+// Historial de participaciones finalizadas del participante.
+export interface MiParticipacionDto {
+  sesionId: string;
+  nombreSesion: string;
+  modo: string;
+  fechaInicioUtc: string | null;
+  fechaFinalizacionUtc: string | null;
+  puntajeObtenido: number;
 }
 
 // Filtros que la pantalla del listado mantiene en su estado local.

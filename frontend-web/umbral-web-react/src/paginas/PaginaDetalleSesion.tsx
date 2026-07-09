@@ -15,9 +15,11 @@ import {
   pausarSesionOperacion,
   reanudarSesionOperacion,
   cancelarSesionOperacion,
+  obtenerProgresoSesion,
   type EquipoSesionListadoDto,
   type OperacionSesionRespuestaDto,
   type ParticipanteSesionDto,
+  type ProgresoSesionParticipanteDto,
   type SesionDetalleDto
 } from '../autenticacion/clienteApiSesiones'
 import {
@@ -28,6 +30,7 @@ import {
   type TriviaDetalleDto,
   type BusquedaTesoroDetalleDto
 } from '../autenticacion/clienteApiJuegos'
+import { liberarPista } from '../autenticacion/clienteApiSesiones'
 import { usarAutenticacion } from '../autenticacion/ProveedorAutenticacion'
 import { useSesionesTiempoReal } from '../hooks/useSesionesTiempoReal'
 import {
@@ -149,6 +152,7 @@ export function PaginaDetalleSesion() {
   const [errorEliminar, setErrorEliminar] = useState<string | null>(null)
   const [modalEliminarAbierto, setModalEliminarAbierto] = useState(false)
   const [versionTiempoReal, setVersionTiempoReal] = useState(0)
+  const [versionProgreso, setVersionProgreso] = useState(0)
 
   // HU44 — Expulsión de participante (individual) o equipo (grupal) por el
   // Operador. Guardamos el objetivo seleccionado para el modal de confirmación.
@@ -158,6 +162,10 @@ export function PaginaDetalleSesion() {
     useState<EquipoSesionListadoDto | null>(null)
   const [expulsando, setExpulsando] = useState(false)
   const [errorExpulsar, setErrorExpulsar] = useState<string | null>(null)
+
+  const [progresoSesion, setProgresoSesion] = useState<ProgresoSesionParticipanteDto[] | null>(null)
+  const [cargandoProgreso, setCargandoProgreso] = useState(false)
+  const [errorProgreso, setErrorProgreso] = useState<string | null>(null)
 
   // HU52 — Operación del ciclo de vida. accionOperacion no nula ⇒ modal abierto.
   const [accionOperacion, setAccionOperacion] = useState<AccionOperacionSesion | null>(null)
@@ -172,6 +180,13 @@ export function PaginaDetalleSesion() {
     setVersionTiempoReal(version => version + 1)
   }, [])
 
+  const refrescarProgresoTiempoReal = useCallback(() => {
+    if (import.meta.env.DEV) {
+      console.debug('[DetalleSesion Web] refresco progreso solicitado por SignalR')
+    }
+    setVersionProgreso(v => v + 1)
+  }, [])
+
   useSesionesTiempoReal({
     token,
     sesionId: id,
@@ -180,7 +195,9 @@ export function PaginaDetalleSesion() {
     onEquipoActualizado: refrescarDetalleTiempoReal,
     onSesionActualizada: refrescarDetalleTiempoReal,
     onParticipanteExpulsado: refrescarDetalleTiempoReal,
-    onEquipoExpulsado: refrescarDetalleTiempoReal
+    onEquipoExpulsado: refrescarDetalleTiempoReal,
+    onRespuestaRegistrada: refrescarProgresoTiempoReal,
+    onEtapaCompletada: refrescarProgresoTiempoReal
   })
 
   function abrirModalEliminar() {
@@ -404,6 +421,23 @@ export function PaginaDetalleSesion() {
     cargar()
     return () => { ref.cancelado = true }
   }, [token, id, puedeConsultarEquipos, versionTiempoReal])
+
+  // Progreso completo (trivia + tesoro): se carga cuando la sesión está Activa, Pausada o Finalizada.
+  useEffect(() => {
+    if (!token || !id || !sesion) return
+    const estadosConProgreso = ['Activa', 'Pausada', 'Finalizada']
+    if (!estadosConProgreso.includes(sesion.estado)) return
+
+    let cancelado = false
+    setCargandoProgreso(true)
+    setErrorProgreso(null)
+    obtenerProgresoSesion(id, token)
+      .then(data => { if (!cancelado) { setProgresoSesion(data); setErrorProgreso(null) } })
+      .catch(e => { if (!cancelado) { setProgresoSesion(null); setErrorProgreso(e instanceof Error ? e.message : 'Error al cargar el progreso') } })
+      .finally(() => { if (!cancelado) setCargandoProgreso(false) })
+
+    return () => { cancelado = true }
+  }, [token, id, sesion?.estado, versionProgreso])
 
   if (estado === 'cargando') {
     return (
@@ -668,7 +702,15 @@ export function PaginaDetalleSesion() {
                         )}
 
                         {etapa.trivia && <BloqueTrivia trivia={etapa.trivia} />}
-                        {etapa.busqueda && <BloqueBusqueda busqueda={etapa.busqueda} />}
+                        {etapa.busqueda && (
+                          <BloqueBusqueda
+                            busqueda={etapa.busqueda}
+                            sesionId={sesion.id}
+                            etapaId={etapa.id}
+                            sesionActiva={sesion.estado === 'Activa'}
+                            esOperador={esOperador}
+                          />
+                        )}
                         {!etapa.trivia && !etapa.busqueda && !etapa.errorContenido && (
                           <p className="detalle-mensaje-vacio">Cargando contenido de la etapa…</p>
                         )}
@@ -811,6 +853,83 @@ export function PaginaDetalleSesion() {
         </section>
       )}
 
+      {/* Panel de progreso completo — visible cuando la sesión tiene actividad */}
+      {(sesion.estado === 'Activa' || sesion.estado === 'Pausada' || sesion.estado === 'Finalizada') && (
+        <section className="seccion">
+          <div className="detalle-subtitulo">
+            <div>
+              <h3>Progreso por participante</h3>
+              <p>Trivia y búsqueda del tesoro — puntaje acumulado en esta sesión.</p>
+            </div>
+          </div>
+          {cargandoProgreso && (
+            <p className="detalle-mensaje-vacio">Cargando progreso…</p>
+          )}
+          {!cargandoProgreso && errorProgreso && (
+            <Alerta tono="aviso">{errorProgreso}</Alerta>
+          )}
+          {!cargandoProgreso && !errorProgreso && progresoSesion !== null && progresoSesion.length === 0 && (
+            <p className="detalle-mensaje-vacio">Aún no hay actividad registrada.</p>
+          )}
+          {!cargandoProgreso && !errorProgreso && progresoSesion !== null && progresoSesion.length > 0 && (
+            <div style={{ overflowX: 'auto' }}>
+              <table className="tabla-usuarios">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Participante</th>
+                    <th title="Preguntas respondidas">Trivia resp.</th>
+                    <th title="Respuestas correctas" style={{ color: 'var(--color-exito, #22c55e)' }}>✓ Correct.</th>
+                    <th title="Respuestas incorrectas" style={{ color: 'var(--color-error, #ef4444)' }}>✗ Incorr.</th>
+                    <th>Pts trivia</th>
+                    <th title="Etapas de tesoro completadas">Tesoro comp.</th>
+                    <th title="Intentos enviados en búsqueda del tesoro">Tesoro int.</th>
+                    <th>Pts tesoro</th>
+                    <th><strong>Total pts</strong></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {progresoSesion
+                    .slice()
+                    .sort((a, b) => b.totalPuntosGanados - a.totalPuntosGanados)
+                    .map((p, idx) => {
+                      const participante = sesion.participantesIndividuales.find(
+                        pi => pi.participanteIdentidadId === p.participanteIdentidadId
+                      )
+                      const nombre = participante
+                        ? (participante.alias || `${participante.nombre} ${participante.apellido}`.trim() || 'Participante')
+                        : p.participanteIdentidadId.slice(0, 8) + '…'
+                      const pctTrivia = p.triviaRespondidas > 0
+                        ? Math.round((p.triviaCorrectas / p.triviaRespondidas) * 100)
+                        : 0
+                      return (
+                        <tr key={p.participanteIdentidadId}>
+                          <td>{idx + 1}</td>
+                          <td>{nombre}</td>
+                          <td>{p.triviaRespondidas} ({pctTrivia}%)</td>
+                          <td style={{ color: 'var(--color-exito, #22c55e)', fontWeight: 600 }}>
+                            {p.triviaCorrectas}
+                          </td>
+                          <td style={{ color: 'var(--color-error, #ef4444)', fontWeight: 600 }}>
+                            {p.triviaIncorrectas}
+                          </td>
+                          <td>{p.triviaPuntosGanados} pts</td>
+                          <td style={{ color: 'var(--color-exito, #22c55e)', fontWeight: 600 }}>
+                            {p.tesoroEtapasCompletadas}
+                          </td>
+                          <td>{p.tesoroIntentosEnviados}</td>
+                          <td>{p.tesoroPuntosGanados} pts</td>
+                          <td><strong>{p.totalPuntosGanados} pts</strong></td>
+                        </tr>
+                      )
+                    })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      )}
+
       <ModalConfirmacion
         abierto={modalEliminarAbierto}
         titulo="Eliminar sesión"
@@ -931,24 +1050,224 @@ function BloqueTrivia({ trivia }: { trivia: TriviaDetalleDto }) {
   )
 }
 
-function BloqueBusqueda({ busqueda }: { busqueda: BusquedaTesoroDetalleDto }) {
+function BloqueBusqueda({
+  busqueda,
+  sesionId,
+  etapaId,
+  sesionActiva,
+  esOperador
+}: {
+  busqueda: BusquedaTesoroDetalleDto
+  sesionId: string
+  etapaId: string
+  sesionActiva: boolean
+  esOperador: boolean
+}) {
+  const { token } = usarAutenticacion()
+  const [liberando, setLiberando] = useState<string | null>(null)
+  const [pistasLiberadasIds, setPistasLiberadasIds] = useState<Set<string>>(new Set())
+  const [pistaPersonalizada, setPistaPersonalizada] = useState('')
+  const [enviandoPersonalizada, setEnviandoPersonalizada] = useState(false)
+  const [errorPista, setErrorPista] = useState<string | null>(null)
+  const [exitoPista, setExitoPista] = useState<string | null>(null)
+
+  const urlQr = busqueda.codigoQr
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(busqueda.codigoQr)}`
+    : null
+
+  async function handleLiberarPista(pistaId: string, contenido: string) {
+    if (!token || liberando) return
+    setLiberando(pistaId)
+    setErrorPista(null)
+    setExitoPista(null)
+    try {
+      await liberarPista(sesionId, etapaId, pistaId, contenido, token)
+      setPistasLiberadasIds(prev => new Set([...prev, pistaId]))
+      setExitoPista(`Pista liberada: "${contenido.slice(0, 40)}${contenido.length > 40 ? '…' : ''}"`)
+    } catch (e) {
+      setErrorPista(e instanceof Error ? e.message : 'No se pudo liberar la pista.')
+    } finally {
+      setLiberando(null)
+    }
+  }
+
+  async function handleLiberarPersonalizada() {
+    if (!token || !pistaPersonalizada.trim() || enviandoPersonalizada) return
+    setEnviandoPersonalizada(true)
+    setErrorPista(null)
+    setExitoPista(null)
+    try {
+      await liberarPista(sesionId, etapaId, null, pistaPersonalizada.trim(), token)
+      setExitoPista(`Pista personalizada enviada: "${pistaPersonalizada.trim().slice(0, 40)}${pistaPersonalizada.length > 40 ? '…' : ''}"`)
+      setPistaPersonalizada('')
+    } catch (e) {
+      setErrorPista(e instanceof Error ? e.message : 'No se pudo enviar la pista.')
+    } finally {
+      setEnviandoPersonalizada(false)
+    }
+  }
+
   return (
     <div>
       <p style={{ marginTop: 12 }}>
         <strong>Búsqueda del Tesoro:</strong> {busqueda.nombre}
         {busqueda.descripcion && <span> — {busqueda.descripcion}</span>}
       </p>
+      <p style={{ fontSize: '0.85rem', color: 'var(--color-texto-tenue)' }}>
+        Tiempo: {busqueda.tiempo} min · Puntaje base: {busqueda.puntaje} pts
+      </p>
+
+      {/* QR del tesoro — solo operadores */}
+      {esOperador && busqueda.codigoQr && (
+        <div style={{
+          marginTop: 16,
+          padding: 16,
+          background: 'var(--color-fondo-tarjeta)',
+          border: '1px solid var(--color-borde-tarjeta)',
+          borderRadius: 8,
+          display: 'inline-flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 12
+        }}>
+          <p style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: 1, opacity: 0.6, margin: 0 }}>
+            Código QR del tesoro
+          </p>
+          {urlQr && (
+            <img
+              src={urlQr}
+              alt="Código QR del tesoro"
+              width={200}
+              height={200}
+              style={{ display: 'block', borderRadius: 4 }}
+            />
+          )}
+          <code style={{
+            fontSize: '0.75rem',
+            padding: '4px 8px',
+            background: 'var(--color-fondo)',
+            borderRadius: 4,
+            letterSpacing: 2,
+            userSelect: 'all'
+          }}>
+            {busqueda.codigoQr}
+          </code>
+          <button
+            type="button"
+            style={{
+              fontSize: '0.8rem',
+              padding: '4px 12px',
+              cursor: 'pointer',
+              borderRadius: 4,
+              border: '1px solid var(--color-borde-tarjeta)',
+              background: 'transparent'
+            }}
+            onClick={() => window.print()}
+          >
+            Imprimir QR
+          </button>
+        </div>
+      )}
+
+      {/* Pistas predefinidas */}
       {busqueda.pistas.length === 0 ? (
         <p className="detalle-mensaje-vacio">Esta búsqueda no tiene pistas registradas.</p>
       ) : (
-        <ul className="lista-pistas">
-          {busqueda.pistas.map((p, idx) => (
-            <li key={p.id} className="pista-item">
-              <span className="pista-orden">{idx + 1}</span>
-              <span>{p.contenido}</span>
-            </li>
-          ))}
+        <ul className="lista-pistas" style={{ marginTop: 16 }}>
+          {busqueda.pistas.map((p, idx) => {
+            const yaLiberada = pistasLiberadasIds.has(p.id)
+            return (
+              <li key={p.id} className="pista-item" style={{ alignItems: 'center', gap: 12 }}>
+                <span className="pista-orden">{idx + 1}</span>
+                <span style={{ flex: 1 }}>{p.contenido}</span>
+                {esOperador && sesionActiva && (
+                  <button
+                    type="button"
+                    disabled={yaLiberada || liberando === p.id}
+                    onClick={() => void handleLiberarPista(p.id, p.contenido)}
+                    style={{
+                      fontSize: '0.8rem',
+                      padding: '4px 10px',
+                      borderRadius: 4,
+                      border: 'none',
+                      cursor: yaLiberada ? 'default' : 'pointer',
+                      background: yaLiberada ? '#6b7280' : 'var(--color-exito, #22c55e)',
+                      color: '#fff',
+                      opacity: liberando && liberando !== p.id ? 0.5 : 1,
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    {yaLiberada ? 'Liberada' : liberando === p.id ? '…' : 'Liberar'}
+                  </button>
+                )}
+              </li>
+            )
+          })}
         </ul>
+      )}
+
+      {/* Panel de pista personalizada — solo operadores con sesión activa */}
+      {esOperador && sesionActiva && (
+        <div style={{
+          marginTop: 20,
+          padding: 16,
+          background: 'var(--color-fondo-tarjeta)',
+          border: '1px solid var(--color-borde-tarjeta)',
+          borderRadius: 8
+        }}>
+          <p style={{ margin: '0 0 10px', fontWeight: 600, fontSize: '0.9rem' }}>
+            Enviar pista personalizada
+          </p>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <input
+              type="text"
+              placeholder="Escribe una pista para los participantes…"
+              value={pistaPersonalizada}
+              onChange={e => setPistaPersonalizada(e.target.value)}
+              maxLength={1000}
+              style={{
+                flex: 1,
+                minWidth: 200,
+                padding: '8px 12px',
+                borderRadius: 6,
+                border: '1px solid var(--color-borde-tarjeta)',
+                background: 'var(--color-fondo)',
+                color: 'inherit',
+                fontSize: '0.9rem'
+              }}
+            />
+            <button
+              type="button"
+              disabled={enviandoPersonalizada || !pistaPersonalizada.trim()}
+              onClick={() => void handleLiberarPersonalizada()}
+              style={{
+                padding: '8px 18px',
+                borderRadius: 6,
+                border: 'none',
+                background: 'var(--color-primario, #6366f1)',
+                color: '#fff',
+                cursor: enviandoPersonalizada || !pistaPersonalizada.trim() ? 'not-allowed' : 'pointer',
+                opacity: enviandoPersonalizada || !pistaPersonalizada.trim() ? 0.6 : 1,
+                fontWeight: 600,
+                fontSize: '0.9rem'
+              }}
+            >
+              {enviandoPersonalizada ? 'Enviando…' : 'Enviar pista'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Mensajes de feedback */}
+      {exitoPista && (
+        <div style={{ marginTop: 12 }}>
+          <Alerta tono="exito">{exitoPista}</Alerta>
+        </div>
+      )}
+      {errorPista && (
+        <div style={{ marginTop: 12 }}>
+          <Alerta tono="error">{errorPista}</Alerta>
+        </div>
       )}
     </div>
   )

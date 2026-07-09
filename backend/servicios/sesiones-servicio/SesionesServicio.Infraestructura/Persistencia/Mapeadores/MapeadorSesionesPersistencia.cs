@@ -31,6 +31,7 @@ public sealed class MapeadorSesionesPersistencia
             FechaCreacion = sesion.FechaCreacion,
             FechaInicioUtc = sesion.FechaInicioUtc,
             FechaFinalizacionUtc = sesion.FechaFinalizacionUtc,
+            DuracionMinutosLimite = sesion.DuracionMinutosLimite,
             Misiones = sesion.Misiones.Select(m => new SesionMisionModelo
             {
                 Id = m.Id,

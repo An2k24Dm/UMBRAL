@@ -16,8 +16,15 @@ public interface IConsultasSesiones
         string? busqueda,
         string? tipoSesion,
         CancellationToken cancelacion);
+    Task<IReadOnlyList<Sesion>> ListarActivasConTiempoVencidoAsync(
+        DateTime ahoraUtc,
+        CancellationToken cancelacion);
     Task<SesionParticipacionActivaDto?> ObtenerParticipacionActivaDeParticipanteAsync(
         Guid participanteIdentidadId,
+        CancellationToken cancelacion);
+    Task<IReadOnlyList<MiParticipacionProyeccion>> ListarParticipacionesFinalizadasAsync(
+        Guid participanteIdentidadId,
+        int limite,
         CancellationToken cancelacion);
 }
 public sealed record SesionParticipacionActivaDto(
@@ -27,3 +34,11 @@ public sealed record SesionParticipacionActivaDto(
     ModoSesion Modo,
     Guid? EquipoId,
     string? EquipoNombre);
+
+public sealed record MiParticipacionProyeccion(
+    Guid SesionId,
+    string NombreSesion,
+    string Modo,
+    DateTime? FechaInicioUtc,
+    DateTime? FechaFinalizacionUtc,
+    int Puntaje);

@@ -78,6 +78,6 @@ public sealed class MapeadorPersistenciaSesionGrupal : IMapeadorPersistenciaSesi
             modelo.OperadorCreadorId, modelo.FechaCreacion,
             modelo.FechaInicioUtc, modelo.FechaFinalizacionUtc,
             maximoEquipos, maximoParticipantesPorEquipo,
-            misiones, equipos);
+            misiones, equipos, modelo.DuracionMinutosLimite);
     }
 }

@@ -84,7 +84,8 @@ public sealed class CrearSesionManejador
             ahoraUtc,
             comando.Datos.MaximoParticipantes,
             comando.Datos.MaximoEquipos,
-            comando.Datos.MaximoParticipantesPorEquipo);
+            comando.Datos.MaximoParticipantesPorEquipo,
+            comando.Datos.DuracionMinutosLimite);
 
         var sesion = _fabricaSesion.Crear(datosCreacion);
 

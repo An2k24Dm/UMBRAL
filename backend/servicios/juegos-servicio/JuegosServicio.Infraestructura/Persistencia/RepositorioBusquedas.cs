@@ -101,6 +101,7 @@ public sealed class RepositorioBusquedas : IRepositorioBusquedas
             FechaCreacion = modelo.FechaCreacion,
             Tiempo = modelo.Tiempo,
             Puntaje = modelo.Puntaje,
+            CodigoQr = modelo.CodigoQr,
             Pistas = modelo.Pistas.Select(p => new PistaDetalleDto
             {
                 Id = p.Id,
@@ -197,5 +198,40 @@ public sealed class RepositorioBusquedas : IRepositorioBusquedas
 
         _contexto.BusquedasTesoro.Remove(modelo);
         await _contexto.SaveChangesAsync(cancelacion);
+    }
+
+    public async Task<BusquedaTesoroParticipanteDto?> ObtenerBusquedaParaParticipanteAsync(
+        Guid busquedaId, CancellationToken cancelacion)
+    {
+        var estadoActiva = (int)EstadoBusqueda.Activa;
+
+        var modelo = await _contexto.BusquedasTesoro
+            .Include(b => b.Pistas)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(b => b.Id == busquedaId && b.Estado == estadoActiva, cancelacion);
+
+        if (modelo is null) return null;
+
+        return new BusquedaTesoroParticipanteDto
+        {
+            Id = modelo.Id,
+            Nombre = modelo.Nombre,
+            Descripcion = modelo.Descripcion,
+            Tiempo = modelo.Tiempo,
+            Puntaje = modelo.Puntaje,
+            Pistas = modelo.Pistas.Select(p => new PistaDetalleDto
+            {
+                Id = p.Id,
+                Contenido = p.Contenido
+            }).ToList()
+        };
+    }
+
+    public async Task<string?> ObtenerCodigoQrAsync(Guid busquedaId, CancellationToken cancelacion)
+    {
+        var modelo = await _contexto.BusquedasTesoro
+            .AsNoTracking()
+            .FirstOrDefaultAsync(b => b.Id == busquedaId, cancelacion);
+        return modelo?.CodigoQr;
     }
 }

@@ -18,6 +18,7 @@ public static class BusquedasMapeador
             FechaCreacion = busqueda.FechaCreacion,
             Tiempo = busqueda.Tiempo.Valor,
             Puntaje = busqueda.Puntaje.Valor,
+            CodigoQr = busqueda.CodigoQr,
             Pistas = busqueda.Pistas.Select(AModelo).ToList()
         };
     }
@@ -44,7 +45,8 @@ public static class BusquedasMapeador
             modelo.FechaCreacion,
             modelo.Tiempo,
             modelo.Puntaje,
-            pistas);
+            pistas,
+            modelo.CodigoQr);
     }
 
     public static Pista ADominio(PistaModelo modelo) =>

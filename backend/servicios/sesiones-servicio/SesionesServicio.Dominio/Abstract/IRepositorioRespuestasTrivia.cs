@@ -18,7 +18,16 @@ public interface IRepositorioRespuestasTrivia
     Task<IReadOnlyList<Guid>> ObtenerPreguntasRespondidasAsync(
         Guid sesionId, Guid etapaId,
         Guid participanteIdentidadId, CancellationToken cancelacion);
+
+    Task<IReadOnlyList<ProgresoTriviaItem>> ObtenerProgresoTriviaAsync(
+        Guid sesionId, CancellationToken cancelacion);
 }
+
+public sealed record ProgresoTriviaItem(
+    Guid ParticipanteIdentidadId,
+    int TotalRespondidas,
+    int Correctas,
+    int PuntosGanados);
 
 public sealed record RespuestaTriviaRegistro(
     Guid SesionId,

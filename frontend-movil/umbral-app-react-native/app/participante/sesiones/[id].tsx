@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -9,6 +9,7 @@ import {
   View,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import * as SecureStore from "expo-secure-store";
 import { useAutenticacion } from "../../../autenticacion/ContextoAutenticacion";
 import RutaProtegidaMovil from "../../../autenticacion/RutaProtegidaMovil";
 import { PantallaBase } from "../../../componentes/PantallaBase";
@@ -22,8 +23,10 @@ import { useIngresoSesion } from "../../../hooks/useIngresoSesion";
 import { useNavegacionSegura } from "../../../hooks/useNavegacionSegura";
 import { useRefrescarAlEnfocar } from "../../../hooks/useRefrescarAlEnfocar";
 import { useSesionesTiempoReal } from "../../../hooks/useSesionesTiempoReal";
-import type { SesionDetalleMovilDto } from "../../../tipos/sesiones";
+import type { ProgresoSesionParticipanteDto, SesionDetalleMovilDto } from "../../../tipos/sesiones";
 import { formatearFechaHora } from "../../../utilidades/formatoFechas";
+import { obtenerProgresoSesionParticipanteApi } from "../../../servicios/sesionesApi";
+import { claveEtapaCompletada } from "./tesoro";
 
 export default function PantallaDetalleSesionParticipante() {
   return (
@@ -35,7 +38,8 @@ export default function PantallaDetalleSesionParticipante() {
 
 function ContenidoDetalle() {
   const enrutador = useRouter();
-  const { cerrarSesion } = useAutenticacion();
+  const { sesion: sesionAuth, cerrarSesion } = useAutenticacion();
+  const token = sesionAuth?.tokenAcceso ?? null;
   const parametros = useLocalSearchParams<{ id?: string | string[] }>();
   const sesionId = Array.isArray(parametros.id) ? parametros.id[0] : parametros.id;
 
@@ -46,14 +50,59 @@ function ContenidoDetalle() {
     sesionNoDisponible,
     sesionExpirada,
     refrescar,
+    actualizarEstadoLocal,
   } = useDetalleSesionDisponible(sesionId ?? null);
 
+  const [etapasCompletadas, setEtapasCompletadas] = useState<Set<string>>(new Set());
+  const [progreso, setProgreso] = useState<ProgresoSesionParticipanteDto[] | null>(null);
+  const [cargandoProgreso, setCargandoProgreso] = useState(false);
+  const [versionProgreso, setVersionProgreso] = useState(0);
+
+  // Carga qué etapas ya completó el participante (persistido en SecureStore).
+  const cargarProgreso = useCallback(async () => {
+    if (!sesionId || !detalle) return;
+    const todasEtapas = detalle.misiones.flatMap((m) => m.etapas.map((e) => e.id));
+    const resultados = await Promise.all(
+      todasEtapas.map((etapaId) =>
+        SecureStore.getItemAsync(claveEtapaCompletada(sesionId, etapaId))
+          .then((v) => ({ etapaId, completada: v === "1" }))
+          .catch(() => ({ etapaId, completada: false })),
+      ),
+    );
+    setEtapasCompletadas(
+      new Set(resultados.filter((r) => r.completada).map((r) => r.etapaId)),
+    );
+  }, [sesionId, detalle]);
+
+  useEffect(() => {
+    void cargarProgreso();
+  }, [cargarProgreso]);
+
+  const refrescarTodo = useCallback(async () => {
+    await refrescar();
+    await cargarProgreso();
+    setVersionProgreso((v) => v + 1);
+  }, [refrescar, cargarProgreso]);
+
+  useEffect(() => {
+    if (!token || !sesionId || !detalle) return;
+    const estados = ["Activa", "Pausada", "Finalizada"];
+    if (!estados.includes(detalle.estado)) return;
+    let cancelado = false;
+    setCargandoProgreso(true);
+    obtenerProgresoSesionParticipanteApi(token, sesionId)
+      .then((data) => { if (!cancelado) setProgreso(data); })
+      .catch(() => { if (!cancelado) setProgreso(null); })
+      .finally(() => { if (!cancelado) setCargandoProgreso(false); });
+    return () => { cancelado = true; };
+  }, [token, sesionId, detalle?.estado, versionProgreso]);
+
   const navegarSeguro = useNavegacionSegura();
-  useRefrescarAlEnfocar(refrescar);
+  useRefrescarAlEnfocar(refrescarTodo);
 
   // HU52 — cambio de estado en vivo. Si el operador cancela, avisamos y
-  // volvemos al listado; para pausa/reanudación recargamos el detalle para
-  // que el banner y las acciones reflejen el nuevo estado.
+  // volvemos al listado. Si finaliza, avisamos pero el participante se queda
+  // en la pantalla para ver sus resultados.
   const manejarCambioEstado = useCallback(
     (estado: string | undefined) => {
       if (estado === "Cancelada") {
@@ -69,9 +118,28 @@ function ContenidoDetalle() {
         );
         return;
       }
+      if (estado === "Finalizada") {
+        Alert.alert(
+          "Sesión finalizada",
+          "La sesión ha concluido. Puedes revisar tus resultados antes de salir.",
+          [{ text: "Ver resultados", style: "default" }],
+        );
+        // Actualización optimista: marca la sesión como finalizada de inmediato
+        // para que el participante vea sus resultados aunque el refetch falle.
+        actualizarEstadoLocal("Finalizada");
+        setVersionProgreso((v) => v + 1);
+        void refrescar();
+        return;
+      }
       void refrescar();
+      setVersionProgreso((v) => v + 1);
     },
-    [refrescar, enrutador],
+    [refrescar, enrutador, actualizarEstadoLocal],
+  );
+
+  const actualizarProgreso = useCallback(
+    () => setVersionProgreso((v) => v + 1),
+    [],
   );
 
   useSesionesTiempoReal({
@@ -80,17 +148,19 @@ function ContenidoDetalle() {
     onEquiposSesionActualizados: refrescar,
     onEquipoActualizado: refrescar,
     onSesionActualizada: manejarCambioEstado,
+    onRespuestaRegistrada: actualizarProgreso,
+    onEtapaCompletada: actualizarProgreso,
   });
 
   const [refrescando, setRefrescando] = useState(false);
   const alRefrescar = useCallback(async () => {
     setRefrescando(true);
     try {
-      await refrescar();
+      await refrescarTodo();
     } finally {
       setRefrescando(false);
     }
-  }, [refrescar]);
+  }, [refrescarTodo]);
 
   useEffect(() => {
     if (sesionExpirada) {
@@ -214,15 +284,43 @@ function ContenidoDetalle() {
             </View>
           )}
 
+          {detalle.estado === "Finalizada" && (
+            <View style={estilos.bannerFinalizada}>
+              <Text style={estilos.bannerFinalizadaTitulo}>
+                Sesión finalizada
+              </Text>
+              <Text style={estilos.bannerFinalizadaTexto}>
+                La sesión ha concluido. Estos son tus resultados.
+              </Text>
+            </View>
+          )}
+
+          {detalle.estado === "Activa" && detalle.fechaInicioUtc && detalle.duracionMinutosLimite && (
+            <CuentaRegresiva
+              fechaInicioUtc={detalle.fechaInicioUtc}
+              duracionMinutos={detalle.duracionMinutosLimite}
+            />
+          )}
+
           <Text style={estilos.tituloSeccion}>MISIONES</Text>
           <ListaMisionesSesionMovil misiones={detalle.misiones} />
+
+          {(detalle.estado === "Activa" ||
+            detalle.estado === "Pausada" ||
+            detalle.estado === "Finalizada") && (
+            <PanelProgreso
+              progreso={progreso}
+              cargando={cargandoProgreso}
+            />
+          )}
 
           <SeccionParticipacion
             detalle={detalle}
             sesionId={sesionId}
             enrutador={enrutador}
             navegarSeguro={navegarSeguro}
-            refrescar={refrescar}
+            refrescar={refrescarTodo}
+            etapasCompletadas={etapasCompletadas}
           />
         </>
       )}
@@ -246,12 +344,14 @@ function SeccionParticipacion({
   enrutador,
   navegarSeguro,
   refrescar,
+  etapasCompletadas,
 }: {
   detalle: SesionDetalleMovilDto;
   sesionId: string;
   enrutador: ReturnType<typeof useRouter>;
   navegarSeguro: (accion: () => void) => void;
   refrescar: () => Promise<void>;
+  etapasCompletadas: Set<string>;
 }) {
   const { cerrarSesion } = useAutenticacion();
   const {
@@ -306,12 +406,90 @@ function SeccionParticipacion({
 
   // Casos B y D: el participante ya pertenece a la sesión.
   if (participacion?.estaInscrito) {
-    const etapasTrivia = detalle.misiones.flatMap((m) =>
-      m.etapas
-        .filter((e) => e.tipoModoDeJuego === "Trivia")
-        .map((e) => ({ misionId: m.id, etapa: e })),
-    );
     const sesionActiva = detalle.estado === "Activa";
+
+    // Para cada misión, renderiza botones de etapas con orden secuencial:
+    // solo se puede jugar la etapa N si se completó la etapa N-1.
+    const botonesEtapasPorMision = detalle.misiones.map((mision) => {
+      const etapasOrdenadas = [...mision.etapas].sort((a, b) => a.orden - b.orden);
+
+      return etapasOrdenadas.map((etapa, idx) => {
+        const tipo = etapa.tipoModoDeJuego;
+        if (tipo !== "Trivia" && tipo !== "BusquedaTesoro") return null;
+
+        const yaCompletada = etapasCompletadas.has(etapa.id);
+        const etapaAnterior = idx > 0 ? etapasOrdenadas[idx - 1] : null;
+        const anteriorCompletada = etapaAnterior ? etapasCompletadas.has(etapaAnterior.id) : true;
+        const bloqueada = !anteriorCompletada;
+
+        if (yaCompletada) {
+          // Etapa ya completada: mostrar badge informativo (no botón)
+          return (
+            <View key={etapa.id} style={estilos.etapaCompletada}>
+              <Text style={estilos.etapaCompletadaTexto}>
+                ✓ {etapa.nombreModoDeJuego} — completada
+              </Text>
+            </View>
+          );
+        }
+
+        if (bloqueada) {
+          // Etapa bloqueada: mostrar pero deshabilitada
+          return (
+            <View key={etapa.id} style={estilos.etapaBloqueada}>
+              <Text style={estilos.etapaBloqueadaTexto}>
+                🔒 {etapa.nombreModoDeJuego} — completa la etapa anterior
+              </Text>
+            </View>
+          );
+        }
+
+        // Etapa disponible para jugar
+        if (tipo === "Trivia") {
+          return (
+            <TouchableOpacity
+              key={etapa.id}
+              style={estilos.botonJugar}
+              onPress={() =>
+                navegarSeguro(() =>
+                  enrutador.push(
+                    `/participante/sesiones/jugar?sesionId=${sesionId}` +
+                      `&misionId=${mision.id}&etapaId=${etapa.id}` +
+                      `&triviaId=${etapa.modoDeJuegoId}`,
+                  ),
+                )
+              }
+              accessibilityRole="button"
+            >
+              <Text style={estilos.botonJugarTexto}>
+                Trivia: {etapa.nombreModoDeJuego}
+              </Text>
+            </TouchableOpacity>
+          );
+        }
+
+        return (
+          <TouchableOpacity
+            key={etapa.id}
+            style={estilos.botonJugarTesoro}
+            onPress={() =>
+              navegarSeguro(() =>
+                enrutador.push(
+                  `/participante/sesiones/tesoro?sesionId=${sesionId}` +
+                    `&misionId=${mision.id}&etapaId=${etapa.id}` +
+                    `&busquedaId=${etapa.modoDeJuegoId}`,
+                ),
+              )
+            }
+            accessibilityRole="button"
+          >
+            <Text style={estilos.botonJugarTexto}>
+              Tesoro: {etapa.nombreModoDeJuego}
+            </Text>
+          </TouchableOpacity>
+        );
+      });
+    });
 
     if (participacion.tipo === "Equipo") {
       return (
@@ -340,27 +518,7 @@ function SeccionParticipacion({
               <Text style={estilos.botonPrimarioTexto}>Ver equipo</Text>
             </TouchableOpacity>
           </View>
-          {sesionActiva &&
-            etapasTrivia.map(({ misionId, etapa }) => (
-              <TouchableOpacity
-                key={etapa.id}
-                style={estilos.botonJugar}
-                onPress={() =>
-                  navegarSeguro(() =>
-                    enrutador.push(
-                      `/participante/sesiones/jugar?sesionId=${sesionId}` +
-                        `&misionId=${misionId}&etapaId=${etapa.id}` +
-                        `&triviaId=${etapa.modoDeJuegoId}`,
-                    ),
-                  )
-                }
-                accessibilityRole="button"
-              >
-                <Text style={estilos.botonJugarTexto}>
-                  Jugar: {etapa.nombreModoDeJuego}
-                </Text>
-              </TouchableOpacity>
-            ))}
+          {sesionActiva && botonesEtapasPorMision}
         </View>
       );
     }
@@ -392,27 +550,7 @@ function SeccionParticipacion({
             </TouchableOpacity>
           )}
         </View>
-        {sesionActiva &&
-          etapasTrivia.map(({ misionId, etapa }) => (
-            <TouchableOpacity
-              key={etapa.id}
-              style={estilos.botonJugar}
-              onPress={() =>
-                navegarSeguro(() =>
-                  enrutador.push(
-                    `/participante/sesiones/jugar?sesionId=${sesionId}` +
-                      `&misionId=${misionId}&etapaId=${etapa.id}` +
-                      `&triviaId=${etapa.modoDeJuegoId}`,
-                  ),
-                )
-              }
-              accessibilityRole="button"
-            >
-              <Text style={estilos.botonJugarTexto}>
-                Jugar: {etapa.nombreModoDeJuego}
-              </Text>
-            </TouchableOpacity>
-          ))}
+        {sesionActiva && botonesEtapasPorMision}
       </View>
     );
   }
@@ -493,6 +631,106 @@ function SeccionParticipacion({
           </Text>
         )}
       </TouchableOpacity>
+    </View>
+  );
+}
+
+function PanelProgreso({
+  progreso,
+  cargando,
+}: {
+  progreso: ProgresoSesionParticipanteDto[] | null;
+  cargando: boolean;
+}) {
+  const ordenado = progreso
+    ? [...progreso].sort((a, b) => b.totalPuntosGanados - a.totalPuntosGanados)
+    : [];
+
+  return (
+    <View style={estilos.panelProgreso}>
+      <Text style={estilos.tituloSeccion}>TABLA DE POSICIONES</Text>
+      {cargando && (
+        <ActivityIndicator color={tema.colores.primario} style={{ marginVertical: tema.espacios.sm }} />
+      )}
+      {!cargando && progreso !== null && ordenado.length === 0 && (
+        <Text style={estilos.progresoVacio}>Aún no hay actividad registrada.</Text>
+      )}
+      {!cargando && ordenado.map((p, idx) => (
+        <View key={p.participanteIdentidadId} style={estilos.filaProgreso}>
+          <View style={estilos.filaProgresoPuesto}>
+            <Text style={[estilos.puesto, idx === 0 && estilos.puestoOro]}>
+              #{idx + 1}
+            </Text>
+          </View>
+          <View style={estilos.filaProgresoDetalle}>
+            <Text style={estilos.progresoTotal}>{p.totalPuntosGanados} pts</Text>
+            <Text style={estilos.progresoDesglose}>
+              Trivia: {p.triviaPuntosGanados} · Tesoro: {p.tesoroPuntosGanados}
+            </Text>
+          </View>
+          <View style={estilos.filaProgresoExtra}>
+            {p.triviaRespondidas > 0 && (
+              <Text style={estilos.progresoChip}>
+                {p.triviaCorrectas}/{p.triviaRespondidas} ✓
+              </Text>
+            )}
+            {p.tesoroEtapasCompletadas > 0 && (
+              <Text style={estilos.progresoChipTesoro}>
+                {p.tesoroEtapasCompletadas} etapa{p.tesoroEtapasCompletadas !== 1 ? "s" : ""} tesoro
+              </Text>
+            )}
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function CuentaRegresiva({
+  fechaInicioUtc,
+  duracionMinutos,
+}: {
+  fechaInicioUtc: string;
+  duracionMinutos: number;
+}) {
+  const calcularSegundosRestantes = () => {
+    const fin = new Date(fechaInicioUtc).getTime() + duracionMinutos * 60_000;
+    return Math.max(0, Math.floor((fin - Date.now()) / 1000));
+  };
+
+  const [segundos, setSegundos] = useState(calcularSegundosRestantes);
+  const intervaloRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    intervaloRef.current = setInterval(() => {
+      setSegundos(calcularSegundosRestantes());
+    }, 1000);
+    return () => {
+      if (intervaloRef.current) clearInterval(intervaloRef.current);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fechaInicioUtc, duracionMinutos]);
+
+  const horas = Math.floor(segundos / 3600);
+  const minutos = Math.floor((segundos % 3600) / 60);
+  const segs = segundos % 60;
+  const texto =
+    horas > 0
+      ? `${horas}:${String(minutos).padStart(2, "0")}:${String(segs).padStart(2, "0")}`
+      : `${minutos}:${String(segs).padStart(2, "0")}`;
+  const urgente = segundos <= 60;
+
+  return (
+    <View style={estilos.bannerCuentaRegresiva}>
+      <Text style={estilos.bannerCuentaRegresivaEtiqueta}>TIEMPO RESTANTE</Text>
+      <Text
+        style={[
+          estilos.bannerCuentaRegresivaValor,
+          urgente && estilos.bannerCuentaRegresivaUrgente,
+        ]}
+      >
+        {segundos <= 0 ? "Tiempo agotado" : texto}
+      </Text>
     </View>
   );
 }
@@ -605,6 +843,116 @@ const estilos = StyleSheet.create({
     marginTop: tema.espacios.xs,
     lineHeight: 18,
   },
+  panelProgreso: {
+    marginBottom: tema.espacios.md,
+  },
+  progresoVacio: {
+    color: tema.colores.textoTenue,
+    fontSize: tema.tipografia.tamanos.sm,
+    textAlign: "center",
+    paddingVertical: tema.espacios.sm,
+  },
+  filaProgreso: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: tema.colores.fondoTarjeta,
+    borderRadius: tema.radios.entrada,
+    borderWidth: 1,
+    borderColor: tema.colores.bordeTarjeta,
+    padding: tema.espacios.sm,
+    marginBottom: tema.espacios.xs,
+    gap: tema.espacios.sm,
+  },
+  filaProgresoPuesto: {
+    width: 36,
+    alignItems: "center",
+  },
+  puesto: {
+    color: tema.colores.textoTenue,
+    fontWeight: tema.tipografia.pesos.bold,
+    fontSize: tema.tipografia.tamanos.md,
+  },
+  puestoOro: {
+    color: "#f59e0b",
+    fontSize: tema.tipografia.tamanos.lg,
+  },
+  filaProgresoDetalle: {
+    flex: 1,
+  },
+  progresoTotal: {
+    color: tema.colores.texto,
+    fontWeight: tema.tipografia.pesos.extrabold,
+    fontSize: tema.tipografia.tamanos.md,
+  },
+  progresoDesglose: {
+    color: tema.colores.textoTenue,
+    fontSize: tema.tipografia.tamanos.xs,
+    marginTop: 2,
+  },
+  filaProgresoExtra: {
+    gap: 4,
+    alignItems: "flex-end",
+  },
+  progresoChip: {
+    color: "#15803d",
+    backgroundColor: "#dcfce7",
+    fontSize: tema.tipografia.tamanos.xs,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    fontWeight: tema.tipografia.pesos.semibold,
+  },
+  progresoChipTesoro: {
+    color: "#92400e",
+    backgroundColor: "#fef3c7",
+    fontSize: tema.tipografia.tamanos.xs,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    fontWeight: tema.tipografia.pesos.semibold,
+  },
+  bannerFinalizada: {
+    backgroundColor: "#f0fdf4",
+    borderColor: tema.colores.exito,
+    borderWidth: 1,
+    borderRadius: tema.radios.entrada,
+    padding: tema.espacios.md,
+    marginBottom: tema.espacios.md,
+  },
+  bannerFinalizadaTitulo: {
+    color: "#15803d",
+    fontSize: tema.tipografia.tamanos.md,
+    fontWeight: tema.tipografia.pesos.bold,
+  },
+  bannerFinalizadaTexto: {
+    color: tema.colores.texto,
+    fontSize: tema.tipografia.tamanos.sm,
+    marginTop: tema.espacios.xs,
+    lineHeight: 18,
+  },
+  bannerCuentaRegresiva: {
+    backgroundColor: "#1e293b",
+    borderRadius: tema.radios.entrada,
+    padding: tema.espacios.md,
+    marginBottom: tema.espacios.md,
+    alignItems: "center",
+  },
+  bannerCuentaRegresivaEtiqueta: {
+    color: "#94a3b8",
+    fontSize: tema.tipografia.tamanos.xs,
+    fontWeight: tema.tipografia.pesos.bold,
+    letterSpacing: 1,
+    marginBottom: tema.espacios.xs,
+  },
+  bannerCuentaRegresivaValor: {
+    color: "#f8fafc",
+    fontSize: 32,
+    fontWeight: tema.tipografia.pesos.bold,
+    fontVariant: ["tabular-nums"],
+  },
+  bannerCuentaRegresivaUrgente: {
+    color: tema.colores.error,
+  },
   contenedorEstado: {
     alignItems: "center",
     justifyContent: "center",
@@ -694,9 +1042,43 @@ const estilos = StyleSheet.create({
     alignItems: "center",
     marginTop: tema.espacios.sm,
   },
+  botonJugarTesoro: {
+    backgroundColor: "#d97706",
+    paddingVertical: tema.espacios.md,
+    borderRadius: tema.radios.boton,
+    alignItems: "center",
+    marginTop: tema.espacios.sm,
+  },
   botonJugarTexto: {
     color: tema.colores.textoBlanco,
     fontWeight: tema.tipografia.pesos.bold,
     fontSize: tema.tipografia.tamanos.lg,
+  },
+  etapaCompletada: {
+    backgroundColor: "#d1fae5",
+    paddingVertical: tema.espacios.sm,
+    paddingHorizontal: tema.espacios.md,
+    borderRadius: tema.radios.boton,
+    marginTop: tema.espacios.sm,
+    borderWidth: 1,
+    borderColor: "#34d399",
+  },
+  etapaCompletadaTexto: {
+    color: "#065f46",
+    fontWeight: tema.tipografia.pesos.bold,
+    fontSize: tema.tipografia.tamanos.md,
+  },
+  etapaBloqueada: {
+    backgroundColor: "#f3f4f6",
+    paddingVertical: tema.espacios.sm,
+    paddingHorizontal: tema.espacios.md,
+    borderRadius: tema.radios.boton,
+    marginTop: tema.espacios.sm,
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+  },
+  etapaBloqueadaTexto: {
+    color: "#6b7280",
+    fontSize: tema.tipografia.tamanos.md,
   },
 });

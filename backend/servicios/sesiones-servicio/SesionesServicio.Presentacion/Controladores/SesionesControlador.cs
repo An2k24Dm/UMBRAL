@@ -10,6 +10,8 @@ using SesionesServicio.Aplicacion.Comandos.ModificarSesion;
 using SesionesServicio.Aplicacion.Comandos.PausarSesion;
 using SesionesServicio.Aplicacion.Comandos.ReanudarSesion;
 using SesionesServicio.Aplicacion.Consultas.ListarSesiones;
+using SesionesServicio.Aplicacion.Consultas.ObtenerProgresoSesion;
+using SesionesServicio.Aplicacion.Consultas.ObtenerProgresoTrivia;
 using SesionesServicio.Aplicacion.Consultas.ObtenerSesionPorId;
 using SesionesServicio.Aplicacion.Puertos;
 using SesionesServicio.Commons.Dtos;
@@ -200,6 +202,34 @@ public sealed class SesionesControlador : ControllerBase
                 codigo = "SESION_NO_ENCONTRADA",
                 mensaje = "La sesión solicitada no existe."
             });
+        return Ok(resultado);
+    }
+
+    // Progreso de trivia por participante en una sesión (para el panel del operador).
+    [HttpGet("{sesionId:guid}/progreso-trivia")]
+    [Authorize(Policy = "PoliticaAdministradorUOperador")]
+    [ProducesResponseType(typeof(List<object>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> ObtenerProgresoTrivia(
+        Guid sesionId, CancellationToken cancelacion)
+    {
+        var resultado = await _mediador.Send(
+            new ObtenerProgresoTriviaConsulta(sesionId), cancelacion);
+        return Ok(resultado);
+    }
+
+    // Progreso completo (trivia + búsqueda del tesoro) por participante.
+    [HttpGet("{sesionId:guid}/progreso")]
+    [Authorize(Policy = "PoliticaAdministradorUOperador")]
+    [ProducesResponseType(typeof(List<ProgresoSesionParticipanteDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> ObtenerProgresoSesion(
+        Guid sesionId, CancellationToken cancelacion)
+    {
+        var resultado = await _mediador.Send(
+            new ObtenerProgresoSesionConsulta(sesionId), cancelacion);
         return Ok(resultado);
     }
 
