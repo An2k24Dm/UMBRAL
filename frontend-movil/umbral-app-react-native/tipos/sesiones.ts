@@ -74,7 +74,8 @@ export interface SesionDetalleMovilDto {
   estado: EstadoSesion;
   fechaProgramada: string;
   fechaInicioUtc: string | null;
-  duracionMinutosLimite: number | null;
+  duracionSegundosLimite: number | null;
+  ejecucionActual: EjecucionActualSesionDto | null;
   codigoAcceso: string;
   misiones: MisionSesionMovilDto[];
   participacionActual: ParticipacionActual;
@@ -87,9 +88,23 @@ export interface SesionDetalleMovilDto {
   sesionActualNombre: string | null;
 }
 
+export interface EjecucionActualSesionDto {
+  misionId: string;
+  etapaId: string;
+  modoDeJuegoId: string;
+  tipoEtapa: string;
+  ordenGlobal: number;
+  fechaInicioUtc: string;
+  duracionSegundos: number;
+  duracionPausasAcumuladaMs: number;
+  fechaInicioPausaUtc: string | null;
+  segundosRestantes: number;
+}
+
 // Progreso combinado (trivia + tesoro) de cada participante en la sesión.
 export interface ProgresoSesionParticipanteDto {
   participanteIdentidadId: string;
+  equipoId?: string | null;
   triviaRespondidas: number;
   triviaCorrectas: number;
   triviaIncorrectas: number;
@@ -98,6 +113,42 @@ export interface ProgresoSesionParticipanteDto {
   tesoroEtapasCompletadas: number;
   tesoroPuntosGanados: number;
   totalPuntosGanados: number;
+}
+
+export interface ProgresoSecuencialSesionDto {
+  etapasCompletadasGlobalmenteIds?: string[];
+  etapasCompletadasIds: string[];
+  misionActualId: string | null;
+  etapaActualId: string | null;
+  tipoEtapaActual: string | null;
+  modoDeJuegoId: string | null;
+  ordenGlobalActual: number | null;
+  // Preparación entre etapas/misiones. "Preparacion" ⇒ etapa aún NO jugable.
+  faseEtapaActual?: string | null;
+  fechaInicioProgramadaEtapaUtc?: string | null;
+  segundosRestantesPreparacion?: number | null;
+  duracionPreparacionSegundos?: number | null;
+  numeroMisionActual?: number | null;
+  numeroEtapaActual?: number | null;
+  esNuevaMision?: boolean;
+  fechaInicioEtapaUtc?: string | null;
+  duracionEtapaSegundos?: number | null;
+  duracionPausasAcumuladaMs?: number;
+  fechaInicioPausaUtc?: string | null;
+  segundosRestantesEtapa?: number | null;
+  tiempoActivoEtapaMs?: number | null;
+  triviaPreguntaActualId?: string | null;
+  triviaPreguntasExpiradasIds?: string[];
+  triviaTiempoRestantePreguntaMs?: number | null;
+  triviaTiempoTranscurridoPreguntaMs?: number | null;
+  triviaAgotada?: boolean;
+  // Ventana de feedback autoritativa entre preguntas (mínimo 5 s).
+  triviaEnTransicionEntrePreguntas?: boolean;
+  triviaTiempoRestanteTransicionMs?: number | null;
+  triviaSiguientePreguntaId?: string | null;
+  jugadorActualCompletoEtapaActual?: boolean;
+  esperandoOtrosJugadores?: boolean;
+  todoCompletado: boolean;
 }
 
 // Historial de participaciones finalizadas del participante.

@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import { useAutenticacion } from "../autenticacion/ContextoAutenticacion";
 import { ErrorCrearEquipo, crearEquipoApi } from "../servicios/equiposApi";
+import { notificarMembresiaTiempoRealActualizada } from "../servicios/membresiaTiempoReal";
 import type {
   CrearEquipoRespuesta,
   CrearEquipoSolicitud,
@@ -34,6 +35,8 @@ export function useCrearEquipo(sesionId: string | null | undefined): EstadoUseCr
       try {
         const creado = await crearEquipoApi(token, sesionId, solicitud);
         setEquipoCreado(creado);
+        // #8: el creador queda inscrito → re-sincroniza la conexión global.
+        notificarMembresiaTiempoRealActualizada();
         return creado;
       } catch (e) {
         if (e instanceof ErrorCrearEquipo) {

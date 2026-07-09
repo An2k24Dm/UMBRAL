@@ -37,7 +37,22 @@ public sealed class ContextoSesiones : DbContext
             e.Property(x => x.MaximoParticipantes).HasColumnName("maximo_participantes");
             e.Property(x => x.MaximoEquipos).HasColumnName("maximo_equipos");
             e.Property(x => x.MaximoParticipantesPorEquipo).HasColumnName("maximo_participantes_por_equipo");
-            e.Property(x => x.DuracionMinutosLimite).HasColumnName("duracion_minutos_limite");
+            e.Property(x => x.DuracionSegundosLimite).HasColumnName("duracion_segundos_limite");
+            e.Property(x => x.EjecucionActualMisionId).HasColumnName("ejecucion_actual_mision_id");
+            e.Property(x => x.EjecucionActualEtapaId).HasColumnName("ejecucion_actual_etapa_id");
+            e.Property(x => x.EjecucionActualModoDeJuegoId).HasColumnName("ejecucion_actual_modo_de_juego_id");
+            e.Property(x => x.EjecucionActualTipoEtapa).HasColumnName("ejecucion_actual_tipo_etapa").HasMaxLength(40);
+            e.Property(x => x.EjecucionActualOrdenGlobal).HasColumnName("ejecucion_actual_orden_global");
+            e.Property(x => x.EjecucionActualOrdenMision).HasColumnName("ejecucion_actual_orden_mision");
+            e.Property(x => x.EjecucionActualOrdenEtapa).HasColumnName("ejecucion_actual_orden_etapa");
+            e.Property(x => x.EjecucionActualFase).HasColumnName("ejecucion_actual_fase");
+            e.Property(x => x.EjecucionActualDuracionPreparacionSegundos)
+                .HasColumnName("ejecucion_actual_duracion_preparacion_segundos");
+            e.Property(x => x.EjecucionActualFechaInicioUtc).HasColumnName("ejecucion_actual_fecha_inicio_utc");
+            e.Property(x => x.EjecucionActualDuracionSegundos).HasColumnName("ejecucion_actual_duracion_segundos");
+            e.Property(x => x.EjecucionActualDuracionPausasAcumuladaMs).HasColumnName("ejecucion_actual_duracion_pausas_acumulada_ms");
+            e.Property(x => x.EjecucionActualFechaInicioPausaUtc).HasColumnName("ejecucion_actual_fecha_inicio_pausa_utc");
+            e.Property(x => x.SecuenciaEtapasJson).HasColumnName("secuencia_etapas_json");
 
             e.HasIndex(x => x.Estado);
             e.HasIndex(x => x.FechaProgramada);
@@ -117,16 +132,19 @@ public sealed class ContextoSesiones : DbContext
             e.Property(x => x.EtapaId).HasColumnName("etapa_id").IsRequired();
             e.Property(x => x.TriviaId).HasColumnName("trivia_id").IsRequired();
             e.Property(x => x.PreguntaId).HasColumnName("pregunta_id").IsRequired();
-            e.Property(x => x.OpcionSeleccionadaId).HasColumnName("opcion_seleccionada_id").IsRequired();
+            e.Property(x => x.OpcionSeleccionadaId).HasColumnName("opcion_seleccionada_id");
             e.Property(x => x.ParticipanteIdentidadId).HasColumnName("participante_identidad_id").IsRequired();
             e.Property(x => x.EquipoId).HasColumnName("equipo_id");
             e.Property(x => x.EsCorrecta).HasColumnName("es_correcta").IsRequired();
             e.Property(x => x.PuntosGanados).HasColumnName("puntos_ganados").IsRequired();
             e.Property(x => x.TiempoTardadoMs).HasColumnName("tiempo_tardado_ms").IsRequired();
             e.Property(x => x.FechaRespuestaUtc).HasColumnName("fecha_respuesta_utc").IsRequired();
-
-            // Cada jugador (participante individual o equipo) solo puede responder una vez por pregunta en la misma sesión/etapa.
-            e.HasIndex(x => new { x.SesionId, x.EtapaId, x.PreguntaId, x.ParticipanteIdentidadId }).IsUnique();
+            e.HasIndex(x => new { x.SesionId, x.EtapaId, x.PreguntaId, x.ParticipanteIdentidadId })
+                .IsUnique()
+                .HasFilter("equipo_id IS NULL");
+            e.HasIndex(x => new { x.SesionId, x.EtapaId, x.PreguntaId, x.EquipoId })
+                .IsUnique()
+                .HasFilter("equipo_id IS NOT NULL");
             e.HasIndex(x => new { x.SesionId, x.EtapaId, x.ParticipanteIdentidadId });
             e.HasIndex(x => new { x.SesionId, x.EtapaId });
         });
@@ -141,12 +159,24 @@ public sealed class ContextoSesiones : DbContext
             e.Property(x => x.EtapaId).HasColumnName("etapa_id").IsRequired();
             e.Property(x => x.BusquedaId).HasColumnName("busqueda_id").IsRequired();
             e.Property(x => x.ParticipanteIdentidadId).HasColumnName("participante_identidad_id").IsRequired();
+            e.Property(x => x.EquipoId).HasColumnName("equipo_id");
             e.Property(x => x.CodigoEnviado).HasColumnName("codigo_enviado").HasMaxLength(64).IsRequired();
             e.Property(x => x.EsValida).HasColumnName("es_valida").IsRequired();
             e.Property(x => x.PuntosGanados).HasColumnName("puntos_ganados").IsRequired();
             e.Property(x => x.FechaEnvioUtc).HasColumnName("fecha_envio_utc").IsRequired();
-            // Un participante solo puede enviar una evidencia válida por etapa
-            e.HasIndex(x => new { x.SesionId, x.EtapaId, x.ParticipanteIdentidadId }).IsUnique();
+
+            // Unicidad de la evidencia VÁLIDA por jugador mediante índices únicos
+            // filtrados (PostgreSQL). Solo aplica a es_valida = true, de modo que
+            // un QR incorrecto permite nuevos intentos:
+            //  - Individual (equipo_id IS NULL): una evidencia válida por participante.
+            //  - Grupal (equipo_id IS NOT NULL): una evidencia válida por equipo;
+            //    el primer integrante que la persiste gana la carrera.
+            e.HasIndex(x => new { x.SesionId, x.EtapaId, x.ParticipanteIdentidadId })
+                .IsUnique()
+                .HasFilter("equipo_id IS NULL AND es_valida");
+            e.HasIndex(x => new { x.SesionId, x.EtapaId, x.EquipoId })
+                .IsUnique()
+                .HasFilter("equipo_id IS NOT NULL AND es_valida");
             e.HasIndex(x => new { x.SesionId, x.EtapaId });
         });
 

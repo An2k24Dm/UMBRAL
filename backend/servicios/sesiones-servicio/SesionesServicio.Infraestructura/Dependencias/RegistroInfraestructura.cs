@@ -2,8 +2,6 @@ using Mapster;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using SesionesServicio.Aplicacion.Procesos.FinalizacionSesionesPorTiempo;
-using SesionesServicio.Aplicacion.Procesos.PreparacionSesiones;
 using SesionesServicio.Aplicacion.Puertos;
 using SesionesServicio.Infraestructura.Configuraciones;
 using SesionesServicio.Infraestructura.Logging;
@@ -43,6 +41,16 @@ public static class RegistroInfraestructura
             sp => sp.GetRequiredService<RepositorioSesiones>());
         servicios.AddScoped<IUnidadTrabajoSesiones, UnidadTrabajoSesiones>();
         servicios.AddScoped<INotificadorSesionesTiempoReal, NotificadorSesionesTiempoReal>();
+
+        // Patrón Proxy de control de acceso a los grupos SignalR. El Hub recibe
+        // la interfaz y obtiene el Proxy; el Proxy envuelve al sujeto real.
+        servicios.AddScoped<TiempoReal.Grupos.ServicioGruposSesionesTiempoReal>();
+        servicios.AddScoped<IServicioGruposSesionesTiempoReal>(sp =>
+            new TiempoReal.Grupos.ProxyAccesoGruposSesionesTiempoReal(
+                sp.GetRequiredService<TiempoReal.Grupos.ServicioGruposSesionesTiempoReal>(),
+                sp.GetRequiredService<Dominio.Abstract.IRepositorioSesiones>(),
+                sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<
+                    TiempoReal.Grupos.ProxyAccesoGruposSesionesTiempoReal>>()));
         servicios.AddSingleton<IProveedorFechaHora, ProveedorFechaHoraSistema>();
         servicios.AddSingleton<IGeneradorCodigoAcceso, GeneradorCodigoAccesoAleatorio>();
         servicios.AddSingleton<IHashContrasenaEquipo, HashContrasenaEquipo>();
@@ -64,10 +72,10 @@ public static class RegistroInfraestructura
         servicios.AddScoped<IRepositorioEtapasCompletadas, RepositorioEtapasCompletadas>();
         servicios.Configure<OpcionesPreparacionSesiones>(
             configuracion.GetSection(OpcionesPreparacionSesiones.Seccion));
-        servicios.AddScoped<ProcesadorPreparacionSesiones>();
+        servicios.Configure<OpcionesVencimientoEtapas>(
+            configuracion.GetSection(OpcionesVencimientoEtapas.Seccion));
         servicios.AddHostedService<ServicioPreparacionSesionesProgramadas>();
-        servicios.AddScoped<ProcesadorFinalizacionSesionesPorTiempo>();
-        servicios.AddHostedService<ServicioFinalizacionSesionesPorTiempo>();
+        servicios.AddHostedService<ServicioVencimientoEtapasPorTiempo>();
         servicios.AddScoped<IRegistroLogsAplicacion, RegistroLogsAplicacionDotNet>();
         return servicios;
     }

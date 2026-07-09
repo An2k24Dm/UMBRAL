@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
+using Moq;
 using SesionesServicio.Commons.Dtos;
 using SesionesServicio.Dominio.Enums;
 using SesionesServicio.Infraestructura.Persistencia;
@@ -475,6 +476,146 @@ public class SesionesEndpointPruebas : IClassFixture<FabricaApiPruebas>
             ctx.Equipos.Count(e => e.SesionId == id),
             ctx.Participantes.Count(p => p.SesionId == id)
         );
+    }
+
+    private void SembrarSesionEnPreparacionConParticipante(Guid id, Guid misionId)
+    {
+        using var alcance = _fabrica.Services.CreateScope();
+        var ctx = alcance.ServiceProvider.GetRequiredService<ContextoSesiones>();
+
+        ctx.Sesiones.Add(new SesionModelo
+        {
+            Id = id,
+            TipoSesion = "Individual",
+            Nombre = "Sesion para iniciar",
+            Descripcion = "Demo",
+            Estado = EstadoSesion.EnPreparacion,
+            FechaProgramada = DateTime.UtcNow.AddHours(-1),
+            CodigoAcceso = "INI" + id.ToString("N")[..3],
+            OperadorCreadorId = FabricaApiPruebas.IdOperadorPrueba,
+            FechaCreacion = DateTime.UtcNow.AddMinutes(-10),
+            MaximoParticipantes = 10,
+            DuracionSegundosLimite = 120,
+            Misiones =
+            {
+                new SesionMisionModelo
+                {
+                    Id = Guid.NewGuid(),
+                    SesionId = id,
+                    MisionId = misionId,
+                    Orden = 1
+                }
+            },
+            Participantes =
+            {
+                new ParticipanteModelo
+                {
+                    Id = Guid.NewGuid(),
+                    SesionId = id,
+                    ParticipanteIdentidadId = Guid.NewGuid(),
+                    Puntaje = 0,
+                    FechaUnionSesion = DateTime.UtcNow.AddMinutes(-5)
+                }
+            }
+        });
+
+        ctx.SaveChanges();
+    }
+
+    [Fact]
+    public async Task Iniciar_SesionEnPreparacionConInscrito_PersisteActivaYEjecucionActual()
+    {
+        var id = Guid.NewGuid();
+        SembrarSesionEnPreparacionConParticipante(id, FabricaApiPruebas.IdMisionActiva);
+        var cliente = ClienteConRol("Operador", FabricaApiPruebas.IdOperadorPrueba);
+
+        var respuesta = await cliente.PatchAsync($"/api/sesiones/{id}/iniciar", null);
+
+        respuesta.StatusCode.Should().Be(HttpStatusCode.OK);
+        var cuerpo = await respuesta.Content.ReadFromJsonAsync<OperacionSesionRespuestaDto>(OpcionesJson);
+        cuerpo!.Estado.Should().Be("Activa");
+        cuerpo.FechaInicioUtc.Should().NotBeNull();
+
+        using var alcance = _fabrica.Services.CreateScope();
+        var ctx = alcance.ServiceProvider.GetRequiredService<ContextoSesiones>();
+        var sesion = ctx.Sesiones.Single(s => s.Id == id);
+        sesion.Estado.Should().Be(EstadoSesion.Activa);
+        sesion.FechaInicioUtc.Should().NotBeNull();
+        sesion.EjecucionActualMisionId.Should().Be(FabricaApiPruebas.IdMisionActiva);
+        sesion.EjecucionActualEtapaId.Should().Be(FabricaApiPruebas.IdEtapaMisionActiva);
+        sesion.EjecucionActualModoDeJuegoId.Should().Be(FabricaApiPruebas.IdTriviaMisionActiva);
+        sesion.EjecucionActualTipoEtapa.Should().Be("Trivia");
+        sesion.EjecucionActualOrdenGlobal.Should().Be(1);
+        sesion.EjecucionActualDuracionSegundos.Should().Be(120);
+        sesion.EjecucionActualDuracionPausasAcumuladaMs.Should().Be(0);
+        sesion.EjecucionActualFechaInicioPausaUtc.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Iniciar_SesionInexistente_Responde404ConCodigoSesionNoEncontrada()
+    {
+        var cliente = ClienteConRol("Operador", FabricaApiPruebas.IdOperadorPrueba);
+
+        var respuesta = await cliente.PatchAsync($"/api/sesiones/{Guid.NewGuid()}/iniciar", null);
+
+        respuesta.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        var cuerpo = await respuesta.Content.ReadFromJsonAsync<JsonElement>(OpcionesJson);
+        cuerpo.GetProperty("codigo").GetString().Should().Be("SESION_NO_ENCONTRADA");
+    }
+
+    [Fact]
+    public async Task Iniciar_SesionDeOtroOperador_Responde403()
+    {
+        var id = Guid.NewGuid();
+        SembrarSesionEnPreparacionConParticipante(id, FabricaApiPruebas.IdMisionActiva);
+        var cliente = ClienteConRol("Operador", FabricaApiPruebas.IdOtroOperador);
+
+        var respuesta = await cliente.PatchAsync($"/api/sesiones/{id}/iniciar", null);
+
+        respuesta.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        using var alcance = _fabrica.Services.CreateScope();
+        var ctx = alcance.ServiceProvider.GetRequiredService<ContextoSesiones>();
+        ctx.Sesiones.Single(s => s.Id == id).Estado.Should().Be(EstadoSesion.EnPreparacion);
+    }
+
+    [Fact]
+    public async Task Iniciar_MisionAsociadaNoExiste_Responde404ConCodigoMisionNoEncontrada()
+    {
+        var id = Guid.NewGuid();
+        var misionId = Guid.Parse("12121212-1212-1212-1212-121212121212");
+        SembrarSesionEnPreparacionConParticipante(id, misionId);
+        var cliente = ClienteConRol("Operador", FabricaApiPruebas.IdOperadorPrueba);
+
+        var respuesta = await cliente.PatchAsync($"/api/sesiones/{id}/iniciar", null);
+
+        respuesta.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        var cuerpo = await respuesta.Content.ReadFromJsonAsync<JsonElement>(OpcionesJson);
+        cuerpo.GetProperty("codigo").GetString().Should().Be("MISION_NO_ENCONTRADA");
+        cuerpo.GetProperty("mensaje").GetString().Should().Contain("mision asociada");
+        cuerpo.GetProperty("mensaje").GetString().Should().NotContain("ya fue eliminada");
+    }
+
+    [Fact]
+    public async Task Iniciar_MisionSinEtapas_Responde409ConCodigoMisionSinEtapas()
+    {
+        var id = Guid.NewGuid();
+        var misionId = Guid.Parse("34343434-3434-3434-3434-343434343434");
+        _fabrica.MockClienteMisiones
+            .Setup(c => c.ObtenerMisionConEtapasAsync(misionId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new MisionConEtapasJuegosDto
+            {
+                Id = misionId,
+                Nombre = "Mision sin etapas",
+                Estado = "Activa"
+            });
+        SembrarSesionEnPreparacionConParticipante(id, misionId);
+        var cliente = ClienteConRol("Operador", FabricaApiPruebas.IdOperadorPrueba);
+
+        var respuesta = await cliente.PatchAsync($"/api/sesiones/{id}/iniciar", null);
+
+        respuesta.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        var cuerpo = await respuesta.Content.ReadFromJsonAsync<JsonElement>(OpcionesJson);
+        cuerpo.GetProperty("codigo").GetString().Should().Be("MISION_SIN_ETAPAS");
     }
 
     [Fact]

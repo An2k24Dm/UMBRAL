@@ -29,14 +29,14 @@ public sealed class JuegoTesoroControlador : ControllerBase
     [ProducesResponseType(typeof(BusquedaTesoroConPistasDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> ObtenerBusquedaConPistas(
-        Guid sesionId, Guid etapaId, Guid busquedaId, CancellationToken cancelacion)
+        Guid sesionId, Guid misionId, Guid etapaId, Guid busquedaId, CancellationToken cancelacion)
     {
         var participanteId = _usuarioActual.ObtenerId();
         if (participanteId is null) return Unauthorized();
 
         var resultado = await _mediador.Send(
             new ObtenerBusquedaTesoroConPistasConsulta(
-                sesionId, etapaId, busquedaId, participanteId.Value),
+                sesionId, misionId, etapaId, busquedaId, participanteId.Value),
             cancelacion);
 
         return resultado is null ? NotFound() : Ok(resultado);
@@ -54,26 +54,15 @@ public sealed class JuegoTesoroControlador : ControllerBase
         [FromBody] EnviarEvidenciaTesoroDto dto,
         CancellationToken cancelacion)
     {
-        try
-        {
-            var resultado = await _mediador.Send(
-                new EnviarEvidenciaTesoroComando(
-                    sesionId, misionId, etapaId, busquedaId, dto.CodigoEscaneado),
-                cancelacion);
-            return Ok(resultado);
-        }
-        catch (InvalidOperationException ex) when (ex.Message.Contains("Ya enviaste"))
-        {
-            return Conflict(new { codigo = "YA_ENVIADA", mensaje = ex.Message });
-        }
-        catch (InvalidOperationException ex) when (ex.Message.Contains("no está activa"))
-        {
-            return UnprocessableEntity(new { codigo = "SESION_NO_ACTIVA", mensaje = ex.Message });
-        }
-        catch (InvalidOperationException ex) when (ex.Message.Contains("no está inscrito"))
-        {
-            return Forbid();
-        }
+        // Las reglas de negocio (sesión no activa, participante no inscrito, etapa
+        // no actual, evidencia duplicada) las señalan excepciones tipadas que el
+        // ManejadorErroresMiddleware traduce al HTTP correcto. El controlador no
+        // inspecciona el texto de los mensajes.
+        var resultado = await _mediador.Send(
+            new EnviarEvidenciaTesoroComando(
+                sesionId, misionId, etapaId, busquedaId, dto.CodigoEscaneado),
+            cancelacion);
+        return Ok(resultado);
     }
 
     // Operador: libera una pista predefinida o personalizada a todos los participantes de la etapa.

@@ -1,6 +1,20 @@
 import * as signalR from "@microsoft/signalr";
 import { URL_API } from "./clienteHttp";
 
+interface DiagnosticoConexionTiempoReal {
+  origen: string;
+  id: string;
+}
+
+const diagnosticosConexiones = new WeakMap<
+  signalR.HubConnection,
+  DiagnosticoConexionTiempoReal
+>();
+
+function crearIdDiagnostico(): string {
+  return Math.random().toString(36).slice(2, 8);
+}
+
 export interface EventoSesionTiempoReal {
   sesionId?: string;
   SesionId?: string;
@@ -15,8 +29,76 @@ export interface EventoSesionTiempoReal {
   FechaEventoUtc?: string;
 }
 
+// Evento "EtapaPorComenzar": la siguiente etapa está programada y comenzará en
+// DuracionPreparacionSegundos. Aún NO es jugable (eso lo indica EtapaIniciada).
+export interface EventoEtapaPorComenzar {
+  sesionId?: string;
+  SesionId?: string;
+  misionId?: string;
+  MisionId?: string;
+  etapaId?: string;
+  EtapaId?: string;
+  tipoEtapa?: string;
+  TipoEtapa?: string;
+  modoDeJuegoId?: string;
+  ModoDeJuegoId?: string;
+  numeroMision?: number;
+  NumeroMision?: number;
+  numeroEtapa?: number;
+  NumeroEtapa?: number;
+  ordenGlobal?: number;
+  OrdenGlobal?: number;
+  esNuevaMision?: boolean;
+  EsNuevaMision?: boolean;
+  fechaInicioProgramadaUtc?: string;
+  FechaInicioProgramadaUtc?: string;
+  duracionPreparacionSegundos?: number;
+  DuracionPreparacionSegundos?: number;
+  fechaEventoUtc?: string;
+  FechaEventoUtc?: string;
+}
+
 export function obtenerSesionIdEvento(evento: EventoSesionTiempoReal): string {
   return evento.sesionId ?? evento.SesionId ?? "";
+}
+
+// Normaliza el evento EtapaPorComenzar (camelCase o PascalCase) a un estado de
+// banner tipado. Fuente de verdad del countdown: fechaInicioProgramadaUtc.
+export interface EstadoBannerEtapaPorComenzar {
+  sesionId: string;
+  mensaje: string;
+  numeroMision: number;
+  numeroEtapa: number;
+  esNuevaMision: boolean;
+  fechaInicioProgramadaUtc: string;
+  duracionPreparacionSegundos: number;
+}
+
+export function mapearEtapaPorComenzar(
+  evento: EventoEtapaPorComenzar,
+): EstadoBannerEtapaPorComenzar | null {
+  const sesionId = evento.sesionId ?? evento.SesionId ?? "";
+  const fechaInicioProgramadaUtc =
+    evento.fechaInicioProgramadaUtc ?? evento.FechaInicioProgramadaUtc ?? "";
+  if (!sesionId || !fechaInicioProgramadaUtc) return null;
+
+  const esNuevaMision = evento.esNuevaMision ?? evento.EsNuevaMision ?? false;
+  const numeroMision = evento.numeroMision ?? evento.NumeroMision ?? 0;
+  const numeroEtapa = evento.numeroEtapa ?? evento.NumeroEtapa ?? 0;
+  const duracionPreparacionSegundos =
+    evento.duracionPreparacionSegundos ?? evento.DuracionPreparacionSegundos ?? 10;
+
+  return {
+    sesionId,
+    mensaje: esNuevaMision
+      ? `Misión ${numeroMision} está por comenzar`
+      : `Etapa ${numeroEtapa} está por comenzar`,
+    numeroMision,
+    numeroEtapa,
+    esNuevaMision,
+    fechaInicioProgramadaUtc,
+    duracionPreparacionSegundos,
+  };
 }
 
 export function obtenerEstadoEvento(
@@ -52,22 +134,71 @@ export function esErrorNoAutenticadoTiempoReal(error: unknown): boolean {
   );
 }
 
-export function crearConexionSesionesTiempoReal(token: string) {
+export function mensajeSeguroErrorTiempoReal(error: unknown): string {
+  const candidato = error as {
+    statusCode?: unknown;
+    status?: unknown;
+    message?: unknown;
+  };
+  const estado = candidato?.statusCode ?? candidato?.status;
+  const mensaje =
+    typeof candidato?.message === "string"
+      ? candidato.message
+      : typeof error === "string"
+        ? error
+        : "Solicitud rechazada por el servidor.";
+
+  return estado ? `${estado}: ${mensaje}` : mensaje;
+}
+
+export function registrarAccesoGrupoRechazadoDev(error: unknown) {
+  if (__DEV__ && !esErrorNoAutenticadoTiempoReal(error)) {
+    console.log(
+      "[SignalR Movil] acceso a grupo rechazado:",
+      mensajeSeguroErrorTiempoReal(error),
+    );
+  }
+}
+
+export function registrarEventoConexionSesionesTiempoReal(
+  conexion: signalR.HubConnection,
+  mensaje: string,
+) {
+  if (!__DEV__) return;
+
+  const diagnostico = diagnosticosConexiones.get(conexion);
+  const origen = diagnostico?.origen ?? "General";
+  const id = diagnostico?.id ?? "sin-id";
+  console.log(`[SignalR][${origen}][${id}] ${mensaje}`);
+}
+
+export function crearConexionSesionesTiempoReal(
+  token: string,
+  origen = "General",
+) {
   // Nunca abrir una conexión sin token válido (evita 401 no controlados).
   const tokenLimpio = token?.trim();
   if (!tokenLimpio) {
     throw new Error("No se puede crear conexión SignalR sin token de acceso.");
   }
-  if (__DEV__) {
-    // Nunca imprimir el JWT completo; solo indicar disponibilidad.
-    console.log("[SignalR] creando conexión (token disponible).");
-  }
+  const diagnostico = {
+    origen,
+    id: crearIdDiagnostico(),
+  };
   // Dejamos que SignalR negocie el transporte automáticamente (no forzamos
   // WebSockets): es más robusto en Expo y evita fallos de negociación.
-  return new signalR.HubConnectionBuilder()
+  const conexion = new signalR.HubConnectionBuilder()
     .withUrl(`${URL_API}/hubs/sesiones`, {
       accessTokenFactory: () => tokenLimpio,
     })
-    .withAutomaticReconnect()
+    .withAutomaticReconnect([0, 2000, 5000, 10000, 30000])
     .build();
+
+  conexion.serverTimeoutInMilliseconds = 60000;
+  conexion.keepAliveIntervalInMilliseconds = 15000;
+
+  diagnosticosConexiones.set(conexion, diagnostico);
+  registrarEventoConexionSesionesTiempoReal(conexion, "creando");
+
+  return conexion;
 }

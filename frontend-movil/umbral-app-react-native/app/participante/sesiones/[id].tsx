@@ -9,7 +9,6 @@ import {
   View,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import * as SecureStore from "expo-secure-store";
 import { useAutenticacion } from "../../../autenticacion/ContextoAutenticacion";
 import RutaProtegidaMovil from "../../../autenticacion/RutaProtegidaMovil";
 import { PantallaBase } from "../../../componentes/PantallaBase";
@@ -20,13 +19,21 @@ import { tema } from "../../../estilos/tema";
 import { useAbandonarSesion } from "../../../hooks/useAbandonarSesion";
 import { useDetalleSesionDisponible } from "../../../hooks/useDetalleSesionDisponible";
 import { useIngresoSesion } from "../../../hooks/useIngresoSesion";
+import { useListadoSesionesTiempoReal } from "../../../hooks/useListadoSesionesTiempoReal";
 import { useNavegacionSegura } from "../../../hooks/useNavegacionSegura";
 import { useRefrescarAlEnfocar } from "../../../hooks/useRefrescarAlEnfocar";
 import { useSesionesTiempoReal } from "../../../hooks/useSesionesTiempoReal";
-import type { ProgresoSesionParticipanteDto, SesionDetalleMovilDto } from "../../../tipos/sesiones";
+import type {
+  ProgresoSecuencialSesionDto,
+  ProgresoSesionParticipanteDto,
+  SesionDetalleMovilDto,
+} from "../../../tipos/sesiones";
 import { formatearFechaHora } from "../../../utilidades/formatoFechas";
-import { obtenerProgresoSesionParticipanteApi } from "../../../servicios/sesionesApi";
-import { claveEtapaCompletada } from "./tesoro";
+import {
+  obtenerDetalleSesionDisponibleApi,
+  obtenerProgresoSecuencialSesionApi,
+  obtenerProgresoSesionParticipanteApi,
+} from "../../../servicios/sesionesApi";
 
 export default function PantallaDetalleSesionParticipante() {
   return (
@@ -53,36 +60,39 @@ function ContenidoDetalle() {
     actualizarEstadoLocal,
   } = useDetalleSesionDisponible(sesionId ?? null);
 
-  const [etapasCompletadas, setEtapasCompletadas] = useState<Set<string>>(new Set());
+  const [progresoSecuencial, setProgresoSecuencial] =
+    useState<ProgresoSecuencialSesionDto | null>(null);
   const [progreso, setProgreso] = useState<ProgresoSesionParticipanteDto[] | null>(null);
   const [cargandoProgreso, setCargandoProgreso] = useState(false);
   const [versionProgreso, setVersionProgreso] = useState(0);
+  const estaInscritoEnSesion = detalle?.participacionActual?.estaInscrito === true;
+  const equipoIdActual = estaInscritoEnSesion
+    ? detalle?.participacionActual?.equipoId ?? null
+    : null;
 
-  // Carga qué etapas ya completó el participante (persistido en SecureStore).
-  const cargarProgreso = useCallback(async () => {
-    if (!sesionId || !detalle) return;
-    const todasEtapas = detalle.misiones.flatMap((m) => m.etapas.map((e) => e.id));
-    const resultados = await Promise.all(
-      todasEtapas.map((etapaId) =>
-        SecureStore.getItemAsync(claveEtapaCompletada(sesionId, etapaId))
-          .then((v) => ({ etapaId, completada: v === "1" }))
-          .catch(() => ({ etapaId, completada: false })),
-      ),
-    );
-    setEtapasCompletadas(
-      new Set(resultados.filter((r) => r.completada).map((r) => r.etapaId)),
-    );
-  }, [sesionId, detalle]);
+  const cargarProgresoSecuencial = useCallback(async () => {
+    if (!token || !sesionId || !detalle || !estaInscritoEnSesion) {
+      setProgresoSecuencial(null);
+      return;
+    }
+
+    try {
+      const data = await obtenerProgresoSecuencialSesionApi(token, sesionId);
+      setProgresoSecuencial(data);
+    } catch {
+      setProgresoSecuencial(null);
+    }
+  }, [token, sesionId, detalle, estaInscritoEnSesion]);
 
   useEffect(() => {
-    void cargarProgreso();
-  }, [cargarProgreso]);
+    void cargarProgresoSecuencial();
+  }, [cargarProgresoSecuencial, versionProgreso]);
 
   const refrescarTodo = useCallback(async () => {
     await refrescar();
-    await cargarProgreso();
+    await cargarProgresoSecuencial();
     setVersionProgreso((v) => v + 1);
-  }, [refrescar, cargarProgreso]);
+  }, [refrescar, cargarProgresoSecuencial]);
 
   useEffect(() => {
     if (!token || !sesionId || !detalle) return;
@@ -99,6 +109,86 @@ function ContenidoDetalle() {
 
   const navegarSeguro = useNavegacionSegura();
   useRefrescarAlEnfocar(refrescarTodo);
+
+  const navegarAEjecucionActual = useCallback(async () => {
+    if (!token || !sesionId) return;
+
+    // Best-effort: cualquier fallo (no inscrito, red, expulsado) se ignora
+    // silenciosamente; nunca debe propagarse como "uncaught in promise".
+    try {
+      // Primero el detalle: si la sesión no está Activa o el usuario NO está
+      // inscrito, no se consulta el progreso secuencial (ese endpoint rechaza a
+      // los no inscritos) ni se redirige.
+      const detalleActualizado = await obtenerDetalleSesionDisponibleApi(token, sesionId);
+      if (
+        detalleActualizado.estado !== "Activa" ||
+        detalleActualizado.participacionActual?.estaInscrito !== true
+      ) {
+        return;
+      }
+
+      const progresoActualizado = await obtenerProgresoSecuencialSesionApi(token, sesionId);
+      // Mantiene el progreso del detalle fresco (estados COMPLETADA de
+      // etapas/misiones) aunque se pierda el evento SignalR EtapaCompletada.
+      setProgresoSecuencial(progresoActualizado);
+      // #16: durante la preparación (Preparacion) o el cierre pendiente
+      // (CierrePendiente) la etapa NO es jugable todavía. El participante
+      // permanece en el detalle viendo el banner global; la navegación al juego
+      // solo ocurre en fase Activa o al llegar EtapaIniciada.
+      if (
+        progresoActualizado.faseEtapaActual === "Preparacion" ||
+        progresoActualizado.faseEtapaActual === "CierrePendiente" ||
+        progresoActualizado.jugadorActualCompletoEtapaActual === true ||
+        !progresoActualizado.misionActualId ||
+        !progresoActualizado.etapaActualId ||
+        !progresoActualizado.modoDeJuegoId ||
+        !progresoActualizado.tipoEtapaActual
+      ) {
+        return;
+      }
+
+      const destino =
+        progresoActualizado.tipoEtapaActual === "Trivia"
+          ? `/participante/sesiones/jugar?sesionId=${sesionId}` +
+            `&misionId=${progresoActualizado.misionActualId}` +
+            `&etapaId=${progresoActualizado.etapaActualId}` +
+            `&triviaId=${progresoActualizado.modoDeJuegoId}`
+          : `/participante/sesiones/tesoro?sesionId=${sesionId}` +
+            `&misionId=${progresoActualizado.misionActualId}` +
+            `&etapaId=${progresoActualizado.etapaActualId}` +
+            `&busquedaId=${progresoActualizado.modoDeJuegoId}`;
+
+      enrutador.replace(destino);
+    } catch {
+      // Silencioso a propósito (best-effort).
+    }
+  }, [token, sesionId, enrutador]);
+
+  // Escenario de reapertura / entrada directa al detalle durante una etapa
+  // activa: si la sesión está Activa, el participante está inscrito y NO
+  // completó la etapa actual, se le envía automáticamente a la ejecución actual.
+  // navegarAEjecucionActual es best-effort y tiene guardas internas (no redirige
+  // si ya completó su parte o si no procede), evitando loops de navegación.
+  useEffect(() => {
+    void navegarAEjecucionActual();
+  }, [navegarAEjecucionActual]);
+
+  // Red de seguridad mientras el participante ESPERA en el detalle (etapa que él
+  // ya completó, cierre pendiente o preparación de la siguiente): consulta el
+  // progreso cada ~2,5 s. Aunque se pierda el evento SignalR EtapaIniciada/
+  // EtapaCompletada (p. ej. app en background), se refrescan los estados
+  // COMPLETADA y se redirige en cuanto el backend activa la siguiente etapa
+  // (fase Activa). El backend sigue siendo la única autoridad del tiempo/fase; el
+  // reloj local no decide nada, solo consulta. Solo corre en el detalle de una
+  // sesión Activa en la que el participante está inscrito; al navegar al juego la
+  // pantalla se desmonta y el intervalo se limpia.
+  useEffect(() => {
+    if (detalle?.estado !== "Activa" || !estaInscritoEnSesion) return;
+    const id = setInterval(() => {
+      void navegarAEjecucionActual();
+    }, 2500);
+    return () => clearInterval(id);
+  }, [detalle?.estado, estaInscritoEnSesion, navegarAEjecucionActual]);
 
   // HU52 — cambio de estado en vivo. Si el operador cancela, avisamos y
   // volvemos al listado. Si finaliza, avisamos pero el participante se queda
@@ -133,8 +223,11 @@ function ContenidoDetalle() {
       }
       void refrescar();
       setVersionProgreso((v) => v + 1);
+      if (estado === "Activa") {
+        void navegarAEjecucionActual();
+      }
     },
-    [refrescar, enrutador, actualizarEstadoLocal],
+    [refrescar, enrutador, actualizarEstadoLocal, navegarAEjecucionActual],
   );
 
   const actualizarProgreso = useCallback(
@@ -142,14 +235,23 @@ function ContenidoDetalle() {
     [],
   );
 
+  useListadoSesionesTiempoReal({
+    onListadoActualizado: refrescar,
+    activo: !estaInscritoEnSesion,
+  });
+
   useSesionesTiempoReal({
-    sesionId,
+    origen: "Detalle",
+    sesionId: estaInscritoEnSesion ? sesionId : null,
+    equipoId: equipoIdActual,
     onParticipantesSesionActualizados: refrescar,
     onEquiposSesionActualizados: refrescar,
     onEquipoActualizado: refrescar,
     onSesionActualizada: manejarCambioEstado,
     onRespuestaRegistrada: actualizarProgreso,
     onEtapaCompletada: actualizarProgreso,
+    onEtapaIniciada: navegarAEjecucionActual,
+    onProgresoSecuencialActualizado: actualizarProgreso,
   });
 
   const [refrescando, setRefrescando] = useState(false);
@@ -295,15 +397,23 @@ function ContenidoDetalle() {
             </View>
           )}
 
-          {detalle.estado === "Activa" && detalle.fechaInicioUtc && detalle.duracionMinutosLimite && (
+          {detalle.estado === "Activa" &&
+          detalle.fechaInicioUtc &&
+          detalle.duracionSegundosLimite !== null &&
+          detalle.duracionSegundosLimite > 0 ? (
             <CuentaRegresiva
               fechaInicioUtc={detalle.fechaInicioUtc}
-              duracionMinutos={detalle.duracionMinutosLimite}
+              duracionSegundos={detalle.duracionSegundosLimite}
             />
-          )}
+          ) : null}
 
           <Text style={estilos.tituloSeccion}>MISIONES</Text>
-          <ListaMisionesSesionMovil misiones={detalle.misiones} />
+          <ListaMisionesSesionMovil
+            misiones={detalle.misiones}
+            etapasCompletadasGlobalmenteIds={
+              progresoSecuencial?.etapasCompletadasGlobalmenteIds ?? []
+            }
+          />
 
           {(detalle.estado === "Activa" ||
             detalle.estado === "Pausada" ||
@@ -320,7 +430,6 @@ function ContenidoDetalle() {
             enrutador={enrutador}
             navegarSeguro={navegarSeguro}
             refrescar={refrescarTodo}
-            etapasCompletadas={etapasCompletadas}
           />
         </>
       )}
@@ -344,14 +453,12 @@ function SeccionParticipacion({
   enrutador,
   navegarSeguro,
   refrescar,
-  etapasCompletadas,
 }: {
   detalle: SesionDetalleMovilDto;
   sesionId: string;
   enrutador: ReturnType<typeof useRouter>;
   navegarSeguro: (accion: () => void) => void;
   refrescar: () => Promise<void>;
-  etapasCompletadas: Set<string>;
 }) {
   const { cerrarSesion } = useAutenticacion();
   const {
@@ -405,92 +512,10 @@ function SeccionParticipacion({
   }, [abandonando, limpiarErrorAbandonar, confirmarAbandono]);
 
   // Casos B y D: el participante ya pertenece a la sesión.
+  // El estado de las etapas/misiones (COMPLETADA) se muestra únicamente en el
+  // listado principal (ListaMisionesSesionMovil). Aquí no se repite: la entrada
+  // al juego es automática (EjecucionActualSesion + SignalR EtapaIniciada).
   if (participacion?.estaInscrito) {
-    const sesionActiva = detalle.estado === "Activa";
-
-    // Para cada misión, renderiza botones de etapas con orden secuencial:
-    // solo se puede jugar la etapa N si se completó la etapa N-1.
-    const botonesEtapasPorMision = detalle.misiones.map((mision) => {
-      const etapasOrdenadas = [...mision.etapas].sort((a, b) => a.orden - b.orden);
-
-      return etapasOrdenadas.map((etapa, idx) => {
-        const tipo = etapa.tipoModoDeJuego;
-        if (tipo !== "Trivia" && tipo !== "BusquedaTesoro") return null;
-
-        const yaCompletada = etapasCompletadas.has(etapa.id);
-        const etapaAnterior = idx > 0 ? etapasOrdenadas[idx - 1] : null;
-        const anteriorCompletada = etapaAnterior ? etapasCompletadas.has(etapaAnterior.id) : true;
-        const bloqueada = !anteriorCompletada;
-
-        if (yaCompletada) {
-          // Etapa ya completada: mostrar badge informativo (no botón)
-          return (
-            <View key={etapa.id} style={estilos.etapaCompletada}>
-              <Text style={estilos.etapaCompletadaTexto}>
-                ✓ {etapa.nombreModoDeJuego} — completada
-              </Text>
-            </View>
-          );
-        }
-
-        if (bloqueada) {
-          // Etapa bloqueada: mostrar pero deshabilitada
-          return (
-            <View key={etapa.id} style={estilos.etapaBloqueada}>
-              <Text style={estilos.etapaBloqueadaTexto}>
-                🔒 {etapa.nombreModoDeJuego} — completa la etapa anterior
-              </Text>
-            </View>
-          );
-        }
-
-        // Etapa disponible para jugar
-        if (tipo === "Trivia") {
-          return (
-            <TouchableOpacity
-              key={etapa.id}
-              style={estilos.botonJugar}
-              onPress={() =>
-                navegarSeguro(() =>
-                  enrutador.push(
-                    `/participante/sesiones/jugar?sesionId=${sesionId}` +
-                      `&misionId=${mision.id}&etapaId=${etapa.id}` +
-                      `&triviaId=${etapa.modoDeJuegoId}`,
-                  ),
-                )
-              }
-              accessibilityRole="button"
-            >
-              <Text style={estilos.botonJugarTexto}>
-                Trivia: {etapa.nombreModoDeJuego}
-              </Text>
-            </TouchableOpacity>
-          );
-        }
-
-        return (
-          <TouchableOpacity
-            key={etapa.id}
-            style={estilos.botonJugarTesoro}
-            onPress={() =>
-              navegarSeguro(() =>
-                enrutador.push(
-                  `/participante/sesiones/tesoro?sesionId=${sesionId}` +
-                    `&misionId=${mision.id}&etapaId=${etapa.id}` +
-                    `&busquedaId=${etapa.modoDeJuegoId}`,
-                ),
-              )
-            }
-            accessibilityRole="button"
-          >
-            <Text style={estilos.botonJugarTexto}>
-              Tesoro: {etapa.nombreModoDeJuego}
-            </Text>
-          </TouchableOpacity>
-        );
-      });
-    });
-
     if (participacion.tipo === "Equipo") {
       return (
         <View>
@@ -518,7 +543,6 @@ function SeccionParticipacion({
               <Text style={estilos.botonPrimarioTexto}>Ver equipo</Text>
             </TouchableOpacity>
           </View>
-          {sesionActiva && botonesEtapasPorMision}
         </View>
       );
     }
@@ -550,7 +574,6 @@ function SeccionParticipacion({
             </TouchableOpacity>
           )}
         </View>
-        {sesionActiva && botonesEtapasPorMision}
       </View>
     );
   }
@@ -688,13 +711,13 @@ function PanelProgreso({
 
 function CuentaRegresiva({
   fechaInicioUtc,
-  duracionMinutos,
+  duracionSegundos,
 }: {
   fechaInicioUtc: string;
-  duracionMinutos: number;
+  duracionSegundos: number;
 }) {
   const calcularSegundosRestantes = () => {
-    const fin = new Date(fechaInicioUtc).getTime() + duracionMinutos * 60_000;
+    const fin = new Date(fechaInicioUtc).getTime() + duracionSegundos * 1000;
     return Math.max(0, Math.floor((fin - Date.now()) / 1000));
   };
 
@@ -709,7 +732,7 @@ function CuentaRegresiva({
       if (intervaloRef.current) clearInterval(intervaloRef.current);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fechaInicioUtc, duracionMinutos]);
+  }, [fechaInicioUtc, duracionSegundos]);
 
   const horas = Math.floor(segundos / 3600);
   const minutos = Math.floor((segundos % 3600) / 60);
@@ -1033,52 +1056,6 @@ const estilos = StyleSheet.create({
   botonSecundarioTexto: {
     color: tema.colores.texto,
     fontWeight: tema.tipografia.pesos.bold,
-    fontSize: tema.tipografia.tamanos.md,
-  },
-  botonJugar: {
-    backgroundColor: tema.colores.exito,
-    paddingVertical: tema.espacios.md,
-    borderRadius: tema.radios.boton,
-    alignItems: "center",
-    marginTop: tema.espacios.sm,
-  },
-  botonJugarTesoro: {
-    backgroundColor: "#d97706",
-    paddingVertical: tema.espacios.md,
-    borderRadius: tema.radios.boton,
-    alignItems: "center",
-    marginTop: tema.espacios.sm,
-  },
-  botonJugarTexto: {
-    color: tema.colores.textoBlanco,
-    fontWeight: tema.tipografia.pesos.bold,
-    fontSize: tema.tipografia.tamanos.lg,
-  },
-  etapaCompletada: {
-    backgroundColor: "#d1fae5",
-    paddingVertical: tema.espacios.sm,
-    paddingHorizontal: tema.espacios.md,
-    borderRadius: tema.radios.boton,
-    marginTop: tema.espacios.sm,
-    borderWidth: 1,
-    borderColor: "#34d399",
-  },
-  etapaCompletadaTexto: {
-    color: "#065f46",
-    fontWeight: tema.tipografia.pesos.bold,
-    fontSize: tema.tipografia.tamanos.md,
-  },
-  etapaBloqueada: {
-    backgroundColor: "#f3f4f6",
-    paddingVertical: tema.espacios.sm,
-    paddingHorizontal: tema.espacios.md,
-    borderRadius: tema.radios.boton,
-    marginTop: tema.espacios.sm,
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-  },
-  etapaBloqueadaTexto: {
-    color: "#6b7280",
     fontSize: tema.tipografia.tamanos.md,
   },
 });

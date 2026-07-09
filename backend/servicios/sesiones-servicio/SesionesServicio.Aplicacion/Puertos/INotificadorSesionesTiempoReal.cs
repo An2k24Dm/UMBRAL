@@ -50,6 +50,37 @@ public interface INotificadorSesionesTiempoReal
         Guid etapaId,
         CancellationToken cancelacion);
 
+    Task NotificarEtapaIniciadaAsync(
+        Guid sesionId,
+        Guid misionId,
+        Guid etapaId,
+        string tipoEtapa,
+        Guid modoDeJuegoId,
+        int ordenGlobal,
+        DateTime fechaInicioEtapaUtc,
+        int duracionSegundos,
+        CancellationToken cancelacion);
+
+    Task NotificarEtapaPorComenzarAsync(
+        Guid sesionId,
+        Guid misionId,
+        Guid etapaId,
+        string tipoEtapa,
+        Guid modoDeJuegoId,
+        int numeroMision,
+        int numeroEtapa,
+        int ordenGlobal,
+        bool esNuevaMision,
+        DateTime fechaInicioProgramadaUtc,
+        int duracionPreparacionSegundos,
+        CancellationToken cancelacion);
+
+    Task NotificarProgresoSecuencialActualizadoAsync(
+        Guid sesionId,
+        Guid participanteIdentidadId,
+        Guid? equipoId,
+        CancellationToken cancelacion);
+
     Task NotificarPistaLiberadaAsync(
         Guid sesionId,
         Guid etapaId,

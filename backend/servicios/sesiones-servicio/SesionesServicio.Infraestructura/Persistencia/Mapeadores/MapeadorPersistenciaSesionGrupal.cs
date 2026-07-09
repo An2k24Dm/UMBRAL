@@ -1,5 +1,6 @@
 using SesionesServicio.Dominio.Entidades;
 using SesionesServicio.Dominio.Enums;
+using SesionesServicio.Dominio.ObjetosValor;
 
 namespace SesionesServicio.Infraestructura.Persistencia.Mapeadores;
 
@@ -7,9 +8,6 @@ public sealed class MapeadorPersistenciaSesionGrupal : IMapeadorPersistenciaSesi
 {
     private static readonly string Tipo = ModoSesion.Grupal.ToString();
 
-    // Respaldo técnico (no regla de dominio) para filas anteriores a la
-    // capacidad configurable, cuyas columnas pudieron quedar nulas. Las
-    // sesiones nuevas siempre persisten su capacidad real.
     private const int CapacidadEquiposHistorica = 5;
     private const int CapacidadParticipantesPorEquipoHistorica = 2;
 
@@ -36,16 +34,17 @@ public sealed class MapeadorPersistenciaSesionGrupal : IMapeadorPersistenciaSesi
             FechaCreacion = e.FechaCreacion
         }).ToList();
 
-        // Los participantes de una sesión grupal viven dentro de sus equipos.
         modelo.Participantes = grupal.Equipos
             .SelectMany(e => e.Participantes)
             .Select(MapeoParticipantePersistencia.HaciaModelo)
             .ToList();
     }
 
-    public Sesion HaciaDominio(SesionModelo modelo, IReadOnlyList<SesionMision> misiones)
+    public Sesion HaciaDominio(
+        SesionModelo modelo,
+        IReadOnlyList<SesionMision> misiones,
+        IReadOnlyList<EjecucionActualSesion> secuenciaEtapas)
     {
-        // Los participantes se enrutan a su equipo por EquipoId.
         var integrantesPorEquipo = modelo.Participantes
             .Where(p => p.EquipoId is not null)
             .GroupBy(p => p.EquipoId!.Value)
@@ -56,8 +55,6 @@ public sealed class MapeadorPersistenciaSesionGrupal : IMapeadorPersistenciaSesi
         var equipos = modelo.Equipos.Select(em =>
         {
             integrantesPorEquipo.TryGetValue(em.Id, out var integrantes);
-            // Respaldo técnico para filas previas a la capacidad por equipo:
-            // si capacidad_maxima quedó en 0, se toma el mínimo de negocio.
             var capacidad = em.CapacidadMaxima > 0
                 ? em.CapacidadMaxima
                 : CapacidadParticipantesPorEquipoHistorica;
@@ -78,6 +75,10 @@ public sealed class MapeadorPersistenciaSesionGrupal : IMapeadorPersistenciaSesi
             modelo.OperadorCreadorId, modelo.FechaCreacion,
             modelo.FechaInicioUtc, modelo.FechaFinalizacionUtc,
             maximoEquipos, maximoParticipantesPorEquipo,
-            misiones, equipos, modelo.DuracionMinutosLimite);
+            misiones,
+            equipos,
+            modelo.DuracionSegundosLimite,
+            MapeadorSesionesPersistencia.MapearEjecucionActual(modelo),
+            secuenciaEtapas);
     }
 }

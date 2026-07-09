@@ -25,7 +25,7 @@ public sealed class CreadorSesionGrupal : ICreadorSesion
         return SesionGrupal.Crear(
             datos.Nombre, datos.Descripcion, datos.FechaProgramada,
             datos.CodigoAcceso, datos.OperadorCreadorId, datos.FechaCreacionUtc,
-            maximoEquipos, maximoParticipantesPorEquipo, datos.DuracionMinutosLimite);
+            maximoEquipos, maximoParticipantesPorEquipo, datos.DuracionSegundosLimite);
     }
 
     public Sesion Reconstruir(DatosReconstruccionSesion datos)
@@ -46,7 +46,8 @@ public sealed class CreadorSesionGrupal : ICreadorSesion
             datos.OperadorCreadorId, datos.FechaCreacionUtc,
             datos.FechaInicioUtc, datos.FechaFinalizacionUtc,
             maximoEquipos, maximoParticipantesPorEquipo,
-            duracionMinutosLimite: datos.DuracionMinutosLimite);
+            duracionSegundosLimite: datos.DuracionSegundosLimite,
+            ejecucionActual: datos.EjecucionActual);
         sesion.AsignarMisiones(datos.MisionesIds);
         return sesion;
     }

@@ -1,12 +1,9 @@
 using SesionesServicio.Aplicacion.Puertos;
+using SesionesServicio.Commons.Dtos;
 using SesionesServicio.Dominio.Excepciones;
 
 namespace SesionesServicio.Aplicacion.Validaciones;
 
-// Validación de aplicación: comprueba que las misiones de una sesión existan,
-// estén activas y tengan etapas. Vive en Aplicación (no en Dominio) porque
-// consulta otro microservicio a través del puerto IClienteJuegosMisiones; su
-// interfaz IValidadorMisionesSesion está en Puertos.
 public sealed class ValidadorMisionesSesion : IValidadorMisionesSesion
 {
     private const string EstadoMisionActiva = "Activa";
@@ -18,21 +15,37 @@ public sealed class ValidadorMisionesSesion : IValidadorMisionesSesion
         _clienteMisiones = clienteMisiones;
     }
 
-    public async Task ValidarAsync(
+    public async Task<ResultadoValidacionMisionesSesion> ValidarYObtenerAsync(
         IReadOnlyList<Guid> misionesIds, CancellationToken cancelacion)
     {
+        var misiones = new List<MisionResumenJuegosDto>();
+        var duracionTotalSegundos = 0;
+
         foreach (var misionId in misionesIds)
         {
             var mision = await _clienteMisiones.ObtenerMisionAsync(misionId, cancelacion);
             if (mision is null)
                 throw new MisionNoEncontradaExcepcion(
-                    $"La misión {misionId} no existe.");
+                    $"La mision {misionId} no existe.");
+
             if (!string.Equals(mision.Estado, EstadoMisionActiva, StringComparison.OrdinalIgnoreCase))
                 throw new MisionNoActivaExcepcion(
-                    $"La misión '{mision.Nombre}' no está activa.");
+                    $"La mision '{mision.Nombre}' no esta activa.");
+
             if (mision.TotalEtapas <= 0)
                 throw new MisionSinEtapasExcepcion(
-                    $"La misión '{mision.Nombre}' no tiene etapas.");
+                    $"La mision '{mision.Nombre}' no tiene etapas.");
+
+            if (mision.TiempoTotalSegundos <= 0)
+                throw new MisionSinEtapasExcepcion(
+                    $"La mision '{mision.Nombre}' no tiene una duracion valida.");
+
+            misiones.Add(mision);
+            duracionTotalSegundos += mision.TiempoTotalSegundos;
         }
+
+        return new ResultadoValidacionMisionesSesion(
+            misiones.AsReadOnly(),
+            duracionTotalSegundos);
     }
 }

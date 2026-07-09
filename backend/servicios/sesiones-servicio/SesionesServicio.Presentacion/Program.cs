@@ -42,7 +42,11 @@ constructor.Services.AddScoped<IPropagadorTokenActual, PropagadorTokenActualHttp
 // HU44 — Mapea cada conexión SignalR al id de usuario del JWT para poder
 // dirigir avisos de expulsión con Clients.User(...).
 constructor.Services.AddSingleton<IUserIdProvider, ProveedorIdUsuarioSignalR>();
-constructor.Services.AddSignalR();
+constructor.Services.AddSignalR(opciones =>
+{
+    opciones.KeepAliveInterval = TimeSpan.FromSeconds(15);
+    opciones.ClientTimeoutInterval = TimeSpan.FromSeconds(60);
+});
 
 constructor.Services.AgregarAplicacion();
 constructor.Services.AgregarInfraestructura(constructor.Configuration);

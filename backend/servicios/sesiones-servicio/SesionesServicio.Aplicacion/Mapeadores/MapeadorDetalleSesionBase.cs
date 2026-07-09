@@ -26,7 +26,8 @@ public abstract class MapeadorDetalleSesionBase : IMapeadorDetalleSesion
             FechaCreacion = sesion.FechaCreacion,
             FechaInicioUtc = sesion.FechaInicioUtc,
             FechaFinalizacionUtc = sesion.FechaFinalizacionUtc,
-            DuracionMinutosLimite = sesion.DuracionMinutosLimite,
+            DuracionSegundosLimite = sesion.DuracionSegundosLimite,
+            EjecucionActual = MapearEjecucionActual(sesion),
             Misiones = sesion.Misiones
                 .OrderBy(m => m.Orden)
                 .Select(m => new SesionMisionDto
@@ -42,4 +43,26 @@ public abstract class MapeadorDetalleSesionBase : IMapeadorDetalleSesion
     }
 
     protected abstract void CompletarEspecifico(Sesion sesion, SesionDetalleDto dto);
+
+    private static EjecucionActualSesionDto? MapearEjecucionActual(Sesion sesion)
+    {
+        var ejecucion = sesion.EjecucionActual;
+        if (ejecucion is null) return null;
+
+        return new EjecucionActualSesionDto
+        {
+            MisionId = ejecucion.MisionId,
+            EtapaId = ejecucion.EtapaId,
+            ModoDeJuegoId = ejecucion.ModoDeJuegoId,
+            TipoEtapa = ejecucion.TipoEtapa,
+            OrdenGlobal = ejecucion.OrdenGlobal,
+            // La ejecución actual nunca está en fase Planificada, por lo que
+            // siempre tiene fecha de inicio real.
+            FechaInicioUtc = ejecucion.FechaInicioUtc ?? default,
+            DuracionSegundos = ejecucion.DuracionSegundos,
+            DuracionPausasAcumuladaMs = ejecucion.DuracionPausasAcumuladaMs,
+            FechaInicioPausaUtc = ejecucion.FechaInicioPausaUtc,
+            SegundosRestantes = ejecucion.CalcularSegundosRestantes(DateTime.UtcNow)
+        };
+    }
 }

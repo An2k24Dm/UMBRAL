@@ -1,116 +1,153 @@
-import { useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
+import { useFocusEffect } from "expo-router";
 import * as signalR from "@microsoft/signalr";
 import { useAutenticacion } from "../autenticacion/ContextoAutenticacion";
 import {
   crearConexionSesionesTiempoReal,
   esErrorNoAutenticadoTiempoReal,
+  registrarEventoConexionSesionesTiempoReal,
+  registrarAccesoGrupoRechazadoDev,
 } from "../servicios/sesionesTiempoReal";
 
 interface OpcionesUseListadoSesionesTiempoReal {
   onListadoActualizado: () => void | Promise<void>;
+  activo?: boolean;
 }
 
-// Mantiene el listado móvil de sesiones disponibles sincronizado en vivo: se
-// une al grupo de listado del hub y refresca cuando el backend emite
-// "SesionActualizada" (cambio de estado o de conteo por ingreso/abandono/
-// equipos). Si SignalR no conecta, el listado sigue funcionando por HTTP con
-// el refresco manual (pull-to-refresh) como respaldo.
+// Mantiene el listado movil de sesiones disponibles sincronizado en vivo: se
+// une al grupo general y refresca por HTTP cuando llegan cambios.
 export function useListadoSesionesTiempoReal({
   onListadoActualizado,
+  activo = true,
 }: OpcionesUseListadoSesionesTiempoReal) {
   const { sesion, cargandoSesion, estaAutenticado, cerrarSesion } =
     useAutenticacion();
   const token = sesion?.tokenAcceso ?? null;
+  const onListadoActualizadoRef = useRef(onListadoActualizado);
 
   useEffect(() => {
-    if (cargandoSesion || !token || !estaAutenticado) return;
+    onListadoActualizadoRef.current = onListadoActualizado;
+  }, [onListadoActualizado]);
 
-    let desmontado = false;
-    let invalidandoSesion = false;
-    const conexion = crearConexionSesionesTiempoReal(token);
-
-    const manejarErrorConexion = async (error: unknown) => {
-      if (desmontado || invalidandoSesion || !esErrorNoAutenticadoTiempoReal(error)) {
-        return;
+  useFocusEffect(
+    useCallback(() => {
+      if (!activo || cargandoSesion || !token || !estaAutenticado) {
+        return undefined;
       }
-      invalidandoSesion = true;
-      await cerrarSesion();
-    };
 
-    const manejarListado = () => {
-      if (__DEV__) {
-        console.log("[SignalR Movil Listado] SesionActualizada recibida");
-        console.log("[SignalR Movil Listado] refrescando listado");
-      }
-      void onListadoActualizado();
-    };
+      let desmontado = false;
+      let invalidandoSesion = false;
+      let cerrando = false;
+      let cierreRegistrado = false;
+      let inicioPromise: Promise<void> | null = null;
+      const conexion = crearConexionSesionesTiempoReal(token, "Listado");
 
-    conexion.on("SesionActualizada", manejarListado);
+      const logDev = (mensaje: string) => {
+        registrarEventoConexionSesionesTiempoReal(conexion, mensaje);
+      };
 
-    conexion.onreconnected(async () => {
-      if (desmontado) {
-        await conexion.stop().catch(() => undefined);
-        return;
-      }
-      if (__DEV__) {
-        console.log("[SignalR Movil Listado] reconectado");
-      }
-      await conexion
-        .invoke("UnirseAListadoSesiones")
-        .then(() => {
-          if (__DEV__) {
-            console.log("[SignalR Movil Listado] unido al listado movil");
-            console.log("[SignalR Movil Listado] refrescando listado");
-          }
-          return onListadoActualizado();
-        })
-        .catch((error: unknown) => manejarErrorConexion(error));
-    });
+      const registrarCerrado = () => {
+        if (cierreRegistrado) return;
+        cierreRegistrado = true;
+        logDev("cerrado");
+      };
 
-    conexion.onreconnecting((error) => {
-      void manejarErrorConexion(error);
-    });
+      const manejarErrorConexion = async (error: unknown) => {
+        if (desmontado || invalidandoSesion || !error) return;
 
-    conexion.onclose((error) => {
-      void manejarErrorConexion(error);
-    });
-
-    conexion
-      .start()
-      .then(async () => {
-        if (__DEV__) {
-          console.log("[SignalR Movil Listado] conexion SignalR movil creada");
+        if (!esErrorNoAutenticadoTiempoReal(error)) {
+          registrarAccesoGrupoRechazadoDev(error);
+          return;
         }
+
+        invalidandoSesion = true;
+        await cerrarSesion();
+      };
+
+      const unirseAListado = async () => {
+        if (desmontado) return;
+        try {
+          await conexion.invoke("UnirseAListadoSesiones");
+          logDev("unido a listado");
+        } catch (error: unknown) {
+          await manejarErrorConexion(error);
+        }
+      };
+
+      const manejarListado = () => {
+        void onListadoActualizadoRef.current();
+      };
+
+      conexion.on("SesionActualizada", manejarListado);
+
+      conexion.onreconnecting((error) => {
+        logDev("reconectando");
+        void manejarErrorConexion(error);
+      });
+
+      conexion.onreconnected(async () => {
         if (desmontado) {
           await conexion.stop().catch(() => undefined);
           return;
         }
-        await conexion
-          .invoke("UnirseAListadoSesiones")
-          .then(() => {
-            if (__DEV__) {
-              console.log("[SignalR Movil Listado] unido al listado movil");
-            }
-          })
-          .catch((error: unknown) => manejarErrorConexion(error));
-      })
-      .catch((error: unknown) => {
-        void manejarErrorConexion(error);
-        // Sin pantalla roja en Expo: el listado sigue por HTTP.
+        logDev("reconectado");
+        await unirseAListado();
+        if (!desmontado) {
+          void onListadoActualizadoRef.current();
+        }
       });
 
-    return () => {
-      desmontado = true;
-      conexion.off("SesionActualizada", manejarListado);
+      conexion.onclose((error) => {
+        registrarCerrado();
+        void manejarErrorConexion(error);
+      });
 
-      if (conexion.state === signalR.HubConnectionState.Connected) {
-        conexion
-          .invoke("SalirDeListadoSesiones")
-          .catch(() => undefined)
-          .finally(() => {
-            conexion.stop().catch(() => undefined);
-          });
-      }
-    };
-  }, [token, cargandoSesion, estaAutenticado, cerrarSesion, onListadoActualizado]);
+      const cerrarConexion = async () => {
+        if (cerrando) return;
+        cerrando = true;
+        logDev("cerrando");
+
+        await inicioPromise?.catch(() => undefined);
+
+        if (conexion.state === signalR.HubConnectionState.Connected) {
+          await conexion
+            .invoke("SalirDeListadoSesiones")
+            .catch(() => undefined);
+        }
+
+        if (conexion.state !== signalR.HubConnectionState.Disconnected) {
+          await conexion.stop().catch(() => undefined);
+        }
+
+        if (conexion.state === signalR.HubConnectionState.Disconnected) {
+          registrarCerrado();
+        }
+      };
+
+      inicioPromise = conexion.start();
+      void inicioPromise
+        .then(async () => {
+          logDev("conectado");
+          if (desmontado) {
+            await cerrarConexion();
+            return;
+          }
+          await unirseAListado();
+        })
+        .catch((error: unknown) => {
+          if (desmontado) return;
+          void manejarErrorConexion(error);
+        });
+
+      const limpiar = async () => {
+        conexion.off("SesionActualizada", manejarListado);
+        await cerrarConexion();
+      };
+
+      return () => {
+        desmontado = true;
+        void limpiar();
+      };
+    }, [activo, token, cargandoSesion, estaAutenticado, cerrarSesion]),
+  );
 }

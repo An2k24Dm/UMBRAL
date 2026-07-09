@@ -1,28 +1,31 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using SesionesServicio.Aplicacion.Procesos.FinalizacionSesionesPorTiempo;
+using Microsoft.Extensions.Options;
+using SesionesServicio.Aplicacion.Puertos;
+using SesionesServicio.Infraestructura.Configuraciones;
 
 namespace SesionesServicio.Infraestructura.ServiciosEnSegundoPlano;
 
-public sealed class ServicioFinalizacionSesionesPorTiempo : BackgroundService
+public sealed class ServicioVencimientoEtapasPorTiempo : BackgroundService
 {
-    private static readonly TimeSpan Intervalo = TimeSpan.FromSeconds(30);
-
     private readonly IServiceScopeFactory _fabricaAlcances;
-    private readonly ILogger<ServicioFinalizacionSesionesPorTiempo> _registro;
+    private readonly IOptionsMonitor<OpcionesVencimientoEtapas> _opciones;
+    private readonly ILogger<ServicioVencimientoEtapasPorTiempo> _registro;
 
-    public ServicioFinalizacionSesionesPorTiempo(
+    public ServicioVencimientoEtapasPorTiempo(
         IServiceScopeFactory fabricaAlcances,
-        ILogger<ServicioFinalizacionSesionesPorTiempo> registro)
+        IOptionsMonitor<OpcionesVencimientoEtapas> opciones,
+        ILogger<ServicioVencimientoEtapasPorTiempo> registro)
     {
         _fabricaAlcances = fabricaAlcances;
+        _opciones = opciones;
         _registro = registro;
     }
 
     protected override async Task ExecuteAsync(CancellationToken cancelacion)
     {
-        _registro.LogInformation("ServicioFinalizacionSesionesPorTiempo iniciado.");
+        _registro.LogInformation("ServicioVencimientoEtapasPorTiempo iniciado.");
 
         while (!cancelacion.IsCancellationRequested)
         {
@@ -30,7 +33,7 @@ public sealed class ServicioFinalizacionSesionesPorTiempo : BackgroundService
             {
                 await using var alcance = _fabricaAlcances.CreateAsyncScope();
                 var procesador = alcance.ServiceProvider
-                    .GetRequiredService<ProcesadorFinalizacionSesionesPorTiempo>();
+                    .GetRequiredService<IProcesadorVencimientosEtapas>();
                 await procesador.EjecutarCicloAsync(cancelacion);
             }
             catch (OperationCanceledException)
@@ -40,12 +43,13 @@ public sealed class ServicioFinalizacionSesionesPorTiempo : BackgroundService
             catch (Exception ex)
             {
                 _registro.LogError(ex,
-                    "Error no controlado en el ciclo de finalización de sesiones por tiempo.");
+                    "Error no controlado en el ciclo de vencimiento de etapas.");
             }
 
+            var segundos = Math.Max(1, _opciones.CurrentValue.IntervaloVencimientoSegundos);
             try
             {
-                await Task.Delay(Intervalo, cancelacion);
+                await Task.Delay(TimeSpan.FromSeconds(segundos), cancelacion);
             }
             catch (OperationCanceledException)
             {
@@ -53,6 +57,6 @@ public sealed class ServicioFinalizacionSesionesPorTiempo : BackgroundService
             }
         }
 
-        _registro.LogInformation("ServicioFinalizacionSesionesPorTiempo detenido.");
+        _registro.LogInformation("ServicioVencimientoEtapasPorTiempo detenido.");
     }
 }

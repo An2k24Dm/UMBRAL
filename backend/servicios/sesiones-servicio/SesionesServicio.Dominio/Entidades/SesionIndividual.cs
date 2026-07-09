@@ -1,5 +1,6 @@
 using SesionesServicio.Dominio.Enums;
 using SesionesServicio.Dominio.Excepciones;
+using SesionesServicio.Dominio.ObjetosValor;
 using SesionesServicio.Dominio.Politicas;
 
 namespace SesionesServicio.Dominio.Entidades;
@@ -17,7 +18,7 @@ public sealed class SesionIndividual : Sesion
     public static SesionIndividual Crear(
         string nombre, string descripcion, DateTime fechaProgramada,
         string codigoAcceso, Guid operadorCreadorId, DateTime fechaCreacionUtc,
-        int maximoParticipantes, int? duracionMinutosLimite = null)
+        int maximoParticipantes, int? duracionSegundosLimite = null)
     {
         PoliticaCapacidadSesion.ValidarCapacidadIndividual(maximoParticipantes);
 
@@ -25,7 +26,7 @@ public sealed class SesionIndividual : Sesion
         sesion.InicializarBase(nombre, descripcion, fechaProgramada,
             codigoAcceso, operadorCreadorId, fechaCreacionUtc);
         sesion.MaximoParticipantes = maximoParticipantes;
-        sesion.DuracionMinutosLimite = duracionMinutosLimite;
+        sesion.DuracionSegundosLimite = duracionSegundosLimite;
         return sesion;
     }
 
@@ -107,14 +108,21 @@ public sealed class SesionIndividual : Sesion
         int maximoParticipantes,
         IEnumerable<SesionMision>? misiones = null,
         IEnumerable<Participante>? participantes = null,
-        int? duracionMinutosLimite = null)
+        int? duracionSegundosLimite = null,
+        EjecucionActualSesion? ejecucionActual = null,
+        IEnumerable<EjecucionActualSesion>? secuenciaEtapas = null)
     {
         var sesion = new SesionIndividual();
         sesion.EstablecerDatosBase(
             id, nombre, descripcion, estado,
             fechaProgramada, codigoAcceso,
             operadorCreadorId, fechaCreacion,
-            fechaInicioUtc, fechaFinalizacionUtc, misiones, duracionMinutosLimite);
+            fechaInicioUtc,
+            fechaFinalizacionUtc,
+            misiones,
+            duracionSegundosLimite,
+            ejecucionActual,
+            secuenciaEtapas);
         sesion.MaximoParticipantes = maximoParticipantes;
         if (participantes is not null) sesion._participantes.AddRange(participantes);
         return sesion;

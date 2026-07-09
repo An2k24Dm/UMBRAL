@@ -750,7 +750,6 @@ export function PaginaDetalleSesion() {
                   <th>Alias</th>
                   <th>Nombre</th>
                   <th>Apellido</th>
-                  <th>Puntaje individual</th>
                   <th>Fecha de unión</th>
                   {puedeExpulsar && <th>Acciones</th>}
                 </tr>
@@ -762,7 +761,6 @@ export function PaginaDetalleSesion() {
                     <td>{p.alias || '—'}</td>
                     <td>{p.nombre || '—'}</td>
                     <td>{p.apellido || '—'}</td>
-                    <td>{p.puntaje}</td>
                     <td>{formatearFechaSesion(p.fechaUnion)}</td>
                     {puedeExpulsar && (
                       <td>
@@ -1152,20 +1150,6 @@ function BloqueBusqueda({
           }}>
             {busqueda.codigoQr}
           </code>
-          <button
-            type="button"
-            style={{
-              fontSize: '0.8rem',
-              padding: '4px 12px',
-              cursor: 'pointer',
-              borderRadius: 4,
-              border: '1px solid var(--color-borde-tarjeta)',
-              background: 'transparent'
-            }}
-            onClick={() => window.print()}
-          >
-            Imprimir QR
-          </button>
         </div>
       )}
 

@@ -24,6 +24,10 @@ export interface EvidenciaTesoroResultado {
   esValida: boolean;
   puntosGanados: number;
   etapaCompletada: boolean;
+  // Presente solo cuando el backend responde 409 (etapa ya completada):
+  // "equipo"     → otro integrante del equipo encontró el tesoro primero (grupal).
+  // "individual" → el propio participante ya completó la etapa.
+  conflicto?: "equipo" | "individual";
 }
 
 export async function obtenerBusquedaConPistas(
@@ -89,8 +93,12 @@ export async function enviarEvidenciaTesoro(
   );
 
   if (respuesta.status === 409) {
-    // Ya envió evidencia — idempotente: se trata como completado sin puntos nuevos.
-    return { esValida: false, puntosGanados: 0, etapaCompletada: false };
+    // La etapa ya estaba completada. Distinguimos si fue el equipo (grupal) o el
+    // propio participante para mostrar el mensaje correcto (no "código incorrecto").
+    const cuerpo = await leerCuerpoError(respuesta);
+    const conflicto: "equipo" | "individual" =
+      cuerpo?.codigo === "EQUIPO_YA_COMPLETO_ETAPA" ? "equipo" : "individual";
+    return { esValida: false, puntosGanados: 0, etapaCompletada: false, conflicto };
   }
 
   if (!respuesta.ok) {

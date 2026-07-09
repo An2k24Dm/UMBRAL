@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using SesionesServicio.Aplicacion.Consultas.ListarSesionesDisponiblesParticipante;
 using SesionesServicio.Aplicacion.Consultas.ObtenerDetalleSesionDisponibleParticipante;
 using SesionesServicio.Aplicacion.Consultas.ObtenerMisParticipaciones;
+using SesionesServicio.Aplicacion.Consultas.ObtenerProgresoSecuencialSesion;
 using SesionesServicio.Aplicacion.Consultas.ObtenerProgresoSesion;
 using SesionesServicio.Commons.Dtos;
 
@@ -63,6 +64,19 @@ public sealed class SesionesParticipanteControlador : ControllerBase
     {
         var resultado = await _mediador.Send(
             new ObtenerProgresoSesionConsulta(sesionId), cancelacion);
+        return Ok(resultado);
+    }
+
+    // GET /api/sesiones/participante/disponibles/{sesionId}/progreso-secuencial
+    [HttpGet("{sesionId:guid}/progreso-secuencial")]
+    [ProducesResponseType(typeof(ProgresoSecuencialSesionDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> ObtenerProgresoSecuencialSesion(
+        Guid sesionId, CancellationToken cancelacion)
+    {
+        var resultado = await _mediador.Send(
+            new ObtenerProgresoSecuencialSesionConsulta(sesionId), cancelacion);
         return Ok(resultado);
     }
 

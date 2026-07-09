@@ -22,7 +22,7 @@ public sealed class CreadorSesionIndividual : ICreadorSesion
         return SesionIndividual.Crear(
             datos.Nombre, datos.Descripcion, datos.FechaProgramada,
             datos.CodigoAcceso, datos.OperadorCreadorId, datos.FechaCreacionUtc,
-            maximoParticipantes, datos.DuracionMinutosLimite);
+            maximoParticipantes, datos.DuracionSegundosLimite);
     }
 
     public Sesion Reconstruir(DatosReconstruccionSesion datos)
@@ -39,7 +39,9 @@ public sealed class CreadorSesionIndividual : ICreadorSesion
             datos.FechaProgramada, datos.CodigoAcceso,
             datos.OperadorCreadorId, datos.FechaCreacionUtc,
             datos.FechaInicioUtc, datos.FechaFinalizacionUtc,
-            maximoParticipantes, duracionMinutosLimite: datos.DuracionMinutosLimite);
+            maximoParticipantes,
+            duracionSegundosLimite: datos.DuracionSegundosLimite,
+            ejecucionActual: datos.EjecucionActual);
         sesion.AsignarMisiones(datos.MisionesIds);
         return sesion;
     }

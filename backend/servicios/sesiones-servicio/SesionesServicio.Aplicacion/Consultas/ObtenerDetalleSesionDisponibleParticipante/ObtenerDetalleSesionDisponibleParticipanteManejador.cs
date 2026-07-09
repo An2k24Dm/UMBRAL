@@ -59,7 +59,8 @@ public sealed class ObtenerDetalleSesionDisponibleParticipanteManejador
             Estado = sesion.Estado.ToString(),
             FechaProgramada = sesion.FechaProgramada,
             FechaInicioUtc = sesion.FechaInicioUtc,
-            DuracionMinutosLimite = sesion.DuracionMinutosLimite,
+            DuracionSegundosLimite = sesion.DuracionSegundosLimite,
+            EjecucionActual = MapearEjecucionActual(sesion),
             CodigoAcceso = sesion.CodigoAcceso,
             ParticipacionActual = CalcularParticipacion(sesion)
         };
@@ -169,5 +170,27 @@ public sealed class ObtenerDetalleSesionDisponibleParticipanteManejador
         }
 
         return new ParticipacionActualDto { EstaInscrito = false };
+    }
+
+    private static EjecucionActualSesionDto? MapearEjecucionActual(Sesion sesion)
+    {
+        var ejecucion = sesion.EjecucionActual;
+        if (ejecucion is null) return null;
+
+        return new EjecucionActualSesionDto
+        {
+            MisionId = ejecucion.MisionId,
+            EtapaId = ejecucion.EtapaId,
+            ModoDeJuegoId = ejecucion.ModoDeJuegoId,
+            TipoEtapa = ejecucion.TipoEtapa,
+            OrdenGlobal = ejecucion.OrdenGlobal,
+            // La ejecución actual nunca está en fase Planificada: siempre tiene
+            // fecha de inicio real.
+            FechaInicioUtc = ejecucion.FechaInicioUtc ?? default,
+            DuracionSegundos = ejecucion.DuracionSegundos,
+            DuracionPausasAcumuladaMs = ejecucion.DuracionPausasAcumuladaMs,
+            FechaInicioPausaUtc = ejecucion.FechaInicioPausaUtc,
+            SegundosRestantes = ejecucion.CalcularSegundosRestantes(DateTime.UtcNow)
+        };
     }
 }

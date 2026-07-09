@@ -103,6 +103,17 @@ public sealed class RepositorioSesiones : IRepositorioSesiones, IConsultasSesion
         return modelo is null ? null : _mapeador.HaciaDominio(modelo);
     }
 
+    public async Task<Sesion?> ObtenerPorEquipoIdAsync(Guid equipoId, CancellationToken cancelacion)
+    {
+        var modelo = await _contexto.Sesiones
+            .AsNoTracking()
+            .Include(s => s.Misiones)
+            .Include(s => s.Equipos)
+            .Include(s => s.Participantes)
+            .FirstOrDefaultAsync(s => s.Equipos.Any(e => e.Id == equipoId), cancelacion);
+        return modelo is null ? null : _mapeador.HaciaDominio(modelo);
+    }
+
     public async Task<IReadOnlyList<Sesion>> ListarAsync(
         EstadoSesion? estado, Guid? operadorCreadorId, CancellationToken cancelacion)
     {
@@ -140,7 +151,7 @@ public sealed class RepositorioSesiones : IRepositorioSesiones, IConsultasSesion
         return modelos.Select(_mapeador.HaciaDominio).ToList();
     }
 
-    public async Task<IReadOnlyList<Sesion>> ListarActivasConTiempoVencidoAsync(
+    public async Task<IReadOnlyList<Sesion>> ListarActivasConEtapaVencidaAsync(
         DateTime ahoraUtc, CancellationToken cancelacion)
     {
         var candidatas = await _contexto.Sesiones
@@ -148,14 +159,52 @@ public sealed class RepositorioSesiones : IRepositorioSesiones, IConsultasSesion
             .Include(s => s.Misiones)
             .Include(s => s.Equipos)
             .Include(s => s.Participantes)
-            .Where(s => s.Estado == EstadoSesion.Activa
-                        && s.DuracionMinutosLimite != null
-                        && s.FechaInicioUtc != null)
+            .Where(s => s.Estado == EstadoSesion.Activa)
             .ToListAsync(cancelacion);
 
         return candidatas
-            .Where(s => s.FechaInicioUtc!.Value.AddMinutes(s.DuracionMinutosLimite!.Value) <= ahoraUtc)
             .Select(_mapeador.HaciaDominio)
+            .Where(s => s.EjecucionActual is not null
+                        && s.EjecucionActual.EstaActiva
+                        && s.EjecucionActual.CalcularSegundosRestantes(ahoraUtc) <= 0)
+            .ToList();
+    }
+
+    public async Task<IReadOnlyList<Sesion>> ListarActivasConPreparacionVencidaAsync(
+        DateTime ahoraUtc, CancellationToken cancelacion)
+    {
+        var candidatas = await _contexto.Sesiones
+            .AsNoTracking()
+            .Include(s => s.Misiones)
+            .Include(s => s.Equipos)
+            .Include(s => s.Participantes)
+            .Where(s => s.Estado == EstadoSesion.Activa)
+            .ToListAsync(cancelacion);
+
+        return candidatas
+            .Select(_mapeador.HaciaDominio)
+            .Where(s => s.EjecucionActual is not null
+                        && s.EjecucionActual.EstaEnPreparacion
+                        && s.EjecucionActual.PreparacionVencida(ahoraUtc))
+            .ToList();
+    }
+
+    public async Task<IReadOnlyList<Sesion>> ListarActivasConCierrePendienteVencidoAsync(
+        DateTime ahoraUtc, CancellationToken cancelacion)
+    {
+        var candidatas = await _contexto.Sesiones
+            .AsNoTracking()
+            .Include(s => s.Misiones)
+            .Include(s => s.Equipos)
+            .Include(s => s.Participantes)
+            .Where(s => s.Estado == EstadoSesion.Activa)
+            .ToListAsync(cancelacion);
+
+        return candidatas
+            .Select(_mapeador.HaciaDominio)
+            .Where(s => s.EjecucionActual is not null
+                        && s.EjecucionActual.EstaEnCierrePendiente
+                        && s.EjecucionActual.CierrePendienteVencido(ahoraUtc))
             .ToList();
     }
 

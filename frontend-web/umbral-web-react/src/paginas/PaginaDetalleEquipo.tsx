@@ -175,10 +175,6 @@ export function PaginaDetalleEquipo() {
             </span>
           </div>
           <div className="detalle-campo">
-            <span className="detalle-campo-etiqueta">Puntaje total</span>
-            <span className="detalle-campo-valor">{equipo.puntaje}</span>
-          </div>
-          <div className="detalle-campo">
             <span className="detalle-campo-etiqueta">Integrantes</span>
             <span className="detalle-campo-valor">
               {equipo.cantidadParticipantes} / {equipo.capacidadMaxima}
@@ -209,7 +205,6 @@ export function PaginaDetalleEquipo() {
                 <th>Alias</th>
                 <th>Nombre</th>
                 <th>Apellido</th>
-                <th>Puntaje individual</th>
                 <th>Fecha de unión</th>
                 <th>Rol</th>
                 {puedeExpulsar && <th>Acciones</th>}
@@ -222,7 +217,6 @@ export function PaginaDetalleEquipo() {
                   <td><strong>{p.alias}</strong></td>
                   <td>{p.nombre || '—'}</td>
                   <td>{p.apellido || '—'}</td>
-                  <td>{p.puntaje}</td>
                   <td>{formatearFechaSesion(p.fechaUnion)}</td>
                   <td>
                     <span className={`badge ${p.esLider ? 'badge-equipo-lider' : 'badge-neutro'}`}>

@@ -52,18 +52,18 @@ public class CrearSesionManejadorPruebas
 
             Misiones.Setup(c => c.ObtenerMisionAsync(MisionA, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new MisionResumenJuegosDto
-                { Id = MisionA, Nombre = "A", Estado = "Activa", TotalEtapas = 2 });
+                { Id = MisionA, Nombre = "A", Estado = "Activa", TotalEtapas = 2, TiempoTotalSegundos = 125 });
             Misiones.Setup(c => c.ObtenerMisionAsync(MisionB, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new MisionResumenJuegosDto
-                { Id = MisionB, Nombre = "B", Estado = "Activa", TotalEtapas = 1 });
+                { Id = MisionB, Nombre = "B", Estado = "Activa", TotalEtapas = 1, TiempoTotalSegundos = 60 });
             Misiones.Setup(c => c.ObtenerMisionAsync(MisionInactiva, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new MisionResumenJuegosDto
-                { Id = MisionInactiva, Nombre = "Inactiva", Estado = "Inactiva", TotalEtapas = 2 });
+                { Id = MisionInactiva, Nombre = "Inactiva", Estado = "Inactiva", TotalEtapas = 2, TiempoTotalSegundos = 60 });
             Misiones.Setup(c => c.ObtenerMisionAsync(MisionInexistente, It.IsAny<CancellationToken>()))
                 .ReturnsAsync((MisionResumenJuegosDto?)null);
             Misiones.Setup(c => c.ObtenerMisionAsync(MisionSinEtapas, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new MisionResumenJuegosDto
-                { Id = MisionSinEtapas, Nombre = "Vacía", Estado = "Activa", TotalEtapas = 0 });
+                { Id = MisionSinEtapas, Nombre = "Vacía", Estado = "Activa", TotalEtapas = 0, TiempoTotalSegundos = 60 });
         }
 
         // Se usa la fábrica real con sus creadores de dominio: son piezas
@@ -187,7 +187,7 @@ public class CrearSesionManejadorPruebas
         var ctx = new Contexto();
         ctx.Misiones.Setup(c => c.ObtenerMisionAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((Guid id, CancellationToken _) => new MisionResumenJuegosDto
-            { Id = id, Nombre = id.ToString(), Estado = "Activa", TotalEtapas = 1 });
+            { Id = id, Nombre = id.ToString(), Estado = "Activa", TotalEtapas = 1, TiempoTotalSegundos = 30 });
         var manejador = ctx.Construir();
         var cinco = Enumerable.Range(0, 5).Select(_ => Guid.NewGuid()).ToList();
 
@@ -195,6 +195,19 @@ public class CrearSesionManejadorPruebas
             new CrearSesionComando(DtoValido("Individual", cinco)), CancellationToken.None);
 
         respuesta.MisionesIds.Should().Equal(cinco);
+    }
+
+    [Fact]
+    public async Task Operador_CreaSesion_CalculaDuracionDesdeMisiones()
+    {
+        var ctx = new Contexto();
+        var dto = DtoValido("Individual", new List<Guid> { MisionA, MisionB });
+
+        await ctx.Construir().Handle(new CrearSesionComando(dto), CancellationToken.None);
+
+        ctx.Persistida!.DuracionSegundosLimite.Should().Be(185);
+        ctx.Misiones.Verify(c => c.ObtenerMisionAsync(
+            It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
     }
 
     [Fact]

@@ -4,7 +4,7 @@ using SesionesServicio.Dominio.Enums;
 
 namespace SesionesServicio.Aplicacion.Procesos.PreparacionSesiones;
 
-public sealed class ProcesadorPreparacionSesiones
+public sealed class ProcesadorPreparacionSesiones : IProcesadorPreparacionSesiones
 {
     private readonly IConsultasSesiones _consultas;
     private readonly IRepositorioSesiones _repositorio;
@@ -90,6 +90,12 @@ public sealed class ProcesadorPreparacionSesiones
 
         return new ResultadoCiclo(candidatas.Count, preparadas);
     }
+
+    // Implementación del puerto: el worker solo dispara el ciclo y no necesita el
+    // detalle (Encontradas/Preparadas), que sí consultan las pruebas al invocar
+    // directamente el método concreto.
+    Task IProcesadorPreparacionSesiones.EjecutarCicloAsync(CancellationToken cancelacion)
+        => EjecutarCicloAsync(cancelacion);
 
     public readonly record struct ResultadoCiclo(int Encontradas, int Preparadas);
 }

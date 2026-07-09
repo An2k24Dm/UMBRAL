@@ -2,9 +2,6 @@ using SesionesServicio.Dominio.Enums;
 
 namespace SesionesServicio.Infraestructura.Persistencia;
 
-// Modelo de persistencia raíz. Una sola tabla Sesion con la columna
-// `tipo_sesion` como discriminador ("Individual" / "Grupal"). El
-// mapeador construye la subclase de dominio adecuada al rehidratar.
 public sealed class SesionModelo
 {
     public Guid Id { get; set; }
@@ -21,8 +18,23 @@ public sealed class SesionModelo
     public int? MaximoParticipantes { get; set; }
     public int? MaximoEquipos { get; set; }
     public int? MaximoParticipantesPorEquipo { get; set; }
-    public int? DuracionMinutosLimite { get; set; }
-
+    public int? DuracionSegundosLimite { get; set; }
+    public Guid? EjecucionActualMisionId { get; set; }
+    public Guid? EjecucionActualEtapaId { get; set; }
+    public Guid? EjecucionActualModoDeJuegoId { get; set; }
+    public string? EjecucionActualTipoEtapa { get; set; }
+    public int? EjecucionActualOrdenGlobal { get; set; }
+    public int? EjecucionActualOrdenMision { get; set; }
+    public int? EjecucionActualOrdenEtapa { get; set; }
+    public int? EjecucionActualFase { get; set; }
+    public int? EjecucionActualDuracionPreparacionSegundos { get; set; }
+    public DateTime? EjecucionActualFechaInicioUtc { get; set; }
+    public int? EjecucionActualDuracionSegundos { get; set; }
+    public long? EjecucionActualDuracionPausasAcumuladaMs { get; set; }
+    public DateTime? EjecucionActualFechaInicioPausaUtc { get; set; }
+    // Plan global de etapas de la sesión serializado como JSON (ver
+    // EtapaPlanificadaSesion). Null hasta que la sesión inicia.
+    public string? SecuenciaEtapasJson { get; set; }
     public List<SesionMisionModelo> Misiones { get; set; } = new();
     public List<EquipoModelo> Equipos { get; set; } = new();
     public List<ParticipanteModelo> Participantes { get; set; } = new();
@@ -50,8 +62,6 @@ public sealed class EquipoModelo
     public DateTime FechaCreacion { get; set; }
 }
 
-// Tabla unificada Participante: cubre tanto al participante individual
-// (EquipoId = null) como al integrante de un equipo (EquipoId con valor).
 public sealed class ParticipanteModelo
 {
     public Guid Id { get; set; }
@@ -63,8 +73,6 @@ public sealed class ParticipanteModelo
     public DateTime? FechaUnionEquipo { get; set; }
 }
 
-// Registra qué etapas han sido completadas (todos los participantes) en una sesión.
-// Se usa para detectar cuándo la sesión debe finalizarse automáticamente.
 public sealed class EtapaCompletadaModelo
 {
     public Guid SesionId { get; set; }
@@ -72,9 +80,6 @@ public sealed class EtapaCompletadaModelo
     public DateTime FechaCompletadaUtc { get; set; }
 }
 
-// Registro de cada respuesta enviada durante el juego de trivia.
-// Clave lógica (sesion_id, etapa_id, pregunta_id, participante_identidad_id)
-// garantiza que cada jugador solo responde una vez por pregunta.
 public sealed class RespuestaTriviaModelo
 {
     public Guid Id { get; set; }
@@ -83,7 +88,7 @@ public sealed class RespuestaTriviaModelo
     public Guid EtapaId { get; set; }
     public Guid TriviaId { get; set; }
     public Guid PreguntaId { get; set; }
-    public Guid OpcionSeleccionadaId { get; set; }
+    public Guid? OpcionSeleccionadaId { get; set; }
     public Guid ParticipanteIdentidadId { get; set; }
     public Guid? EquipoId { get; set; }
     public bool EsCorrecta { get; set; }

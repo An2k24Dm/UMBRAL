@@ -1,9 +1,11 @@
 using MediatR;
+using SesionesServicio.Aplicacion.Excepciones;
 using SesionesServicio.Aplicacion.Puertos;
 using SesionesServicio.Commons.Dtos;
 using SesionesServicio.Dominio.Abstract;
 using SesionesServicio.Dominio.Entidades;
 using SesionesServicio.Dominio.Enums;
+using SesionesServicio.Dominio.Excepciones;
 
 namespace SesionesServicio.Aplicacion.Comandos.EnviarEvidenciaTesoro;
 
@@ -16,6 +18,7 @@ public sealed class EnviarEvidenciaTesoroManejador
     private readonly IRepositorioEvidenciasTesoro _repositorioEvidencias;
     private readonly INotificadorSesionesTiempoReal _notificador;
     private readonly IServicioFinalizacionSesion _servicioFinalizacion;
+    private readonly IServicioProgresoSecuencialSesion _servicioProgresoSecuencial;
 
     public EnviarEvidenciaTesoroManejador(
         IUsuarioActual usuario,
@@ -23,7 +26,8 @@ public sealed class EnviarEvidenciaTesoroManejador
         IClienteBusquedaTesoro clienteTesoro,
         IRepositorioEvidenciasTesoro repositorioEvidencias,
         INotificadorSesionesTiempoReal notificador,
-        IServicioFinalizacionSesion servicioFinalizacion)
+        IServicioFinalizacionSesion servicioFinalizacion,
+        IServicioProgresoSecuencialSesion servicioProgresoSecuencial)
     {
         _usuario = usuario;
         _repositorioSesiones = repositorioSesiones;
@@ -31,6 +35,7 @@ public sealed class EnviarEvidenciaTesoroManejador
         _repositorioEvidencias = repositorioEvidencias;
         _notificador = notificador;
         _servicioFinalizacion = servicioFinalizacion;
+        _servicioProgresoSecuencial = servicioProgresoSecuencial;
     }
 
     public async Task<EvidenciaTesoroRespuestaDto> Handle(
@@ -40,28 +45,36 @@ public sealed class EnviarEvidenciaTesoroManejador
             ?? throw new UnauthorizedAccessException("Usuario no autenticado.");
 
         var sesion = await _repositorioSesiones.ObtenerPorIdAsync(comando.SesionId, cancelacion)
-            ?? throw new InvalidOperationException("Sesión no encontrada.");
+            ?? throw new SesionNoEncontradaExcepcion("La sesion solicitada no existe.");
 
-        // STATE PATTERN: el sistema bloquea el envío si el estado de la sesión no es Activa.
         if (sesion.Estado != EstadoSesion.Activa)
-            throw new InvalidOperationException($"La sesión no está activa. Estado actual: {sesion.Estado}.");
+            throw new OperacionSesionInvalidaExcepcion(
+                $"La sesion no esta activa. Estado actual: {sesion.Estado}.");
 
-        // Verificar que el participante está inscrito en la sesión.
-        var totalJugadores = ObtenerTotalJugadores(sesion, participanteId);
+        var (equipoId, totalJugadoresEsperados) = ObtenerJugador(sesion, participanteId);
 
-        // Idempotencia: no permitir enviar evidencia si ya envió una (válida o no).
-        var yaEnvio = await _repositorioEvidencias.ExisteEvidenciaAsync(
-            comando.SesionId, comando.EtapaId, participanteId, cancelacion);
-        if (yaEnvio)
-            throw new InvalidOperationException("Ya enviaste una evidencia para esta etapa.");
+        await _servicioProgresoSecuencial.ValidarEtapaActualAsync(
+            sesion,
+            participanteId,
+            comando.MisionId,
+            comando.EtapaId,
+            "BusquedaTesoro",
+            comando.BusquedaId,
+            cancelacion);
 
-        // Validar el código QR escaneado contra juegos-servicio.
-        // El endpoint de validación acepta cualquier token autenticado y solo devuelve bool.
+        var yaCompletado = equipoId.HasValue
+            ? await _repositorioEvidencias.ExisteEvidenciaValidaEquipoAsync(
+                comando.SesionId, comando.EtapaId, equipoId.Value, cancelacion)
+            : await _repositorioEvidencias.ExisteEvidenciaValidaIndividualAsync(
+                comando.SesionId, comando.EtapaId, participanteId, cancelacion);
+
+        if (yaCompletado)
+            throw new EvidenciaTesoroDuplicadaExcepcion(esEquipo: equipoId.HasValue);
+
         var esValida = await _clienteTesoro.ValidarCodigoQrAsync(
             comando.BusquedaId, comando.CodigoEscaneado, cancelacion)
             ?? throw new InvalidOperationException("Búsqueda del tesoro no encontrada.");
 
-        // Calcular puntaje: solo si es válida (puntaje base de la búsqueda).
         var puntosGanados = 0;
         if (esValida)
         {
@@ -76,26 +89,31 @@ public sealed class EnviarEvidenciaTesoroManejador
             EtapaId: comando.EtapaId,
             BusquedaId: comando.BusquedaId,
             ParticipanteIdentidadId: participanteId,
+            EquipoId: equipoId,
             CodigoEnviado: comando.CodigoEscaneado,
             EsValida: esValida,
             PuntosGanados: puntosGanados,
             FechaEnvioUtc: DateTime.UtcNow),
             cancelacion);
 
-        // Comprobar si todos los jugadores enviaron evidencia válida.
         var etapaCompletada = false;
         if (esValida)
         {
-            var conEvidenciaValida = await _repositorioEvidencias
-                .ContarParticipantesConEvidenciaValidaAsync(
+            await _notificador.NotificarProgresoSecuencialActualizadoAsync(
+                comando.SesionId, participanteId, equipoId, cancelacion);
+
+            var completados = equipoId.HasValue
+                ? await _repositorioEvidencias.ContarEquiposConEvidenciaValidaAsync(
+                    comando.SesionId, comando.EtapaId, cancelacion)
+                : await _repositorioEvidencias.ContarParticipantesConEvidenciaValidaAsync(
                     comando.SesionId, comando.EtapaId, cancelacion);
 
-            if (conEvidenciaValida >= totalJugadores)
+            if (completados >= totalJugadoresEsperados)
             {
                 etapaCompletada = true;
-                await _notificador.NotificarEtapaCompletadaAsync(
-                    comando.SesionId, comando.MisionId, comando.EtapaId, cancelacion);
-                await _servicioFinalizacion.FinalizarSiTodasEtapasCompletadasAsync(
+                // Igual que Trivia: cierre pendiente para mostrar el feedback final
+                // del tesoro antes de la preparación de la siguiente etapa (#18).
+                await _servicioFinalizacion.ProgramarCierreTrasFeedbackAsync(
                     comando.SesionId, comando.EtapaId, cancelacion);
             }
         }
@@ -108,28 +126,27 @@ public sealed class EnviarEvidenciaTesoroManejador
         };
     }
 
-    // Valida que el participante está en la sesión y retorna el total de jugadores esperados.
-    private static int ObtenerTotalJugadores(Sesion sesion, Guid participanteId)
+    private static (Guid? equipoId, int totalJugadores) ObtenerJugador(
+        Sesion sesion, Guid participanteId)
     {
         if (sesion is SesionIndividual individual)
         {
             if (!individual.Participantes.Any(p => p.ParticipanteIdentidadId == participanteId))
-                throw new InvalidOperationException(
-                    "El participante no está inscrito en esta sesión.");
-            return individual.Participantes.Count;
+                throw new ParticipacionInvalidaExcepcion(
+                    "El participante no esta inscrito en esta sesion.");
+            return (null, individual.Participantes.Count);
         }
 
         if (sesion is SesionGrupal grupal)
         {
             var equipo = grupal.Equipos
                 .FirstOrDefault(e => e.Participantes.Any(
-                    p => p.ParticipanteIdentidadId == participanteId));
-            if (equipo is null)
-                throw new InvalidOperationException(
-                    "El participante no está inscrito en esta sesión.");
-            return grupal.Equipos.Count;
+                    p => p.ParticipanteIdentidadId == participanteId))
+                ?? throw new ParticipacionInvalidaExcepcion(
+                    "El participante no esta inscrito en esta sesion.");
+            return (equipo.Id, grupal.Equipos.Count);
         }
 
-        throw new InvalidOperationException("Tipo de sesión no soportado.");
+        throw new SesionInvalidaExcepcion("Tipo de sesion no soportado.");
     }
 }

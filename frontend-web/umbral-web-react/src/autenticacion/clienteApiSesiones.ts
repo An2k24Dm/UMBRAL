@@ -26,6 +26,19 @@ async function leerError(respuesta: Response): Promise<string> {
   return cuerpo?.mensaje ?? `Error ${respuesta.status} al consultar el servidor.`
 }
 
+async function leerErrorOperacionSesion(respuesta: Response): Promise<string> {
+  const cuerpo = (await respuesta.json().catch(() => null)) as {
+    codigo?: string
+    mensaje?: string
+  } | null
+
+  if (respuesta.status === 404 && cuerpo?.codigo === 'SESION_NO_ENCONTRADA') {
+    return cuerpo.mensaje ?? 'La sesión no existe o ya fue eliminada.'
+  }
+
+  return cuerpo?.mensaje ?? `Error ${respuesta.status} al operar la sesión.`
+}
+
 // ---------------------------------------------------------------------------
 // Tipos del nuevo modelo
 // ---------------------------------------------------------------------------
@@ -51,7 +64,6 @@ export interface CrearSesionSolicitud {
   maximoParticipantes: number | null
   maximoEquipos: number | null
   maximoParticipantesPorEquipo: number | null
-  duracionMinutosLimite: number | null
 }
 
 export interface CrearSesionRespuestaDto {
@@ -175,7 +187,6 @@ export interface SesionDetalleDto {
   maximoParticipantes: number | null
   maximoEquipos: number | null
   maximoParticipantesPorEquipo: number | null
-  duracionMinutosLimite: number | null
   misiones: SesionMisionDto[]
   equipos: EquipoSesionDto[]
   participantesIndividuales: ParticipanteSesionDto[]
@@ -194,7 +205,6 @@ export interface ModificarSesionSolicitud {
   maximoParticipantes: number | null
   maximoEquipos: number | null
   maximoParticipantesPorEquipo: number | null
-  duracionMinutosLimite: number | null
 }
 
 // Respuesta de las operaciones de ciclo de vida (iniciar/pausar/reanudar/
@@ -349,7 +359,7 @@ async function operarSesion(
   })
   if (respuesta.status === 401) lanzar401(token, 'Debe iniciar sesión.')
   if (respuesta.status === 403) throw new Error('No tienes permisos para operar esta sesión.')
-  if (respuesta.status === 404) throw new Error('La sesión no existe o ya fue eliminada.')
+  if (respuesta.status === 404) throw new Error(await leerErrorOperacionSesion(respuesta))
   if (!respuesta.ok) throw new Error(await leerError(respuesta))
   return (await respuesta.json()) as OperacionSesionRespuestaDto
 }

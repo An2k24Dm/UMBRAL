@@ -68,7 +68,13 @@ public class ModificarSesionManejadorPruebas
             foreach (var m in new[] { MisionA, MisionB })
                 Misiones.Setup(c => c.ObtenerMisionAsync(m, It.IsAny<CancellationToken>()))
                     .ReturnsAsync(new MisionResumenJuegosDto
-                    { Id = m, Nombre = m.ToString(), Estado = "Activa", TotalEtapas = 2 });
+                    {
+                        Id = m,
+                        Nombre = m.ToString(),
+                        Estado = "Activa",
+                        TotalEtapas = 2,
+                        TiempoTotalSegundos = m == MisionA ? 90 : 95
+                    });
         }
 
         public ModificarSesionManejador Construir()
@@ -212,6 +218,19 @@ public class ModificarSesionManejadorPruebas
 
         detalle.FechaProgramada.Should().Be(AhoraUtc.AddHours(5));
         detalle.Misiones.Select(m => m.MisionId).Should().Equal(new[] { MisionB });
+    }
+
+    [Fact]
+    public async Task ActualizaDuracionDesdeMisionesSeleccionadas()
+    {
+        var ctx = new Contexto(IndividualProgramada(Operador));
+        var dto = DtoIndividual(misiones: new List<Guid> { MisionA, MisionB });
+
+        await ctx.Construir().Handle(new ModificarSesionComando(SesionId, dto), CancellationToken.None);
+
+        ctx.Persistida!.DuracionSegundosLimite.Should().Be(185);
+        ctx.Misiones.Verify(c => c.ObtenerMisionAsync(
+            It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
     }
 
     [Fact]

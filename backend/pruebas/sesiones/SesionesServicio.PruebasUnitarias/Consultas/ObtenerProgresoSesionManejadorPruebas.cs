@@ -108,6 +108,29 @@ public class ObtenerProgresoSesionManejadorPruebas
     }
 
     [Fact]
+    public async Task TriviaYTesoro_MismoEquipo_SumaPuntajesPorEquipo()
+    {
+        var equipoId = Guid.Parse("cccccccc-cccc-cccc-cccc-cccccccccccc");
+        var triviaItems = new List<ProgresoTriviaItem>
+        {
+            new(Participante1, equipoId, TotalRespondidas: 2, Correctas: 1, PuntosGanados: 40)
+        };
+        var tesoroItems = new List<ProgresoTesoroItem>
+        {
+            new(Participante2, equipoId, TotalIntentados: 1, Validos: 1, PuntosGanados: 60)
+        };
+
+        var resultado = await Ejecutar(trivia: triviaItems, tesoro: tesoroItems);
+
+        resultado.Should().HaveCount(1);
+        var item = resultado[0];
+        item.EquipoId.Should().Be(equipoId);
+        item.TotalPuntosGanados.Should().Be(100);
+        item.TriviaPuntosGanados.Should().Be(40);
+        item.TesoroPuntosGanados.Should().Be(60);
+    }
+
+    [Fact]
     public async Task ParticipantesSoloEnUno_OtroTipoEsCero()
     {
         var triviaItems = new List<ProgresoTriviaItem>

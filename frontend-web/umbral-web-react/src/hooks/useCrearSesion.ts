@@ -25,7 +25,6 @@ export interface FormularioCrearSesion {
   maximoEquipos: string
   maximoParticipantesPorEquipo: string
   // Duración opcional en minutos para auto-finalización. Vacío = sin límite.
-  duracionMinutosLimite: string
 }
 
 export type ErroresFormularioCrearSesion = Partial<
@@ -41,7 +40,6 @@ const ESTADO_INICIAL: FormularioCrearSesion = {
   maximoParticipantes: '',
   maximoEquipos: '',
   maximoParticipantesPorEquipo: '',
-  duracionMinutosLimite: ''
 }
 
 function validarEntero(valor: string): number | null {
@@ -227,9 +225,6 @@ export function useCrearSesion({ token }: OpcionesUseCrearSesion): EstadoUseCrea
           maximoParticipantesPorEquipo: esIndividual
             ? null
             : Number(datos.maximoParticipantesPorEquipo),
-          duracionMinutosLimite: datos.duracionMinutosLimite.trim()
-            ? Number(datos.duracionMinutosLimite)
-            : null,
         },
         token,
       )

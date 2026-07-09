@@ -5,6 +5,7 @@ using SesionesServicio.Dominio.Abstract;
 using SesionesServicio.Dominio.Entidades;
 using SesionesServicio.Dominio.Enums;
 using SesionesServicio.Dominio.Excepciones;
+using SesionesServicio.Dominio.ObjetosValor;
 
 namespace SesionesServicio.Aplicacion.Fachadas;
 
@@ -16,6 +17,7 @@ public sealed class FachadaOperacionSesion : IFachadaOperacionSesion
     private readonly IUnidadTrabajoSesiones _unidadTrabajo;
     private readonly IUsuarioActual _usuarioActual;
     private readonly INotificadorSesionesTiempoReal _notificador;
+    private readonly IClienteJuegosMisiones _clienteMisiones;
     private readonly IProveedorFechaHora _reloj;
     private readonly IRegistroLogsAplicacion _registroLogs;
     private readonly ValidadorInicioSesionOperacion _validadorInicio;
@@ -26,6 +28,7 @@ public sealed class FachadaOperacionSesion : IFachadaOperacionSesion
         IUnidadTrabajoSesiones unidadTrabajo,
         IUsuarioActual usuarioActual,
         INotificadorSesionesTiempoReal notificador,
+        IClienteJuegosMisiones clienteMisiones,
         IProveedorFechaHora reloj,
         IRegistroLogsAplicacion registroLogs,
         ValidadorInicioSesionOperacion validadorInicio,
@@ -35,6 +38,7 @@ public sealed class FachadaOperacionSesion : IFachadaOperacionSesion
         _unidadTrabajo = unidadTrabajo;
         _usuarioActual = usuarioActual;
         _notificador = notificador;
+        _clienteMisiones = clienteMisiones;
         _reloj = reloj;
         _registroLogs = registroLogs;
         _validadorInicio = validadorInicio;
@@ -49,10 +53,23 @@ public sealed class FachadaOperacionSesion : IFachadaOperacionSesion
         var estadoAnterior = sesion.Estado;
         var ahoraUtc = _reloj.ObtenerFechaHoraUtc();
         _validadorInicio.Validar(sesion, ahoraUtc);
+        var secuencia = await ConstruirSecuenciaCompletaAsync(sesion, cancelacion);
+        sesion.EstablecerSecuenciaEtapas(secuencia);
+        var primeraEtapa = secuencia[0];
         if (sesion.Estado == EstadoSesion.Programada)
             sesion.Preparar();
-        sesion.Iniciar(ahoraUtc);
+        sesion.IniciarPrimeraEtapa(primeraEtapa, ahoraUtc);
         await GuardarYNotificarAsync(sesion, cancelacion);
+        await _notificador.NotificarEtapaIniciadaAsync(
+            sesion.Id,
+            primeraEtapa.MisionId,
+            primeraEtapa.EtapaId,
+            primeraEtapa.TipoEtapa,
+            primeraEtapa.ModoDeJuegoId,
+            primeraEtapa.OrdenGlobal,
+            ahoraUtc,
+            primeraEtapa.DuracionSegundos,
+            cancelacion);
         Registrar("SesionIniciada", "Operador inició la sesión correctamente",
             sesion, operadorId, estadoAnterior, ahoraUtc);
 
@@ -65,7 +82,7 @@ public sealed class FachadaOperacionSesion : IFachadaOperacionSesion
         var operadorId = AutorizarOperador();
         var sesion = await ObtenerSesionPropiaAsync(sesionId, operadorId, cancelacion);
         var estadoAnterior = sesion.Estado;
-        sesion.Pausar();
+        sesion.Pausar(_reloj.ObtenerFechaHoraUtc());
         await GuardarYNotificarAsync(sesion, cancelacion);
         Registrar("SesionPausada", "Operador pausó la sesión correctamente",
             sesion, operadorId, estadoAnterior, _reloj.ObtenerFechaHoraUtc());
@@ -79,7 +96,7 @@ public sealed class FachadaOperacionSesion : IFachadaOperacionSesion
         var operadorId = AutorizarOperador();
         var sesion = await ObtenerSesionPropiaAsync(sesionId, operadorId, cancelacion);
         var estadoAnterior = sesion.Estado;
-        sesion.Reanudar();
+        sesion.Reanudar(_reloj.ObtenerFechaHoraUtc());
         await GuardarYNotificarAsync(sesion, cancelacion);
         Registrar("SesionReanudada", "Operador reanudó la sesión correctamente",
             sesion, operadorId, estadoAnterior, _reloj.ObtenerFechaHoraUtc());
@@ -173,4 +190,43 @@ public sealed class FachadaOperacionSesion : IFachadaOperacionSesion
             FechaFinalizacionUtc = sesion.FechaFinalizacionUtc,
             Mensaje = mensaje
         };
+
+    private async Task<List<EjecucionActualSesion>> ConstruirSecuenciaCompletaAsync(
+        Sesion sesion, CancellationToken cancelacion)
+    {
+        if (sesion.Misiones.Count == 0)
+            throw new MisionSinEtapasExcepcion(
+                "La sesion no tiene misiones asignadas para iniciar.");
+
+        var secuencia = new List<EjecucionActualSesion>();
+        var ordenGlobal = 1;
+
+        foreach (var sesionMision in sesion.Misiones.OrderBy(m => m.Orden))
+        {
+            var mision = await _clienteMisiones.ObtenerMisionConEtapasAsync(
+                sesionMision.MisionId, cancelacion)
+                ?? throw new MisionNoEncontradaExcepcion(
+                    "La mision asociada a la sesion no existe.");
+
+            var ordenEtapa = 1;
+            foreach (var etapa in mision.Etapas.OrderBy(e => e.Orden))
+            {
+                secuencia.Add(EjecucionActualSesion.Planificar(
+                    sesionMision.MisionId,
+                    etapa.Id,
+                    etapa.ModoDeJuegoId,
+                    etapa.TipoModoDeJuego,
+                    ordenGlobal++,
+                    sesionMision.Orden,
+                    ordenEtapa++,
+                    etapa.TiempoEstimado));
+            }
+        }
+
+        if (secuencia.Count == 0)
+            throw new MisionSinEtapasExcepcion(
+                "Las misiones de la sesion no contienen etapas para iniciar.");
+
+        return secuencia;
+    }
 }
