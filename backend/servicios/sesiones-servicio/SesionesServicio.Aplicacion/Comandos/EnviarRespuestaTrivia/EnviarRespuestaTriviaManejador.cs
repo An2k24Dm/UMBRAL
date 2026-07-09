@@ -14,19 +14,22 @@ public sealed class EnviarRespuestaTriviaManejador
     private readonly IClienteJuegosTrivia _clienteTrivia;
     private readonly IRepositorioRespuestasTrivia _repositorioRespuestas;
     private readonly INotificadorSesionesTiempoReal _notificador;
+    private readonly IServicioFinalizacionSesion _servicioFinalizacion;
 
     public EnviarRespuestaTriviaManejador(
         IUsuarioActual usuario,
         IRepositorioSesiones repositorioSesiones,
         IClienteJuegosTrivia clienteTrivia,
         IRepositorioRespuestasTrivia repositorioRespuestas,
-        INotificadorSesionesTiempoReal notificador)
+        INotificadorSesionesTiempoReal notificador,
+        IServicioFinalizacionSesion servicioFinalizacion)
     {
         _usuario = usuario;
         _repositorioSesiones = repositorioSesiones;
         _clienteTrivia = clienteTrivia;
         _repositorioRespuestas = repositorioRespuestas;
         _notificador = notificador;
+        _servicioFinalizacion = servicioFinalizacion;
     }
 
     public async Task<EnviarRespuestaTriviaRespuesta> Handle(
@@ -99,6 +102,8 @@ public sealed class EnviarRespuestaTriviaManejador
                 etapaCompletada = true;
                 await _notificador.NotificarEtapaCompletadaAsync(
                     comando.SesionId, comando.MisionId, comando.EtapaId, cancelacion);
+                await _servicioFinalizacion.FinalizarSiTodasEtapasCompletadasAsync(
+                    comando.SesionId, comando.EtapaId, cancelacion);
             }
         }
 

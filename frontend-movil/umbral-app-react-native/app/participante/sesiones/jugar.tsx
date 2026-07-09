@@ -66,6 +66,8 @@ function ContenidoJuego() {
   const [puntosGanadosUltima, setPuntosGanadosUltima] = useState<number | null>(null);
   const [puntosAcumulados, setPuntosAcumulados] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Previene que SignalR corte la ventana de 1500ms donde se muestra el puntaje de la última respuesta.
+  const mostrandoResultadoRef = useRef(false);
 
   const preguntaActual: PreguntaTrivia | undefined = trivia?.preguntas[indicePregunta];
   const tiempoLimite = preguntaActual?.tiempoEstimado ?? trivia?.tiempoLimitePorPregunta ?? 10;
@@ -178,7 +180,9 @@ function ContenidoJuego() {
         await SecureStore.setItemAsync(claveEtapaCompletada(sesionId, etapaId), "1");
       }
 
+      mostrandoResultadoRef.current = true;
       setTimeout(() => {
+        mostrandoResultadoRef.current = false;
         if (resultado.etapaCompletada) {
           setEtapaTerminada(true);
         } else if (!esUltimaPregunta) {
@@ -211,7 +215,13 @@ function ContenidoJuego() {
       const sid = (evento.sesionId ?? evento.SesionId ?? "").toLowerCase();
       const eid = (evento.etapaId ?? evento.EtapaId ?? "").toLowerCase();
       if (sid === sesionId.toLowerCase() && eid === etapaId.toLowerCase()) {
-        if (!desmontado) setEtapaTerminada(true);
+        if (desmontado) return;
+        // Si estamos mostrando el puntaje de la última respuesta, esperar que la ventana termine.
+        if (mostrandoResultadoRef.current) {
+          setTimeout(() => { if (!desmontado) setEtapaTerminada(true); }, 1600);
+        } else {
+          setEtapaTerminada(true);
+        }
       }
     };
 

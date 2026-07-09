@@ -1,6 +1,8 @@
 import type {
   FiltroModoSesion,
   IngresarSesionRespuestaDto,
+  MiParticipacionDto,
+  ProgresoSesionParticipanteDto,
   SesionDetalleMovilDto,
   SesionDisponibleMovilDto,
 } from "../tipos/sesiones";
@@ -263,4 +265,36 @@ export async function abandonarSesionApi(
     const error = await leerCuerpoError(respuesta);
     throw mapearErrorAbandonar(respuesta.status, error?.mensaje);
   }
+}
+
+export async function obtenerProgresoSesionParticipanteApi(
+  tokenAcceso: string,
+  sesionId: string,
+): Promise<ProgresoSesionParticipanteDto[]> {
+  const respuesta = await fetch(
+    construirUrl(`/api/sesiones/participante/disponibles/${sesionId}/progreso`),
+    { method: "GET", headers: obtenerEncabezadosAutenticados(tokenAcceso) },
+  );
+  if (!respuesta.ok) {
+    const cuerpo = await leerCuerpoError(respuesta);
+    throw mapearError(respuesta.status, cuerpo?.mensaje, cuerpo);
+  }
+  return (await respuesta.json()) as ProgresoSesionParticipanteDto[];
+}
+
+export async function obtenerMisParticipacionesApi(
+  tokenAcceso: string,
+  limite = 20,
+): Promise<MiParticipacionDto[]> {
+  const respuesta = await fetch(
+    construirUrl(`/api/sesiones/participante/disponibles/finalizadas?limite=${limite}`),
+    { method: "GET", headers: obtenerEncabezadosAutenticados(tokenAcceso) },
+  );
+
+  if (!respuesta.ok) {
+    const cuerpo = await leerCuerpoError(respuesta);
+    throw mapearError(respuesta.status, cuerpo?.mensaje, cuerpo);
+  }
+
+  return (await respuesta.json()) as MiParticipacionDto[];
 }

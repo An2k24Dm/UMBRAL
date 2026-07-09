@@ -11,7 +11,7 @@ interface OpcionMenu {
   clave: string
   titulo: string
   descripcion: string
-  ruta: '/participante/perfil' | '/participante/sesiones'
+  ruta: '/participante/perfil' | '/participante/sesiones' | '/participante/sesiones/finalizadas'
 }
 
 const OPCIONES: OpcionMenu[] = [
@@ -26,6 +26,12 @@ const OPCIONES: OpcionMenu[] = [
     titulo: 'Sesiones',
     descripcion: 'Consulta las sesiones disponibles para participar.',
     ruta: '/participante/sesiones',
+  },
+  {
+    clave: 'finalizadas',
+    titulo: 'Sesiones finalizadas',
+    descripcion: 'Revisa el historial de tus últimas 20 participaciones.',
+    ruta: '/participante/sesiones/finalizadas',
   },
 ]
 

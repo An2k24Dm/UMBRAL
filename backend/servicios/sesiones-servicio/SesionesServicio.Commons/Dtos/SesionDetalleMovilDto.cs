@@ -8,6 +8,8 @@ public sealed class SesionDetalleMovilDto
     public string Modo { get; set; } = string.Empty;
     public string Estado { get; set; } = string.Empty;
     public DateTime FechaProgramada { get; set; }
+    public DateTime? FechaInicioUtc { get; set; }
+    public int? DuracionMinutosLimite { get; set; }
     public string CodigoAcceso { get; set; } = string.Empty;
     public List<MisionSesionMovilDto> Misiones { get; set; } = new();
     public ParticipacionActualDto ParticipacionActual { get; set; } = new();

@@ -14,7 +14,7 @@ public sealed class NotificadorSesionesTiempoReal : INotificadorSesionesTiempoRe
         _hub = hub;
     }
 
-    public Task NotificarParticipantesSesionActualizadosAsync(
+    public async Task NotificarParticipantesSesionActualizadosAsync(
         Guid sesionId,
         CancellationToken cancelacion)
     {
@@ -24,8 +24,14 @@ public sealed class NotificadorSesionesTiempoReal : INotificadorSesionesTiempoRe
             FechaEventoUtc = DateTime.UtcNow
         };
 
-        return _hub.Clients
+        // Grupo de la sesión: refresca la pantalla de detalle del operador.
+        await _hub.Clients
             .Group(SesionesHub.GrupoSesion(sesionId))
+            .SendAsync("ParticipantesSesionActualizados", dto, cancelacion);
+
+        // Grupo del listado: actualiza la columna de participantes en la lista.
+        await _hub.Clients
+            .Group(SesionesHub.GrupoListadoSesiones)
             .SendAsync("ParticipantesSesionActualizados", dto, cancelacion);
     }
 

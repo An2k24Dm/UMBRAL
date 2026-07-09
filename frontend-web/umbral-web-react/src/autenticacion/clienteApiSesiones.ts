@@ -51,6 +51,7 @@ export interface CrearSesionSolicitud {
   maximoParticipantes: number | null
   maximoEquipos: number | null
   maximoParticipantesPorEquipo: number | null
+  duracionMinutosLimite: number | null
 }
 
 export interface CrearSesionRespuestaDto {
@@ -174,6 +175,7 @@ export interface SesionDetalleDto {
   maximoParticipantes: number | null
   maximoEquipos: number | null
   maximoParticipantesPorEquipo: number | null
+  duracionMinutosLimite: number | null
   misiones: SesionMisionDto[]
   equipos: EquipoSesionDto[]
   participantesIndividuales: ParticipanteSesionDto[]
@@ -192,6 +194,7 @@ export interface ModificarSesionSolicitud {
   maximoParticipantes: number | null
   maximoEquipos: number | null
   maximoParticipantesPorEquipo: number | null
+  duracionMinutosLimite: number | null
 }
 
 // Respuesta de las operaciones de ciclo de vida (iniciar/pausar/reanudar/
@@ -467,4 +470,58 @@ export async function liberarPista(
   }
   if (respuesta.status === 422) throw new Error(await leerError(respuesta))
   throw new Error('No se pudo liberar la pista. Intenta nuevamente.')
+}
+
+// ---------------------------------------------------------------------------
+// Progreso de trivia por participante (panel del operador)
+// ---------------------------------------------------------------------------
+export interface ProgresoTriviaParticipanteDto {
+  participanteIdentidadId: string
+  totalRespondidas: number
+  correctas: number
+  incorrectas: number
+  puntosGanados: number
+}
+
+export async function obtenerProgresoTrivia(
+  sesionId: string,
+  token: string
+): Promise<ProgresoTriviaParticipanteDto[]> {
+  const respuesta = await fetch(
+    `${URL_API}${ENDPOINTS.porId(sesionId)}/progreso-trivia`,
+    { headers: auth(token) }
+  )
+  if (respuesta.status === 401) lanzar401(token, 'Debe iniciar sesión.')
+  if (respuesta.status === 403) throw new Error('No tienes permisos para ver el progreso.')
+  if (!respuesta.ok) throw new Error(await leerError(respuesta))
+  return respuesta.json() as Promise<ProgresoTriviaParticipanteDto[]>
+}
+
+// ---------------------------------------------------------------------------
+// Progreso completo (trivia + búsqueda del tesoro) por participante
+// ---------------------------------------------------------------------------
+export interface ProgresoSesionParticipanteDto {
+  participanteIdentidadId: string
+  triviaRespondidas: number
+  triviaCorrectas: number
+  triviaIncorrectas: number
+  triviaPuntosGanados: number
+  tesoroIntentosEnviados: number
+  tesoroEtapasCompletadas: number
+  tesoroPuntosGanados: number
+  totalPuntosGanados: number
+}
+
+export async function obtenerProgresoSesion(
+  sesionId: string,
+  token: string
+): Promise<ProgresoSesionParticipanteDto[]> {
+  const respuesta = await fetch(
+    `${URL_API}${ENDPOINTS.porId(sesionId)}/progreso`,
+    { headers: auth(token) }
+  )
+  if (respuesta.status === 401) lanzar401(token, 'Debe iniciar sesión.')
+  if (respuesta.status === 403) throw new Error('No tienes permisos para ver el progreso.')
+  if (!respuesta.ok) throw new Error(await leerError(respuesta))
+  return respuesta.json() as Promise<ProgresoSesionParticipanteDto[]>
 }

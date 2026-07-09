@@ -20,6 +20,8 @@ interface OpcionesUseSesionesTiempoReal {
   // cancelar/finalizar). Recibe el nuevo estado para que la pantalla decida
   // (banner de pausa, mensaje de cancelación, etc.).
   onSesionActualizada?: (estado: string | undefined) => void | Promise<void>;
+  onRespuestaRegistrada?: () => void | Promise<void>;
+  onEtapaCompletada?: () => void | Promise<void>;
 }
 
 export function useSesionesTiempoReal({
@@ -29,6 +31,8 @@ export function useSesionesTiempoReal({
   onEquiposSesionActualizados,
   onEquipoActualizado,
   onSesionActualizada,
+  onRespuestaRegistrada,
+  onEtapaCompletada,
 }: OpcionesUseSesionesTiempoReal) {
   const {
     sesion,
@@ -109,10 +113,30 @@ export function useSesionesTiempoReal({
       }
     };
 
+    const manejarRespuesta = (evento: EventoSesionTiempoReal) => {
+      if (coincideSesion(evento)) {
+        if (__DEV__) {
+          console.log("[SignalR Movil Detalle] RespuestaRegistrada recibida");
+        }
+        void onRespuestaRegistrada?.();
+      }
+    };
+
+    const manejarEtapa = (evento: EventoSesionTiempoReal) => {
+      if (coincideSesion(evento)) {
+        if (__DEV__) {
+          console.log("[SignalR Movil Detalle] EtapaCompletada recibida");
+        }
+        void onEtapaCompletada?.();
+      }
+    };
+
     conexion.on("ParticipantesSesionActualizados", manejarParticipantes);
     conexion.on("EquiposSesionActualizados", manejarEquipos);
     conexion.on("EquipoActualizado", manejarEquipo);
     conexion.on("SesionActualizada", manejarSesion);
+    conexion.on("RespuestaRegistrada", manejarRespuesta);
+    conexion.on("EtapaCompletada", manejarEtapa);
 
     conexion.onreconnected(async () => {
       if (desmontado) {
@@ -198,6 +222,8 @@ export function useSesionesTiempoReal({
       conexion.off("EquiposSesionActualizados", manejarEquipos);
       conexion.off("EquipoActualizado", manejarEquipo);
       conexion.off("SesionActualizada", manejarSesion);
+      conexion.off("RespuestaRegistrada", manejarRespuesta);
+      conexion.off("EtapaCompletada", manejarEtapa);
 
       if (conexion.state === signalR.HubConnectionState.Connected) {
         Promise.all([
@@ -223,5 +249,7 @@ export function useSesionesTiempoReal({
     onEquiposSesionActualizados,
     onEquipoActualizado,
     onSesionActualizada,
+    onRespuestaRegistrada,
+    onEtapaCompletada,
   ]);
 }

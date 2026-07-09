@@ -13,6 +13,7 @@ public sealed class ContextoSesiones : DbContext
     public DbSet<RespuestaTriviaModelo> RespuestasTrivia => Set<RespuestaTriviaModelo>();
     public DbSet<EvidenciaTesoroModelo> EvidenciasTesoro => Set<EvidenciaTesoroModelo>();
     public DbSet<PistaLiberadaModelo> PistasLiberadas => Set<PistaLiberadaModelo>();
+    public DbSet<EtapaCompletadaModelo> EtapasCompletadas => Set<EtapaCompletadaModelo>();
 
     protected override void OnModelCreating(ModelBuilder constructor)
     {
@@ -36,6 +37,7 @@ public sealed class ContextoSesiones : DbContext
             e.Property(x => x.MaximoParticipantes).HasColumnName("maximo_participantes");
             e.Property(x => x.MaximoEquipos).HasColumnName("maximo_equipos");
             e.Property(x => x.MaximoParticipantesPorEquipo).HasColumnName("maximo_participantes_por_equipo");
+            e.Property(x => x.DuracionMinutosLimite).HasColumnName("duracion_minutos_limite");
 
             e.HasIndex(x => x.Estado);
             e.HasIndex(x => x.FechaProgramada);
@@ -163,6 +165,16 @@ public sealed class ContextoSesiones : DbContext
                 .IsUnique()
                 .HasFilter("pista_id IS NOT NULL");
             e.HasIndex(x => new { x.SesionId, x.EtapaId });
+        });
+
+        constructor.Entity<EtapaCompletadaModelo>(e =>
+        {
+            e.ToTable("EtapaCompletada");
+            e.HasKey(x => new { x.SesionId, x.EtapaId });
+            e.Property(x => x.SesionId).HasColumnName("sesion_id").IsRequired();
+            e.Property(x => x.EtapaId).HasColumnName("etapa_id").IsRequired();
+            e.Property(x => x.FechaCompletadaUtc).HasColumnName("fecha_completada_utc").IsRequired();
+            e.HasIndex(x => x.SesionId);
         });
     }
 }

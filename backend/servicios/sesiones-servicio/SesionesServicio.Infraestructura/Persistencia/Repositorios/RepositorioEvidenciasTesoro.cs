@@ -57,4 +57,23 @@ public sealed class RepositorioEvidenciasTesoro : IRepositorioEvidenciasTesoro
             .ToListAsync(cancelacion);
         return ids.Distinct().Count();
     }
+
+    public async Task<IReadOnlyList<ProgresoTesoroItem>> ObtenerProgresoTesoroAsync(
+        Guid sesionId, CancellationToken cancelacion)
+    {
+        var registros = await _contexto.EvidenciasTesoro.AsNoTracking()
+            .Where(e => e.SesionId == sesionId)
+            .Select(e => new { e.ParticipanteIdentidadId, e.EsValida, e.PuntosGanados })
+            .ToListAsync(cancelacion);
+
+        return registros
+            .GroupBy(e => e.ParticipanteIdentidadId)
+            .Select(g => new ProgresoTesoroItem(
+                g.Key,
+                TotalIntentados: g.Count(),
+                Validos: g.Count(e => e.EsValida),
+                PuntosGanados: g.Sum(e => e.PuntosGanados)))
+            .ToList()
+            .AsReadOnly();
+    }
 }

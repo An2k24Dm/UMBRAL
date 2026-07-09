@@ -1,5 +1,6 @@
 using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
+using SesionesServicio.Aplicacion.Servicios;
 using SesionesServicio.Aplicacion.Comandos.AbandonarSesion;
 using SesionesServicio.Aplicacion.Comandos.CrearEquipo;
 using SesionesServicio.Aplicacion.Comandos.CrearSesion;
@@ -13,8 +14,8 @@ using SesionesServicio.Aplicacion.Mapeadores;
 using SesionesServicio.Aplicacion.Mapeadores.IngresoSesion;
 using SesionesServicio.Aplicacion.Puertos;
 using SesionesServicio.Aplicacion.Validaciones;
-using SesionesServicio.Aplicacion.Validaciones.OperacionSesion;
 using SesionesServicio.Dominio.Abstract;
+using SesionesServicio.Aplicacion.Validaciones.OperacionSesion;
 using SesionesServicio.Dominio.Fabricas;
 
 namespace SesionesServicio.Aplicacion.Dependencias;
@@ -56,6 +57,8 @@ public static class RegistroAplicacion
         servicios.AddSingleton<IMapeadorSesionDisponibleMovil, MapeadorSesionDisponibleMovilIndividual>();
         servicios.AddSingleton<IMapeadorSesionDisponibleMovil, MapeadorSesionDisponibleMovilGrupal>();
         servicios.AddSingleton<FabricaMapeadorSesionDisponibleMovil>();
+
+        servicios.AddScoped<IServicioFinalizacionSesion, ServicioFinalizacionSesion>();
 
         return servicios;
     }

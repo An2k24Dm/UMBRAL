@@ -15,9 +15,11 @@ import {
   pausarSesionOperacion,
   reanudarSesionOperacion,
   cancelarSesionOperacion,
+  obtenerProgresoSesion,
   type EquipoSesionListadoDto,
   type OperacionSesionRespuestaDto,
   type ParticipanteSesionDto,
+  type ProgresoSesionParticipanteDto,
   type SesionDetalleDto
 } from '../autenticacion/clienteApiSesiones'
 import {
@@ -150,6 +152,7 @@ export function PaginaDetalleSesion() {
   const [errorEliminar, setErrorEliminar] = useState<string | null>(null)
   const [modalEliminarAbierto, setModalEliminarAbierto] = useState(false)
   const [versionTiempoReal, setVersionTiempoReal] = useState(0)
+  const [versionProgreso, setVersionProgreso] = useState(0)
 
   // HU44 — Expulsión de participante (individual) o equipo (grupal) por el
   // Operador. Guardamos el objetivo seleccionado para el modal de confirmación.
@@ -159,6 +162,10 @@ export function PaginaDetalleSesion() {
     useState<EquipoSesionListadoDto | null>(null)
   const [expulsando, setExpulsando] = useState(false)
   const [errorExpulsar, setErrorExpulsar] = useState<string | null>(null)
+
+  const [progresoSesion, setProgresoSesion] = useState<ProgresoSesionParticipanteDto[] | null>(null)
+  const [cargandoProgreso, setCargandoProgreso] = useState(false)
+  const [errorProgreso, setErrorProgreso] = useState<string | null>(null)
 
   // HU52 — Operación del ciclo de vida. accionOperacion no nula ⇒ modal abierto.
   const [accionOperacion, setAccionOperacion] = useState<AccionOperacionSesion | null>(null)
@@ -173,6 +180,13 @@ export function PaginaDetalleSesion() {
     setVersionTiempoReal(version => version + 1)
   }, [])
 
+  const refrescarProgresoTiempoReal = useCallback(() => {
+    if (import.meta.env.DEV) {
+      console.debug('[DetalleSesion Web] refresco progreso solicitado por SignalR')
+    }
+    setVersionProgreso(v => v + 1)
+  }, [])
+
   useSesionesTiempoReal({
     token,
     sesionId: id,
@@ -181,7 +195,9 @@ export function PaginaDetalleSesion() {
     onEquipoActualizado: refrescarDetalleTiempoReal,
     onSesionActualizada: refrescarDetalleTiempoReal,
     onParticipanteExpulsado: refrescarDetalleTiempoReal,
-    onEquipoExpulsado: refrescarDetalleTiempoReal
+    onEquipoExpulsado: refrescarDetalleTiempoReal,
+    onRespuestaRegistrada: refrescarProgresoTiempoReal,
+    onEtapaCompletada: refrescarProgresoTiempoReal
   })
 
   function abrirModalEliminar() {
@@ -405,6 +421,23 @@ export function PaginaDetalleSesion() {
     cargar()
     return () => { ref.cancelado = true }
   }, [token, id, puedeConsultarEquipos, versionTiempoReal])
+
+  // Progreso completo (trivia + tesoro): se carga cuando la sesión está Activa, Pausada o Finalizada.
+  useEffect(() => {
+    if (!token || !id || !sesion) return
+    const estadosConProgreso = ['Activa', 'Pausada', 'Finalizada']
+    if (!estadosConProgreso.includes(sesion.estado)) return
+
+    let cancelado = false
+    setCargandoProgreso(true)
+    setErrorProgreso(null)
+    obtenerProgresoSesion(id, token)
+      .then(data => { if (!cancelado) { setProgresoSesion(data); setErrorProgreso(null) } })
+      .catch(e => { if (!cancelado) { setProgresoSesion(null); setErrorProgreso(e instanceof Error ? e.message : 'Error al cargar el progreso') } })
+      .finally(() => { if (!cancelado) setCargandoProgreso(false) })
+
+    return () => { cancelado = true }
+  }, [token, id, sesion?.estado, versionProgreso])
 
   if (estado === 'cargando') {
     return (
@@ -816,6 +849,83 @@ export function PaginaDetalleSesion() {
                 ))}
               </tbody>
             </table>
+          )}
+        </section>
+      )}
+
+      {/* Panel de progreso completo — visible cuando la sesión tiene actividad */}
+      {(sesion.estado === 'Activa' || sesion.estado === 'Pausada' || sesion.estado === 'Finalizada') && (
+        <section className="seccion">
+          <div className="detalle-subtitulo">
+            <div>
+              <h3>Progreso por participante</h3>
+              <p>Trivia y búsqueda del tesoro — puntaje acumulado en esta sesión.</p>
+            </div>
+          </div>
+          {cargandoProgreso && (
+            <p className="detalle-mensaje-vacio">Cargando progreso…</p>
+          )}
+          {!cargandoProgreso && errorProgreso && (
+            <Alerta tono="aviso">{errorProgreso}</Alerta>
+          )}
+          {!cargandoProgreso && !errorProgreso && progresoSesion !== null && progresoSesion.length === 0 && (
+            <p className="detalle-mensaje-vacio">Aún no hay actividad registrada.</p>
+          )}
+          {!cargandoProgreso && !errorProgreso && progresoSesion !== null && progresoSesion.length > 0 && (
+            <div style={{ overflowX: 'auto' }}>
+              <table className="tabla-usuarios">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Participante</th>
+                    <th title="Preguntas respondidas">Trivia resp.</th>
+                    <th title="Respuestas correctas" style={{ color: 'var(--color-exito, #22c55e)' }}>✓ Correct.</th>
+                    <th title="Respuestas incorrectas" style={{ color: 'var(--color-error, #ef4444)' }}>✗ Incorr.</th>
+                    <th>Pts trivia</th>
+                    <th title="Etapas de tesoro completadas">Tesoro comp.</th>
+                    <th title="Intentos enviados en búsqueda del tesoro">Tesoro int.</th>
+                    <th>Pts tesoro</th>
+                    <th><strong>Total pts</strong></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {progresoSesion
+                    .slice()
+                    .sort((a, b) => b.totalPuntosGanados - a.totalPuntosGanados)
+                    .map((p, idx) => {
+                      const participante = sesion.participantesIndividuales.find(
+                        pi => pi.participanteIdentidadId === p.participanteIdentidadId
+                      )
+                      const nombre = participante
+                        ? (participante.alias || `${participante.nombre} ${participante.apellido}`.trim() || 'Participante')
+                        : p.participanteIdentidadId.slice(0, 8) + '…'
+                      const pctTrivia = p.triviaRespondidas > 0
+                        ? Math.round((p.triviaCorrectas / p.triviaRespondidas) * 100)
+                        : 0
+                      return (
+                        <tr key={p.participanteIdentidadId}>
+                          <td>{idx + 1}</td>
+                          <td>{nombre}</td>
+                          <td>{p.triviaRespondidas} ({pctTrivia}%)</td>
+                          <td style={{ color: 'var(--color-exito, #22c55e)', fontWeight: 600 }}>
+                            {p.triviaCorrectas}
+                          </td>
+                          <td style={{ color: 'var(--color-error, #ef4444)', fontWeight: 600 }}>
+                            {p.triviaIncorrectas}
+                          </td>
+                          <td>{p.triviaPuntosGanados} pts</td>
+                          <td style={{ color: 'var(--color-exito, #22c55e)', fontWeight: 600 }}>
+                            {p.tesoroEtapasCompletadas}
+                          </td>
+                          <td>{p.tesoroIntentosEnviados}</td>
+                          <td>{p.tesoroPuntosGanados} pts</td>
+                          <td><strong>{p.totalPuntosGanados} pts</strong></td>
+                        </tr>
+                      )
+                    })}
+                </tbody>
+              </table>
+            </div>
           )}
         </section>
       )}

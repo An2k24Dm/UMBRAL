@@ -2,6 +2,7 @@ using Mapster;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using SesionesServicio.Aplicacion.Procesos.FinalizacionSesionesPorTiempo;
 using SesionesServicio.Aplicacion.Procesos.PreparacionSesiones;
 using SesionesServicio.Aplicacion.Puertos;
 using SesionesServicio.Infraestructura.Configuraciones;
@@ -60,10 +61,13 @@ public static class RegistroInfraestructura
         servicios.AddScoped<IRepositorioRespuestasTrivia, RepositorioRespuestasTrivia>();
         servicios.AddScoped<IRepositorioEvidenciasTesoro, RepositorioEvidenciasTesoro>();
         servicios.AddScoped<IRepositorioPistasLiberadas, RepositorioPistasLiberadas>();
+        servicios.AddScoped<IRepositorioEtapasCompletadas, RepositorioEtapasCompletadas>();
         servicios.Configure<OpcionesPreparacionSesiones>(
             configuracion.GetSection(OpcionesPreparacionSesiones.Seccion));
         servicios.AddScoped<ProcesadorPreparacionSesiones>();
         servicios.AddHostedService<ServicioPreparacionSesionesProgramadas>();
+        servicios.AddScoped<ProcesadorFinalizacionSesionesPorTiempo>();
+        servicios.AddHostedService<ServicioFinalizacionSesionesPorTiempo>();
         servicios.AddScoped<IRegistroLogsAplicacion, RegistroLogsAplicacionDotNet>();
         return servicios;
     }

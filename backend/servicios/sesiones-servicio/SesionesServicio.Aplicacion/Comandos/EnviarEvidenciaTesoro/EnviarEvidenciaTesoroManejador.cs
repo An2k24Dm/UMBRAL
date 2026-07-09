@@ -15,19 +15,22 @@ public sealed class EnviarEvidenciaTesoroManejador
     private readonly IClienteBusquedaTesoro _clienteTesoro;
     private readonly IRepositorioEvidenciasTesoro _repositorioEvidencias;
     private readonly INotificadorSesionesTiempoReal _notificador;
+    private readonly IServicioFinalizacionSesion _servicioFinalizacion;
 
     public EnviarEvidenciaTesoroManejador(
         IUsuarioActual usuario,
         IRepositorioSesiones repositorioSesiones,
         IClienteBusquedaTesoro clienteTesoro,
         IRepositorioEvidenciasTesoro repositorioEvidencias,
-        INotificadorSesionesTiempoReal notificador)
+        INotificadorSesionesTiempoReal notificador,
+        IServicioFinalizacionSesion servicioFinalizacion)
     {
         _usuario = usuario;
         _repositorioSesiones = repositorioSesiones;
         _clienteTesoro = clienteTesoro;
         _repositorioEvidencias = repositorioEvidencias;
         _notificador = notificador;
+        _servicioFinalizacion = servicioFinalizacion;
     }
 
     public async Task<EvidenciaTesoroRespuestaDto> Handle(
@@ -92,6 +95,8 @@ public sealed class EnviarEvidenciaTesoroManejador
                 etapaCompletada = true;
                 await _notificador.NotificarEtapaCompletadaAsync(
                     comando.SesionId, comando.MisionId, comando.EtapaId, cancelacion);
+                await _servicioFinalizacion.FinalizarSiTodasEtapasCompletadasAsync(
+                    comando.SesionId, comando.EtapaId, cancelacion);
             }
         }
 

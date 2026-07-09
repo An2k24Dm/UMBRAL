@@ -21,6 +21,7 @@ public sealed class SesionModelo
     public int? MaximoParticipantes { get; set; }
     public int? MaximoEquipos { get; set; }
     public int? MaximoParticipantesPorEquipo { get; set; }
+    public int? DuracionMinutosLimite { get; set; }
 
     public List<SesionMisionModelo> Misiones { get; set; } = new();
     public List<EquipoModelo> Equipos { get; set; } = new();
@@ -60,6 +61,15 @@ public sealed class ParticipanteModelo
     public int Puntaje { get; set; }
     public DateTime FechaUnionSesion { get; set; }
     public DateTime? FechaUnionEquipo { get; set; }
+}
+
+// Registra qué etapas han sido completadas (todos los participantes) en una sesión.
+// Se usa para detectar cuándo la sesión debe finalizarse automáticamente.
+public sealed class EtapaCompletadaModelo
+{
+    public Guid SesionId { get; set; }
+    public Guid EtapaId { get; set; }
+    public DateTime FechaCompletadaUtc { get; set; }
 }
 
 // Registro de cada respuesta enviada durante el juego de trivia.

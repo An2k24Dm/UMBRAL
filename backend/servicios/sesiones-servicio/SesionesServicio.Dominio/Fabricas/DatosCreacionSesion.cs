@@ -10,4 +10,5 @@ public sealed record DatosCreacionSesion(
     DateTime FechaCreacionUtc,
     int? MaximoParticipantes,
     int? MaximoEquipos,
-    int? MaximoParticipantesPorEquipo);
+    int? MaximoParticipantesPorEquipo,
+    int? DuracionMinutosLimite = null);

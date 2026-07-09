@@ -89,4 +89,24 @@ public sealed class RepositorioRespuestasTrivia : IRepositorioRespuestasTrivia
 
         return ids.AsReadOnly();
     }
+
+    public async Task<IReadOnlyList<ProgresoTriviaItem>> ObtenerProgresoTriviaAsync(
+        Guid sesionId, CancellationToken cancelacion)
+    {
+        var registros = await _contexto.RespuestasTrivia
+            .AsNoTracking()
+            .Where(r => r.SesionId == sesionId)
+            .Select(r => new { r.ParticipanteIdentidadId, r.EsCorrecta, r.PuntosGanados })
+            .ToListAsync(cancelacion);
+
+        return registros
+            .GroupBy(r => r.ParticipanteIdentidadId)
+            .Select(g => new ProgresoTriviaItem(
+                ParticipanteIdentidadId: g.Key,
+                TotalRespondidas: g.Count(),
+                Correctas: g.Count(r => r.EsCorrecta),
+                PuntosGanados: g.Sum(r => r.PuntosGanados)))
+            .ToList()
+            .AsReadOnly();
+    }
 }

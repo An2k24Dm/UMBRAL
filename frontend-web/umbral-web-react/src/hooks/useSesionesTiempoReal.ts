@@ -19,6 +19,8 @@ interface OpcionesUseSesionesTiempoReal {
   onSesionActualizada?: (estado?: string) => void | Promise<void>
   onParticipanteExpulsado?: () => void | Promise<void>
   onEquipoExpulsado?: () => void | Promise<void>
+  onRespuestaRegistrada?: () => void | Promise<void>
+  onEtapaCompletada?: () => void | Promise<void>
 }
 
 type CallbacksTiempoReal = Omit<OpcionesUseSesionesTiempoReal, 'token' | 'sesionId' | 'equipoId'>
@@ -38,7 +40,9 @@ export function useSesionesTiempoReal({
   onEquipoActualizado,
   onSesionActualizada,
   onParticipanteExpulsado,
-  onEquipoExpulsado
+  onEquipoExpulsado,
+  onRespuestaRegistrada,
+  onEtapaCompletada
 }: OpcionesUseSesionesTiempoReal) {
   const callbacksRef = useRef<CallbacksTiempoReal>({})
   callbacksRef.current = {
@@ -47,7 +51,9 @@ export function useSesionesTiempoReal({
     onEquipoActualizado,
     onSesionActualizada,
     onParticipanteExpulsado,
-    onEquipoExpulsado
+    onEquipoExpulsado,
+    onRespuestaRegistrada,
+    onEtapaCompletada
   }
 
   const tokenLimpio = token?.trim() ?? ''
@@ -122,6 +128,20 @@ export function useSesionesTiempoReal({
       }
     }
 
+    const manejarRespuesta = (evento: EventoSesionTiempoReal) => {
+      logDetalle('evento recibido', 'RespuestaRegistrada', evento)
+      if (coincideSesion(evento)) {
+        refrescar(callbacksRef.current.onRespuestaRegistrada)
+      }
+    }
+
+    const manejarEtapa = (evento: EventoSesionTiempoReal) => {
+      logDetalle('evento recibido', 'EtapaCompletada', evento)
+      if (coincideSesion(evento)) {
+        refrescar(callbacksRef.current.onEtapaCompletada)
+      }
+    }
+
     const unirseAGrupos = async () => {
       if (sesionId) {
         await conexion.invoke('UnirseASesion', sesionId)
@@ -139,6 +159,8 @@ export function useSesionesTiempoReal({
     conexion.on('SesionActualizada', manejarSesion)
     conexion.on('ParticipanteExpulsadoSesion', manejarParticipanteExpulsado)
     conexion.on('EquipoExpulsadoSesion', manejarEquipoExpulsado)
+    conexion.on('RespuestaRegistrada', manejarRespuesta)
+    conexion.on('EtapaCompletada', manejarEtapa)
 
     conexion.onreconnected(() => {
       if (desmontado) return
@@ -178,6 +200,8 @@ export function useSesionesTiempoReal({
       conexion.off('SesionActualizada', manejarSesion)
       conexion.off('ParticipanteExpulsadoSesion', manejarParticipanteExpulsado)
       conexion.off('EquipoExpulsadoSesion', manejarEquipoExpulsado)
+      conexion.off('RespuestaRegistrada', manejarRespuesta)
+      conexion.off('EtapaCompletada', manejarEtapa)
 
       if (conexion.state === signalR.HubConnectionState.Connected) {
         Promise.all([

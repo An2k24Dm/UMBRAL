@@ -25,6 +25,7 @@ export interface FormularioEditarSesion {
   maximoParticipantes: string
   maximoEquipos: string
   maximoParticipantesPorEquipo: string
+  duracionMinutosLimite: string
 }
 
 export type ErroresFormularioEditarSesion = Partial<
@@ -39,7 +40,8 @@ const ESTADO_INICIAL: FormularioEditarSesion = {
   misionesIds: [],
   maximoParticipantes: '',
   maximoEquipos: '',
-  maximoParticipantesPorEquipo: ''
+  maximoParticipantesPorEquipo: '',
+  duracionMinutosLimite: ''
 }
 
 // Convierte una fecha ISO (UTC) al formato que espera <input datetime-local>
@@ -66,7 +68,8 @@ export function formularioDesdeDetalle(detalle: SesionDetalleDto): FormularioEdi
     misionesIds: misiones,
     maximoParticipantes: detalle.maximoParticipantes?.toString() ?? '',
     maximoEquipos: detalle.maximoEquipos?.toString() ?? '',
-    maximoParticipantesPorEquipo: detalle.maximoParticipantesPorEquipo?.toString() ?? ''
+    maximoParticipantesPorEquipo: detalle.maximoParticipantesPorEquipo?.toString() ?? '',
+    duracionMinutosLimite: detalle.duracionMinutosLimite?.toString() ?? ''
   }
 }
 
@@ -156,7 +159,10 @@ export function construirPayloadEditar(
     maximoEquipos: esIndividual ? null : Number(datos.maximoEquipos),
     maximoParticipantesPorEquipo: esIndividual
       ? null
-      : Number(datos.maximoParticipantesPorEquipo)
+      : Number(datos.maximoParticipantesPorEquipo),
+    duracionMinutosLimite: datos.duracionMinutosLimite.trim()
+      ? Number(datos.duracionMinutosLimite)
+      : null
   }
 }
 

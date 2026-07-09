@@ -73,6 +73,27 @@ namespace SesionesServicio.Infraestructura.Persistencia.Migraciones
                     b.ToTable("Equipo", "sesiones");
                 });
 
+            modelBuilder.Entity("SesionesServicio.Infraestructura.Persistencia.EtapaCompletadaModelo", b =>
+                {
+                    b.Property<Guid>("SesionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("sesion_id");
+
+                    b.Property<Guid>("EtapaId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("etapa_id");
+
+                    b.Property<DateTime>("FechaCompletadaUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("fecha_completada_utc");
+
+                    b.HasKey("SesionId", "EtapaId");
+
+                    b.HasIndex("SesionId");
+
+                    b.ToTable("EtapaCompletada", "sesiones");
+                });
+
             modelBuilder.Entity("SesionesServicio.Infraestructura.Persistencia.EvidenciaTesoroModelo", b =>
                 {
                     b.Property<Guid>("Id")
@@ -323,6 +344,10 @@ namespace SesionesServicio.Infraestructura.Persistencia.Migraciones
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)")
                         .HasColumnName("descripcion");
+
+                    b.Property<int?>("DuracionMinutosLimite")
+                        .HasColumnType("integer")
+                        .HasColumnName("duracion_minutos_limite");
 
                     b.Property<int>("Estado")
                         .HasColumnType("integer")

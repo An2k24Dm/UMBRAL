@@ -140,6 +140,25 @@ public sealed class RepositorioSesiones : IRepositorioSesiones, IConsultasSesion
         return modelos.Select(_mapeador.HaciaDominio).ToList();
     }
 
+    public async Task<IReadOnlyList<Sesion>> ListarActivasConTiempoVencidoAsync(
+        DateTime ahoraUtc, CancellationToken cancelacion)
+    {
+        var candidatas = await _contexto.Sesiones
+            .AsNoTracking()
+            .Include(s => s.Misiones)
+            .Include(s => s.Equipos)
+            .Include(s => s.Participantes)
+            .Where(s => s.Estado == EstadoSesion.Activa
+                        && s.DuracionMinutosLimite != null
+                        && s.FechaInicioUtc != null)
+            .ToListAsync(cancelacion);
+
+        return candidatas
+            .Where(s => s.FechaInicioUtc!.Value.AddMinutes(s.DuracionMinutosLimite!.Value) <= ahoraUtc)
+            .Select(_mapeador.HaciaDominio)
+            .ToList();
+    }
+
     public Task<bool> ExisteSesionVigentePorMisionAsync(
         Guid misionId, CancellationToken cancelacion)
     {
@@ -233,5 +252,25 @@ public sealed class RepositorioSesiones : IRepositorioSesiones, IConsultasSesion
             .ToListAsync(cancelacion);
 
         return modelos.Select(_mapeador.HaciaDominio).ToList();
+    }
+
+    public async Task<IReadOnlyList<MiParticipacionProyeccion>> ListarParticipacionesFinalizadasAsync(
+        Guid participanteIdentidadId, int limite, CancellationToken cancelacion)
+    {
+        return await (
+            from p in _contexto.Participantes.AsNoTracking()
+            join s in _contexto.Sesiones.AsNoTracking() on p.SesionId equals s.Id
+            where p.ParticipanteIdentidadId == participanteIdentidadId
+                  && s.Estado == EstadoSesion.Finalizada
+            orderby s.FechaFinalizacionUtc descending
+            select new MiParticipacionProyeccion(
+                s.Id,
+                s.Nombre,
+                s.TipoSesion,
+                s.FechaInicioUtc,
+                s.FechaFinalizacionUtc,
+                p.Puntaje))
+            .Take(limite)
+            .ToListAsync(cancelacion);
     }
 }
