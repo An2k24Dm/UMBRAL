@@ -1,15 +1,12 @@
 using SesionesServicio.Dominio.Entidades;
 using SesionesServicio.Dominio.Enums;
+using SesionesServicio.Dominio.ObjetosValor;
 
 namespace SesionesServicio.Infraestructura.Persistencia.Mapeadores;
 
 public sealed class MapeadorPersistenciaSesionIndividual : IMapeadorPersistenciaSesion
 {
     private static readonly string Tipo = ModoSesion.Individual.ToString();
-
-    // Respaldo técnico (no regla de dominio) para filas anteriores a la
-    // capacidad configurable, cuya columna pudo quedar nula. Las sesiones
-    // nuevas siempre persisten su capacidad real.
     private const int CapacidadIndividualHistorica = 10;
 
     public bool Soporta(string tipoSesion)
@@ -24,7 +21,10 @@ public sealed class MapeadorPersistenciaSesionIndividual : IMapeadorPersistencia
             .ToList();
     }
 
-    public Sesion HaciaDominio(SesionModelo modelo, IReadOnlyList<SesionMision> misiones)
+    public Sesion HaciaDominio(
+        SesionModelo modelo,
+        IReadOnlyList<SesionMision> misiones,
+        IReadOnlyList<EjecucionActualSesion> secuenciaEtapas)
     {
         var participantes = modelo.Participantes
             .Where(p => p.EquipoId is null)
@@ -39,6 +39,11 @@ public sealed class MapeadorPersistenciaSesionIndividual : IMapeadorPersistencia
             modelo.FechaProgramada, modelo.CodigoAcceso,
             modelo.OperadorCreadorId, modelo.FechaCreacion,
             modelo.FechaInicioUtc, modelo.FechaFinalizacionUtc,
-            maximoParticipantes, misiones, participantes, modelo.DuracionMinutosLimite);
+            maximoParticipantes,
+            misiones,
+            participantes,
+            modelo.DuracionSegundosLimite,
+            MapeadorSesionesPersistencia.MapearEjecucionActual(modelo),
+            secuenciaEtapas);
     }
 }

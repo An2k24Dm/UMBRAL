@@ -111,6 +111,10 @@ namespace SesionesServicio.Infraestructura.Persistencia.Migraciones
                         .HasColumnType("character varying(64)")
                         .HasColumnName("codigo_enviado");
 
+                    b.Property<Guid?>("EquipoId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("equipo_id");
+
                     b.Property<bool>("EsValida")
                         .HasColumnType("boolean")
                         .HasColumnName("es_valida");
@@ -143,8 +147,13 @@ namespace SesionesServicio.Infraestructura.Persistencia.Migraciones
 
                     b.HasIndex("SesionId", "EtapaId");
 
+                    b.HasIndex("SesionId", "EtapaId", "EquipoId")
+                        .IsUnique()
+                        .HasFilter("equipo_id IS NOT NULL AND es_valida");
+
                     b.HasIndex("SesionId", "EtapaId", "ParticipanteIdentidadId")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasFilter("equipo_id IS NULL AND es_valida");
 
                     b.ToTable("EvidenciaTesoro", "sesiones");
                 });
@@ -257,7 +266,7 @@ namespace SesionesServicio.Infraestructura.Persistencia.Migraciones
                         .HasColumnType("uuid")
                         .HasColumnName("mision_id");
 
-                    b.Property<Guid>("OpcionSeleccionadaId")
+                    b.Property<Guid?>("OpcionSeleccionadaId")
                         .HasColumnType("uuid")
                         .HasColumnName("opcion_seleccionada_id");
 
@@ -291,8 +300,13 @@ namespace SesionesServicio.Infraestructura.Persistencia.Migraciones
 
                     b.HasIndex("SesionId", "EtapaId", "ParticipanteIdentidadId");
 
+                    b.HasIndex("SesionId", "EtapaId", "PreguntaId", "EquipoId")
+                        .IsUnique()
+                        .HasFilter("equipo_id IS NOT NULL");
+
                     b.HasIndex("SesionId", "EtapaId", "PreguntaId", "ParticipanteIdentidadId")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasFilter("equipo_id IS NULL");
 
                     b.ToTable("RespuestaTrivia", "sesiones");
                 });
@@ -345,9 +359,62 @@ namespace SesionesServicio.Infraestructura.Persistencia.Migraciones
                         .HasColumnType("character varying(1000)")
                         .HasColumnName("descripcion");
 
-                    b.Property<int?>("DuracionMinutosLimite")
+                    b.Property<int?>("DuracionSegundosLimite")
                         .HasColumnType("integer")
-                        .HasColumnName("duracion_minutos_limite");
+                        .HasColumnName("duracion_segundos_limite");
+
+                    b.Property<long?>("EjecucionActualDuracionPausasAcumuladaMs")
+                        .HasColumnType("bigint")
+                        .HasColumnName("ejecucion_actual_duracion_pausas_acumulada_ms");
+
+                    b.Property<int?>("EjecucionActualDuracionPreparacionSegundos")
+                        .HasColumnType("integer")
+                        .HasColumnName("ejecucion_actual_duracion_preparacion_segundos");
+
+                    b.Property<int?>("EjecucionActualDuracionSegundos")
+                        .HasColumnType("integer")
+                        .HasColumnName("ejecucion_actual_duracion_segundos");
+
+                    b.Property<Guid?>("EjecucionActualEtapaId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("ejecucion_actual_etapa_id");
+
+                    b.Property<int?>("EjecucionActualFase")
+                        .HasColumnType("integer")
+                        .HasColumnName("ejecucion_actual_fase");
+
+                    b.Property<DateTime?>("EjecucionActualFechaInicioPausaUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ejecucion_actual_fecha_inicio_pausa_utc");
+
+                    b.Property<DateTime?>("EjecucionActualFechaInicioUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ejecucion_actual_fecha_inicio_utc");
+
+                    b.Property<Guid?>("EjecucionActualMisionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("ejecucion_actual_mision_id");
+
+                    b.Property<Guid?>("EjecucionActualModoDeJuegoId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("ejecucion_actual_modo_de_juego_id");
+
+                    b.Property<int?>("EjecucionActualOrdenEtapa")
+                        .HasColumnType("integer")
+                        .HasColumnName("ejecucion_actual_orden_etapa");
+
+                    b.Property<int?>("EjecucionActualOrdenGlobal")
+                        .HasColumnType("integer")
+                        .HasColumnName("ejecucion_actual_orden_global");
+
+                    b.Property<int?>("EjecucionActualOrdenMision")
+                        .HasColumnType("integer")
+                        .HasColumnName("ejecucion_actual_orden_mision");
+
+                    b.Property<string>("EjecucionActualTipoEtapa")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("ejecucion_actual_tipo_etapa");
 
                     b.Property<int>("Estado")
                         .HasColumnType("integer")
@@ -390,6 +457,10 @@ namespace SesionesServicio.Infraestructura.Persistencia.Migraciones
                     b.Property<Guid>("OperadorCreadorId")
                         .HasColumnType("uuid")
                         .HasColumnName("operador_creador_id");
+
+                    b.Property<string>("SecuenciaEtapasJson")
+                        .HasColumnType("text")
+                        .HasColumnName("secuencia_etapas_json");
 
                     b.Property<string>("TipoSesion")
                         .IsRequired()

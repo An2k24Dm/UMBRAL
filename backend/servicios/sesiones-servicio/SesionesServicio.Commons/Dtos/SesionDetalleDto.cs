@@ -20,11 +20,26 @@ public sealed class SesionDetalleDto
     public int? MaximoParticipantes { get; set; }
     public int? MaximoEquipos { get; set; }
     public int? MaximoParticipantesPorEquipo { get; set; }
-    public int? DuracionMinutosLimite { get; set; }
+    public int? DuracionSegundosLimite { get; set; }
+    public EjecucionActualSesionDto? EjecucionActual { get; set; }
 
     public List<SesionMisionDto> Misiones { get; set; } = new();
     public List<EquipoSesionDto> Equipos { get; set; } = new();
     public List<ParticipanteSesionDto> ParticipantesIndividuales { get; set; } = new();
+}
+
+public sealed class EjecucionActualSesionDto
+{
+    public Guid MisionId { get; set; }
+    public Guid EtapaId { get; set; }
+    public Guid ModoDeJuegoId { get; set; }
+    public string TipoEtapa { get; set; } = string.Empty;
+    public int OrdenGlobal { get; set; }
+    public DateTime FechaInicioUtc { get; set; }
+    public int DuracionSegundos { get; set; }
+    public long DuracionPausasAcumuladaMs { get; set; }
+    public DateTime? FechaInicioPausaUtc { get; set; }
+    public int SegundosRestantes { get; set; }
 }
 
 public sealed class SesionMisionDto

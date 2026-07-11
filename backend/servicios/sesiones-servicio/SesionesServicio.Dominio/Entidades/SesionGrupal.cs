@@ -19,7 +19,7 @@ public sealed class SesionGrupal : Sesion
     public static SesionGrupal Crear(
         string nombre, string descripcion, DateTime fechaProgramada,
         string codigoAcceso, Guid operadorCreadorId, DateTime fechaCreacionUtc,
-        int maximoEquipos, int maximoParticipantesPorEquipo, int? duracionMinutosLimite = null)
+        int maximoEquipos, int maximoParticipantesPorEquipo, int? duracionSegundosLimite = null)
     {
         PoliticaCapacidadSesion.ValidarCapacidadGrupal(
             maximoEquipos, maximoParticipantesPorEquipo);
@@ -29,7 +29,7 @@ public sealed class SesionGrupal : Sesion
             codigoAcceso, operadorCreadorId, fechaCreacionUtc);
         sesion.MaximoEquipos = maximoEquipos;
         sesion.MaximoParticipantesPorEquipo = maximoParticipantesPorEquipo;
-        sesion.DuracionMinutosLimite = duracionMinutosLimite;
+        sesion.DuracionSegundosLimite = duracionSegundosLimite;
         return sesion;
     }
 
@@ -245,14 +245,21 @@ public sealed class SesionGrupal : Sesion
         int maximoEquipos, int maximoParticipantesPorEquipo,
         IEnumerable<SesionMision>? misiones = null,
         IEnumerable<Equipo>? equipos = null,
-        int? duracionMinutosLimite = null)
+        int? duracionSegundosLimite = null,
+        EjecucionActualSesion? ejecucionActual = null,
+        IEnumerable<EjecucionActualSesion>? secuenciaEtapas = null)
     {
         var sesion = new SesionGrupal();
         sesion.EstablecerDatosBase(
             id, nombre, descripcion, estado,
             fechaProgramada, codigoAcceso,
             operadorCreadorId, fechaCreacion,
-            fechaInicioUtc, fechaFinalizacionUtc, misiones, duracionMinutosLimite);
+            fechaInicioUtc,
+            fechaFinalizacionUtc,
+            misiones,
+            duracionSegundosLimite,
+            ejecucionActual,
+            secuenciaEtapas);
         sesion.MaximoEquipos = maximoEquipos;
         sesion.MaximoParticipantesPorEquipo = maximoParticipantesPorEquipo;
         if (equipos is not null) sesion._equipos.AddRange(equipos);

@@ -5,12 +5,18 @@ import { TarjetaMisionSesionMovil } from "./TarjetaMisionSesionMovil";
 
 interface Props {
   misiones: MisionSesionMovilDto[];
+  // Progreso GLOBAL: etapas completadas por TODOS (autoridad del backend). No se
+  // usa el progreso individual (jugadorActualCompletoEtapaActual) para esto.
+  etapasCompletadasGlobalmenteIds?: string[];
 }
 
 // Lista vertical de misiones del detalle. Mantiene el orden recibido
 // del backend (que ya viene ordenado por `orden` ascendente desde el
 // manejador).
-export function ListaMisionesSesionMovil({ misiones }: Props) {
+export function ListaMisionesSesionMovil({
+  misiones,
+  etapasCompletadasGlobalmenteIds = [],
+}: Props) {
   if (misiones.length === 0) {
     return (
       <View style={estilos.vacio}>
@@ -21,10 +27,16 @@ export function ListaMisionesSesionMovil({ misiones }: Props) {
     );
   }
 
+  const completadas = new Set(etapasCompletadasGlobalmenteIds);
+
   return (
     <View>
       {misiones.map((mision) => (
-        <TarjetaMisionSesionMovil key={mision.id} mision={mision} />
+        <TarjetaMisionSesionMovil
+          key={mision.id}
+          mision={mision}
+          etapasCompletadasGlobalmenteIds={completadas}
+        />
       ))}
     </View>
   );

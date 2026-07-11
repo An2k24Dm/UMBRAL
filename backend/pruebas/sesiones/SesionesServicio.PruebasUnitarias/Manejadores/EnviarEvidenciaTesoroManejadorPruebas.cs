@@ -2,11 +2,13 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using SesionesServicio.Aplicacion.Comandos.EnviarEvidenciaTesoro;
+using SesionesServicio.Aplicacion.Excepciones;
 using SesionesServicio.Aplicacion.Puertos;
 using SesionesServicio.Commons.Dtos;
 using SesionesServicio.Dominio.Abstract;
 using SesionesServicio.Dominio.Entidades;
-using SesionesServicio.Dominio.Enums;
+using SesionesServicio.Dominio.Excepciones;
+using SesionesServicio.PruebasUnitarias.Dominio; // EquipoTestHelpers (CrearEquipo de 4 args)
 
 namespace SesionesServicio.PruebasUnitarias.Manejadores;
 
@@ -15,364 +17,387 @@ public class EnviarEvidenciaTesoroManejadorPruebas
     private static readonly DateTime AhoraUtc = new(2026, 7, 8, 10, 0, 0, DateTimeKind.Utc);
     private static readonly Guid Operador = Guid.Parse("11111111-1111-1111-1111-111111111111");
     private static readonly Guid ParticipanteId = Guid.Parse("22222222-2222-2222-2222-222222222222");
+    private static readonly Guid OtroParticipante = Guid.Parse("2a2a2a2a-2a2a-2a2a-2a2a-2a2a2a2a2a2a");
     private static readonly Guid MisionId = Guid.Parse("44444444-4444-4444-4444-444444444444");
     private static readonly Guid EtapaId = Guid.Parse("55555555-5555-5555-5555-555555555555");
     private static readonly Guid BusquedaId = Guid.Parse("66666666-6666-6666-6666-666666666666");
     private const string CodigoValido = "QR-TESORO-001";
 
-    private static SesionIndividual IndividualActiva()
+    // Integrantes de sesión grupal.
+    private static readonly Guid Ana = Guid.Parse("a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a1a1");   // Rojo
+    private static readonly Guid Pedro = Guid.Parse("b2b2b2b2-b2b2-b2b2-b2b2-b2b2b2b2b2b2"); // Rojo
+    private static readonly Guid Carlos = Guid.Parse("c3c3c3c3-c3c3-c3c3-c3c3-c3c3c3c3c3c3"); // Azul
+    private static readonly Guid Maria = Guid.Parse("d4d4d4d4-d4d4-d4d4-d4d4-d4d4d4d4d4d4");  // Azul
+
+    // ----------------------------------------------------------------------
+    // Constructores de sesiones
+    // ----------------------------------------------------------------------
+
+    private static SesionIndividual IndividualActiva(Guid? participanteExtra = null)
     {
         var s = SesionIndividual.Crear(
             "Tesoro", "Demo", AhoraUtc.AddHours(1), "TESO01", Operador, AhoraUtc, 5);
         s.Preparar();
         s.AgregarParticipante(ParticipanteId, AhoraUtc);
+        if (participanteExtra.HasValue) s.AgregarParticipante(participanteExtra.Value, AhoraUtc);
         s.Iniciar(AhoraUtc);
         return s;
     }
 
-    private static EnviarEvidenciaTesoroManejador Construir(
-        Sesion sesion,
-        Guid? participanteIdentidadId = null,
-        bool yaEnvio = false,
-        bool? esValida = true,
-        int puntajeBase = 50,
-        int conEvidenciaValida = 0)
+    private static (SesionGrupal sesion, Guid rojoId, Guid azulId) GrupalActiva()
     {
-        var pid = participanteIdentidadId ?? ParticipanteId;
-
-        var usuario = new Mock<IUsuarioActual>();
-        usuario.Setup(u => u.ObtenerId()).Returns(pid);
-
-        var repo = new Mock<IRepositorioSesiones>();
-        repo.Setup(r => r.ObtenerPorIdAsync(sesion.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(sesion);
-
-        var repoEvidencias = new Mock<IRepositorioEvidenciasTesoro>();
-        repoEvidencias.Setup(r => r.ExisteEvidenciaAsync(
-                sesion.Id, EtapaId, pid, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(yaEnvio);
-        repoEvidencias.Setup(r => r.AgregarAsync(
-                It.IsAny<EvidenciaTesoroRegistro>(), It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
-        repoEvidencias.Setup(r => r.ContarParticipantesConEvidenciaValidaAsync(
-                sesion.Id, EtapaId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(conEvidenciaValida);
-
-        var clienteTesoro = new Mock<IClienteBusquedaTesoro>();
-        clienteTesoro.Setup(c => c.ValidarCodigoQrAsync(
-                BusquedaId, CodigoValido, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(esValida);
-        clienteTesoro.Setup(c => c.ObtenerBusquedaParticipanteAsync(
-                BusquedaId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new BusquedaTesoroJuegosDto { Puntaje = puntajeBase });
-
-        var notificador = new Mock<INotificadorSesionesTiempoReal>();
-        notificador.Setup(n => n.NotificarEtapaCompletadaAsync(
-                It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(),
-                It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
-
-        return new EnviarEvidenciaTesoroManejador(
-            usuario.Object, repo.Object, clienteTesoro.Object,
-            repoEvidencias.Object, notificador.Object,
-            Mock.Of<IServicioFinalizacionSesion>());
+        var s = SesionGrupal.Crear(
+            "Tesoro", "Demo", AhoraUtc.AddHours(1), "TESO01", Operador, AhoraUtc,
+            maximoEquipos: 5, maximoParticipantesPorEquipo: 2);
+        s.Preparar();
+        var rojo = s.CrearEquipo("Rojo", Ana, AhoraUtc, AhoraUtc);
+        s.AgregarParticipanteAEquipo(rojo.Id, Pedro, AhoraUtc, AhoraUtc);
+        var azul = s.CrearEquipo("Azul", Carlos, AhoraUtc, AhoraUtc);
+        s.AgregarParticipanteAEquipo(azul.Id, Maria, AhoraUtc, AhoraUtc);
+        s.Iniciar(AhoraUtc);
+        return (s, rojo.Id, azul.Id);
     }
 
-    private static EnviarEvidenciaTesoroComando Comando(Sesion sesion)
-        => new(sesion.Id, MisionId, EtapaId, BusquedaId, CodigoValido);
+    // ----------------------------------------------------------------------
+    // Arranque configurable del manejador con dobles
+    // ----------------------------------------------------------------------
 
-    [Fact]
-    public async Task CodigoValido_DevuelveEsValidaTrue_YPuntajeBase()
+    private sealed class Arranque
+    {
+        public Mock<IUsuarioActual> Usuario { get; } = new();
+        public Mock<IRepositorioSesiones> RepoSesiones { get; } = new();
+        public Mock<IClienteBusquedaTesoro> ClienteTesoro { get; } = new();
+        public Mock<IRepositorioEvidenciasTesoro> RepoEvidencias { get; } = new();
+        public Mock<INotificadorSesionesTiempoReal> Notificador { get; } = new();
+        public Mock<IServicioFinalizacionSesion> Finalizacion { get; } = new();
+        public Mock<IServicioProgresoSecuencialSesion> ProgresoSecuencial { get; } = new();
+
+        public Arranque(
+            Sesion sesion,
+            Guid pid,
+            bool yaCompletado = false,
+            bool esValida = true,
+            int puntajeBase = 50,
+            int participantesCompletaron = 0,
+            int equiposCompletaron = 0)
+        {
+            Usuario.Setup(u => u.ObtenerId()).Returns(pid);
+            RepoSesiones.Setup(r => r.ObtenerPorIdAsync(sesion.Id, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(sesion);
+
+            RepoEvidencias.Setup(r => r.ExisteEvidenciaValidaIndividualAsync(
+                    It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(yaCompletado);
+            RepoEvidencias.Setup(r => r.ExisteEvidenciaValidaEquipoAsync(
+                    It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(yaCompletado);
+
+            ProgresoSecuencial.Setup(s => s.ValidarEtapaActualAsync(
+                    It.IsAny<Sesion>(), It.IsAny<Guid>(), It.IsAny<Guid>(),
+                    It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<Guid>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
+
+            ClienteTesoro.Setup(c => c.ValidarCodigoQrAsync(
+                    BusquedaId, CodigoValido, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(esValida);
+            ClienteTesoro.Setup(c => c.ObtenerBusquedaParticipanteAsync(
+                    BusquedaId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new BusquedaTesoroJuegosDto { Puntaje = puntajeBase });
+
+            RepoEvidencias.Setup(r => r.AgregarAsync(
+                    It.IsAny<EvidenciaTesoroRegistro>(), It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
+
+            RepoEvidencias.Setup(r => r.ContarParticipantesConEvidenciaValidaAsync(
+                    It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(participantesCompletaron);
+            RepoEvidencias.Setup(r => r.ContarEquiposConEvidenciaValidaAsync(
+                    It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(equiposCompletaron);
+
+            Notificador.Setup(n => n.NotificarEtapaCompletadaAsync(
+                    It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
+            Notificador.Setup(n => n.NotificarProgresoSecuencialActualizadoAsync(
+                    It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid?>(), It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
+            Finalizacion.Setup(s => s.ProgramarCierreTrasFeedbackAsync(
+                    It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
+        }
+
+        public EnviarEvidenciaTesoroManejador Construir()
+            => new(
+                Usuario.Object, RepoSesiones.Object, ClienteTesoro.Object,
+                RepoEvidencias.Object, Notificador.Object, Finalizacion.Object,
+                ProgresoSecuencial.Object);
+
+        public Task<EvidenciaTesoroRespuestaDto> EjecutarAsync(Guid sesionId)
+            => Construir().Handle(
+                new EnviarEvidenciaTesoroComando(sesionId, MisionId, EtapaId, BusquedaId, CodigoValido),
+                CancellationToken.None);
+    }
+
+    // ======================================================================
+    // SESIÓN INDIVIDUAL
+    // ======================================================================
+
+    [Fact] // (1)
+    public async Task Individual_QrValido_RegistraEvidenciaConEquipoNullYPuntos()
     {
         var sesion = IndividualActiva();
-        var manejador = Construir(sesion, puntajeBase: 75);
+        var arr = new Arranque(sesion, ParticipanteId, puntajeBase: 75);
 
-        var resultado = await manejador.Handle(Comando(sesion), CancellationToken.None);
+        var resultado = await arr.EjecutarAsync(sesion.Id);
 
         resultado.EsValida.Should().BeTrue();
         resultado.PuntosGanados.Should().Be(75);
+        arr.RepoEvidencias.Verify(r => r.AgregarAsync(
+            It.Is<EvidenciaTesoroRegistro>(x =>
+                x.SesionId == sesion.Id &&
+                x.ParticipanteIdentidadId == ParticipanteId &&
+                x.EquipoId == null &&
+                x.EsValida &&
+                x.PuntosGanados == 75),
+            It.IsAny<CancellationToken>()), Times.Once);
     }
 
-    [Fact]
-    public async Task CodigoInvalido_DevuelveEsValidaFalse_YCeroPuntos()
+    [Fact] // (2)
+    public async Task Individual_OtroParticipanteCompletaIndependientemente()
+    {
+        var sesion = IndividualActiva(participanteExtra: OtroParticipante);
+        var arr = new Arranque(sesion, OtroParticipante); // aún no completó
+
+        await arr.EjecutarAsync(sesion.Id);
+
+        arr.RepoEvidencias.Verify(r => r.AgregarAsync(
+            It.Is<EvidenciaTesoroRegistro>(x =>
+                x.ParticipanteIdentidadId == OtroParticipante && x.EquipoId == null),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact] // (3)
+    public async Task Individual_MismoParticipanteDosEvidenciasValidas_EsRechazado()
     {
         var sesion = IndividualActiva();
-        var manejador = Construir(sesion, esValida: false);
+        var arr = new Arranque(sesion, ParticipanteId, yaCompletado: true);
 
-        var resultado = await manejador.Handle(Comando(sesion), CancellationToken.None);
+        Func<Task> accion = () => arr.EjecutarAsync(sesion.Id);
+
+        (await accion.Should().ThrowAsync<EvidenciaTesoroDuplicadaExcepcion>())
+            .Which.EsEquipo.Should().BeFalse();
+        arr.RepoEvidencias.Verify(r => r.AgregarAsync(
+            It.IsAny<EvidenciaTesoroRegistro>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact] // (4)
+    public async Task Individual_QrInvalido_NoCompletaEtapa_PeroRegistraIntento()
+    {
+        var sesion = IndividualActiva();
+        var arr = new Arranque(sesion, ParticipanteId, esValida: false);
+
+        var resultado = await arr.EjecutarAsync(sesion.Id);
 
         resultado.EsValida.Should().BeFalse();
         resultado.PuntosGanados.Should().Be(0);
-    }
-
-    [Fact]
-    public async Task CodigoInvalido_NoDisparaEtapaCompletada()
-    {
-        var sesion = IndividualActiva();
-        var notificador = new Mock<INotificadorSesionesTiempoReal>();
-        notificador.Setup(n => n.NotificarEtapaCompletadaAsync(
-                It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(),
-                It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
-
-        var usuario = new Mock<IUsuarioActual>();
-        usuario.Setup(u => u.ObtenerId()).Returns(ParticipanteId);
-        var repo = new Mock<IRepositorioSesiones>();
-        repo.Setup(r => r.ObtenerPorIdAsync(sesion.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(sesion);
-        var repoEvidencias = new Mock<IRepositorioEvidenciasTesoro>();
-        repoEvidencias.Setup(r => r.ExisteEvidenciaAsync(
-                sesion.Id, EtapaId, ParticipanteId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(false);
-        repoEvidencias.Setup(r => r.AgregarAsync(
-                It.IsAny<EvidenciaTesoroRegistro>(), It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
-        var clienteTesoro = new Mock<IClienteBusquedaTesoro>();
-        clienteTesoro.Setup(c => c.ValidarCodigoQrAsync(
-                BusquedaId, CodigoValido, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(false);
-
-        var manejador = new EnviarEvidenciaTesoroManejador(
-            usuario.Object, repo.Object, clienteTesoro.Object,
-            repoEvidencias.Object, notificador.Object,
-            Mock.Of<IServicioFinalizacionSesion>());
-
-        var resultado = await manejador.Handle(Comando(sesion), CancellationToken.None);
-
         resultado.EtapaCompletada.Should().BeFalse();
-        notificador.Verify(n => n.NotificarEtapaCompletadaAsync(
+        arr.RepoEvidencias.Verify(r => r.AgregarAsync(
+            It.Is<EvidenciaTesoroRegistro>(x => !x.EsValida && x.PuntosGanados == 0),
+            It.IsAny<CancellationToken>()), Times.Once);
+        arr.Notificador.Verify(n => n.NotificarEtapaCompletadaAsync(
             It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(),
             It.IsAny<CancellationToken>()), Times.Never);
     }
 
-    [Fact]
-    public async Task EtapaCompletada_CuandoTodosValidaron_NotificaYFinaliza()
+    // ======================================================================
+    // SESIÓN GRUPAL
+    // ======================================================================
+
+    [Fact] // (5) Primer integrante del equipo registra evidencia con equipo y autor.
+    public async Task Grupal_PrimerIntegranteRojo_RegistraConEquipoYAutor()
     {
-        var sesion = IndividualActiva(); // 1 participante
-        var notificador = new Mock<INotificadorSesionesTiempoReal>();
-        notificador.Setup(n => n.NotificarEtapaCompletadaAsync(
-                It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(),
-                It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
-        var servicioFinalizacion = new Mock<IServicioFinalizacionSesion>();
-        servicioFinalizacion.Setup(s => s.FinalizarSiTodasEtapasCompletadasAsync(
-                It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
+        var (sesion, rojoId, _) = GrupalActiva();
+        var arr = new Arranque(sesion, Ana);
 
-        var usuario = new Mock<IUsuarioActual>();
-        usuario.Setup(u => u.ObtenerId()).Returns(ParticipanteId);
-        var repo = new Mock<IRepositorioSesiones>();
-        repo.Setup(r => r.ObtenerPorIdAsync(sesion.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(sesion);
-        var repoEvidencias = new Mock<IRepositorioEvidenciasTesoro>();
-        repoEvidencias.Setup(r => r.ExisteEvidenciaAsync(
-                sesion.Id, EtapaId, ParticipanteId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(false);
-        repoEvidencias.Setup(r => r.AgregarAsync(
-                It.IsAny<EvidenciaTesoroRegistro>(), It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
-        repoEvidencias.Setup(r => r.ContarParticipantesConEvidenciaValidaAsync(
-                sesion.Id, EtapaId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(1); // >= totalJugadores(1)
-        var clienteTesoro = new Mock<IClienteBusquedaTesoro>();
-        clienteTesoro.Setup(c => c.ValidarCodigoQrAsync(
-                BusquedaId, CodigoValido, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
-        clienteTesoro.Setup(c => c.ObtenerBusquedaParticipanteAsync(
-                BusquedaId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new BusquedaTesoroJuegosDto { Puntaje = 50 });
+        await arr.EjecutarAsync(sesion.Id);
 
-        var manejador = new EnviarEvidenciaTesoroManejador(
-            usuario.Object, repo.Object, clienteTesoro.Object,
-            repoEvidencias.Object, notificador.Object, servicioFinalizacion.Object);
+        arr.RepoEvidencias.Verify(r => r.AgregarAsync(
+            It.Is<EvidenciaTesoroRegistro>(x =>
+                x.ParticipanteIdentidadId == Ana &&  // autor real
+                x.EquipoId == rojoId &&               // jugador lógico = equipo
+                x.EsValida),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
 
-        var resultado = await manejador.Handle(Comando(sesion), CancellationToken.None);
+    [Fact] // (6) Segundo integrante del mismo equipo es rechazado, sin puntos ni progreso.
+    public async Task Grupal_SegundoIntegranteRojo_EsRechazado()
+    {
+        var (sesion, _, _) = GrupalActiva();
+        var arr = new Arranque(sesion, Pedro, yaCompletado: true); // Rojo ya tiene evidencia válida
+
+        Func<Task> accion = () => arr.EjecutarAsync(sesion.Id);
+
+        (await accion.Should().ThrowAsync<EvidenciaTesoroDuplicadaExcepcion>())
+            .Which.EsEquipo.Should().BeTrue();
+        arr.RepoEvidencias.Verify(r => r.AgregarAsync(
+            It.IsAny<EvidenciaTesoroRegistro>(), It.IsAny<CancellationToken>()), Times.Never);
+        arr.RepoEvidencias.Verify(r => r.ContarEquiposConEvidenciaValidaAsync(
+            It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+        arr.Notificador.Verify(n => n.NotificarEtapaCompletadaAsync(
+            It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact] // (7) Otro equipo puede completar independientemente.
+    public async Task Grupal_EquipoAzulCompletaIndependientemente()
+    {
+        var (sesion, _, azulId) = GrupalActiva();
+        var arr = new Arranque(sesion, Carlos); // Azul, aún no completó
+
+        await arr.EjecutarAsync(sesion.Id);
+
+        arr.RepoEvidencias.Verify(r => r.AgregarAsync(
+            It.Is<EvidenciaTesoroRegistro>(x =>
+                x.ParticipanteIdentidadId == Carlos && x.EquipoId == azulId),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact] // (11) El progreso grupal usa el conteo de EQUIPOS, no de participantes.
+    public async Task Grupal_UsaConteoDeEquipos_NoDeParticipantes()
+    {
+        var (sesion, _, _) = GrupalActiva();
+        var arr = new Arranque(sesion, Ana, equiposCompletaron: 1);
+
+        await arr.EjecutarAsync(sesion.Id);
+
+        arr.RepoEvidencias.Verify(r => r.ContarEquiposConEvidenciaValidaAsync(
+            sesion.Id, EtapaId, It.IsAny<CancellationToken>()), Times.Once);
+        arr.RepoEvidencias.Verify(r => r.ContarParticipantesConEvidenciaValidaAsync(
+            It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact] // (8, 9) Con 2 equipos, solo Rojo completado → etapa NO completada.
+    public async Task Grupal_UnEquipoCompletadoDeDos_NoCompletaEtapa()
+    {
+        var (sesion, _, _) = GrupalActiva(); // 2 equipos
+        // Aunque dos integrantes de Rojo tuvieran evidencia, COUNT(DISTINCT equipo)=1.
+        var arr = new Arranque(sesion, Ana, equiposCompletaron: 1);
+
+        var resultado = await arr.EjecutarAsync(sesion.Id);
+
+        resultado.EtapaCompletada.Should().BeFalse();
+        arr.Notificador.Verify(n => n.NotificarEtapaCompletadaAsync(
+            It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+        arr.Finalizacion.Verify(s => s.ProgramarCierreTrasFeedbackAsync(
+            It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact] // (10, 17) Cuando todos los equipos completan → etapa completada y finalización.
+    public async Task Grupal_TodosLosEquiposCompletan_CompletaEtapaYFinaliza()
+    {
+        var (sesion, _, _) = GrupalActiva(); // 2 equipos
+        var arr = new Arranque(sesion, Carlos, equiposCompletaron: 2);
+
+        var resultado = await arr.EjecutarAsync(sesion.Id);
 
         resultado.EtapaCompletada.Should().BeTrue();
-        notificador.Verify(n => n.NotificarEtapaCompletadaAsync(
-            sesion.Id, MisionId, EtapaId, It.IsAny<CancellationToken>()), Times.Once);
-        servicioFinalizacion.Verify(s => s.FinalizarSiTodasEtapasCompletadasAsync(
+        arr.Notificador.Verify(n => n.NotificarEtapaCompletadaAsync(
+            sesion.Id, MisionId, EtapaId, It.IsAny<CancellationToken>()), Times.Never);
+        // Último equipo completó ⇒ cierre pendiente (feedback final), no cierre inmediato.
+        arr.Finalizacion.Verify(s => s.ProgramarCierreTrasFeedbackAsync(
             sesion.Id, EtapaId, It.IsAny<CancellationToken>()), Times.Once);
     }
 
-    [Fact]
-    public async Task EtapaNoCompletada_CuandoFaltanJugadores_NoNotifica()
+    // ======================================================================
+    // CONCURRENCIA
+    // ======================================================================
+
+    [Fact] // (12, 14) Inserción duplicada por carrera → conflicto de negocio, sin 2ª notificación.
+    public async Task Concurrencia_InsercionDuplicada_SeConvierteEnConflicto()
     {
-        var sesion = IndividualActiva();
-        // conEvidenciaValida=0 < totalJugadores=1
-        var manejador = Construir(sesion, esValida: true, conEvidenciaValida: 0);
-
-        var resultado = await manejador.Handle(Comando(sesion), CancellationToken.None);
-
-        resultado.EtapaCompletada.Should().BeFalse();
-    }
-
-    [Fact]
-    public async Task PersisteLaEvidencia()
-    {
-        var sesion = IndividualActiva();
-        var repoEvidencias = new Mock<IRepositorioEvidenciasTesoro>();
-        repoEvidencias.Setup(r => r.ExisteEvidenciaAsync(
-                sesion.Id, EtapaId, ParticipanteId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(false);
-        repoEvidencias.Setup(r => r.AgregarAsync(
+        var (sesion, _, _) = GrupalActiva();
+        var arr = new Arranque(sesion, Pedro); // pasó el pre-chequeo (yaCompletado=false)
+        arr.RepoEvidencias.Setup(r => r.AgregarAsync(
                 It.IsAny<EvidenciaTesoroRegistro>(), It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
-        repoEvidencias.Setup(r => r.ContarParticipantesConEvidenciaValidaAsync(
-                sesion.Id, EtapaId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(0);
+            .ThrowsAsync(new EvidenciaTesoroDuplicadaExcepcion(esEquipo: true));
 
-        var usuario = new Mock<IUsuarioActual>();
-        usuario.Setup(u => u.ObtenerId()).Returns(ParticipanteId);
-        var repo = new Mock<IRepositorioSesiones>();
-        repo.Setup(r => r.ObtenerPorIdAsync(sesion.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(sesion);
-        var clienteTesoro = new Mock<IClienteBusquedaTesoro>();
-        clienteTesoro.Setup(c => c.ValidarCodigoQrAsync(
-                BusquedaId, CodigoValido, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
-        clienteTesoro.Setup(c => c.ObtenerBusquedaParticipanteAsync(
-                BusquedaId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new BusquedaTesoroJuegosDto { Puntaje = 30 });
+        Func<Task> accion = () => arr.EjecutarAsync(sesion.Id);
 
-        var manejador = new EnviarEvidenciaTesoroManejador(
-            usuario.Object, repo.Object, clienteTesoro.Object,
-            repoEvidencias.Object, Mock.Of<INotificadorSesionesTiempoReal>(),
-            Mock.Of<IServicioFinalizacionSesion>());
-
-        await manejador.Handle(Comando(sesion), CancellationToken.None);
-
-        repoEvidencias.Verify(r => r.AgregarAsync(
-            It.Is<EvidenciaTesoroRegistro>(x =>
-                x.SesionId == sesion.Id &&
-                x.ParticipanteIdentidadId == ParticipanteId &&
-                x.EsValida == true &&
-                x.PuntosGanados == 30),
-            It.IsAny<CancellationToken>()), Times.Once);
+        (await accion.Should().ThrowAsync<EvidenciaTesoroDuplicadaExcepcion>())
+            .Which.EsEquipo.Should().BeTrue();
+        arr.Notificador.Verify(n => n.NotificarEtapaCompletadaAsync(
+            It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+        arr.RepoEvidencias.Verify(r => r.ContarEquiposConEvidenciaValidaAsync(
+            It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
     }
+
+    // ======================================================================
+    // ERRORES
+    // ======================================================================
 
     [Fact]
     public async Task UsuarioNoAutenticado_LanzaUnauthorizedAccessException()
     {
-        var usuario = new Mock<IUsuarioActual>();
-        usuario.Setup(u => u.ObtenerId()).Returns((Guid?)null);
-        var manejador = new EnviarEvidenciaTesoroManejador(
-            usuario.Object, Mock.Of<IRepositorioSesiones>(),
-            Mock.Of<IClienteBusquedaTesoro>(), Mock.Of<IRepositorioEvidenciasTesoro>(),
-            Mock.Of<INotificadorSesionesTiempoReal>(), Mock.Of<IServicioFinalizacionSesion>());
+        var sesion = IndividualActiva();
+        var arr = new Arranque(sesion, ParticipanteId);
+        arr.Usuario.Setup(u => u.ObtenerId()).Returns((Guid?)null);
 
-        Func<Task> accion = () => manejador.Handle(
-            new EnviarEvidenciaTesoroComando(Guid.NewGuid(), MisionId, EtapaId, BusquedaId, CodigoValido),
-            CancellationToken.None);
+        Func<Task> accion = () => arr.EjecutarAsync(sesion.Id);
 
         await accion.Should().ThrowAsync<UnauthorizedAccessException>();
     }
 
     [Fact]
-    public async Task SesionNoEncontrada_LanzaInvalidOperationException()
+    public async Task SesionNoEncontrada_LanzaSesionNoEncontradaExcepcion()
     {
-        var usuario = new Mock<IUsuarioActual>();
-        usuario.Setup(u => u.ObtenerId()).Returns(ParticipanteId);
-        var repo = new Mock<IRepositorioSesiones>();
-        repo.Setup(r => r.ObtenerPorIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+        var sesion = IndividualActiva();
+        var arr = new Arranque(sesion, ParticipanteId);
+        arr.RepoSesiones.Setup(r => r.ObtenerPorIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((Sesion?)null);
-        var manejador = new EnviarEvidenciaTesoroManejador(
-            usuario.Object, repo.Object, Mock.Of<IClienteBusquedaTesoro>(),
-            Mock.Of<IRepositorioEvidenciasTesoro>(), Mock.Of<INotificadorSesionesTiempoReal>(),
-            Mock.Of<IServicioFinalizacionSesion>());
 
-        Func<Task> accion = () => manejador.Handle(
-            new EnviarEvidenciaTesoroComando(Guid.NewGuid(), MisionId, EtapaId, BusquedaId, CodigoValido),
-            CancellationToken.None);
+        Func<Task> accion = () => arr.EjecutarAsync(Guid.NewGuid());
 
-        await accion.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("*no encontrada*");
+        await accion.Should().ThrowAsync<SesionNoEncontradaExcepcion>();
     }
 
     [Fact]
-    public async Task SesionNoActiva_LanzaInvalidOperationException()
+    public async Task SesionNoActiva_LanzaOperacionSesionInvalida()
     {
         var sesion = SesionIndividual.Crear(
             "Tesoro", "Demo", AhoraUtc.AddHours(1), "TESO01", Operador, AhoraUtc, 5);
         sesion.Preparar(); // EnPreparacion, no Activa
-        var usuario = new Mock<IUsuarioActual>();
-        usuario.Setup(u => u.ObtenerId()).Returns(ParticipanteId);
-        var repo = new Mock<IRepositorioSesiones>();
-        repo.Setup(r => r.ObtenerPorIdAsync(sesion.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(sesion);
-        var manejador = new EnviarEvidenciaTesoroManejador(
-            usuario.Object, repo.Object, Mock.Of<IClienteBusquedaTesoro>(),
-            Mock.Of<IRepositorioEvidenciasTesoro>(), Mock.Of<INotificadorSesionesTiempoReal>(),
-            Mock.Of<IServicioFinalizacionSesion>());
+        var arr = new Arranque(sesion, ParticipanteId);
 
-        Func<Task> accion = () => manejador.Handle(
-            new EnviarEvidenciaTesoroComando(sesion.Id, MisionId, EtapaId, BusquedaId, CodigoValido),
-            CancellationToken.None);
+        Func<Task> accion = () => arr.EjecutarAsync(sesion.Id);
 
-        await accion.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("*no está activa*");
+        await accion.Should().ThrowAsync<OperacionSesionInvalidaExcepcion>();
     }
 
     [Fact]
-    public async Task ParticipanteNoInscrito_LanzaInvalidOperationException()
+    public async Task ParticipanteNoInscrito_LanzaParticipacionInvalida()
     {
         var sesion = IndividualActiva();
-        var otroUsuario = Guid.NewGuid();
-        var usuario = new Mock<IUsuarioActual>();
-        usuario.Setup(u => u.ObtenerId()).Returns(otroUsuario);
-        var repo = new Mock<IRepositorioSesiones>();
-        repo.Setup(r => r.ObtenerPorIdAsync(sesion.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(sesion);
-        var manejador = new EnviarEvidenciaTesoroManejador(
-            usuario.Object, repo.Object, Mock.Of<IClienteBusquedaTesoro>(),
-            Mock.Of<IRepositorioEvidenciasTesoro>(), Mock.Of<INotificadorSesionesTiempoReal>(),
-            Mock.Of<IServicioFinalizacionSesion>());
+        var arr = new Arranque(sesion, Guid.NewGuid()); // usuario ajeno
 
-        Func<Task> accion = () => manejador.Handle(
-            new EnviarEvidenciaTesoroComando(sesion.Id, MisionId, EtapaId, BusquedaId, CodigoValido),
-            CancellationToken.None);
+        Func<Task> accion = () => arr.EjecutarAsync(sesion.Id);
 
-        await accion.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("*no está inscrito*");
-    }
-
-    [Fact]
-    public async Task YaEnvioEvidencia_LanzaInvalidOperationException()
-    {
-        var sesion = IndividualActiva();
-        var manejador = Construir(sesion, yaEnvio: true);
-
-        Func<Task> accion = () => manejador.Handle(Comando(sesion), CancellationToken.None);
-
-        await accion.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("*Ya enviaste*");
+        await accion.Should().ThrowAsync<ParticipacionInvalidaExcepcion>();
     }
 
     [Fact]
     public async Task BusquedaNoEncontrada_LanzaInvalidOperationException()
     {
         var sesion = IndividualActiva();
-        var usuario = new Mock<IUsuarioActual>();
-        usuario.Setup(u => u.ObtenerId()).Returns(ParticipanteId);
-        var repo = new Mock<IRepositorioSesiones>();
-        repo.Setup(r => r.ObtenerPorIdAsync(sesion.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(sesion);
-        var repoEvidencias = new Mock<IRepositorioEvidenciasTesoro>();
-        repoEvidencias.Setup(r => r.ExisteEvidenciaAsync(
-                sesion.Id, EtapaId, ParticipanteId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(false);
-        var clienteTesoro = new Mock<IClienteBusquedaTesoro>();
-        clienteTesoro.Setup(c => c.ValidarCodigoQrAsync(
+        var arr = new Arranque(sesion, ParticipanteId);
+        arr.ClienteTesoro.Setup(c => c.ValidarCodigoQrAsync(
                 BusquedaId, CodigoValido, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((bool?)null); // búsqueda no encontrada
-        var manejador = new EnviarEvidenciaTesoroManejador(
-            usuario.Object, repo.Object, clienteTesoro.Object,
-            repoEvidencias.Object, Mock.Of<INotificadorSesionesTiempoReal>(),
-            Mock.Of<IServicioFinalizacionSesion>());
+            .ReturnsAsync((bool?)null);
 
-        Func<Task> accion = () => manejador.Handle(Comando(sesion), CancellationToken.None);
+        Func<Task> accion = () => arr.EjecutarAsync(sesion.Id);
 
-        await accion.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("*no encontrada*");
+        await accion.Should().ThrowAsync<InvalidOperationException>().WithMessage("*no encontrada*");
     }
 }

@@ -66,7 +66,9 @@ public sealed class CrearSesionManejador
             : DateTime.SpecifyKind(comando.Datos.FechaProgramada, DateTimeKind.Utc);
         PoliticaProgramacionSesion.ValidarFechaProgramada(fechaProgramada, ahoraUtc);
 
-        await _validadorMisiones.ValidarAsync(comando.Datos.MisionesIds, cancelacion);
+        var resultadoMisiones = await _validadorMisiones.ValidarYObtenerAsync(
+            comando.Datos.MisionesIds, cancelacion);
+        var duracionSegundosLimite = resultadoMisiones.DuracionTotalSegundos;
 
         var operadorId = _usuarioActual.ObtenerId()
             ?? throw new UsuarioNoAutorizadoCrearSesionExcepcion(
@@ -85,7 +87,7 @@ public sealed class CrearSesionManejador
             comando.Datos.MaximoParticipantes,
             comando.Datos.MaximoEquipos,
             comando.Datos.MaximoParticipantesPorEquipo,
-            comando.Datos.DuracionMinutosLimite);
+            duracionSegundosLimite);
 
         var sesion = _fabricaSesion.Crear(datosCreacion);
 

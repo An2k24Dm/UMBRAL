@@ -3,8 +3,6 @@ using SesionesServicio.Dominio.Entidades;
 
 namespace SesionesServicio.Aplicacion.Puertos;
 
-// Strategy de mapeo de una Sesion concreta a SesionListadoDto (incluye los
-// conteos que dependen del tipo: participantes o equipos).
 public interface IMapeadorListadoSesion
 {
     bool Soporta(Sesion sesion);

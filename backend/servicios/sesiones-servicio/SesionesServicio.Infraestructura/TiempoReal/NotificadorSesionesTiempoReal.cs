@@ -193,6 +193,94 @@ public sealed class NotificadorSesionesTiempoReal : INotificadorSesionesTiempoRe
     }
 
     // HU-50 — Notifica a todos los participantes de la sesión que el operador liberó una pista.
+    public Task NotificarEtapaIniciadaAsync(
+        Guid sesionId,
+        Guid misionId,
+        Guid etapaId,
+        string tipoEtapa,
+        Guid modoDeJuegoId,
+        int ordenGlobal,
+        DateTime fechaInicioEtapaUtc,
+        int duracionSegundos,
+        CancellationToken cancelacion)
+    {
+        var dto = new EtapaIniciadaDto
+        {
+            SesionId = sesionId,
+            MisionId = misionId,
+            EtapaId = etapaId,
+            TipoEtapa = tipoEtapa,
+            ModoDeJuegoId = modoDeJuegoId,
+            OrdenGlobal = ordenGlobal,
+            FechaInicioEtapaUtc = fechaInicioEtapaUtc,
+            DuracionSegundos = duracionSegundos,
+            FechaEventoUtc = DateTime.UtcNow
+        };
+
+        return _hub.Clients
+            .Group(SesionesHub.GrupoSesion(sesionId))
+            .SendAsync("EtapaIniciada", dto, cancelacion);
+    }
+
+    // HU37/HU49 — Aviso de preparación: la siguiente etapa comenzará en breve.
+    public Task NotificarEtapaPorComenzarAsync(
+        Guid sesionId,
+        Guid misionId,
+        Guid etapaId,
+        string tipoEtapa,
+        Guid modoDeJuegoId,
+        int numeroMision,
+        int numeroEtapa,
+        int ordenGlobal,
+        bool esNuevaMision,
+        DateTime fechaInicioProgramadaUtc,
+        int duracionPreparacionSegundos,
+        CancellationToken cancelacion)
+    {
+        var dto = new EtapaPorComenzarDto
+        {
+            SesionId = sesionId,
+            MisionId = misionId,
+            EtapaId = etapaId,
+            TipoEtapa = tipoEtapa,
+            ModoDeJuegoId = modoDeJuegoId,
+            NumeroMision = numeroMision,
+            NumeroEtapa = numeroEtapa,
+            OrdenGlobal = ordenGlobal,
+            EsNuevaMision = esNuevaMision,
+            FechaInicioProgramadaUtc = fechaInicioProgramadaUtc,
+            DuracionPreparacionSegundos = duracionPreparacionSegundos,
+            FechaEventoUtc = DateTime.UtcNow
+        };
+
+        return _hub.Clients
+            .Group(SesionesHub.GrupoSesion(sesionId))
+            .SendAsync("EtapaPorComenzar", dto, cancelacion);
+    }
+
+    public Task NotificarProgresoSecuencialActualizadoAsync(
+        Guid sesionId,
+        Guid participanteIdentidadId,
+        Guid? equipoId,
+        CancellationToken cancelacion)
+    {
+        var dto = new ProgresoSecuencialActualizadoDto
+        {
+            SesionId = sesionId,
+            ParticipanteIdentidadId = participanteIdentidadId,
+            EquipoId = equipoId,
+            FechaEventoUtc = DateTime.UtcNow
+        };
+
+        return equipoId.HasValue
+            ? _hub.Clients
+                .Group(SesionesHub.GrupoEquipo(equipoId.Value))
+                .SendAsync("ProgresoSecuencialActualizado", dto, cancelacion)
+            : _hub.Clients
+                .User(participanteIdentidadId.ToString())
+                .SendAsync("ProgresoSecuencialActualizado", dto, cancelacion);
+    }
+
     public Task NotificarPistaLiberadaAsync(
         Guid sesionId,
         Guid etapaId,

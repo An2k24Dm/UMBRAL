@@ -3,6 +3,7 @@ namespace SesionesServicio.Commons.Dtos;
 public sealed class ProgresoSesionParticipanteDto
 {
     public Guid ParticipanteIdentidadId { get; set; }
+    public Guid? EquipoId { get; set; }
     // Trivia
     public int TriviaRespondidas { get; set; }
     public int TriviaCorrectas { get; set; }

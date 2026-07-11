@@ -25,6 +25,8 @@ public sealed class FabricaApiPruebas : WebApplicationFactory<Program>
     public static readonly Guid IdOtroOperador = Guid.Parse("99999999-9999-9999-9999-999999999999");
     public static readonly Guid IdMisionActiva = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
     public static readonly Guid IdMisionActivaB = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
+    public static readonly Guid IdEtapaMisionActiva = Guid.Parse("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee");
+    public static readonly Guid IdTriviaMisionActiva = Guid.Parse("ffffffff-ffff-ffff-ffff-ffffffffffff");
     public static readonly Guid IdMisionInactiva = Guid.Parse("cccccccc-cccc-cccc-cccc-cccccccccccc");
     public static readonly Guid IdMisionInexistente = Guid.Parse("dddddddd-dddd-dddd-dddd-dddddddddddd");
     public const string CodigoAccesoPrueba = "TEST01";
@@ -135,7 +137,7 @@ public sealed class FabricaApiPruebas : WebApplicationFactory<Program>
             .ReturnsAsync(new MisionResumenJuegosDto
             {
                 Id = IdMisionActiva, Nombre = "Misión Alfa",
-                Estado = "Activa", TotalEtapas = 2
+                Estado = "Activa", TotalEtapas = 2, TiempoTotalSegundos = 120
             });
 
         MockClienteMisiones
@@ -143,7 +145,7 @@ public sealed class FabricaApiPruebas : WebApplicationFactory<Program>
             .ReturnsAsync(new MisionResumenJuegosDto
             {
                 Id = IdMisionActivaB, Nombre = "Misión Bravo",
-                Estado = "Activa", TotalEtapas = 1
+                Estado = "Activa", TotalEtapas = 1, TiempoTotalSegundos = 60
             });
 
         MockClienteMisiones
@@ -151,11 +153,53 @@ public sealed class FabricaApiPruebas : WebApplicationFactory<Program>
             .ReturnsAsync(new MisionResumenJuegosDto
             {
                 Id = IdMisionInactiva, Nombre = "Misión Inactiva",
-                Estado = "Inactiva", TotalEtapas = 2
+                Estado = "Inactiva", TotalEtapas = 2, TiempoTotalSegundos = 60
             });
 
         MockClienteMisiones
             .Setup(c => c.ObtenerMisionAsync(IdMisionInexistente, It.IsAny<CancellationToken>()))
             .ReturnsAsync((MisionResumenJuegosDto?)null);
+
+        MockClienteMisiones
+            .Setup(c => c.ObtenerMisionConEtapasAsync(IdMisionActiva, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new MisionConEtapasJuegosDto
+            {
+                Id = IdMisionActiva,
+                Nombre = "Mision Alfa",
+                Estado = "Activa",
+                Etapas =
+                {
+                    new EtapaJuegosDto
+                    {
+                        Id = IdEtapaMisionActiva,
+                        Orden = 1,
+                        TipoModoDeJuego = "Trivia",
+                        ModoDeJuegoId = IdTriviaMisionActiva,
+                        NombreModoDeJuego = "Trivia Alfa",
+                        TiempoEstimado = 120
+                    }
+                }
+            });
+
+        MockClienteMisiones
+            .Setup(c => c.ObtenerMisionConEtapasAsync(IdMisionActivaB, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new MisionConEtapasJuegosDto
+            {
+                Id = IdMisionActivaB,
+                Nombre = "Mision Bravo",
+                Estado = "Activa",
+                Etapas =
+                {
+                    new EtapaJuegosDto
+                    {
+                        Id = Guid.Parse("abababab-abab-abab-abab-abababababab"),
+                        Orden = 1,
+                        TipoModoDeJuego = "Trivia",
+                        ModoDeJuegoId = Guid.Parse("cdcdcdcd-cdcd-cdcd-cdcd-cdcdcdcdcdcd"),
+                        NombreModoDeJuego = "Trivia Bravo",
+                        TiempoEstimado = 60
+                    }
+                }
+            });
     }
 }

@@ -8,9 +8,8 @@ public sealed record EnviarRespuestaTriviaComando(
     Guid EtapaId,
     Guid TriviaId,
     Guid PreguntaId,
-    Guid OpcionSeleccionadaId,
-    int TiempoTardadoMs,
-    int TotalPreguntasEtapa)
+    Guid? OpcionSeleccionadaId,
+    int TiempoTardadoMs)
     : IRequest<EnviarRespuestaTriviaRespuesta>;
 
 public sealed record EnviarRespuestaTriviaRespuesta(

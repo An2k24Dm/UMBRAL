@@ -18,5 +18,4 @@ public sealed class CrearSesionSolicitudDto
     public int? MaximoEquipos { get; set; }
     public int? MaximoParticipantesPorEquipo { get; set; }
     // Duración opcional en minutos. Si se indica, la sesión se finalizará automáticamente al vencer.
-    public int? DuracionMinutosLimite { get; set; }
 }

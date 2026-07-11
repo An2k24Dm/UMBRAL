@@ -9,25 +9,28 @@ public sealed class RepositorioEtapasCompletadas : IRepositorioEtapasCompletadas
 
     public RepositorioEtapasCompletadas(ContextoSesiones contexto) => _contexto = contexto;
 
-    public async Task RegistrarAsync(
+    public async Task<bool> RegistrarAsync(
         Guid sesionId, Guid etapaId, DateTime fechaUtc, CancellationToken cancelacion)
     {
-        var existe = await _contexto.EtapasCompletadas.AsNoTracking()
-            .AnyAsync(e => e.SesionId == sesionId && e.EtapaId == etapaId, cancelacion);
-        if (existe) return;
+        var filas = await _contexto.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO sesiones."EtapaCompletada"
+                (sesion_id, etapa_id, fecha_completada_utc)
+            VALUES ({sesionId}, {etapaId}, {fechaUtc})
+            ON CONFLICT (sesion_id, etapa_id) DO NOTHING
+            """, cancelacion);
 
-        _contexto.EtapasCompletadas.Add(new EtapaCompletadaModelo
-        {
-            SesionId = sesionId,
-            EtapaId = etapaId,
-            FechaCompletadaUtc = fechaUtc
-        });
-
-        try { await _contexto.SaveChangesAsync(cancelacion); }
-        catch (DbUpdateException) { /* Condición de carrera: ya existe, ignorar */ }
+        return filas > 0;
     }
 
     public Task<int> ContarAsync(Guid sesionId, CancellationToken cancelacion)
         => _contexto.EtapasCompletadas.AsNoTracking()
             .CountAsync(e => e.SesionId == sesionId, cancelacion);
+
+    public async Task<IReadOnlyList<Guid>> ObtenerCompletadasAsync(
+        Guid sesionId, CancellationToken cancelacion)
+        => await _contexto.EtapasCompletadas.AsNoTracking()
+            .Where(e => e.SesionId == sesionId)
+            .OrderBy(e => e.FechaCompletadaUtc)
+            .Select(e => e.EtapaId)
+            .ToListAsync(cancelacion);
 }

@@ -1,4 +1,5 @@
 using SesionesServicio.Dominio.Enums;
+using SesionesServicio.Dominio.ObjetosValor;
 
 namespace SesionesServicio.Dominio.Fabricas;
 
@@ -22,4 +23,5 @@ public sealed record DatosReconstruccionSesion(
     int? MaximoParticipantes,
     int? MaximoEquipos,
     int? MaximoParticipantesPorEquipo,
-    int? DuracionMinutosLimite = null);
+    int? DuracionSegundosLimite = null,
+    EjecucionActualSesion? EjecucionActual = null);

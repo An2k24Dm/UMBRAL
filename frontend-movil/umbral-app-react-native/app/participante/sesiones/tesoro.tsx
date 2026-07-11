@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  BackHandler,
   Modal,
   ScrollView,
   StyleSheet,
@@ -9,9 +10,9 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useNavigation, useRouter } from "expo-router";
+import * as signalR from "@microsoft/signalr";
 import { CameraView, useCameraPermissions } from "expo-camera";
-import * as SecureStore from "expo-secure-store";
 import { useAutenticacion } from "../../../autenticacion/ContextoAutenticacion";
 import RutaProtegidaMovil from "../../../autenticacion/RutaProtegidaMovil";
 import { PantallaBase } from "../../../componentes/PantallaBase";
@@ -25,11 +26,20 @@ import {
 import {
   crearConexionSesionesTiempoReal,
   esErrorNoAutenticadoTiempoReal,
+  registrarEventoConexionSesionesTiempoReal,
+  registrarAccesoGrupoRechazadoDev,
 } from "../../../servicios/sesionesTiempoReal";
+import { obtenerDetalleSesionDisponibleApi } from "../../../servicios/sesionesApi";
+import { obtenerProgresoSecuencialSesionApi } from "../../../servicios/sesionesApi";
+import { CronometroActivo } from "../../../servicios/cronometroActivo";
+import {
+  mapearEstadoSesionJuego,
+  type EstadoSesionJuego,
+} from "../../../servicios/estadoSesionJuego";
 
-export function claveEtapaCompletada(sesionId: string, etapaId: string) {
-  return `umbral_etapa_done_${sesionId}_${etapaId}`;
-}
+// Resultado final visible (ms) antes de volver al detalle tras encontrar el
+// tesoro. Coincide con la ventana de feedback autoritativa del backend.
+const MS_FEEDBACK_FINAL_TESORO = 5000;
 
 export default function PantallaTesoro() {
   return (
@@ -39,10 +49,11 @@ export default function PantallaTesoro() {
   );
 }
 
-type EstadoEnvio = "esperando" | "enviando" | "valido" | "invalido";
+type EstadoEnvio = "esperando" | "enviando" | "valido" | "invalido" | "ya_completado";
 
 function ContenidoTesoro() {
   const enrutador = useRouter();
+  const navegacion = useNavigation();
   const { sesion: auth, cerrarSesion } = useAutenticacion();
   const token = auth?.tokenAcceso ?? null;
 
@@ -62,9 +73,16 @@ function ContenidoTesoro() {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [estadoEnvio, setEstadoEnvio] = useState<EstadoEnvio>("esperando");
+  const [conflictoTipo, setConflictoTipo] = useState<"equipo" | "individual" | null>(null);
   const [puntosGanados, setPuntosGanados] = useState(0);
   const [etapaCompletada, setEtapaCompletada] = useState(false);
   const [enviando, setEnviando] = useState(false);
+  // Estado local autoritativo de la sesión (no se asume "Activa" de entrada).
+  const [estadoSesion, setEstadoSesion] = useState<EstadoSesionJuego>("Desconocida");
+  // Temporizador informativo de la etapa (regresivo). Se congela en pausa.
+  const [tiempoRestante, setTiempoRestante] = useState<number | null>(null);
+  const cronometroRef = useRef(new CronometroActivo());
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // QR scanner
   const [mostrandoCamara, setMostrandoCamara] = useState(false);
@@ -73,6 +91,43 @@ function ContenidoTesoro() {
   const yaEscaneadoRef = useRef(false);
   const [codigoEscaneado, setCodigoEscaneado] = useState("");
   const [permisosCamara, solicitarPermisosCamara] = useCameraPermissions();
+  const jugadorCompleto = estadoEnvio === "valido" || estadoEnvio === "ya_completado";
+  const bloquearSalida = estadoSesion === "Activa" && !jugadorCompleto && !etapaCompletada;
+
+  useEffect(() => {
+    if (!bloquearSalida) return;
+
+    const subscripcion = BackHandler.addEventListener("hardwareBackPress", () => true);
+    const remover = (navegacion as unknown as {
+      addListener?: (evento: string, callback: (event: { preventDefault: () => void }) => void) => () => void;
+      setOptions?: (opciones: { gestureEnabled?: boolean }) => void;
+    }).addListener?.("beforeRemove", (event) => {
+      event.preventDefault();
+    });
+
+    (navegacion as unknown as { setOptions?: (opciones: { gestureEnabled?: boolean }) => void })
+      .setOptions?.({ gestureEnabled: false });
+
+    return () => {
+      subscripcion.remove();
+      remover?.();
+      (navegacion as unknown as { setOptions?: (opciones: { gestureEnabled?: boolean }) => void })
+        .setOptions?.({ gestureEnabled: true });
+    };
+  }, [bloquearSalida, navegacion]);
+
+  // Consulta por HTTP el estado real de la sesión (autoritativo). Si falla, se
+  // asume "Activa" para no bloquear el juego: el backend sigue siendo la
+  // autoridad final y rechaza la evidencia si la sesión no está Activa.
+  const refrescarEstadoSesion = useCallback(async () => {
+    if (!token || !sesionId) return;
+    try {
+      const detalle = await obtenerDetalleSesionDisponibleApi(token, sesionId);
+      setEstadoSesion(mapearEstadoSesionJuego(detalle.estado));
+    } catch {
+      setEstadoSesion("Desconocida");
+    }
+  }, [token, sesionId]);
 
   const cargarBusqueda = useCallback(async () => {
     if (!token || !sesionId || !busquedaId) return;
@@ -80,29 +135,122 @@ function ContenidoTesoro() {
       const datos = await obtenerBusquedaConPistasCompleto(
         sesionId, misionId, etapaId, busquedaId, token,
       );
+      const detalleSesion = await obtenerDetalleSesionDisponibleApi(token, sesionId);
       setBusqueda(datos);
-      if (datos.yaEnvioEvidencia) {
-        setEstadoEnvio("valido");
-        // Ya completada previamente — persistir por si SecureStore no lo tiene
-        await SecureStore.setItemAsync(claveEtapaCompletada(sesionId, etapaId), "1");
+      // Temporizador informativo de la etapa (regresivo). No afecta al puntaje
+      // (la evidencia del tesoro no puntúa por tiempo); solo se muestra y se
+      // congela durante la pausa.
+      if (datos.tiempoSegundos > 0 && !datos.yaEnvioEvidencia) {
+        setTiempoRestante(
+          detalleSesion.ejecucionActual?.segundosRestantes ?? datos.tiempoSegundos,
+        );
+        cronometroRef.current.reiniciar();
       }
+      if (datos.yaEnvioEvidencia) {
+        // "Ya completada" es autoridad del backend (evidencia válida del
+        // jugador). No se persiste localmente: al reabrir/refrescar/cambiar de
+        // dispositivo, el estado se determina desde el servidor.
+        setEstadoEnvio("valido");
+      }
+      setEstadoSesion(mapearEstadoSesionJuego(detalleSesion.estado));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error al cargar la búsqueda del tesoro.");
     } finally {
       setCargando(false);
     }
-  }, [token, sesionId, misionId, etapaId, busquedaId]);
+  }, [token, sesionId, misionId, etapaId, busquedaId, refrescarEstadoSesion]);
 
   useEffect(() => {
     void cargarBusqueda();
   }, [cargarBusqueda]);
 
-  // SignalR: pistas en tiempo real + EtapaCompletada + SesionActualizada
+  // Temporizador regresivo informativo: solo corre cuando la sesión está Activa
+  // y aún no se completó la etapa. En pausa se congela (clearInterval) y el
+  // tiempo restante se conserva; al reanudar continúa desde el mismo punto.
   useEffect(() => {
+    const activo =
+      estadoSesion === "Activa" &&
+      !etapaCompletada &&
+      estadoEnvio !== "valido" &&
+      estadoEnvio !== "ya_completado" &&
+      tiempoRestante !== null &&
+      tiempoRestante > 0;
+
+    if (!activo) {
+      cronometroRef.current.pausar();
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      return;
+    }
+
+    cronometroRef.current.reanudar();
+    intervalRef.current = setInterval(() => {
+      setTiempoRestante((prev) => {
+        if (prev === null || prev <= 1) {
+          if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+            intervalRef.current = null;
+          }
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, [estadoSesion, etapaCompletada, estadoEnvio, tiempoRestante]);
+
+  // Si llega una pausa con la cámara abierta, cerrarla de inmediato.
+  useEffect(() => {
+    if (estadoSesion !== "Activa" && mostrandoCamara) {
+      setMostrandoCamara(false);
+    }
+  }, [estadoSesion, mostrandoCamara]);
+
+  // #18/#19: al encontrar el tesoro (o completar el equipo) se muestra el
+  // resultado final AL MENOS 5 s y luego se vuelve automáticamente al detalle.
+  // Los 10 s de preparación NO empiezan aquí: los inicia el backend al cerrar la
+  // etapa (CierrePendiente). Si EtapaIniciada navega antes, el cleanup lo cancela.
+  useEffect(() => {
+    if ((!jugadorCompleto && !etapaCompletada) || !sesionId) return;
+    const id = setTimeout(() => {
+      enrutador.replace(`/participante/sesiones/${sesionId}`);
+    }, MS_FEEDBACK_FINAL_TESORO);
+    return () => clearTimeout(id);
+  }, [jugadorCompleto, etapaCompletada, sesionId, enrutador]);
+
+  // SignalR: pistas en tiempo real + EtapaCompletada + SesionActualizada
+  useFocusEffect(useCallback(() => {
     if (!token || !sesionId) return;
 
     let desmontado = false;
-    const conexion = crearConexionSesionesTiempoReal(token);
+    let cerrando = false;
+    let cierreRegistrado = false;
+    let inicioPromise: Promise<void> | null = null;
+    const conexion = crearConexionSesionesTiempoReal(token, "Tesoro");
+    const logDev = (mensaje: string) => {
+      registrarEventoConexionSesionesTiempoReal(conexion, mensaje);
+    };
+    const registrarCerrado = () => {
+      if (cierreRegistrado) return;
+      cierreRegistrado = true;
+      logDev("cerrado");
+    };
+    const manejarErrorConexion = async (error: unknown) => {
+      if (desmontado || !error) return;
+      if (esErrorNoAutenticadoTiempoReal(error)) {
+        await cerrarSesion();
+        return;
+      }
+      registrarAccesoGrupoRechazadoDev(error);
+    };
 
     const manejarPistaLiberada = (evento: {
       sesionId?: string; SesionId?: string;
@@ -143,9 +291,52 @@ function ContenidoTesoro() {
       }
     };
 
+    const manejarEtapaIniciada = async (evento: {
+      sesionId?: string; SesionId?: string;
+    }) => {
+      const sid = (evento.sesionId ?? evento.SesionId ?? "").toLowerCase();
+      if (sid !== sesionId.toLowerCase() || desmontado || !token) return;
+
+      const progreso = await obtenerProgresoSecuencialSesionApi(token, sesionId);
+      if (
+        progreso.jugadorActualCompletoEtapaActual ||
+        !progreso.misionActualId ||
+        !progreso.etapaActualId ||
+        !progreso.modoDeJuegoId ||
+        !progreso.tipoEtapaActual ||
+        progreso.etapaActualId.toLowerCase() === etapaId.toLowerCase()
+      ) {
+        return;
+      }
+
+      const destino =
+        progreso.tipoEtapaActual === "Trivia"
+          ? `/participante/sesiones/jugar?sesionId=${sesionId}` +
+            `&misionId=${progreso.misionActualId}` +
+            `&etapaId=${progreso.etapaActualId}` +
+            `&triviaId=${progreso.modoDeJuegoId}`
+          : `/participante/sesiones/tesoro?sesionId=${sesionId}` +
+            `&misionId=${progreso.misionActualId}` +
+            `&etapaId=${progreso.etapaActualId}` +
+            `&busquedaId=${progreso.modoDeJuegoId}`;
+
+      enrutador.replace(destino);
+    };
+
     const manejarSesionActualizada = (evento: { estado?: string; Estado?: string }) => {
+      if (desmontado) return;
       const estado = evento.estado ?? evento.Estado ?? "";
+      const nuevo = mapearEstadoSesionJuego(estado);
+
+      // Pausa/reanudación: solo se actualiza el estado local; el efecto del
+      // temporizador congela o reanuda, y la cámara se cierra al pausar.
+      if (nuevo === "Activa" || nuevo === "Pausada" || nuevo === "EnPreparacion") {
+        setEstadoSesion(nuevo);
+        return;
+      }
+
       if (estado === "Cancelada" || estado === "Finalizada") {
+        setEstadoSesion(nuevo);
         Alert.alert(
           "Sesión terminada",
           `La sesión ha sido ${estado.toLowerCase()}.`,
@@ -154,34 +345,105 @@ function ContenidoTesoro() {
       }
     };
 
+    // #15 grupal: cuando un integrante registra la evidencia válida del equipo,
+    // el backend notifica al GrupoEquipo. Los demás integrantes consultan el
+    // progreso: si su equipo ya completó, quedan completos y vuelven al detalle.
+    const manejarProgresoActualizado = async () => {
+      if (desmontado || !token) return;
+      try {
+        const progreso = await obtenerProgresoSecuencialSesionApi(token, sesionId);
+        if (!desmontado && progreso.jugadorActualCompletoEtapaActual) {
+          setEstadoEnvio((prev) =>
+            prev === "valido" || prev === "ya_completado" ? prev : "ya_completado");
+          setConflictoTipo((prev) => prev ?? "equipo");
+        }
+      } catch {
+        // Silencioso: se reintenta con el siguiente evento.
+      }
+    };
+
     conexion.on("PistaLiberada", manejarPistaLiberada);
     conexion.on("EtapaCompletada", manejarEtapaCompletada);
+    conexion.on("EtapaIniciada", manejarEtapaIniciada);
     conexion.on("SesionActualizada", manejarSesionActualizada);
+    conexion.on("ProgresoSecuencialActualizado", manejarProgresoActualizado);
 
-    conexion
-      .start()
+    // Al reconectar, re-unirse al grupo (pasa de nuevo por el Proxy) y
+    // resincronizar el estado real por HTTP.
+    conexion.onreconnected(async () => {
+      if (desmontado) return;
+      logDev("reconectado");
+      await conexion.invoke("UnirseASesion", sesionId)
+        .then(() => logDev("unido a sesion"))
+        .catch((error: unknown) => manejarErrorConexion(error));
+      await refrescarEstadoSesion();
+    });
+    conexion.onreconnecting((error) => {
+      logDev("reconectando");
+      void manejarErrorConexion(error);
+    });
+    conexion.onclose((error) => {
+      registrarCerrado();
+      void manejarErrorConexion(error);
+    });
+
+    const cerrarConexion = async () => {
+      if (cerrando) return;
+      cerrando = true;
+      logDev("cerrando");
+
+      await inicioPromise?.catch(() => undefined);
+
+      if (conexion.state === signalR.HubConnectionState.Connected) {
+        await conexion.invoke("SalirDeSesion", sesionId).catch(() => undefined);
+      }
+      if (conexion.state !== signalR.HubConnectionState.Disconnected) {
+        await conexion.stop().catch(() => undefined);
+      }
+      if (conexion.state === signalR.HubConnectionState.Disconnected) {
+        registrarCerrado();
+      }
+    };
+
+    inicioPromise = conexion.start();
+    void inicioPromise
       .then(async () => {
-        if (desmontado) { await conexion.stop().catch(() => undefined); return; }
-        await conexion.invoke("UnirseASesion", sesionId).catch(() => undefined);
+        logDev("conectado");
+        if (desmontado) {
+          await cerrarConexion();
+          return;
+        }
+        await conexion.invoke("UnirseASesion", sesionId)
+          .then(() => logDev("unido a sesion"))
+          .catch((error: unknown) => manejarErrorConexion(error));
       })
       .catch((e: unknown) => {
-        if (esErrorNoAutenticadoTiempoReal(e)) void cerrarSesion();
+        if (desmontado) return;
+        void manejarErrorConexion(e);
       });
 
     return () => {
       desmontado = true;
       conexion.off("PistaLiberada", manejarPistaLiberada);
       conexion.off("EtapaCompletada", manejarEtapaCompletada);
+      conexion.off("EtapaIniciada", manejarEtapaIniciada);
       conexion.off("SesionActualizada", manejarSesionActualizada);
-      if (conexion.state !== "Disconnected") {
-        conexion.invoke("SalirDeSesion", sesionId).catch(() => undefined).finally(() => {
-          conexion.stop().catch(() => undefined);
-        });
-      }
+      conexion.off("ProgresoSecuencialActualizado", manejarProgresoActualizado);
+      void cerrarConexion();
     };
-  }, [token, sesionId, etapaId, cerrarSesion, enrutador]);
+  }, [token, sesionId, etapaId, cerrarSesion, enrutador, refrescarEstadoSesion]));
 
   const abrirCamara = async () => {
+    // Protección de UX: no abrir la cámara si la sesión no está Activa.
+    if (estadoSesion !== "Activa") {
+      if (estadoSesion === "Pausada") {
+        Alert.alert(
+          "Sesión pausada",
+          "La sesión está pausada. Espera a que el operador la reanude.",
+        );
+      }
+      return;
+    }
     if (!permisosCamara?.granted) {
       const resultado = await solicitarPermisosCamara();
       if (!resultado.granted) {
@@ -198,6 +460,11 @@ function ContenidoTesoro() {
 
   const alEscanearQr = ({ data }: { data: string }) => {
     if (yaEscaneadoRef.current) return;
+    // No procesar escaneos si la sesión no está Activa.
+    if (estadoSesion !== "Activa") {
+      setMostrandoCamara(false);
+      return;
+    }
     yaEscaneadoRef.current = true; // bloqueo sincrónico — evita múltiples POSTs
     setCodigoEscaneado(data);
     setMostrandoCamara(false);
@@ -206,6 +473,8 @@ function ContenidoTesoro() {
 
   const enviarConCodigo = async (codigo: string) => {
     if (!token || !codigo.trim() || enviando) return;
+    // Protección de UX: no enviar evidencia si la sesión no está Activa.
+    if (estadoSesion !== "Activa") return;
 
     setEnviando(true);
     try {
@@ -215,13 +484,17 @@ function ContenidoTesoro() {
         token,
       );
 
+      // La etapa ya estaba completada por el equipo (o por el propio
+      // participante). No es un QR incorrecto: se informa y se marca completada
+      // para este jugador, sin sumar puntos nuevos.
+      if (resultado.conflicto) {
+        setConflictoTipo(resultado.conflicto);
+        setEstadoEnvio("ya_completado");
+        return;
+      }
+
       setPuntosGanados(resultado.puntosGanados);
       setEstadoEnvio(resultado.esValida ? "valido" : "invalido");
-
-      if (resultado.esValida) {
-        // Persistir compleción para el orden secuencial de etapas
-        await SecureStore.setItemAsync(claveEtapaCompletada(sesionId, etapaId), "1");
-      }
 
       if (resultado.etapaCompletada) {
         setEtapaCompletada(true);
@@ -261,21 +534,31 @@ function ContenidoTesoro() {
     );
   }
 
-  if (etapaCompletada) {
+  // #18/#19: resultado final del tesoro, legible y prominente, durante ≥5 s
+  // antes de volver automáticamente al detalle.
+  if (jugadorCompleto || etapaCompletada) {
     return (
       <PantallaBase>
         <View style={estilos.centrado}>
-          <Text style={estilos.textoExito}>¡Etapa completada!</Text>
+          <Text style={estilos.trofeo}>🏆</Text>
+          <Text style={estilos.textoExito}>
+            {conflictoTipo === "equipo"
+              ? "¡Tu equipo encontró el tesoro!"
+              : "¡Encontraste el tesoro!"}
+          </Text>
           {puntosGanados > 0 && (
             <View style={estilos.cajaResumen}>
               <Text style={estilos.resumenEtiqueta}>PUNTOS GANADOS</Text>
-              <Text style={estilos.resumenPuntos}>{puntosGanados} pts</Text>
+              <Text style={estilos.resumenPuntos}>+{puntosGanados} pts</Text>
             </View>
           )}
           <Text style={estilos.textoInfo}>
-            Todos los participantes han encontrado el tesoro. Espera la siguiente etapa.
+            Espera a que los demás terminen para avanzar a la siguiente etapa.
           </Text>
-          <TouchableOpacity style={estilos.boton} onPress={() => enrutador.back()}>
+          <TouchableOpacity
+            style={estilos.boton}
+            onPress={() => enrutador.replace(`/participante/sesiones/${sesionId}`)}
+          >
             <Text style={estilos.textoBoton}>Ver sesión</Text>
           </TouchableOpacity>
         </View>
@@ -310,6 +593,25 @@ function ContenidoTesoro() {
       </Modal>
 
       <ScrollView contentContainerStyle={estilos.contenedor} showsVerticalScrollIndicator={false}>
+        {/* Banner de pausa: no oculta el contenido; solo informa y bloquea. */}
+        {estadoSesion === "Pausada" && (
+          <View style={estilos.bannerPausa}>
+            <Text style={estilos.bannerPausaTitulo}>SESIÓN PAUSADA</Text>
+            <Text style={estilos.bannerPausaTexto}>
+              El operador ha pausado la partida. Espera a que sea reanudada.
+            </Text>
+          </View>
+        )}
+
+        {estadoSesion === "Desconocida" && (
+          <View style={estilos.bannerPausa}>
+            <Text style={estilos.bannerPausaTitulo}>VERIFICANDO ESTADO</Text>
+            <Text style={estilos.bannerPausaTexto}>
+              Verificando estado de la sesion...
+            </Text>
+          </View>
+        )}
+
         {/* Encabezado */}
         <View style={estilos.encabezado}>
           <Text style={estilos.titulo}>{busqueda?.nombre ?? "Búsqueda del Tesoro"}</Text>
@@ -322,6 +624,13 @@ function ContenidoTesoro() {
               Tiempo: {Math.round((busqueda?.tiempoSegundos ?? 0) / 60)} min
             </Text>
           </View>
+          {tiempoRestante !== null && (
+            <Text style={estilos.tiempoRestante}>
+              Tiempo restante: {Math.floor(tiempoRestante / 60)}:
+              {String(tiempoRestante % 60).padStart(2, "0")}
+              {estadoSesion === "Pausada" ? " (en pausa)" : ""}
+            </Text>
+          )}
         </View>
 
         {/* Pistas liberadas */}
@@ -349,15 +658,10 @@ function ContenidoTesoro() {
         <View style={estilos.seccion}>
           <Text style={estilos.tituloSeccion}>CÓDIGO QR DEL TESORO</Text>
 
-          {estadoEnvio === "valido" ? (
-            <View style={estilos.tarjetaExito}>
-              <Text style={estilos.textoExitoPanel}>¡Código correcto!</Text>
-              <Text style={estilos.textoExitoDetalle}>
-                Ganaste {puntosGanados} puntos. Espera a que los demás participantes
-                también encuentren el tesoro.
-              </Text>
-            </View>
-          ) : enviando ? (
+          {/* Los estados "valido"/"ya_completado" se muestran en la pantalla
+              final del tesoro (🏆), que redirige al detalle; aquí solo queda el
+              flujo de escaneo/verificación. */}
+          {enviando ? (
             <View style={estilos.centradoInline}>
               <ActivityIndicator color={tema.colores.primario} />
               <Text style={estilos.textoEnviando}>Verificando código…</Text>
@@ -373,11 +677,19 @@ function ContenidoTesoro() {
                 </View>
               )}
               <TouchableOpacity
-                style={estilos.botonEscanear}
+                style={[
+                  estilos.botonEscanear,
+                  estadoSesion !== "Activa" && estilos.botonEscanearDeshabilitado,
+                ]}
                 onPress={() => void abrirCamara()}
+                disabled={estadoSesion !== "Activa"}
               >
                 <Text style={estilos.textoBotonEscanear}>
-                  {estadoEnvio === "invalido" ? "Escanear de nuevo" : "Escanear código QR"}
+                  {estadoSesion === "Pausada"
+                    ? "Escaneo pausado"
+                    : estadoEnvio === "invalido"
+                      ? "Escanear de nuevo"
+                      : "Escanear código QR"}
                 </Text>
               </TouchableOpacity>
               {codigoEscaneado ? (
@@ -490,12 +802,42 @@ const estilos = StyleSheet.create({
     textAlign: "center",
     lineHeight: 20,
   },
+  bannerPausa: {
+    backgroundColor: "#fef3c7",
+    borderWidth: 1,
+    borderColor: "#d97706",
+    borderRadius: tema.radios.tarjeta,
+    padding: 12,
+    marginBottom: 12,
+    alignItems: "center",
+  },
+  bannerPausaTitulo: {
+    color: "#92400e",
+    fontSize: 14,
+    fontWeight: "800",
+    letterSpacing: 1,
+    marginBottom: 2,
+  },
+  bannerPausaTexto: {
+    color: "#92400e",
+    fontSize: 13,
+    textAlign: "center",
+  },
+  tiempoRestante: {
+    marginTop: tema.espacios.sm,
+    color: tema.colores.texto,
+    fontSize: tema.tipografia.tamanos.md,
+    fontWeight: tema.tipografia.pesos.bold,
+  },
   botonEscanear: {
     backgroundColor: "#d97706",
     paddingVertical: tema.espacios.md + 4,
     borderRadius: tema.radios.boton,
     alignItems: "center",
     marginTop: tema.espacios.sm,
+  },
+  botonEscanearDeshabilitado: {
+    backgroundColor: tema.colores.bordeTarjeta,
   },
   textoBotonEscanear: {
     color: tema.colores.textoBlanco,
@@ -527,6 +869,24 @@ const estilos = StyleSheet.create({
   },
   textoExitoDetalle: {
     color: "#15803d",
+    fontSize: tema.tipografia.tamanos.sm,
+    lineHeight: 20,
+  },
+  tarjetaInfo: {
+    backgroundColor: tema.colores.fondoTarjeta,
+    borderRadius: tema.radios.entrada,
+    borderWidth: 1,
+    borderColor: tema.colores.primario,
+    padding: tema.espacios.lg,
+  },
+  textoInfoPanel: {
+    color: tema.colores.primario,
+    fontSize: tema.tipografia.tamanos.lg,
+    fontWeight: tema.tipografia.pesos.bold,
+    marginBottom: 4,
+  },
+  textoInfoDetalle: {
+    color: tema.colores.textoTenue,
     fontSize: tema.tipografia.tamanos.sm,
     lineHeight: 20,
   },
@@ -617,6 +977,11 @@ const estilos = StyleSheet.create({
     color: tema.colores.error,
     fontSize: 16,
     textAlign: "center",
+  },
+  trofeo: {
+    fontSize: 56,
+    textAlign: "center",
+    marginBottom: 4,
   },
   textoExito: {
     color: "#22c55e",

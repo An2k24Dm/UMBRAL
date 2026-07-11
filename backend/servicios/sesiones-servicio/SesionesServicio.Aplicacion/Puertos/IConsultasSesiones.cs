@@ -16,7 +16,17 @@ public interface IConsultasSesiones
         string? busqueda,
         string? tipoSesion,
         CancellationToken cancelacion);
-    Task<IReadOnlyList<Sesion>> ListarActivasConTiempoVencidoAsync(
+    Task<IReadOnlyList<Sesion>> ListarActivasConEtapaVencidaAsync(
+        DateTime ahoraUtc,
+        CancellationToken cancelacion);
+    // Sesiones Activas cuya ETAPA actual está en Preparacion y su cuenta regresiva
+    // ya venció: deben activarse server-side (emitir EtapaIniciada).
+    Task<IReadOnlyList<Sesion>> ListarActivasConPreparacionVencidaAsync(
+        DateTime ahoraUtc,
+        CancellationToken cancelacion);
+    // Sesiones Activas cuya ETAPA actual está en CierrePendiente y su feedback
+    // final venció: deben cerrarse realmente (EtapaCompletada + EtapaPorComenzar).
+    Task<IReadOnlyList<Sesion>> ListarActivasConCierrePendienteVencidoAsync(
         DateTime ahoraUtc,
         CancellationToken cancelacion);
     Task<SesionParticipacionActivaDto?> ObtenerParticipacionActivaDeParticipanteAsync(

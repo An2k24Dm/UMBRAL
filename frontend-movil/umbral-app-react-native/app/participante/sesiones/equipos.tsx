@@ -46,6 +46,7 @@ function Contenido() {
   // El aviso dirigido de expulsión de equipo lo maneja de forma global
   // useAvisosSesionTiempoReal; aquí solo refrescamos por eventos de grupo.
   useSesionesTiempoReal({
+    origen: "Equipo",
     sesionId,
     onEquiposSesionActualizados: refrescar,
   });

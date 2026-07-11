@@ -136,6 +136,20 @@ public sealed class ManejadorErroresMiddleware
             await EscribirCodigoAsync(contexto, HttpStatusCode.Conflict,
                 "OPERACION_SESION_INVALIDA", ex.Message);
         }
+        catch (RespuestaTriviaDuplicadaExcepcion ex)
+        {
+            await EscribirCodigoAsync(contexto, HttpStatusCode.Conflict,
+                ex.EsEquipo ? "EQUIPO_YA_RESPONDIO" : "YA_RESPONDIDA", ex.Message);
+        }
+        catch (EvidenciaTesoroDuplicadaExcepcion ex)
+        {
+            // Individual: el participante ya completó la etapa. Grupal: otro
+            // integrante del equipo encontró el tesoro primero. Conflicto de
+            // negocio (409), nunca un 500.
+            await EscribirCodigoAsync(contexto, HttpStatusCode.Conflict,
+                ex.EsEquipo ? "EQUIPO_YA_COMPLETO_ETAPA" : "PARTICIPANTE_YA_COMPLETO_ETAPA",
+                ex.Message);
+        }
         catch (JsonException ex)
         {
             var correlationId = ObtenerCorrelationId(contexto);

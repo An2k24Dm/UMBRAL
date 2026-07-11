@@ -1,4 +1,5 @@
 using SesionesServicio.Aplicacion.Puertos;
+using Microsoft.EntityFrameworkCore;
 
 namespace SesionesServicio.Infraestructura.Persistencia.Repositorios;
 
@@ -13,4 +14,18 @@ public sealed class UnidadTrabajoSesiones : IUnidadTrabajoSesiones
 
     public Task GuardarCambiosAsync(CancellationToken cancelacion)
         => _contexto.SaveChangesAsync(cancelacion);
+
+    public async Task EjecutarEnTransaccionAsync(
+        Func<CancellationToken, Task> operacion,
+        CancellationToken cancelacion)
+    {
+        var estrategia = _contexto.Database.CreateExecutionStrategy();
+        await estrategia.ExecuteAsync(async () =>
+        {
+            await using var transaccion = await _contexto.Database
+                .BeginTransactionAsync(cancelacion);
+            await operacion(cancelacion);
+            await transaccion.CommitAsync(cancelacion);
+        });
+    }
 }

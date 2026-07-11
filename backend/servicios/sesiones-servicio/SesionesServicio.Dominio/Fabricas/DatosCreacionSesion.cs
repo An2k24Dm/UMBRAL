@@ -11,4 +11,4 @@ public sealed record DatosCreacionSesion(
     int? MaximoParticipantes,
     int? MaximoEquipos,
     int? MaximoParticipantesPorEquipo,
-    int? DuracionMinutosLimite = null);
+    int? DuracionSegundosLimite = null);

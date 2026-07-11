@@ -29,6 +29,9 @@ public class FachadaOperacionSesionPruebas
     private static readonly Guid OtroOperador = Guid.Parse("55555555-5555-5555-5555-555555555555");
     private static readonly Guid SesionId = Guid.Parse("11111111-1111-1111-1111-111111111111");
     private static readonly Guid ParticipanteId = Guid.Parse("22222222-2222-2222-2222-222222222222");
+    private static readonly Guid MisionId = Guid.Parse("33333333-3333-3333-3333-333333333333");
+    private static readonly Guid EtapaId = Guid.Parse("66666666-6666-6666-6666-666666666666");
+    private static readonly Guid TriviaId = Guid.Parse("77777777-7777-7777-7777-777777777777");
 
     private sealed class Contexto
     {
@@ -36,6 +39,7 @@ public class FachadaOperacionSesionPruebas
         public Mock<IUnidadTrabajoSesiones> Unidad { get; } = new();
         public Mock<IUsuarioActual> Usuario { get; } = new();
         public Mock<INotificadorSesionesTiempoReal> Notificador { get; } = new();
+        public Mock<IClienteJuegosMisiones> ClienteMisiones { get; } = new();
         public Mock<IProveedorFechaHora> Reloj { get; } = new();
 
         public Contexto(Sesion? sesion, string rol = "Operador", Guid? usuarioId = null)
@@ -54,11 +58,33 @@ public class FachadaOperacionSesionPruebas
             Notificador.Setup(n => n.NotificarSesionActualizadaAsync(
                     It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .Returns(Task.CompletedTask);
+            Notificador.Setup(n => n.NotificarEtapaIniciadaAsync(
+                    It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<string>(),
+                    It.IsAny<Guid>(), It.IsAny<int>(), It.IsAny<DateTime>(), It.IsAny<int>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
+            ClienteMisiones.Setup(c => c.ObtenerMisionConEtapasAsync(
+                    MisionId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new MisionConEtapasJuegosDto
+                {
+                    Id = MisionId,
+                    Etapas =
+                    {
+                        new EtapaJuegosDto
+                        {
+                            Id = EtapaId,
+                            Orden = 1,
+                            TipoModoDeJuego = "Trivia",
+                            ModoDeJuegoId = TriviaId,
+                            TiempoEstimado = 30
+                        }
+                    }
+                });
         }
 
         public FachadaOperacionSesion Crear()
             => new(Repo.Object, Unidad.Object, Usuario.Object, Notificador.Object,
-                Reloj.Object, Mock.Of<IRegistroLogsAplicacion>(),
+                ClienteMisiones.Object, Reloj.Object, Mock.Of<IRegistroLogsAplicacion>(),
                 new ValidadorInicioSesionOperacion(),
                 new ValidadorCancelacionSesionOperacion());
     }
@@ -83,7 +109,9 @@ public class FachadaOperacionSesionPruebas
             operador ?? Operador, AhoraUtc,
             yaIniciada ? AhoraUtc : null,
             estado == EstadoSesion.Finalizada ? AhoraUtc : null,
-            10, null, participantes);
+            10,
+            new[] { SesionMision.Rehidratar(Guid.NewGuid(), SesionId, MisionId, 1) },
+            participantes);
     }
 
     // 1
@@ -302,6 +330,51 @@ public class FachadaOperacionSesionPruebas
     }
 
     // 9 (Part 9) — sin modelo de progreso, la finalización automática no ocurre.
+    [Fact]
+    public async Task Iniciar_NotificaSesionYEtapaDespuesDePersistir()
+    {
+        var ctx = new Contexto(Sesion(EstadoSesion.EnPreparacion));
+        var orden = new List<string>();
+        ctx.Repo.Setup(r => r.ActualizarAsync(It.IsAny<Sesion>(), It.IsAny<CancellationToken>()))
+            .Callback(() => orden.Add("actualizar")).Returns(Task.CompletedTask);
+        ctx.Unidad.Setup(u => u.GuardarCambiosAsync(It.IsAny<CancellationToken>()))
+            .Callback(() => orden.Add("guardar")).Returns(Task.CompletedTask);
+        ctx.Notificador.Setup(n => n.NotificarSesionActualizadaAsync(
+                It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Callback(() => orden.Add("sesion-actualizada")).Returns(Task.CompletedTask);
+        ctx.Notificador.Setup(n => n.NotificarEtapaIniciadaAsync(
+                It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<string>(),
+                It.IsAny<Guid>(), It.IsAny<int>(), It.IsAny<DateTime>(), It.IsAny<int>(),
+                It.IsAny<CancellationToken>()))
+            .Callback(() => orden.Add("etapa-iniciada")).Returns(Task.CompletedTask);
+
+        await ctx.Crear().IniciarAsync(SesionId, CancellationToken.None);
+
+        orden.Should().Equal("actualizar", "guardar", "sesion-actualizada", "etapa-iniciada");
+        ctx.Notificador.Verify(n => n.NotificarEtapaIniciadaAsync(
+            SesionId, MisionId, EtapaId, "Trivia", TriviaId, 1, AhoraUtc, 30,
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Iniciar_MisionAsociadaNoExiste_LanzaMisionNoEncontrada()
+    {
+        var ctx = new Contexto(Sesion(EstadoSesion.EnPreparacion));
+        ctx.ClienteMisiones.Setup(c => c.ObtenerMisionConEtapasAsync(
+                MisionId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((MisionConEtapasJuegosDto?)null);
+
+        Func<Task> accion = () => ctx.Crear().IniciarAsync(SesionId, CancellationToken.None);
+
+        (await accion.Should().ThrowAsync<MisionNoEncontradaExcepcion>())
+            .WithMessage("*mision asociada*");
+        ctx.Unidad.Verify(u => u.GuardarCambiosAsync(It.IsAny<CancellationToken>()), Times.Never);
+        ctx.Notificador.Verify(n => n.NotificarEtapaIniciadaAsync(
+            It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<string>(),
+            It.IsAny<Guid>(), It.IsAny<int>(), It.IsAny<DateTime>(), It.IsAny<int>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+    }
+
     [Fact]
     public async Task FinalizarSiCorresponde_SinModeloDeProgreso_RetornaNull()
     {

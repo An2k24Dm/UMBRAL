@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import { useAutenticacion } from "../autenticacion/ContextoAutenticacion";
 import { ErrorCrearEquipo, ingresarEquipoApi } from "../servicios/equiposApi";
+import { notificarMembresiaTiempoRealActualizada } from "../servicios/membresiaTiempoReal";
 import type { IngresarEquipoRespuesta } from "../tipos/equipos";
 
 interface EstadoUseIngresarEquipo {
@@ -39,9 +40,12 @@ export function useIngresarEquipo(): EstadoUseIngresarEquipo {
       setError(null);
       setSesionExpirada(false);
       try {
-        return await ingresarEquipoApi(token, sesionId, equipoId, {
+        const resultado = await ingresarEquipoApi(token, sesionId, equipoId, {
           contrasena: contrasena ?? null,
         });
+        // #8: re-sincroniza la conexión global (UnirseASesion + UnirseAEquipo).
+        notificarMembresiaTiempoRealActualizada();
+        return resultado;
       } catch (e) {
         if (e instanceof ErrorCrearEquipo) {
           if (e.codigo === "NO_AUTORIZADO") setSesionExpirada(true);

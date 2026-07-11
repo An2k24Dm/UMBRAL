@@ -2,6 +2,7 @@ using SesionesServicio.Dominio.Abstract;
 using SesionesServicio.Dominio.Enums;
 using SesionesServicio.Dominio.Estados;
 using SesionesServicio.Dominio.Excepciones;
+using SesionesServicio.Dominio.ObjetosValor;
 using SesionesServicio.Dominio.Politicas;
 
 namespace SesionesServicio.Dominio.Entidades;
@@ -9,6 +10,7 @@ namespace SesionesServicio.Dominio.Entidades;
 public abstract class Sesion : ISesion
 {
     private readonly List<SesionMision> _misiones = new();
+    private readonly List<EjecucionActualSesion> _secuenciaEtapas = new();
     private IEstadoSesion _estadoActual = null!;
     public Guid Id { get; protected set; }
     public string Nombre { get; protected set; } = string.Empty;
@@ -20,9 +22,11 @@ public abstract class Sesion : ISesion
     public DateTime FechaCreacion { get; protected set; }
     public DateTime? FechaInicioUtc { get; protected set; }
     public DateTime? FechaFinalizacionUtc { get; protected set; }
-    public int? DuracionMinutosLimite { get; protected set; }
+    public int? DuracionSegundosLimite { get; protected set; }
+    public EjecucionActualSesion? EjecucionActual { get; protected set; }
     public abstract string TipoSesion { get; }
     public IReadOnlyList<SesionMision> Misiones => _misiones.AsReadOnly();
+    public IReadOnlyList<EjecucionActualSesion> SecuenciaEtapas => _secuenciaEtapas.AsReadOnly();
     public abstract bool TieneInscritos { get; }
 
     protected Sesion() { }
@@ -110,10 +114,10 @@ public abstract class Sesion : ISesion
         int? maximoEquipos,
         int? maximoParticipantesPorEquipo);
 
-    public void AplicarDuracion(int? duracionMinutosLimite)
+    public void AplicarDuracion(int? duracionSegundosLimite)
     {
         GarantizarModificable();
-        DuracionMinutosLimite = duracionMinutosLimite;
+        DuracionSegundosLimite = duracionSegundosLimite;
     }
 
     protected void GarantizarModificable()
@@ -156,17 +160,177 @@ public abstract class Sesion : ISesion
         FechaInicioUtc = fechaInicioUtc;
     }
 
-    public void Pausar() => _estadoActual.Pausar(this);
+    public void EstablecerSecuenciaEtapas(IEnumerable<EjecucionActualSesion> etapas)
+    {
+        if (etapas is null)
+            throw new SesionInvalidaExcepcion("La secuencia de etapas es obligatoria.");
 
-    public void Reanudar() => _estadoActual.Reanudar(this);
+        var lista = etapas.ToList();
+        if (lista.Count == 0)
+            throw new MisionSinEtapasExcepcion(
+                "La sesión no tiene etapas jugables para iniciar.");
+        if (lista.Any(e => !e.EstaPlanificada))
+            throw new SesionInvalidaExcepcion(
+                "Todas las etapas del plan deben estar en fase Planificada.");
+        if (lista.Select(e => e.OrdenGlobal).Distinct().Count() != lista.Count)
+            throw new SesionInvalidaExcepcion(
+                "El orden global de las etapas del plan no puede repetirse.");
+        if (lista.Select(e => e.EtapaId).Distinct().Count() != lista.Count)
+            throw new SesionInvalidaExcepcion(
+                "No se pueden repetir etapas dentro del plan de la sesión.");
+
+        _secuenciaEtapas.Clear();
+        _secuenciaEtapas.AddRange(lista.OrderBy(e => e.OrdenGlobal));
+    }
+
+    public void IniciarPrimeraEtapa(EjecucionActualSesion primeraEtapa, DateTime ahoraUtc)
+    {
+        if (primeraEtapa is null)
+            throw new SesionInvalidaExcepcion("La primera etapa es obligatoria.");
+        if (!primeraEtapa.EstaPlanificada)
+            throw new SesionInvalidaExcepcion(
+                "La primera etapa debe estar en fase Planificada.");
+
+        Iniciar(ahoraUtc);
+        EjecucionActual = primeraEtapa.Iniciar(ahoraUtc);
+    }
+
+    public void IniciarPrimeraEtapa(
+        Guid misionId,
+        Guid etapaId,
+        Guid modoDeJuegoId,
+        string tipoEtapa,
+        int ordenGlobal,
+        DateTime fechaInicioUtc,
+        int duracionSegundos)
+        => IniciarPrimeraEtapa(
+            EjecucionActualSesion.Planificar(
+                misionId, etapaId, modoDeJuegoId, tipoEtapa, ordenGlobal, 1, 1, duracionSegundos),
+            fechaInicioUtc);
+
+    public void AvanzarASiguienteEtapa(
+        Guid etapaActualId,
+        Guid siguienteMisionId,
+        Guid siguienteEtapaId,
+        Guid siguienteModoDeJuegoId,
+        string siguienteTipoEtapa,
+        int siguienteOrdenGlobal,
+        DateTime fechaInicioUtc,
+        int duracionSegundos)
+    {
+        if (Estado != EstadoSesion.Activa)
+            throw new TransicionEstadoSesionInvalidaExcepcion(
+                Estado,
+                "avanzar de etapa",
+                "Solo se puede avanzar de etapa cuando la sesion esta activa.");
+        if (EjecucionActual is null)
+            throw new SesionInvalidaExcepcion("No existe una etapa global activa.");
+        if (EjecucionActual.EtapaId != etapaActualId)
+            throw new SesionInvalidaExcepcion("La etapa indicada no es la etapa global activa.");
+
+        EstablecerEjecucionActual(
+            siguienteMisionId,
+            siguienteEtapaId,
+            siguienteModoDeJuegoId,
+            siguienteTipoEtapa,
+            siguienteOrdenGlobal,
+            fechaInicioUtc,
+            duracionSegundos);
+    }
+
+    public void CompletarUltimaEtapa(Guid etapaActualId)
+    {
+        if (EjecucionActual is null)
+            throw new SesionInvalidaExcepcion("No existe una etapa global activa.");
+        if (EjecucionActual.EtapaId != etapaActualId)
+            throw new SesionInvalidaExcepcion("La etapa indicada no es la etapa global activa.");
+
+        EjecucionActual = null;
+    }
+
+    public void ProgramarSiguienteEtapa(
+        Guid etapaActualId,
+        EjecucionActualSesion siguiente,
+        DateTime fechaInicioPreparacionUtc,
+        int duracionPreparacionSegundos)
+    {
+        if (Estado != EstadoSesion.Activa)
+            throw new TransicionEstadoSesionInvalidaExcepcion(
+                Estado,
+                "programar la siguiente etapa",
+                "Solo se puede programar la siguiente etapa cuando la sesion esta activa.");
+        if (EjecucionActual is null)
+            throw new SesionInvalidaExcepcion("No existe una etapa global activa.");
+        if (EjecucionActual.EtapaId != etapaActualId)
+            throw new SesionInvalidaExcepcion("La etapa indicada no es la etapa global activa.");
+        if (siguiente is null)
+            throw new SesionInvalidaExcepcion("La siguiente etapa es obligatoria.");
+        if (!siguiente.EstaPlanificada)
+            throw new SesionInvalidaExcepcion(
+                "La siguiente etapa debe provenir del plan (fase Planificada).");
+
+        EjecucionActual = siguiente.Programar(fechaInicioPreparacionUtc, duracionPreparacionSegundos);
+    }
+
+    public void ActivarEtapaProgramada(Guid etapaId, DateTime ahoraUtc)
+    {
+        if (Estado != EstadoSesion.Activa)
+            throw new TransicionEstadoSesionInvalidaExcepcion(
+                Estado,
+                "activar la etapa programada",
+                "Solo se puede activar una etapa cuando la sesion esta activa.");
+        if (EjecucionActual is null)
+            throw new SesionInvalidaExcepcion("No existe una etapa global activa.");
+        if (EjecucionActual.EtapaId != etapaId)
+            throw new SesionInvalidaExcepcion("La etapa indicada no es la etapa global activa.");
+
+        EjecucionActual = EjecucionActual.Activar(ahoraUtc);
+    }
+
+    public void ProgramarCierrePendiente(
+        Guid etapaId, DateTime ahoraUtc, int duracionFeedbackSegundos)
+    {
+        if (Estado != EstadoSesion.Activa)
+            throw new TransicionEstadoSesionInvalidaExcepcion(
+                Estado,
+                "programar el cierre pendiente",
+                "Solo se puede programar el cierre cuando la sesion esta activa.");
+        if (EjecucionActual is null)
+            throw new SesionInvalidaExcepcion("No existe una etapa global activa.");
+        if (EjecucionActual.EtapaId != etapaId)
+            throw new SesionInvalidaExcepcion("La etapa indicada no es la etapa global activa.");
+
+        EjecucionActual = EjecucionActual.ProgramarCierrePendiente(ahoraUtc, duracionFeedbackSegundos);
+    }
+
+    public void Pausar(DateTime ahoraUtc)
+    {
+        _estadoActual.Pausar(this);
+        EjecucionActual = EjecucionActual?.Pausar(ahoraUtc);
+    }
+
+    public void Pausar() => Pausar(DateTime.UtcNow);
+
+    public void Reanudar(DateTime ahoraUtc)
+    {
+        _estadoActual.Reanudar(this);
+        EjecucionActual = EjecucionActual?.Reanudar(ahoraUtc);
+    }
+
+    public void Reanudar() => Reanudar(DateTime.UtcNow);
 
     public void Finalizar(DateTime fechaFinalizacionUtc)
     {
         _estadoActual.Finalizar(this);
         FechaFinalizacionUtc = fechaFinalizacionUtc;
+        EjecucionActual = null;
     }
 
-    public void Cancelar() => _estadoActual.Cancelar(this);
+    public void Cancelar()
+    {
+        _estadoActual.Cancelar(this);
+        EjecucionActual = null;
+    }
 
     protected void EstablecerDatosBase(
         Guid id,
@@ -176,7 +340,9 @@ public abstract class Sesion : ISesion
         Guid operadorCreadorId, DateTime fechaCreacion,
         DateTime? fechaInicioUtc, DateTime? fechaFinalizacionUtc,
         IEnumerable<SesionMision>? misiones,
-        int? duracionMinutosLimite = null)
+        int? duracionSegundosLimite = null,
+        EjecucionActualSesion? ejecucionActual = null,
+        IEnumerable<EjecucionActualSesion>? secuenciaEtapas = null)
     {
         Id = id;
         Nombre = nombre;
@@ -188,15 +354,38 @@ public abstract class Sesion : ISesion
         FechaCreacion = fechaCreacion;
         FechaInicioUtc = fechaInicioUtc;
         FechaFinalizacionUtc = fechaFinalizacionUtc;
-        DuracionMinutosLimite = duracionMinutosLimite;
+        DuracionSegundosLimite = duracionSegundosLimite;
+        EjecucionActual = ejecucionActual;
         _estadoActual = FabricaEstadoSesion.Crear(estado);
         _misiones.Clear();
         if (misiones is not null) _misiones.AddRange(misiones);
+        _secuenciaEtapas.Clear();
+        if (secuenciaEtapas is not null)
+            _secuenciaEtapas.AddRange(secuenciaEtapas.OrderBy(e => e.OrdenGlobal));
     }
 
     internal void CambiarEstado(IEstadoSesion nuevoEstado)
     {
         _estadoActual = nuevoEstado;
         Estado = nuevoEstado.Estado;
+    }
+
+    private void EstablecerEjecucionActual(
+        Guid misionId,
+        Guid etapaId,
+        Guid modoDeJuegoId,
+        string tipoEtapa,
+        int ordenGlobal,
+        DateTime fechaInicioUtc,
+        int duracionSegundos)
+    {
+        EjecucionActual = EjecucionActualSesion.Crear(
+            misionId,
+            etapaId,
+            modoDeJuegoId,
+            tipoEtapa,
+            ordenGlobal,
+            fechaInicioUtc,
+            duracionSegundos);
     }
 }

@@ -80,9 +80,12 @@ public sealed class ModificarSesionManejador
             : DateTime.SpecifyKind(comando.Datos.FechaProgramada, DateTimeKind.Utc);
         PoliticaProgramacionSesion.ValidarFechaProgramada(fechaProgramada, ahoraUtc);
 
-        await _validadorMisiones.ValidarAsync(comando.Datos.MisionesIds, cancelacion);
+        var resultadoMisiones = await _validadorMisiones.ValidarYObtenerAsync(
+            comando.Datos.MisionesIds, cancelacion);
+        var duracionSegundosLimite = resultadoMisiones.DuracionTotalSegundos;
 
-        var sesionModificada = AplicarCambios(sesion, comando.Datos, fechaProgramada, ahoraUtc);
+        var sesionModificada = AplicarCambios(
+            sesion, comando.Datos, fechaProgramada, ahoraUtc, duracionSegundosLimite);
 
         await _repositorio.ActualizarAsync(sesionModificada, cancelacion);
         await _unidadTrabajo.GuardarCambiosAsync(cancelacion);
@@ -100,7 +103,11 @@ public sealed class ModificarSesionManejador
     }
 
     private Sesion AplicarCambios(
-        Sesion sesion, ModificarSesionDto datos, DateTime fechaProgramada, DateTime ahoraUtc)
+        Sesion sesion,
+        ModificarSesionDto datos,
+        DateTime fechaProgramada,
+        DateTime ahoraUtc,
+        int duracionSegundosLimite)
     {
         var cambiaModo = !string.Equals(
             datos.Modo, sesion.TipoSesion, StringComparison.OrdinalIgnoreCase);
@@ -111,7 +118,7 @@ public sealed class ModificarSesionManejador
             sesion.ReemplazarMisiones(datos.MisionesIds);
             sesion.AplicarCapacidad(
                 datos.MaximoParticipantes, datos.MaximoEquipos, datos.MaximoParticipantesPorEquipo);
-            sesion.AplicarDuracion(datos.DuracionMinutosLimite);
+            sesion.AplicarDuracion(duracionSegundosLimite);
             return sesion;
         }
 
@@ -135,7 +142,7 @@ public sealed class ModificarSesionManejador
             datos.MaximoParticipantes,
             datos.MaximoEquipos,
             datos.MaximoParticipantesPorEquipo,
-            datos.DuracionMinutosLimite);
+            duracionSegundosLimite);
 
         return _fabricaSesion.Reconstruir(datosReconstruccion);
     }

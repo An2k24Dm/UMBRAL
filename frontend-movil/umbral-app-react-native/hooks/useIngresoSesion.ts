@@ -5,6 +5,7 @@ import {
   ingresarSesionIndividualApi,
   ingresarSesionPorCodigoApi,
 } from "../servicios/sesionesApi";
+import { notificarMembresiaTiempoRealActualizada } from "../servicios/membresiaTiempoReal";
 import type { IngresarSesionRespuestaDto } from "../tipos/sesiones";
 
 export function useIngresoSesion() {
@@ -25,7 +26,11 @@ export function useIngresoSesion() {
       setError(null);
       setSesionExpirada(false);
       try {
-        return await accion(token);
+        const resultado = await accion(token);
+        // #8: la conexión SignalR global re-sincroniza sus grupos para unirse de
+        // inmediato al GrupoSesion de la sesión recién ingresada.
+        notificarMembresiaTiempoRealActualizada();
+        return resultado;
       } catch (e) {
         if (e instanceof ErrorConsultaSesiones) {
           if (e.codigo === "NO_AUTORIZADO") setSesionExpirada(true);
