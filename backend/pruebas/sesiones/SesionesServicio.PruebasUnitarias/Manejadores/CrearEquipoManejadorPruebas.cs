@@ -73,7 +73,8 @@ public class CrearEquipoManejadorPruebas
                 Usuario.Object, Hash.Object, Reloj.Object,
                 new PoliticaParticipacionUnicaSesion(Consultas.Object),
                 Notificador.Object,
-                Mock.Of<IRegistroLogsAplicacion>());
+                Mock.Of<IRegistroLogsAplicacion>(),
+                Mock.Of<IPublicadorEventosRanking>());
     }
 
     private static SesionGrupal SesionGrupalEnPreparacion(
