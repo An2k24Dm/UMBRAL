@@ -25,6 +25,7 @@ public sealed class CrearEquipoManejador
     private readonly PoliticaParticipacionUnicaSesion _participacionUnica;
     private readonly INotificadorSesionesTiempoReal _notificadorTiempoReal;
     private readonly IRegistroLogsAplicacion _registroLogs;
+    private readonly IPublicadorEventosRanking _publicadorRanking;
 
     public CrearEquipoManejador(
         IValidador<CrearEquipoComando> validador,
@@ -35,7 +36,8 @@ public sealed class CrearEquipoManejador
         IProveedorFechaHora reloj,
         PoliticaParticipacionUnicaSesion participacionUnica,
         INotificadorSesionesTiempoReal notificadorTiempoReal,
-        IRegistroLogsAplicacion registroLogs)
+        IRegistroLogsAplicacion registroLogs,
+        IPublicadorEventosRanking publicadorRanking)
     {
         _validador = validador;
         _repositorio = repositorio;
@@ -46,6 +48,7 @@ public sealed class CrearEquipoManejador
         _participacionUnica = participacionUnica;
         _notificadorTiempoReal = notificadorTiempoReal;
         _registroLogs = registroLogs;
+        _publicadorRanking = publicadorRanking;
     }
 
     public async Task<CrearEquipoRespuestaDto> Handle(
@@ -115,6 +118,9 @@ public sealed class CrearEquipoManejador
                 ["EquipoId"] = equipo.Id,
                 ["ParticipanteId"] = participanteId
             });
+
+        await _publicadorRanking.PublicarEquipoCreadoSesionAsync(
+            sesionGrupal.Id, equipo.Id, equipo.Nombre.Valor, cancelacion);
 
         return new CrearEquipoRespuestaDto
         {

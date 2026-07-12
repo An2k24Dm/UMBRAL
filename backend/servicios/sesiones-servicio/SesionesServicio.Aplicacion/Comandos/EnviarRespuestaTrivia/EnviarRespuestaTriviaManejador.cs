@@ -22,6 +22,7 @@ public sealed class EnviarRespuestaTriviaManejador
     private readonly IServicioProgresoSecuencialSesion _servicioProgresoSecuencial;
     private readonly IServicioTiempoTriviaSesion _servicioTiempoTrivia;
     private readonly IProveedorFechaHora _reloj;
+    private readonly IPublicadorEventosRanking _publicadorRanking;
 
     public EnviarRespuestaTriviaManejador(
         IUsuarioActual usuario,
@@ -33,7 +34,8 @@ public sealed class EnviarRespuestaTriviaManejador
         IEstrategiaCalculoPuntajeTrivia estrategiaPuntaje,
         IServicioProgresoSecuencialSesion servicioProgresoSecuencial,
         IServicioTiempoTriviaSesion servicioTiempoTrivia,
-        IProveedorFechaHora reloj)
+        IProveedorFechaHora reloj,
+        IPublicadorEventosRanking publicadorRanking)
     {
         _usuario = usuario;
         _repositorioSesiones = repositorioSesiones;
@@ -45,6 +47,7 @@ public sealed class EnviarRespuestaTriviaManejador
         _servicioProgresoSecuencial = servicioProgresoSecuencial;
         _servicioTiempoTrivia = servicioTiempoTrivia;
         _reloj = reloj;
+        _publicadorRanking = publicadorRanking;
     }
 
     public async Task<EnviarRespuestaTriviaRespuesta> Handle(
@@ -163,6 +166,17 @@ public sealed class EnviarRespuestaTriviaManejador
                 esCorrecta,
                 puntosGanados,
                 cancelacion);
+
+            var nombreParticipante = _usuario.ObtenerNombreUsuario() ?? participanteIdentidadId.ToString();
+            string? nombreEquipo = null;
+            if (equipoId.HasValue && sesion is SesionGrupal grupalTrivia)
+            {
+                nombreEquipo = grupalTrivia.Equipos
+                    .FirstOrDefault(e => e.Id == equipoId.Value)?.Nombre.Valor;
+            }
+            await _publicadorRanking.PublicarRespuestaTriviaRegistradaAsync(
+                comando.SesionId, participanteIdentidadId, nombreParticipante,
+                equipoId, nombreEquipo, puntosGanados, esCorrecta, cancelacion);
         }
 
         var totalPreguntas = trivia.Preguntas.Count;

@@ -79,7 +79,8 @@ public class IngresarSesionManejadoresPruebas
                 new PoliticaParticipacionUnicaSesion(Consultas.Object),
                 ConstructorRespuesta(),
                 Notificador.Object,
-                Mock.Of<IRegistroLogsAplicacion>());
+                Mock.Of<IRegistroLogsAplicacion>(),
+                Mock.Of<IPublicadorEventosRanking>());
 
         public IngresarSesionIndividualManejador Individual()
             => new(
@@ -90,7 +91,8 @@ public class IngresarSesionManejadoresPruebas
                 new PoliticaParticipacionUnicaSesion(Consultas.Object),
                 ConstructorRespuesta(),
                 Notificador.Object,
-                Mock.Of<IRegistroLogsAplicacion>());
+                Mock.Of<IRegistroLogsAplicacion>(),
+                Mock.Of<IPublicadorEventosRanking>());
     }
 
     private static SesionIndividual IndividualEn(EstadoSesion estado)

@@ -131,7 +131,7 @@ public class EnviarEvidenciaTesoroManejadorPruebas
             => new(
                 Usuario.Object, RepoSesiones.Object, ClienteTesoro.Object,
                 RepoEvidencias.Object, Notificador.Object, Finalizacion.Object,
-                ProgresoSecuencial.Object);
+                ProgresoSecuencial.Object, Mock.Of<IPublicadorEventosRanking>());
 
         public Task<EvidenciaTesoroRespuestaDto> EjecutarAsync(Guid sesionId)
             => Construir().Handle(

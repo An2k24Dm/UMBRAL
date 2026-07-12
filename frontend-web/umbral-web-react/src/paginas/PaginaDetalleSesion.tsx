@@ -31,8 +31,15 @@ import {
   type BusquedaTesoroDetalleDto
 } from '../autenticacion/clienteApiJuegos'
 import { liberarPista } from '../autenticacion/clienteApiSesiones'
+import {
+  obtenerRankingParticipantes,
+  obtenerRankingEquipos,
+  type EntradaRankingParticipanteDto,
+  type EntradaRankingEquipoDto
+} from '../autenticacion/clienteApiRanking'
 import { usarAutenticacion } from '../autenticacion/ProveedorAutenticacion'
 import { useSesionesTiempoReal } from '../hooks/useSesionesTiempoReal'
+import { useRankingTiempoReal } from '../hooks/useRankingTiempoReal'
 import {
   formatearFechaSesion,
   nombreModoSesion,
@@ -167,6 +174,12 @@ export function PaginaDetalleSesion() {
   const [cargandoProgreso, setCargandoProgreso] = useState(false)
   const [errorProgreso, setErrorProgreso] = useState<string | null>(null)
 
+  const [rankingParticipantes, setRankingParticipantes] = useState<EntradaRankingParticipanteDto[] | null>(null)
+  const [rankingEquipos, setRankingEquipos] = useState<EntradaRankingEquipoDto[] | null>(null)
+  const [cargandoRanking, setCargandoRanking] = useState(false)
+  const [errorRanking, setErrorRanking] = useState<string | null>(null)
+  const [versionRanking, setVersionRanking] = useState(0)
+
   // HU52 — Operación del ciclo de vida. accionOperacion no nula ⇒ modal abierto.
   const [accionOperacion, setAccionOperacion] = useState<AccionOperacionSesion | null>(null)
   const [operandoSesion, setOperandoSesion] = useState(false)
@@ -198,6 +211,13 @@ export function PaginaDetalleSesion() {
     onEquipoExpulsado: refrescarDetalleTiempoReal,
     onRespuestaRegistrada: refrescarProgresoTiempoReal,
     onEtapaCompletada: refrescarProgresoTiempoReal
+  })
+
+  useRankingTiempoReal({
+    token,
+    sesionId: id,
+    onRankingParticipantesActualizado: () => setVersionRanking(v => v + 1),
+    onRankingEquiposActualizado: () => setVersionRanking(v => v + 1)
   })
 
   function abrirModalEliminar() {
@@ -438,6 +458,36 @@ export function PaginaDetalleSesion() {
 
     return () => { cancelado = true }
   }, [token, id, sesion?.estado, versionProgreso])
+
+  // Ranking en tiempo real: se carga cuando la sesión tiene actividad.
+  useEffect(() => {
+    if (!token || !id || !sesion) return
+    const estadosConRanking = ['Activa', 'Pausada', 'Finalizada']
+    if (!estadosConRanking.includes(sesion.estado)) return
+
+    const esGrupalLocal = sesion.modo === 'Grupal'
+    let cancelado = false
+    setCargandoRanking(true)
+    setErrorRanking(null)
+
+    const promesas: Promise<void>[] = [
+      obtenerRankingParticipantes(id, token)
+        .then(data => { if (!cancelado) setRankingParticipantes(data) })
+        .catch(e => { if (!cancelado) setErrorRanking(e instanceof Error ? e.message : 'Error al cargar ranking') })
+    ]
+
+    if (esGrupalLocal) {
+      promesas.push(
+        obtenerRankingEquipos(id, token)
+          .then(data => { if (!cancelado) setRankingEquipos(data) })
+          .catch(() => { /* silencioso: equipos son opcionales */ })
+      )
+    }
+
+    void Promise.all(promesas).finally(() => { if (!cancelado) setCargandoRanking(false) })
+
+    return () => { cancelado = true }
+  }, [token, id, sesion?.estado, sesion?.modo, versionRanking])
 
   if (estado === 'cargando') {
     return (
@@ -847,6 +897,103 @@ export function PaginaDetalleSesion() {
                 ))}
               </tbody>
             </table>
+          )}
+        </section>
+      )}
+
+      {/* Ranking en tiempo real — visible cuando la sesión tiene actividad */}
+      {(sesion.estado === 'Activa' || sesion.estado === 'Pausada' || sesion.estado === 'Finalizada') && (
+        <section className="seccion">
+          <div className="detalle-subtitulo">
+            <div>
+              <h3>Ranking de la sesión</h3>
+              <p>Clasificación en tiempo real por puntaje acumulado.</p>
+            </div>
+          </div>
+
+          {cargandoRanking && <p className="detalle-mensaje-vacio">Cargando ranking…</p>}
+          {!cargandoRanking && errorRanking && <Alerta tono="aviso">{errorRanking}</Alerta>}
+
+          {/* Ranking de equipos (solo modo grupal) */}
+          {!cargandoRanking && !errorRanking && esGrupal && rankingEquipos !== null && rankingEquipos.length > 0 && (
+            <div style={{ marginBottom: 'var(--espacio-4)' }}>
+              <h4 style={{ marginBottom: 'var(--espacio-2)' }}>Equipos</h4>
+              <div style={{ overflowX: 'auto' }}>
+                <table className="tabla-usuarios">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Equipo</th>
+                      <th>Puntaje</th>
+                      <th>Etapas completadas</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rankingEquipos
+                      .slice()
+                      .sort((a, b) => a.posicion - b.posicion)
+                      .map(e => (
+                        <tr key={e.equipoId}>
+                          <td>
+                            <strong style={{ fontSize: '1.1rem' }}>
+                              {e.posicion === 1 ? '🥇' : e.posicion === 2 ? '🥈' : e.posicion === 3 ? '🥉' : `#${e.posicion}`}
+                            </strong>
+                          </td>
+                          <td><strong>{e.nombreEquipo}</strong></td>
+                          <td><strong style={{ color: 'var(--color-primario, #6366f1)' }}>{e.puntajeTotal} pts</strong></td>
+                          <td>{e.etapasCompletadas}</td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Ranking de participantes */}
+          {!cargandoRanking && !errorRanking && rankingParticipantes !== null && rankingParticipantes.length === 0 && (
+            <p className="detalle-mensaje-vacio">Aún no hay actividad registrada en el ranking.</p>
+          )}
+          {!cargandoRanking && !errorRanking && rankingParticipantes !== null && rankingParticipantes.length > 0 && (
+            <div>
+              {esGrupal && <h4 style={{ marginBottom: 'var(--espacio-2)' }}>Participantes</h4>}
+              <div style={{ overflowX: 'auto' }}>
+                <table className="tabla-usuarios">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Participante</th>
+                      <th>Puntaje</th>
+                      <th title="Respuestas correctas / totales">Resp. correctas</th>
+                      <th>Etapas comp.</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rankingParticipantes
+                      .slice()
+                      .sort((a, b) => a.posicion - b.posicion)
+                      .map(p => (
+                        <tr key={p.participanteIdentidadId}>
+                          <td>
+                            <strong style={{ fontSize: '1.1rem' }}>
+                              {p.posicion === 1 ? '🥇' : p.posicion === 2 ? '🥈' : p.posicion === 3 ? '🥉' : `#${p.posicion}`}
+                            </strong>
+                          </td>
+                          <td>{p.nombreParticipante}</td>
+                          <td><strong style={{ color: 'var(--color-primario, #6366f1)' }}>{p.puntajeTotal} pts</strong></td>
+                          <td>
+                            <span style={{ color: 'var(--color-exito, #22c55e)', fontWeight: 600 }}>
+                              {p.respuestasCorrectas}
+                            </span>
+                            {' / '}{p.respuestasTotales}
+                          </td>
+                          <td>{p.etapasCompletadas}</td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           )}
         </section>
       )}

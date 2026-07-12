@@ -172,7 +172,8 @@ public class EnviarRespuestaTriviaManejadorPruebas
             => new(
                 Usuario.Object, RepoSesiones.Object, ClienteTrivia.Object,
                 RepoRespuestas.Object, Notificador.Object, Finalizacion.Object, Estrategia,
-                ProgresoSecuencial.Object, ServicioTiempoTrivia, Reloj.Object);
+                ProgresoSecuencial.Object, ServicioTiempoTrivia, Reloj.Object,
+                Mock.Of<IPublicadorEventosRanking>());
 
         public Task<EnviarRespuestaTriviaRespuesta> EjecutarAsync(Guid sesionId, int tiempoMs = 0)
             => Construir().Handle(

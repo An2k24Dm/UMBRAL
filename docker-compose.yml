@@ -204,6 +204,10 @@ services:
       Keycloak__Authority: "http://keycloak:8080/realms/umbral"
       ServiciosExternos__JuegosServicio__Url: "http://juegos-servicio:8080"
       ServiciosExternos__IdentidadServicio__Url: "http://identidad-servicio:8080"
+      RabbitMq__Host: "rabbitmq"
+      RabbitMq__Puerto: "5672"
+      RabbitMq__Usuario: "umbral"
+      RabbitMq__Contrasena: "umbral123"
       Cors__OrigenesPermitidos__0: "http://localhost:3000"
       Cors__OrigenesPermitidos__1: "http://localhost:5173"
     ports:
@@ -215,6 +219,57 @@ services:
         condition: service_started
       juegos-servicio:
         condition: service_started
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - umbral-network
+    restart: unless-stopped
+
+  postgres-ranking:
+    image: postgres:16-alpine
+    container_name: umbral-postgres-ranking
+    environment:
+      POSTGRES_USER: umbral
+      POSTGRES_PASSWORD: umbral123
+      POSTGRES_DB: umbral_ranking
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U umbral -d umbral_ranking"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - postgres_ranking_data:/var/lib/postgresql/data
+    ports:
+      - "5437:5432"
+    networks:
+      - umbral-network
+    restart: unless-stopped
+
+  ranking-servicio:
+    build:
+      context: ./backend/servicios/ranking-servicio
+      dockerfile: RankingServicio.Presentacion/Dockerfile
+    container_name: umbral-ranking-servicio
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__BaseDatos: "Host=postgres-ranking;Port=5432;Database=umbral_ranking;Username=umbral;Password=umbral123"
+      Keycloak__Authority: "http://keycloak:8080/realms/umbral"
+      RabbitMq__Host: "rabbitmq"
+      RabbitMq__Puerto: "5672"
+      RabbitMq__Usuario: "umbral"
+      RabbitMq__Contrasena: "umbral123"
+      Cors__OrigenesPermitidos__0: "http://localhost:3000"
+      Cors__OrigenesPermitidos__1: "http://localhost:5173"
+    ports:
+      - "5004:8080"
+    depends_on:
+      postgres-ranking:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
     networks:
       - umbral-network
     restart: unless-stopped
@@ -232,6 +287,7 @@ services:
       - identidad-servicio
       - juegos-servicio
       - sesiones-servicio
+      - ranking-servicio
     networks:
       - umbral-network
     restart: unless-stopped
@@ -279,4 +335,5 @@ volumes:
   postgres_identidad_data:
   postgres_juegos_data:
   postgres_sesiones_data:
+  postgres_ranking_data:
   rabbitmq_data:

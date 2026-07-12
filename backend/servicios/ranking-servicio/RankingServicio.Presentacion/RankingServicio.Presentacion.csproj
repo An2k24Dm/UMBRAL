@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>RankingServicio.Presentacion</RootNamespace>
+    <UserSecretsId>ranking-servicio-umbral</UserSecretsId>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.0">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.7.3" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\RankingServicio.Aplicacion\RankingServicio.Aplicacion.csproj" />
+    <ProjectReference Include="..\RankingServicio.Infraestructura\RankingServicio.Infraestructura.csproj" />
+    <ProjectReference Include="..\RankingServicio.Dominio\RankingServicio.Dominio.csproj" />
+  </ItemGroup>
+</Project>

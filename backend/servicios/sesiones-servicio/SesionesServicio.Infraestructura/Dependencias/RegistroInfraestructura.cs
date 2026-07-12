@@ -77,6 +77,10 @@ public static class RegistroInfraestructura
         servicios.AddHostedService<ServicioPreparacionSesionesProgramadas>();
         servicios.AddHostedService<ServicioVencimientoEtapasPorTiempo>();
         servicios.AddScoped<IRegistroLogsAplicacion, RegistroLogsAplicacionDotNet>();
+        servicios.Configure<ServiciosExternos.OpcionesRabbitMq>(
+            configuracion.GetSection(ServiciosExternos.OpcionesRabbitMq.Seccion));
+        servicios.AddSingleton<IPublicadorEventosRanking,
+            ServiciosExternos.PublicadorEventosRankingRabbitMq>();
         return servicios;
     }
 }

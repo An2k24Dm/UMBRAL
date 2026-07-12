@@ -19,6 +19,7 @@ public sealed class EnviarEvidenciaTesoroManejador
     private readonly INotificadorSesionesTiempoReal _notificador;
     private readonly IServicioFinalizacionSesion _servicioFinalizacion;
     private readonly IServicioProgresoSecuencialSesion _servicioProgresoSecuencial;
+    private readonly IPublicadorEventosRanking _publicadorRanking;
 
     public EnviarEvidenciaTesoroManejador(
         IUsuarioActual usuario,
@@ -27,7 +28,8 @@ public sealed class EnviarEvidenciaTesoroManejador
         IRepositorioEvidenciasTesoro repositorioEvidencias,
         INotificadorSesionesTiempoReal notificador,
         IServicioFinalizacionSesion servicioFinalizacion,
-        IServicioProgresoSecuencialSesion servicioProgresoSecuencial)
+        IServicioProgresoSecuencialSesion servicioProgresoSecuencial,
+        IPublicadorEventosRanking publicadorRanking)
     {
         _usuario = usuario;
         _repositorioSesiones = repositorioSesiones;
@@ -36,6 +38,7 @@ public sealed class EnviarEvidenciaTesoroManejador
         _notificador = notificador;
         _servicioFinalizacion = servicioFinalizacion;
         _servicioProgresoSecuencial = servicioProgresoSecuencial;
+        _publicadorRanking = publicadorRanking;
     }
 
     public async Task<EvidenciaTesoroRespuestaDto> Handle(
@@ -99,6 +102,15 @@ public sealed class EnviarEvidenciaTesoroManejador
         var etapaCompletada = false;
         if (esValida)
         {
+            var nombreParticipante = _usuario.ObtenerNombreUsuario() ?? participanteId.ToString();
+            string? nombreEquipo = null;
+            if (equipoId.HasValue && sesion is SesionGrupal grupalTesoro)
+                nombreEquipo = grupalTesoro.Equipos
+                    .FirstOrDefault(e => e.Id == equipoId.Value)?.Nombre.Valor;
+            await _publicadorRanking.PublicarEvidenciaTesoroRegistradaAsync(
+                comando.SesionId, participanteId, nombreParticipante,
+                equipoId, nombreEquipo, puntosGanados, cancelacion);
+
             await _notificador.NotificarProgresoSecuencialActualizadoAsync(
                 comando.SesionId, participanteId, equipoId, cancelacion);
 
