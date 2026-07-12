@@ -1,0 +1,72 @@
+using Microsoft.EntityFrameworkCore;
+using RankingServicio.Aplicacion.Dependencias;
+using RankingServicio.Infraestructura.Dependencias;
+using RankingServicio.Infraestructura.Persistencia;
+using RankingServicio.Infraestructura.TiempoReal;
+using RankingServicio.Presentacion.Configuraciones;
+using RankingServicio.Presentacion.Middlewares;
+
+var constructor = WebApplication.CreateBuilder(args);
+
+constructor.Logging.ClearProviders();
+constructor.Logging.AddSimpleConsole(opciones =>
+{
+    opciones.SingleLine = true;
+    opciones.TimestampFormat = "HH:mm:ss ";
+});
+constructor.Logging.AddDebug();
+
+constructor.Services.AddControllers().AddJsonOptions(opciones =>
+{
+    opciones.JsonSerializerOptions.Converters
+        .Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+});
+
+constructor.Services.Configure<Microsoft.AspNetCore.Mvc.ApiBehaviorOptions>(opciones =>
+{
+    opciones.InvalidModelStateResponseFactory = contexto =>
+        RespuestaErrorModelo.ConstruirDesdeModelState(contexto.ModelState);
+});
+
+constructor.Services.AddEndpointsApiExplorer();
+constructor.Services.AddSwaggerGen();
+
+constructor.Services.AddSignalR(opciones =>
+{
+    opciones.KeepAliveInterval = TimeSpan.FromSeconds(15);
+    opciones.ClientTimeoutInterval = TimeSpan.FromSeconds(60);
+});
+
+constructor.Services.AgregarAplicacion();
+constructor.Services.AgregarInfraestructura(constructor.Configuration);
+constructor.Services.AgregarSeguridad(constructor.Configuration);
+constructor.Services.AgregarCorsUmbral(constructor.Configuration);
+
+var aplicacion = constructor.Build();
+
+if (aplicacion.Environment.IsDevelopment())
+{
+    aplicacion.UseSwagger();
+    aplicacion.UseSwaggerUI();
+}
+
+aplicacion.UseCors(RegistroCors.PoliticaUmbral);
+aplicacion.UseAuthentication();
+aplicacion.UseMiddleware<ManejadorErroresMiddleware>();
+aplicacion.UseAuthorization();
+
+aplicacion.MapControllers();
+aplicacion.MapHub<RankingHub>("/hubs/ranking");
+
+aplicacion.MapGet("/salud", () => Results.Ok(new { estado = "ok", servicio = "ranking-servicio" }));
+
+if (!aplicacion.Environment.IsEnvironment("Testing"))
+{
+    using var alcance = aplicacion.Services.CreateScope();
+    var contexto = alcance.ServiceProvider.GetRequiredService<ContextoRanking>();
+    await contexto.Database.MigrateAsync();
+}
+
+await aplicacion.RunAsync();
+
+public partial class Program { }
