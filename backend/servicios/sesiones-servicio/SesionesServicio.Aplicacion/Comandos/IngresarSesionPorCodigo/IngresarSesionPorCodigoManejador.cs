@@ -27,6 +27,7 @@ public sealed class IngresarSesionPorCodigoManejador
     private readonly ConstructorRespuestaIngresoSesion _constructorRespuesta;
     private readonly INotificadorSesionesTiempoReal _notificadorTiempoReal;
     private readonly IRegistroLogsAplicacion _registroLogs;
+    private readonly IPublicadorEventosRanking _publicadorRanking;
 
     public IngresarSesionPorCodigoManejador(
         IValidador<IngresarSesionPorCodigoComando> validador,
@@ -37,7 +38,8 @@ public sealed class IngresarSesionPorCodigoManejador
         PoliticaParticipacionUnicaSesion participacionUnica,
         ConstructorRespuestaIngresoSesion constructorRespuesta,
         INotificadorSesionesTiempoReal notificadorTiempoReal,
-        IRegistroLogsAplicacion registroLogs)
+        IRegistroLogsAplicacion registroLogs,
+        IPublicadorEventosRanking publicadorRanking)
     {
         _validador = validador;
         _repositorio = repositorio;
@@ -48,6 +50,7 @@ public sealed class IngresarSesionPorCodigoManejador
         _constructorRespuesta = constructorRespuesta;
         _notificadorTiempoReal = notificadorTiempoReal;
         _registroLogs = registroLogs;
+        _publicadorRanking = publicadorRanking;
     }
 
     public async Task<IngresarSesionRespuestaDto> Handle(
@@ -109,6 +112,10 @@ public sealed class IngresarSesionPorCodigoManejador
                     ["SesionId"] = individual.Id,
                     ["ParticipanteId"] = participanteId
                 });
+
+            var nombre = _usuarioActual.ObtenerNombreUsuario() ?? participanteId.ToString();
+            await _publicadorRanking.PublicarParticipanteUnidoSesionAsync(
+                individual.Id, participanteId, nombre, cancelacion);
         }
 
         return await _constructorRespuesta.ConstruirAsync(

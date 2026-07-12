@@ -25,6 +25,7 @@ public sealed class ServicioFinalizacionSesion : IServicioFinalizacionSesion
     private readonly INotificadorSesionesTiempoReal _notificador;
     private readonly IUnidadTrabajoSesiones _unidadTrabajo;
     private readonly IProveedorFechaHora _reloj;
+    private readonly IPublicadorEventosRanking _publicadorRanking;
 
     public ServicioFinalizacionSesion(
         IRepositorioSesiones sesiones,
@@ -32,7 +33,8 @@ public sealed class ServicioFinalizacionSesion : IServicioFinalizacionSesion
         IClienteJuegosMisiones clienteMisiones,
         INotificadorSesionesTiempoReal notificador,
         IUnidadTrabajoSesiones unidadTrabajo,
-        IProveedorFechaHora reloj)
+        IProveedorFechaHora reloj,
+        IPublicadorEventosRanking publicadorRanking)
     {
         _sesiones = sesiones;
         _etapasCompletadas = etapasCompletadas;
@@ -40,6 +42,7 @@ public sealed class ServicioFinalizacionSesion : IServicioFinalizacionSesion
         _notificador = notificador;
         _unidadTrabajo = unidadTrabajo;
         _reloj = reloj;
+        _publicadorRanking = publicadorRanking;
     }
 
     public Task FinalizarSiTodasEtapasCompletadasAsync(
@@ -82,6 +85,7 @@ public sealed class ServicioFinalizacionSesion : IServicioFinalizacionSesion
     {
         var ahoraUtc = _reloj.ObtenerFechaHoraUtc();
         ResultadoTransicion? resultado = null;
+        bool? esGrupalCapturada = null;
 
         await _unidadTrabajo.EjecutarEnTransaccionAsync(async ct =>
         {
@@ -118,6 +122,7 @@ public sealed class ServicioFinalizacionSesion : IServicioFinalizacionSesion
                 await _sesiones.ActualizarAsync(sesion, ct);
                 await _unidadTrabajo.GuardarCambiosAsync(ct);
                 resultado = ResultadoTransicion.Finalizada(sesion.Id, etapaActual.MisionId);
+                esGrupalCapturada = sesion is SesionGrupal;
                 return;
             }
 
@@ -148,6 +153,8 @@ public sealed class ServicioFinalizacionSesion : IServicioFinalizacionSesion
         {
             await _notificador.NotificarSesionActualizadaAsync(
                 sesionId, EstadoSesion.Finalizada.ToString(), cancelacion);
+            await _publicadorRanking.PublicarSesionFinalizadaAsync(
+                sesionId, esGrupalCapturada ?? false, cancelacion);
             return;
         }
 
