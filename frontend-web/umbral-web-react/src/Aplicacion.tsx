@@ -21,6 +21,7 @@ import { PaginaCrearSesion } from './paginas/PaginaCrearSesion'
 import { PaginaEditarSesion } from './paginas/PaginaEditarSesion'
 import { PaginaDetalleSesion } from './paginas/PaginaDetalleSesion'
 import { PaginaDetalleEquipo } from './paginas/PaginaDetalleEquipo'
+import { PaginaRankingGlobal } from './paginas/PaginaRankingGlobal'
 import {
   obtenerDetalleParticipante,
   obtenerDetalleUsuarioInterno
@@ -86,11 +87,13 @@ export function Aplicacion() {
       <Route path="/administrador/sesiones" element={<RutaProtegida rolesPermitidos={['Administrador']}><PaginaSesiones /></RutaProtegida>} />
       <Route path="/administrador/sesiones/:id" element={<RutaProtegida rolesPermitidos={['Administrador']}><PaginaDetalleSesion /></RutaProtegida>} />
       <Route path="/administrador/sesiones/:id/equipos/:equipoId" element={<RutaProtegida rolesPermitidos={['Administrador']}><PaginaDetalleEquipo /></RutaProtegida>} />
+      <Route path="/administrador/ranking" element={<RutaProtegida rolesPermitidos={['Administrador']}><PaginaRankingGlobal /></RutaProtegida>} />
       <Route path="/operador/sesiones" element={<RutaProtegida rolesPermitidos={['Operador']}><PaginaSesiones /></RutaProtegida>} />
       <Route path="/operador/sesiones/crear" element={<RutaProtegida rolesPermitidos={['Operador']}><PaginaCrearSesion /></RutaProtegida>} />
       <Route path="/operador/sesiones/:id/editar" element={<RutaProtegida rolesPermitidos={['Operador']}><PaginaEditarSesion /></RutaProtegida>} />
       <Route path="/operador/sesiones/:id" element={<RutaProtegida rolesPermitidos={['Operador']}><PaginaDetalleSesion /></RutaProtegida>} />
       <Route path="/operador/sesiones/:id/equipos/:equipoId" element={<RutaProtegida rolesPermitidos={['Operador']}><PaginaDetalleEquipo /></RutaProtegida>} />
+      <Route path="/operador/ranking" element={<RutaProtegida rolesPermitidos={['Operador']}><PaginaRankingGlobal /></RutaProtegida>} />
 
       <Route path="*" element={<Navigate to="/iniciar-sesion" replace />} />
     </Routes>

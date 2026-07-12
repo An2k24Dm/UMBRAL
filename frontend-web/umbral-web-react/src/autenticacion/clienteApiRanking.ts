@@ -60,3 +60,25 @@ export async function obtenerRankingEquipos(
   if (!resp.ok) throw new Error(await leerError(resp))
   return resp.json() as Promise<EntradaRankingEquipoDto[]>
 }
+
+export interface EntradaRankingGlobalDto {
+  posicion: number
+  participanteIdentidadId: string
+  nombreParticipante: string
+  puntajeAcumulado: number
+  sesionesJugadas: number
+  etapasCompletadasTotal: number
+}
+
+export async function obtenerRankingGlobal(
+  token: string,
+  top = 20
+): Promise<EntradaRankingGlobalDto[]> {
+  const resp = await fetch(
+    `${URL_API}/api/ranking/global?top=${top}`,
+    { headers: auth(token) }
+  )
+  if (resp.status === 401) lanzar401(token, 'Sesión expirada.')
+  if (!resp.ok) throw new Error(await leerError(resp))
+  return resp.json() as Promise<EntradaRankingGlobalDto[]>
+}

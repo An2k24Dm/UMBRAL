@@ -91,7 +91,7 @@ public sealed class ConsumidorEventosRanking : BackgroundService
             _canal.QueueBind(_opciones.Cola, _opciones.Exchange, routingKey);
         }
 
-        _canal.BasicQos(prefetchSize: 0, prefetchCount: 10, global: false);
+        _canal.BasicQos(prefetchSize: 0, prefetchCount: 1, global: false);
 
         var consumidor = new AsyncEventingBasicConsumer(_canal);
         consumidor.Received += OnMensajeRecibidoAsync;
