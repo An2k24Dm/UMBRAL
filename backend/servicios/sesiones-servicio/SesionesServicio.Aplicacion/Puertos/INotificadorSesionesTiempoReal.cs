@@ -41,7 +41,6 @@ public interface INotificadorSesionesTiempoReal
         Guid participanteIdentidadId,
         Guid? equipoId,
         bool esCorrecta,
-        int puntosGanados,
         CancellationToken cancelacion);
 
     Task NotificarEtapaCompletadaAsync(

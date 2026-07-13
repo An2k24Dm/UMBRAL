@@ -95,7 +95,8 @@ public sealed class IngresarSesionPorCodigoManejador
         {
             await _participacionUnica.ValidarPuedeIngresarASesionAsync(
                 participanteId, individual.Id, cancelacion);
-            individual.AgregarParticipante(participanteId, _reloj.ObtenerFechaHoraUtc());
+            var participante = individual.AgregarParticipante(
+                participanteId, _reloj.ObtenerFechaHoraUtc());
             await _repositorio.ActualizarAsync(individual, cancelacion);
             await _unidadTrabajo.GuardarCambiosAsync(cancelacion);
             await _notificadorTiempoReal.NotificarParticipantesSesionActualizadosAsync(
@@ -113,9 +114,9 @@ public sealed class IngresarSesionPorCodigoManejador
                     ["ParticipanteId"] = participanteId
                 });
 
-            var nombre = _usuarioActual.ObtenerNombreUsuario() ?? participanteId.ToString();
             await _publicadorRanking.PublicarParticipanteUnidoSesionAsync(
-                individual.Id, participanteId, nombre, cancelacion);
+                individual.Id, participante.Id, participanteId,
+                participante.EquipoId, cancelacion);
         }
 
         return await _constructorRespuesta.ConstruirAsync(

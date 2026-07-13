@@ -4,28 +4,36 @@ using RankingServicio.Aplicacion.Puertos;
 namespace RankingServicio.Aplicacion.Consultas.ObtenerRankingGlobal;
 
 public sealed class ObtenerRankingGlobalManejador
-    : IRequestHandler<ObtenerRankingGlobalConsulta, List<EntradaRankingGlobalDto>>
+    : IRequestHandler<ObtenerRankingGlobalConsulta, List<RankingGlobalDto>>
 {
-    private readonly IRepositorioRankingGlobal _repo;
+    private const int TopMaximo = 100;
 
-    public ObtenerRankingGlobalManejador(IRepositorioRankingGlobal repo)
+    private readonly IConsultasRanking _consultas;
+    private readonly IClienteIdentidadParticipantes _clienteIdentidad;
+
+    public ObtenerRankingGlobalManejador(
+        IConsultasRanking consultas,
+        IClienteIdentidadParticipantes clienteIdentidad)
     {
-        _repo = repo;
+        _consultas = consultas;
+        _clienteIdentidad = clienteIdentidad;
     }
 
-    public async Task<List<EntradaRankingGlobalDto>> Handle(
+    public async Task<List<RankingGlobalDto>> Handle(
         ObtenerRankingGlobalConsulta consulta, CancellationToken cancelacion)
     {
-        var entradas = await _repo.ObtenerTopAsync(consulta.Top, cancelacion);
+        var top = Math.Clamp(consulta.Top <= 0 ? 50 : consulta.Top, 1, TopMaximo);
+        var proyeccion = await _consultas.ObtenerRankingGlobalAsync(top, cancelacion);
 
-        return entradas
-            .Select((e, i) => new EntradaRankingGlobalDto(
-                i + 1,
-                e.ParticipanteIdentidadId,
-                e.NombreParticipante,
-                e.PuntajeAcumulado,
-                e.SesionesJugadas,
-                e.EtapasCompletadasTotal))
+        var datos = await _clienteIdentidad.ObtenerParticipantesPorIdsAsync(
+            proyeccion.Select(p => p.ParticipanteIdentidadId), cancelacion);
+
+        return proyeccion
+            .Select((p, indice) => new RankingGlobalDto(
+                indice + 1,
+                p.ParticipanteIdentidadId,
+                ResolucionAlias.Resolver(p.ParticipanteIdentidadId, datos),
+                p.Puntaje))
             .ToList();
     }
 }

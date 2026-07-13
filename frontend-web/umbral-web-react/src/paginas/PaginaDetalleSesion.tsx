@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { Fragment, useCallback, useEffect, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { LayoutPanel } from '../componentes/LayoutPanel'
 import { Alerta } from '../componentes/Alerta'
@@ -179,6 +179,16 @@ export function PaginaDetalleSesion() {
   const [cargandoRanking, setCargandoRanking] = useState(false)
   const [errorRanking, setErrorRanking] = useState<string | null>(null)
   const [versionRanking, setVersionRanking] = useState(0)
+  const [equiposExpandidos, setEquiposExpandidos] = useState<Set<string>>(new Set())
+
+  const alternarEquipoExpandido = (equipoId: string) => {
+    setEquiposExpandidos(previo => {
+      const siguiente = new Set(previo)
+      if (siguiente.has(equipoId)) siguiente.delete(equipoId)
+      else siguiente.add(equipoId)
+      return siguiente
+    })
+  }
 
   // HU52 — Operación del ciclo de vida. accionOperacion no nula ⇒ modal abierto.
   const [accionOperacion, setAccionOperacion] = useState<AccionOperacionSesion | null>(null)
@@ -216,6 +226,7 @@ export function PaginaDetalleSesion() {
   useRankingTiempoReal({
     token,
     sesionId: id,
+    onPuntajeCalculado: () => setVersionRanking(v => v + 1),
     onRankingParticipantesActualizado: () => setVersionRanking(v => v + 1),
     onRankingEquiposActualizado: () => setVersionRanking(v => v + 1)
   })
@@ -470,19 +481,27 @@ export function PaginaDetalleSesion() {
     setCargandoRanking(true)
     setErrorRanking(null)
 
-    const promesas: Promise<void>[] = [
-      obtenerRankingParticipantes(id, token)
-        .then(data => { if (!cancelado) setRankingParticipantes(data) })
-        .catch(e => { if (!cancelado) setErrorRanking(e instanceof Error ? e.message : 'Error al cargar ranking') })
-    ]
-
-    if (esGrupalLocal) {
-      promesas.push(
-        obtenerRankingEquipos(id, token)
-          .then(data => { if (!cancelado) setRankingEquipos(data) })
-          .catch(() => { /* silencioso: equipos son opcionales */ })
-      )
-    }
+    const promesas: Promise<void>[] = esGrupalLocal
+      ? [
+          obtenerRankingEquipos(id, token)
+            .then(data => {
+              if (!cancelado) {
+                setRankingEquipos(data)
+                setRankingParticipantes(null)
+              }
+            })
+            .catch(e => { if (!cancelado) setErrorRanking(e instanceof Error ? e.message : 'Error al cargar ranking') })
+        ]
+      : [
+          obtenerRankingParticipantes(id, token)
+            .then(data => {
+              if (!cancelado) {
+                setRankingParticipantes(data)
+                setRankingEquipos(null)
+              }
+            })
+            .catch(e => { if (!cancelado) setErrorRanking(e instanceof Error ? e.message : 'Error al cargar ranking') })
+        ]
 
     void Promise.all(promesas).finally(() => { if (!cancelado) setCargandoRanking(false) })
 
@@ -925,25 +944,49 @@ export function PaginaDetalleSesion() {
                       <th>#</th>
                       <th>Equipo</th>
                       <th>Puntaje</th>
-                      <th>Etapas completadas</th>
+                      <th aria-label="Detalle" />
                     </tr>
                   </thead>
                   <tbody>
                     {rankingEquipos
                       .slice()
                       .sort((a, b) => a.posicion - b.posicion)
-                      .map(e => (
-                        <tr key={e.equipoId}>
-                          <td>
-                            <strong style={{ fontSize: '1.1rem' }}>
-                              {e.posicion === 1 ? '🥇' : e.posicion === 2 ? '🥈' : e.posicion === 3 ? '🥉' : `#${e.posicion}`}
-                            </strong>
-                          </td>
-                          <td><strong>{e.nombreEquipo}</strong></td>
-                          <td><strong style={{ color: 'var(--color-primario, #6366f1)' }}>{e.puntajeTotal} pts</strong></td>
-                          <td>{e.etapasCompletadas}</td>
-                        </tr>
-                      ))}
+                      .map(e => {
+                        const expandido = equiposExpandidos.has(e.equipoId)
+                        return (
+                          <Fragment key={e.equipoId}>
+                            <tr>
+                              <td>
+                                <strong style={{ fontSize: '1.1rem' }}>
+                                  {e.posicion === 1 ? '🥇' : e.posicion === 2 ? '🥈' : e.posicion === 3 ? '🥉' : `#${e.posicion}`}
+                                </strong>
+                              </td>
+                              <td><strong>{e.nombreEquipo}</strong></td>
+                              <td><strong style={{ color: 'var(--color-primario, #6366f1)' }}>{e.puntaje} pts</strong></td>
+                              <td>
+                                {e.participantes.length > 0 && (
+                                  <Boton
+                                    variante="secundario"
+                                    onClick={() => alternarEquipoExpandido(e.equipoId)}
+                                  >
+                                    {expandido ? '▲ Ocultar detalle' : '▼ Ver detalle'}
+                                  </Boton>
+                                )}
+                              </td>
+                            </tr>
+                            {expandido && e.participantes.map(p => (
+                              <tr key={`${e.equipoId}-${p.participanteSesionId}`}>
+                                <td>#{p.posicion}</td>
+                                <td style={{ paddingLeft: 'var(--espacio-4)', opacity: 0.85 }}>
+                                  {p.alias}
+                                </td>
+                                <td>{p.puntaje} pts</td>
+                                <td />
+                              </tr>
+                            ))}
+                          </Fragment>
+                        )
+                      })}
                   </tbody>
                 </table>
               </div>
@@ -951,12 +994,11 @@ export function PaginaDetalleSesion() {
           )}
 
           {/* Ranking de participantes */}
-          {!cargandoRanking && !errorRanking && rankingParticipantes !== null && rankingParticipantes.length === 0 && (
+          {!cargandoRanking && !errorRanking && !esGrupal && rankingParticipantes !== null && rankingParticipantes.length === 0 && (
             <p className="detalle-mensaje-vacio">Aún no hay actividad registrada en el ranking.</p>
           )}
-          {!cargandoRanking && !errorRanking && rankingParticipantes !== null && rankingParticipantes.length > 0 && (
+          {!cargandoRanking && !errorRanking && !esGrupal && rankingParticipantes !== null && rankingParticipantes.length > 0 && (
             <div>
-              {esGrupal && <h4 style={{ marginBottom: 'var(--espacio-2)' }}>Participantes</h4>}
               <div style={{ overflowX: 'auto' }}>
                 <table className="tabla-usuarios">
                   <thead>
@@ -964,8 +1006,6 @@ export function PaginaDetalleSesion() {
                       <th>#</th>
                       <th>Participante</th>
                       <th>Puntaje</th>
-                      <th title="Respuestas correctas / totales">Resp. correctas</th>
-                      <th>Etapas comp.</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -973,21 +1013,14 @@ export function PaginaDetalleSesion() {
                       .slice()
                       .sort((a, b) => a.posicion - b.posicion)
                       .map(p => (
-                        <tr key={p.participanteIdentidadId}>
+                        <tr key={p.participanteSesionId}>
                           <td>
                             <strong style={{ fontSize: '1.1rem' }}>
                               {p.posicion === 1 ? '🥇' : p.posicion === 2 ? '🥈' : p.posicion === 3 ? '🥉' : `#${p.posicion}`}
                             </strong>
                           </td>
-                          <td>{p.nombreParticipante}</td>
-                          <td><strong style={{ color: 'var(--color-primario, #6366f1)' }}>{p.puntajeTotal} pts</strong></td>
-                          <td>
-                            <span style={{ color: 'var(--color-exito, #22c55e)', fontWeight: 600 }}>
-                              {p.respuestasCorrectas}
-                            </span>
-                            {' / '}{p.respuestasTotales}
-                          </td>
-                          <td>{p.etapasCompletadas}</td>
+                          <td>{p.alias}</td>
+                          <td><strong style={{ color: 'var(--color-primario, #6366f1)' }}>{p.puntaje} pts</strong></td>
                         </tr>
                       ))}
                   </tbody>
@@ -1004,7 +1037,7 @@ export function PaginaDetalleSesion() {
           <div className="detalle-subtitulo">
             <div>
               <h3>Progreso por participante</h3>
-              <p>Trivia y búsqueda del tesoro — puntaje acumulado en esta sesión.</p>
+              <p>Trivia y búsqueda del tesoro — avance de ejecución por participante.</p>
             </div>
           </div>
           {cargandoProgreso && (
@@ -1026,17 +1059,14 @@ export function PaginaDetalleSesion() {
                     <th title="Preguntas respondidas">Trivia resp.</th>
                     <th title="Respuestas correctas" style={{ color: 'var(--color-exito, #22c55e)' }}>✓ Correct.</th>
                     <th title="Respuestas incorrectas" style={{ color: 'var(--color-error, #ef4444)' }}>✗ Incorr.</th>
-                    <th>Pts trivia</th>
                     <th title="Etapas de tesoro completadas">Tesoro comp.</th>
                     <th title="Intentos enviados en búsqueda del tesoro">Tesoro int.</th>
-                    <th>Pts tesoro</th>
-                    <th><strong>Total pts</strong></th>
                   </tr>
                 </thead>
                 <tbody>
                   {progresoSesion
                     .slice()
-                    .sort((a, b) => b.totalPuntosGanados - a.totalPuntosGanados)
+                    .sort((a, b) => b.triviaRespondidas + b.tesoroIntentosEnviados - (a.triviaRespondidas + a.tesoroIntentosEnviados))
                     .map((p, idx) => {
                       const participante = sesion.participantesIndividuales.find(
                         pi => pi.participanteIdentidadId === p.participanteIdentidadId
@@ -1058,13 +1088,10 @@ export function PaginaDetalleSesion() {
                           <td style={{ color: 'var(--color-error, #ef4444)', fontWeight: 600 }}>
                             {p.triviaIncorrectas}
                           </td>
-                          <td>{p.triviaPuntosGanados} pts</td>
                           <td style={{ color: 'var(--color-exito, #22c55e)', fontWeight: 600 }}>
                             {p.tesoroEtapasCompletadas}
                           </td>
                           <td>{p.tesoroIntentosEnviados}</td>
-                          <td>{p.tesoroPuntosGanados} pts</td>
-                          <td><strong>{p.totalPuntosGanados} pts</strong></td>
                         </tr>
                       )
                     })}

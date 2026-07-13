@@ -6,6 +6,7 @@ import { esErrorNoAutenticadoTiempoReal } from '../servicios/sesionesTiempoReal'
 interface OpcionesUseRankingTiempoReal {
   token: string | null
   sesionId?: string | null
+  onPuntajeCalculado?: () => void
   onRankingParticipantesActualizado?: () => void
   onRankingEquiposActualizado?: () => void
 }
@@ -15,11 +16,16 @@ type Callbacks = Omit<OpcionesUseRankingTiempoReal, 'token' | 'sesionId'>
 export function useRankingTiempoReal({
   token,
   sesionId,
+  onPuntajeCalculado,
   onRankingParticipantesActualizado,
   onRankingEquiposActualizado
 }: OpcionesUseRankingTiempoReal) {
   const callbacksRef = useRef<Callbacks>({})
-  callbacksRef.current = { onRankingParticipantesActualizado, onRankingEquiposActualizado }
+  callbacksRef.current = {
+    onPuntajeCalculado,
+    onRankingParticipantesActualizado,
+    onRankingEquiposActualizado
+  }
 
   const tokenLimpio = token?.trim() ?? ''
 
@@ -35,6 +41,10 @@ export function useRankingTiempoReal({
 
     conexion.on('RankingParticipantesActualizado', () => {
       callbacksRef.current.onRankingParticipantesActualizado?.()
+    })
+
+    conexion.on('PuntajeCalculado', () => {
+      callbacksRef.current.onPuntajeCalculado?.()
     })
 
     conexion.on('RankingEquiposActualizado', () => {
@@ -59,6 +69,7 @@ export function useRankingTiempoReal({
 
     return () => {
       desmontado = true
+      conexion.off('PuntajeCalculado')
       conexion.off('RankingParticipantesActualizado')
       conexion.off('RankingEquiposActualizado')
 

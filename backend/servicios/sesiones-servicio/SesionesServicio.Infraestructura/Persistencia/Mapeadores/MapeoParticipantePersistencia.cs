@@ -11,6 +11,7 @@ internal static class MapeoParticipantePersistencia
         ParticipanteIdentidadId = p.ParticipanteIdentidadId,
         EquipoId = p.EquipoId,
         Puntaje = p.Puntaje.Valor,
+        SnapshotRankingUtc = p.SnapshotRankingUtc,
         FechaUnionSesion = p.FechaUnionSesion,
         FechaUnionEquipo = p.FechaUnionEquipo
     };
@@ -18,5 +19,6 @@ internal static class MapeoParticipantePersistencia
     public static Participante HaciaDominio(ParticipanteModelo p)
         => Participante.Rehidratar(
             p.Id, p.SesionId, p.ParticipanteIdentidadId,
-            p.EquipoId, p.Puntaje, p.FechaUnionSesion, p.FechaUnionEquipo);
+            p.EquipoId, p.Puntaje, p.FechaUnionSesion, p.FechaUnionEquipo,
+            p.SnapshotRankingUtc);
 }

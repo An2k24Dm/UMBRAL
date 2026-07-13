@@ -21,8 +21,6 @@ public sealed class ObtenerProgresoSesionManejador
     public async Task<IReadOnlyList<ProgresoSesionParticipanteDto>> Handle(
         ObtenerProgresoSesionConsulta consulta, CancellationToken cancelacion)
     {
-        // Las queries deben ser secuenciales: DbContext es scoped y no soporta
-        // operaciones concurrentes en la misma instancia.
         var triviaItems = await _repositorioTrivia.ObtenerProgresoTriviaAsync(consulta.SesionId, cancelacion);
         var tesoroItems = await _repositorioTesoro.ObtenerProgresoTesoroAsync(consulta.SesionId, cancelacion);
 
@@ -38,8 +36,6 @@ public sealed class ObtenerProgresoSesionManejador
             triviaDict.TryGetValue(clave, out var trivia);
             tesoroDict.TryGetValue(clave, out var tesoro);
 
-            var triviaPuntos = trivia?.PuntosGanados ?? 0;
-            var tesoroPuntos = tesoro?.PuntosGanados ?? 0;
             var participanteId = trivia?.ParticipanteIdentidadId
                 ?? tesoro?.ParticipanteIdentidadId
                 ?? Guid.Empty;
@@ -52,11 +48,8 @@ public sealed class ObtenerProgresoSesionManejador
                 TriviaRespondidas = trivia?.TotalRespondidas ?? 0,
                 TriviaCorrectas = trivia?.Correctas ?? 0,
                 TriviaIncorrectas = (trivia?.TotalRespondidas ?? 0) - (trivia?.Correctas ?? 0),
-                TriviaPuntosGanados = triviaPuntos,
                 TesoroIntentosEnviados = tesoro?.TotalIntentados ?? 0,
-                TesoroEtapasCompletadas = tesoro?.Validos ?? 0,
-                TesoroPuntosGanados = tesoroPuntos,
-                TotalPuntosGanados = triviaPuntos + tesoroPuntos
+                TesoroEtapasCompletadas = tesoro?.Validos ?? 0
             };
         }).ToList().AsReadOnly();
     }

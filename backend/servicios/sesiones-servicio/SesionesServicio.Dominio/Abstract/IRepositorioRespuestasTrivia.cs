@@ -25,7 +25,21 @@ public interface IRepositorioRespuestasTrivia
 
     Task<IReadOnlyList<ProgresoTriviaItem>> ObtenerProgresoTriviaAsync(
         Guid sesionId, CancellationToken cancelacion);
+
+    // Fija el puntaje real (calculado por ranking) en la respuesta cuyo
+    // EventoPuntuacionId coincide. Idempotente: repetir con el mismo valor no
+    // altera el resultado. Devuelve las filas afectadas.
+    Task<int> ActualizarPuntosGanadosPorEventoAsync(
+        Guid eventoPuntuacionId, int puntosGanados, CancellationToken cancelacion);
+
+    // Desglose del puntaje por etapa de un participante en una sesión
+    // (SUM de PuntosGanados agrupado por misión y etapa).
+    Task<IReadOnlyList<PuntajeEtapaItem>> ObtenerPuntajePorEtapaParticipanteAsync(
+        Guid sesionId, Guid participanteIdentidadId, CancellationToken cancelacion);
 }
+
+// Puntaje acumulado por (misión, etapa) para el desglose del historial.
+public sealed record PuntajeEtapaItem(Guid MisionId, Guid EtapaId, int Puntaje);
 
 public sealed record RespuestaTriviaTiempo(Guid PreguntaId, int TiempoTardadoMs);
 
@@ -57,5 +71,6 @@ public sealed record RespuestaTriviaRegistro(
     Guid? EquipoId,
     bool EsCorrecta,
     int PuntosGanados,
+    Guid EventoPuntuacionId,
     int TiempoTardadoMs,
     DateTime FechaRespuestaUtc);

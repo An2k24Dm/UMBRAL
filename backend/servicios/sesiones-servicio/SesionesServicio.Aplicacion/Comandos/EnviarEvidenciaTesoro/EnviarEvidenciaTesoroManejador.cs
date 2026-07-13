@@ -20,6 +20,7 @@ public sealed class EnviarEvidenciaTesoroManejador
     private readonly IServicioFinalizacionSesion _servicioFinalizacion;
     private readonly IServicioProgresoSecuencialSesion _servicioProgresoSecuencial;
     private readonly IPublicadorEventosRanking _publicadorRanking;
+    private readonly IUnidadTrabajoSesiones _unidadTrabajo;
 
     public EnviarEvidenciaTesoroManejador(
         IUsuarioActual usuario,
@@ -29,7 +30,8 @@ public sealed class EnviarEvidenciaTesoroManejador
         INotificadorSesionesTiempoReal notificador,
         IServicioFinalizacionSesion servicioFinalizacion,
         IServicioProgresoSecuencialSesion servicioProgresoSecuencial,
-        IPublicadorEventosRanking publicadorRanking)
+        IPublicadorEventosRanking publicadorRanking,
+        IUnidadTrabajoSesiones unidadTrabajo)
     {
         _usuario = usuario;
         _repositorioSesiones = repositorioSesiones;
@@ -39,6 +41,7 @@ public sealed class EnviarEvidenciaTesoroManejador
         _servicioFinalizacion = servicioFinalizacion;
         _servicioProgresoSecuencial = servicioProgresoSecuencial;
         _publicadorRanking = publicadorRanking;
+        _unidadTrabajo = unidadTrabajo;
     }
 
     public async Task<EvidenciaTesoroRespuestaDto> Handle(
@@ -54,7 +57,8 @@ public sealed class EnviarEvidenciaTesoroManejador
             throw new OperacionSesionInvalidaExcepcion(
                 $"La sesion no esta activa. Estado actual: {sesion.Estado}.");
 
-        var (equipoId, totalJugadoresEsperados) = ObtenerJugador(sesion, participanteId);
+        var (participante, totalJugadoresEsperados) = ObtenerJugador(sesion, participanteId);
+        var equipoId = participante.EquipoId;
 
         await _servicioProgresoSecuencial.ValidarEtapaActualAsync(
             sesion,
@@ -78,39 +82,38 @@ public sealed class EnviarEvidenciaTesoroManejador
             comando.BusquedaId, comando.CodigoEscaneado, cancelacion)
             ?? throw new InvalidOperationException("Búsqueda del tesoro no encontrada.");
 
-        var puntosGanados = 0;
-        if (esValida)
-        {
-            var busqueda = await _clienteTesoro.ObtenerBusquedaParticipanteAsync(
-                comando.BusquedaId, cancelacion);
-            puntosGanados = busqueda?.Puntaje ?? 0;
-        }
+        var busqueda = await _clienteTesoro.ObtenerBusquedaParticipanteAsync(
+            comando.BusquedaId, cancelacion)
+            ?? throw new InvalidOperationException("Búsqueda del tesoro no encontrada.");
+        var eventoId = Guid.NewGuid();
 
-        await _repositorioEvidencias.AgregarAsync(new EvidenciaTesoroRegistro(
-            SesionId: comando.SesionId,
-            MisionId: comando.MisionId,
-            EtapaId: comando.EtapaId,
-            BusquedaId: comando.BusquedaId,
-            ParticipanteIdentidadId: participanteId,
-            EquipoId: equipoId,
-            CodigoEnviado: comando.CodigoEscaneado,
-            EsValida: esValida,
-            PuntosGanados: puntosGanados,
-            FechaEnvioUtc: DateTime.UtcNow),
-            cancelacion);
+        await _unidadTrabajo.EjecutarEnTransaccionAsync(async ct =>
+        {
+            await _repositorioEvidencias.AgregarAsync(new EvidenciaTesoroRegistro(
+                SesionId: comando.SesionId,
+                MisionId: comando.MisionId,
+                EtapaId: comando.EtapaId,
+                BusquedaId: comando.BusquedaId,
+                ParticipanteIdentidadId: participanteId,
+                EquipoId: equipoId,
+                CodigoEnviado: comando.CodigoEscaneado,
+                EsValida: esValida,
+                PuntosGanados: 0,
+                EventoPuntuacionId: eventoId,
+                FechaEnvioUtc: DateTime.UtcNow),
+                ct);
+
+            await _publicadorRanking.PublicarEvidenciaTesoroRegistradaAsync(
+                eventoId,
+                comando.SesionId, comando.MisionId, comando.EtapaId,
+                participante.Id, participanteId,
+                equipoId, comando.BusquedaId, esValida,
+                busqueda.Puntaje, ct);
+        }, cancelacion);
 
         var etapaCompletada = false;
         if (esValida)
         {
-            var nombreParticipante = _usuario.ObtenerNombreUsuario() ?? participanteId.ToString();
-            string? nombreEquipo = null;
-            if (equipoId.HasValue && sesion is SesionGrupal grupalTesoro)
-                nombreEquipo = grupalTesoro.Equipos
-                    .FirstOrDefault(e => e.Id == equipoId.Value)?.Nombre.Valor;
-            await _publicadorRanking.PublicarEvidenciaTesoroRegistradaAsync(
-                comando.SesionId, participanteId, nombreParticipante,
-                equipoId, nombreEquipo, puntosGanados, cancelacion);
-
             await _notificador.NotificarProgresoSecuencialActualizadoAsync(
                 comando.SesionId, participanteId, equipoId, cancelacion);
 
@@ -123,8 +126,6 @@ public sealed class EnviarEvidenciaTesoroManejador
             if (completados >= totalJugadoresEsperados)
             {
                 etapaCompletada = true;
-                // Igual que Trivia: cierre pendiente para mostrar el feedback final
-                // del tesoro antes de la preparación de la siguiente etapa (#18).
                 await _servicioFinalizacion.ProgramarCierreTrasFeedbackAsync(
                     comando.SesionId, comando.EtapaId, cancelacion);
             }
@@ -133,30 +134,35 @@ public sealed class EnviarEvidenciaTesoroManejador
         return new EvidenciaTesoroRespuestaDto
         {
             EsValida = esValida,
-            PuntosGanados = puntosGanados,
+            EventoId = eventoId,
             EtapaCompletada = etapaCompletada
         };
     }
 
-    private static (Guid? equipoId, int totalJugadores) ObtenerJugador(
+    private static (Participante participante, int totalJugadores) ObtenerJugador(
         Sesion sesion, Guid participanteId)
     {
         if (sesion is SesionIndividual individual)
         {
-            if (!individual.Participantes.Any(p => p.ParticipanteIdentidadId == participanteId))
-                throw new ParticipacionInvalidaExcepcion(
+            var p = individual.Participantes
+                .FirstOrDefault(x => x.ParticipanteIdentidadId == participanteId)
+                ?? throw new ParticipacionInvalidaExcepcion(
                     "El participante no esta inscrito en esta sesion.");
-            return (null, individual.Participantes.Count);
+            return (p, individual.Participantes.Count);
         }
 
         if (sesion is SesionGrupal grupal)
         {
-            var equipo = grupal.Equipos
-                .FirstOrDefault(e => e.Participantes.Any(
-                    p => p.ParticipanteIdentidadId == participanteId))
-                ?? throw new ParticipacionInvalidaExcepcion(
-                    "El participante no esta inscrito en esta sesion.");
-            return (equipo.Id, grupal.Equipos.Count);
+            foreach (var equipo in grupal.Equipos)
+            {
+                var p = equipo.Participantes
+                    .FirstOrDefault(x => x.ParticipanteIdentidadId == participanteId);
+                if (p is not null)
+                    return (p, grupal.Equipos.Count);
+            }
+
+            throw new ParticipacionInvalidaExcepcion(
+                "El participante no esta inscrito en esta sesion.");
         }
 
         throw new SesionInvalidaExcepcion("Tipo de sesion no soportado.");

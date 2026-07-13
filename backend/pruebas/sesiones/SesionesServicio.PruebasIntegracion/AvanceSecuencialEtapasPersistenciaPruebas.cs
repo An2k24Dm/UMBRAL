@@ -224,8 +224,7 @@ public sealed class AvanceSecuencialEtapasPersistenciaPruebas
         var repo = RepositorioDe(ctx);
         var unidad = new UnidadTrabajoSesiones(ctx);
         var finalizacion = new ServicioFinalizacionSesion(
-            repo, _etapasCompletadas, _juegos.Object, _notificador.Object, unidad, _reloj,
-            Mock.Of<IPublicadorEventosRanking>());
+            repo, _etapasCompletadas, _juegos.Object, _notificador.Object, unidad, _reloj);
         var procesador = new ProcesadorVencimientoEtapasSesion(
             repo, finalizacion, _reloj, Mock.Of<IRegistroLogsAplicacion>());
         await accion(new Servicios(finalizacion, procesador));

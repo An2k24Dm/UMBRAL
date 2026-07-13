@@ -34,9 +34,9 @@ const OPCIONES: OpcionMenu[] = [
     ruta: '/participante/sesiones/finalizadas',
   },
   {
-    clave: 'ranking',
+    clave: 'ranking-global',
     titulo: 'Ranking global',
-    descripcion: 'Consulta la clasificación histórica de todos los participantes.',
+    descripcion: 'Consulta la clasificacion global de participantes.',
     ruta: '/participante/ranking',
   },
 ]
@@ -124,3 +124,4 @@ const estilos = StyleSheet.create({
     lineHeight: 20,
   },
 })
+

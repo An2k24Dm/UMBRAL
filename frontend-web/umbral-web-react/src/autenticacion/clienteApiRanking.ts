@@ -6,24 +6,32 @@ function lanzar401(token: string | null, mensaje: string): never {
   manejar401(token, mensaje)
 }
 
+// La posición se calcula en el backend al consultar (no se persiste). El alias
+// se enriquece desde identidad-servicio; el ranking no almacena nombres.
 export interface EntradaRankingParticipanteDto {
-  sesionId: string
-  participanteIdentidadId: string
-  nombreParticipante: string
-  puntajeTotal: number
-  respuestasCorrectas: number
-  respuestasTotales: number
-  etapasCompletadas: number
   posicion: number
+  participanteSesionId: string
+  participanteIdentidadId: string
+  equipoId: string | null
+  alias: string
+  puntaje: number
+}
+
+// Aporte de un participante al puntaje de su equipo (detalle desplegable).
+export interface AporteParticipanteEquipoDto {
+  posicion: number
+  participanteSesionId: string
+  participanteIdentidadId: string
+  alias: string
+  puntaje: number
 }
 
 export interface EntradaRankingEquipoDto {
-  sesionId: string
+  posicion: number
   equipoId: string
   nombreEquipo: string
-  puntajeTotal: number
-  etapasCompletadas: number
-  posicion: number
+  puntaje: number
+  participantes: AporteParticipanteEquipoDto[]
 }
 
 function auth(token: string) {
@@ -59,26 +67,4 @@ export async function obtenerRankingEquipos(
   if (resp.status === 401) lanzar401(token, 'Sesión expirada.')
   if (!resp.ok) throw new Error(await leerError(resp))
   return resp.json() as Promise<EntradaRankingEquipoDto[]>
-}
-
-export interface EntradaRankingGlobalDto {
-  posicion: number
-  participanteIdentidadId: string
-  nombreParticipante: string
-  puntajeAcumulado: number
-  sesionesJugadas: number
-  etapasCompletadasTotal: number
-}
-
-export async function obtenerRankingGlobal(
-  token: string,
-  top = 20
-): Promise<EntradaRankingGlobalDto[]> {
-  const resp = await fetch(
-    `${URL_API}/api/ranking/global?top=${top}`,
-    { headers: auth(token) }
-  )
-  if (resp.status === 401) lanzar401(token, 'Sesión expirada.')
-  if (!resp.ok) throw new Error(await leerError(resp))
-  return resp.json() as Promise<EntradaRankingGlobalDto[]>
 }

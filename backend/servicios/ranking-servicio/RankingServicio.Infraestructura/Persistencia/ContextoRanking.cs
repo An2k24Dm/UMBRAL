@@ -1,5 +1,8 @@
 using Microsoft.EntityFrameworkCore;
+using RankingServicio.Dominio.Entidades;
+using RankingServicio.Dominio.ObjetosValor;
 using RankingServicio.Infraestructura.Persistencia.Modelos;
+using RankingServicio.Infraestructura.RabbitMq;
 
 namespace RankingServicio.Infraestructura.Persistencia;
 
@@ -7,62 +10,70 @@ public sealed class ContextoRanking : DbContext
 {
     public ContextoRanking(DbContextOptions<ContextoRanking> opciones) : base(opciones) { }
 
-    public DbSet<EntradaRankingParticipanteModelo> EntradasParticipante => Set<EntradaRankingParticipanteModelo>();
-    public DbSet<EntradaRankingEquipoModelo> EntradasEquipo => Set<EntradaRankingEquipoModelo>();
-    public DbSet<RankingGlobalParticipanteModelo> RankingGlobal => Set<RankingGlobalParticipanteModelo>();
+    // Aggregate Root Ranking (por sesión). Los hijos se acceden a través del
+    // agregado; no se exponen como DbSet independientes.
+    public DbSet<Ranking> Rankings => Set<Ranking>();
+
+    // Detalle técnico de idempotencia de integración (no es dominio de ranking).
     public DbSet<EventoProcesadoModelo> EventosProcesados => Set<EventoProcesadoModelo>();
+    public DbSet<OutboxMensajeRankingModelo> OutboxRanking => Set<OutboxMensajeRankingModelo>();
 
     protected override void OnModelCreating(ModelBuilder modelo)
     {
         modelo.HasDefaultSchema("ranking");
 
-        modelo.Entity<EntradaRankingParticipanteModelo>(e =>
+        modelo.Entity<Ranking>(e =>
         {
-            e.ToTable("entradas_ranking_participante");
+            e.ToTable("rankings");
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).HasColumnName("id");
             e.Property(x => x.SesionId).HasColumnName("sesion_id").IsRequired();
-            e.Property(x => x.ParticipanteIdentidadId).HasColumnName("participante_identidad_id").IsRequired();
-            e.Property(x => x.NombreParticipante).HasColumnName("nombre_participante").HasMaxLength(200).IsRequired();
-            e.Property(x => x.PuntajeTotal).HasColumnName("puntaje_total");
-            e.Property(x => x.RespuestasCorrectas).HasColumnName("respuestas_correctas");
-            e.Property(x => x.RespuestasTotales).HasColumnName("respuestas_totales");
-            e.Property(x => x.EtapasCompletadas).HasColumnName("etapas_completadas");
-            e.Property(x => x.Posicion).HasColumnName("posicion");
-            e.Property(x => x.UltimaActualizacionUtc).HasColumnName("ultima_actualizacion_utc");
-            e.HasIndex(x => new { x.SesionId, x.ParticipanteIdentidadId }).IsUnique();
-            e.HasIndex(x => new { x.SesionId, x.Posicion });
+            e.HasIndex(x => x.SesionId).IsUnique();
+
+            e.HasMany(x => x.Participantes)
+                .WithOne()
+                .HasForeignKey("RankingId")
+                .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasMany(x => x.Equipos)
+                .WithOne()
+                .HasForeignKey("RankingId")
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Las colecciones son de solo lectura hacia afuera; EF trabaja sobre
+            // los campos de respaldo del agregado.
+            e.Navigation(x => x.Participantes).UsePropertyAccessMode(PropertyAccessMode.Field);
+            e.Navigation(x => x.Equipos).UsePropertyAccessMode(PropertyAccessMode.Field);
         });
 
-        modelo.Entity<EntradaRankingEquipoModelo>(e =>
+        modelo.Entity<RankingParticipante>(e =>
         {
-            e.ToTable("entradas_ranking_equipo");
+            e.ToTable("ranking_participantes");
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).HasColumnName("id");
-            e.Property(x => x.SesionId).HasColumnName("sesion_id").IsRequired();
+            e.Property<Guid>("RankingId").HasColumnName("ranking_id");
+            e.Property(x => x.ParticipanteSesionId)
+                .HasColumnName("participante_sesion_id").IsRequired();
+            e.Property(x => x.ParticipanteIdentidadId)
+                .HasColumnName("participante_identidad_id").IsRequired();
+            e.Property(x => x.EquipoId).HasColumnName("equipo_id");
+            e.Property(x => x.Puntaje)
+                .HasColumnName("puntaje")
+                .HasConversion(p => p.Valor, v => Puntaje.Desde(v));
+            e.HasIndex("RankingId", nameof(RankingParticipante.ParticipanteSesionId)).IsUnique();
+        });
+
+        modelo.Entity<RankingEquipo>(e =>
+        {
+            e.ToTable("ranking_equipos");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property<Guid>("RankingId").HasColumnName("ranking_id");
             e.Property(x => x.EquipoId).HasColumnName("equipo_id").IsRequired();
-            e.Property(x => x.NombreEquipo).HasColumnName("nombre_equipo").HasMaxLength(200).IsRequired();
-            e.Property(x => x.PuntajeTotal).HasColumnName("puntaje_total");
-            e.Property(x => x.EtapasCompletadas).HasColumnName("etapas_completadas");
-            e.Property(x => x.Posicion).HasColumnName("posicion");
-            e.Property(x => x.UltimaActualizacionUtc).HasColumnName("ultima_actualizacion_utc");
-            e.HasIndex(x => new { x.SesionId, x.EquipoId }).IsUnique();
-            e.HasIndex(x => new { x.SesionId, x.Posicion });
-        });
-
-        modelo.Entity<RankingGlobalParticipanteModelo>(e =>
-        {
-            e.ToTable("ranking_global_participante");
-            e.HasKey(x => x.Id);
-            e.Property(x => x.Id).HasColumnName("id");
-            e.Property(x => x.ParticipanteIdentidadId).HasColumnName("participante_identidad_id").IsRequired();
-            e.Property(x => x.NombreParticipante).HasColumnName("nombre_participante").HasMaxLength(200).IsRequired();
-            e.Property(x => x.PuntajeAcumulado).HasColumnName("puntaje_acumulado");
-            e.Property(x => x.SesionesJugadas).HasColumnName("sesiones_jugadas");
-            e.Property(x => x.EtapasCompletadasTotal).HasColumnName("etapas_completadas_total");
-            e.Property(x => x.UltimaActualizacionUtc).HasColumnName("ultima_actualizacion_utc");
-            e.HasIndex(x => x.ParticipanteIdentidadId).IsUnique();
-            e.HasIndex(x => x.PuntajeAcumulado);
+            e.Property(x => x.Puntaje)
+                .HasColumnName("puntaje")
+                .HasConversion(p => p.Valor, v => Puntaje.Desde(v));
+            e.HasIndex("RankingId", nameof(RankingEquipo.EquipoId)).IsUnique();
         });
 
         modelo.Entity<EventoProcesadoModelo>(e =>
@@ -72,6 +83,22 @@ public sealed class ContextoRanking : DbContext
             e.Property(x => x.Id).HasColumnName("id");
             e.Property(x => x.TipoEvento).HasColumnName("tipo_evento").HasMaxLength(100);
             e.Property(x => x.ProcesadoEnUtc).HasColumnName("procesado_en_utc");
+        });
+
+        modelo.Entity<OutboxMensajeRankingModelo>(e =>
+        {
+            e.ToTable("outbox_ranking");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.RoutingKey).HasColumnName("routing_key").HasMaxLength(120).IsRequired();
+            e.Property(x => x.PayloadJson).HasColumnName("payload_json").IsRequired();
+            e.Property(x => x.CreadoEnUtc).HasColumnName("creado_en_utc").IsRequired();
+            e.Property(x => x.EnviadoEnUtc).HasColumnName("enviado_en_utc");
+            e.Property(x => x.Intentos).HasColumnName("intentos").IsRequired();
+            e.Property(x => x.ProximoIntentoUtc).HasColumnName("proximo_intento_utc");
+            e.Property(x => x.UltimoError).HasColumnName("ultimo_error").HasMaxLength(1000);
+            e.Property(x => x.Estado).HasColumnName("estado").HasMaxLength(40).IsRequired();
+            e.HasIndex(x => new { x.Estado, x.ProximoIntentoUtc, x.CreadoEnUtc });
         });
     }
 }

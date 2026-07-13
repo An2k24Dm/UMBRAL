@@ -13,6 +13,9 @@ public sealed class EvidenciaTesoroModelo
     public string CodigoEnviado { get; set; } = string.Empty;
     public bool EsValida { get; set; }
     public int PuntosGanados { get; set; }
+    // EventoId publicado a ranking; correlaciona el resultado (PuntajeGanado)
+    // que ranking devuelve para fijar PuntosGanados con el puntaje real.
+    public Guid EventoPuntuacionId { get; set; }
     public DateTime FechaEnvioUtc { get; set; }
 }
 

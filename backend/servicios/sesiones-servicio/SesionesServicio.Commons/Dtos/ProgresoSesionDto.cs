@@ -8,13 +8,9 @@ public sealed class ProgresoSesionParticipanteDto
     public int TriviaRespondidas { get; set; }
     public int TriviaCorrectas { get; set; }
     public int TriviaIncorrectas { get; set; }
-    public int TriviaPuntosGanados { get; set; }
     // Búsqueda del tesoro
     public int TesoroIntentosEnviados { get; set; }
     public int TesoroEtapasCompletadas { get; set; }
-    public int TesoroPuntosGanados { get; set; }
-    // Total
-    public int TotalPuntosGanados { get; set; }
 }
 
 public sealed class MiParticipacionDto

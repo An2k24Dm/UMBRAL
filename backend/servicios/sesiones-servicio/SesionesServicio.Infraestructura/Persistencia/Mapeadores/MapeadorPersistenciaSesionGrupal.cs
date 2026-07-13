@@ -28,6 +28,7 @@ public sealed class MapeadorPersistenciaSesionGrupal : IMapeadorPersistenciaSesi
             Nombre = e.Nombre.Valor,
             LiderParticipanteId = e.LiderParticipanteId,
             Puntaje = e.Puntaje.Valor,
+            SnapshotRankingUtc = e.SnapshotRankingUtc,
             Tipo = e.Tipo,
             ContrasenaHash = e.ContrasenaHash?.Valor,
             CapacidadMaxima = e.CapacidadMaxima,
@@ -61,7 +62,8 @@ public sealed class MapeadorPersistenciaSesionGrupal : IMapeadorPersistenciaSesi
             return Equipo.Rehidratar(
                 em.Id, em.SesionId, em.Nombre, em.LiderParticipanteId,
                 em.Puntaje, em.Tipo, em.ContrasenaHash, capacidad, em.FechaCreacion,
-                integrantes ?? Enumerable.Empty<Participante>());
+                integrantes ?? Enumerable.Empty<Participante>(),
+                em.SnapshotRankingUtc);
         }).ToList();
 
         var maximoEquipos = modelo.MaximoEquipos

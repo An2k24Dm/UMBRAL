@@ -22,7 +22,7 @@ export interface BusquedaConPistas {
 
 export interface EvidenciaTesoroResultado {
   esValida: boolean;
-  puntosGanados: number;
+  eventoId: string;
   etapaCompletada: boolean;
   // Presente solo cuando el backend responde 409 (etapa ya completada):
   // "equipo"     → otro integrante del equipo encontró el tesoro primero (grupal).
@@ -98,7 +98,7 @@ export async function enviarEvidenciaTesoro(
     const cuerpo = await leerCuerpoError(respuesta);
     const conflicto: "equipo" | "individual" =
       cuerpo?.codigo === "EQUIPO_YA_COMPLETO_ETAPA" ? "equipo" : "individual";
-    return { esValida: false, puntosGanados: 0, etapaCompletada: false, conflicto };
+    return { esValida: false, eventoId: "", etapaCompletada: false, conflicto };
   }
 
   if (!respuesta.ok) {

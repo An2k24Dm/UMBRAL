@@ -131,7 +131,6 @@ function ContenidoFinalizadas() {
                     id: p.sesionId,
                     nombre: p.nombreSesion,
                     modo: p.modo,
-                    puntaje: String(p.puntajeObtenido),
                     fechaFin: p.fechaFinalizacionUtc ?? "",
                   },
                 })
@@ -155,11 +154,6 @@ function ContenidoFinalizadas() {
                   Finalizada: {formatearFechaHora(p.fechaFinalizacionUtc)}
                 </Text>
               )}
-
-              <View style={estilos.filaPuntaje}>
-                <Text style={estilos.puntajeEtiqueta}>Puntaje obtenido</Text>
-                <Text style={estilos.puntajeValor}>{p.puntajeObtenido} pts</Text>
-              </View>
 
               <View style={estilos.filaDetalle}>
                 <Text style={estilos.textoDetalle}>Ver detalle y ranking</Text>

@@ -16,7 +16,6 @@ using SesionesServicio.Aplicacion.Puertos;
 using SesionesServicio.Aplicacion.Validaciones;
 using SesionesServicio.Dominio.Abstract;
 using SesionesServicio.Aplicacion.Validaciones.OperacionSesion;
-using SesionesServicio.Dominio.Estrategias;
 using SesionesServicio.Dominio.Fabricas;
 
 namespace SesionesServicio.Aplicacion.Dependencias;
@@ -72,10 +71,6 @@ public static class RegistroAplicacion
             Procesos.PreparacionSesiones.ProcesadorPreparacionSesiones>();
         servicios.AddScoped<IProcesadorVencimientosEtapas,
             Procesos.VencimientoEtapas.ProcesadorVencimientoEtapasSesion>();
-
-        // Estrategia de cálculo de puntaje de trivia (patrón Strategy). Hoy solo
-        // existe la política por tiempo; el manejador depende de la abstracción.
-        servicios.AddSingleton<IEstrategiaCalculoPuntajeTrivia, EstrategiaPuntajeTriviaPorTiempo>();
 
         return servicios;
     }

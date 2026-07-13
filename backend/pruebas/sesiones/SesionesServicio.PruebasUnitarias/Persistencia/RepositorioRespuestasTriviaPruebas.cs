@@ -57,6 +57,7 @@ public class RepositorioRespuestasTriviaPruebas
             EquipoId: equipo,
             EsCorrecta: true,
             PuntosGanados: 3,
+            EventoPuntuacionId: Guid.NewGuid(),
             TiempoTardadoMs: 1000,
             FechaRespuestaUtc: DateTime.UtcNow);
 

@@ -79,8 +79,10 @@ public static class RegistroInfraestructura
         servicios.AddScoped<IRegistroLogsAplicacion, RegistroLogsAplicacionDotNet>();
         servicios.Configure<ServiciosExternos.OpcionesRabbitMq>(
             configuracion.GetSection(ServiciosExternos.OpcionesRabbitMq.Seccion));
-        servicios.AddSingleton<IPublicadorEventosRanking,
-            ServiciosExternos.PublicadorEventosRankingRabbitMq>();
+        servicios.AddScoped<IPublicadorEventosRanking,
+            ServiciosExternos.PublicadorEventosRankingOutbox>();
+        servicios.AddHostedService<ServiciosExternos.DespachadorOutboxRankingRabbitMq>();
+        servicios.AddHostedService<ServiciosExternos.ConsumidorResultadosRankingRabbitMq>();
         return servicios;
     }
 }

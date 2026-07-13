@@ -95,8 +95,7 @@ public class ServicioFinalizacionSesionPruebas
                 ClienteMisiones.Object,
                 Notificador.Object,
                 UnidadTrabajo.Object,
-                BuildReloj(),
-                Mock.Of<IPublicadorEventosRanking>());
+                BuildReloj());
 
         public Task Ejecutar(Guid? sesionId = null)
             => Construir().FinalizarSiTodasEtapasCompletadasAsync(
@@ -256,8 +255,7 @@ public class ServicioFinalizacionSesionPruebas
         var servicio = new ServicioFinalizacionSesion(
             repoSesiones.Object, repoEtapas.Object, clienteMisiones.Object,
             Mock.Of<INotificadorSesionesTiempoReal>(),
-            unidadTrabajo.Object, reloj.Object,
-            Mock.Of<IPublicadorEventosRanking>());
+            unidadTrabajo.Object, reloj.Object);
 
         await servicio.FinalizarSiTodasEtapasCompletadasAsync(
             sesion.Id, EtapaId, CancellationToken.None);

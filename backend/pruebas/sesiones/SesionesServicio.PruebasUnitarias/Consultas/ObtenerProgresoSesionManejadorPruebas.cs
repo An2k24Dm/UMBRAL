@@ -58,11 +58,8 @@ public class ObtenerProgresoSesionManejadorPruebas
         item.TriviaRespondidas.Should().Be(5);
         item.TriviaCorrectas.Should().Be(3);
         item.TriviaIncorrectas.Should().Be(2);
-        item.TriviaPuntosGanados.Should().Be(80);
         item.TesoroIntentosEnviados.Should().Be(0);
         item.TesoroEtapasCompletadas.Should().Be(0);
-        item.TesoroPuntosGanados.Should().Be(0);
-        item.TotalPuntosGanados.Should().Be(80);
     }
 
     [Fact]
@@ -79,15 +76,12 @@ public class ObtenerProgresoSesionManejadorPruebas
         var item = resultado[0];
         item.ParticipanteIdentidadId.Should().Be(Participante1);
         item.TriviaRespondidas.Should().Be(0);
-        item.TriviaPuntosGanados.Should().Be(0);
         item.TesoroIntentosEnviados.Should().Be(3);
         item.TesoroEtapasCompletadas.Should().Be(2);
-        item.TesoroPuntosGanados.Should().Be(50);
-        item.TotalPuntosGanados.Should().Be(50);
     }
 
     [Fact]
-    public async Task TriviaYTesoro_MismoParticipante_SumaPuntajes()
+    public async Task TriviaYTesoro_MismoParticipante_CombinaProgreso()
     {
         var triviaItems = new List<ProgresoTriviaItem>
         {
@@ -102,13 +96,12 @@ public class ObtenerProgresoSesionManejadorPruebas
 
         resultado.Should().HaveCount(1);
         var item = resultado[0];
-        item.TriviaPuntosGanados.Should().Be(100);
-        item.TesoroPuntosGanados.Should().Be(60);
-        item.TotalPuntosGanados.Should().Be(160);
+        item.TriviaRespondidas.Should().Be(4);
+        item.TesoroIntentosEnviados.Should().Be(2);
     }
 
     [Fact]
-    public async Task TriviaYTesoro_MismoEquipo_SumaPuntajesPorEquipo()
+    public async Task TriviaYTesoro_MismoEquipo_AgrupaProgresoPorEquipo()
     {
         var equipoId = Guid.Parse("cccccccc-cccc-cccc-cccc-cccccccccccc");
         var triviaItems = new List<ProgresoTriviaItem>
@@ -125,9 +118,8 @@ public class ObtenerProgresoSesionManejadorPruebas
         resultado.Should().HaveCount(1);
         var item = resultado[0];
         item.EquipoId.Should().Be(equipoId);
-        item.TotalPuntosGanados.Should().Be(100);
-        item.TriviaPuntosGanados.Should().Be(40);
-        item.TesoroPuntosGanados.Should().Be(60);
+        item.TriviaRespondidas.Should().Be(2);
+        item.TesoroIntentosEnviados.Should().Be(1);
     }
 
     [Fact]
@@ -147,14 +139,12 @@ public class ObtenerProgresoSesionManejadorPruebas
         resultado.Should().HaveCount(2);
 
         var p1 = resultado.Single(x => x.ParticipanteIdentidadId == Participante1);
-        p1.TriviaPuntosGanados.Should().Be(40);
-        p1.TesoroPuntosGanados.Should().Be(0);
-        p1.TotalPuntosGanados.Should().Be(40);
+        p1.TriviaRespondidas.Should().Be(3);
+        p1.TesoroIntentosEnviados.Should().Be(0);
 
         var p2 = resultado.Single(x => x.ParticipanteIdentidadId == Participante2);
-        p2.TriviaPuntosGanados.Should().Be(0);
-        p2.TesoroPuntosGanados.Should().Be(25);
-        p2.TotalPuntosGanados.Should().Be(25);
+        p2.TriviaRespondidas.Should().Be(0);
+        p2.TesoroIntentosEnviados.Should().Be(1);
     }
 
     [Fact]
@@ -169,8 +159,8 @@ public class ObtenerProgresoSesionManejadorPruebas
         var resultado = await Ejecutar(trivia: triviaItems);
 
         resultado.Should().HaveCount(2);
-        resultado.Should().Contain(x => x.ParticipanteIdentidadId == Participante1 && x.TotalPuntosGanados == 150);
-        resultado.Should().Contain(x => x.ParticipanteIdentidadId == Participante2 && x.TotalPuntosGanados == 90);
+        resultado.Should().Contain(x => x.ParticipanteIdentidadId == Participante1 && x.TriviaRespondidas == 5);
+        resultado.Should().Contain(x => x.ParticipanteIdentidadId == Participante2 && x.TriviaCorrectas == 3);
     }
 
     [Fact]

@@ -71,6 +71,8 @@ public class EnviarEvidenciaTesoroManejadorPruebas
         public Mock<INotificadorSesionesTiempoReal> Notificador { get; } = new();
         public Mock<IServicioFinalizacionSesion> Finalizacion { get; } = new();
         public Mock<IServicioProgresoSecuencialSesion> ProgresoSecuencial { get; } = new();
+        public Mock<IPublicadorEventosRanking> PublicadorRanking { get; } = new();
+        public Mock<IUnidadTrabajoSesiones> UnidadTrabajo { get; } = new();
 
         public Arranque(
             Sesion sesion,
@@ -96,6 +98,12 @@ public class EnviarEvidenciaTesoroManejadorPruebas
                     It.IsAny<Sesion>(), It.IsAny<Guid>(), It.IsAny<Guid>(),
                     It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<Guid>(),
                     It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
+            PublicadorRanking.Setup(p => p.PublicarEvidenciaTesoroRegistradaAsync(
+                    It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(),
+                    It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(),
+                    It.IsAny<Guid?>(), It.IsAny<Guid>(), It.IsAny<bool>(),
+                    It.IsAny<int>(), It.IsAny<CancellationToken>()))
                 .Returns(Task.CompletedTask);
 
             ClienteTesoro.Setup(c => c.ValidarCodigoQrAsync(
@@ -125,13 +133,17 @@ public class EnviarEvidenciaTesoroManejadorPruebas
             Finalizacion.Setup(s => s.ProgramarCierreTrasFeedbackAsync(
                     It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
                 .Returns(Task.CompletedTask);
+            UnidadTrabajo.Setup(u => u.EjecutarEnTransaccionAsync(
+                    It.IsAny<Func<CancellationToken, Task>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns<Func<CancellationToken, Task>, CancellationToken>((op, ct) => op(ct));
         }
 
         public EnviarEvidenciaTesoroManejador Construir()
             => new(
                 Usuario.Object, RepoSesiones.Object, ClienteTesoro.Object,
                 RepoEvidencias.Object, Notificador.Object, Finalizacion.Object,
-                ProgresoSecuencial.Object, Mock.Of<IPublicadorEventosRanking>());
+                ProgresoSecuencial.Object, PublicadorRanking.Object, UnidadTrabajo.Object);
 
         public Task<EvidenciaTesoroRespuestaDto> EjecutarAsync(Guid sesionId)
             => Construir().Handle(
@@ -144,7 +156,7 @@ public class EnviarEvidenciaTesoroManejadorPruebas
     // ======================================================================
 
     [Fact] // (1)
-    public async Task Individual_QrValido_RegistraEvidenciaConEquipoNullYPuntos()
+    public async Task Individual_QrValido_RegistraEvidenciaConEquipoNullYEvento()
     {
         var sesion = IndividualActiva();
         var arr = new Arranque(sesion, ParticipanteId, puntajeBase: 75);
@@ -152,14 +164,14 @@ public class EnviarEvidenciaTesoroManejadorPruebas
         var resultado = await arr.EjecutarAsync(sesion.Id);
 
         resultado.EsValida.Should().BeTrue();
-        resultado.PuntosGanados.Should().Be(75);
+        resultado.EventoId.Should().NotBe(Guid.Empty);
         arr.RepoEvidencias.Verify(r => r.AgregarAsync(
             It.Is<EvidenciaTesoroRegistro>(x =>
                 x.SesionId == sesion.Id &&
                 x.ParticipanteIdentidadId == ParticipanteId &&
                 x.EquipoId == null &&
                 x.EsValida &&
-                x.PuntosGanados == 75),
+                x.PuntosGanados == 0),
             It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -200,7 +212,7 @@ public class EnviarEvidenciaTesoroManejadorPruebas
         var resultado = await arr.EjecutarAsync(sesion.Id);
 
         resultado.EsValida.Should().BeFalse();
-        resultado.PuntosGanados.Should().Be(0);
+        resultado.EventoId.Should().NotBe(Guid.Empty);
         resultado.EtapaCompletada.Should().BeFalse();
         arr.RepoEvidencias.Verify(r => r.AgregarAsync(
             It.Is<EvidenciaTesoroRegistro>(x => !x.EsValida && x.PuntosGanados == 0),

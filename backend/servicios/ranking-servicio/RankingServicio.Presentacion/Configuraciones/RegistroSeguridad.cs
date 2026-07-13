@@ -93,6 +93,8 @@ public static class RegistroSeguridad
                 p => p.RequireAuthenticatedUser());
             opc.AddPolicy("PoliticaAdministradorUOperador",
                 p => p.RequireAuthenticatedUser().RequireRole("Administrador", "Operador"));
+            opc.AddPolicy("PoliticaParticipante",
+                p => p.RequireAuthenticatedUser().RequireRole("Participante"));
         });
 
         return servicios;

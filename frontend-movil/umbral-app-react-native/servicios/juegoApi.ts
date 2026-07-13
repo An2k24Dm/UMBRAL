@@ -27,7 +27,7 @@ export interface TriviaParticipante {
 
 export interface RespuestaTriviaResultado {
   esCorrecta: boolean;
-  puntosGanados: number;
+  eventoId: string;
   etapaCompletada: boolean;
   // Presente SOLO cuando el backend responde 409 con un código de respuesta
   // duplicada real ("YA_RESPONDIDA"/"EQUIPO_YA_RESPONDIO"):
@@ -106,10 +106,10 @@ export async function enviarRespuestaTrivia(
     // reglas (p. ej. OPERACION_SESION_INVALIDA cuando la pregunta aún no está en
     // su ventana temporal), que NO deben mostrarse como "Ya respondida".
     if (cuerpo?.codigo === "YA_RESPONDIDA") {
-      return { esCorrecta: false, puntosGanados: 0, etapaCompletada: false, conflicto: "individual" };
+      return { esCorrecta: false, eventoId: "", etapaCompletada: false, conflicto: "individual" };
     }
     if (cuerpo?.codigo === "EQUIPO_YA_RESPONDIO") {
-      return { esCorrecta: false, puntosGanados: 0, etapaCompletada: false, conflicto: "equipo" };
+      return { esCorrecta: false, eventoId: "", etapaCompletada: false, conflicto: "equipo" };
     }
     throw new ErrorRespuestaTrivia(
       cuerpo?.mensaje ?? `Error ${respuesta.status}`, 409, cuerpo?.codigo);

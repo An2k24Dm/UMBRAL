@@ -255,6 +255,8 @@ services:
       ASPNETCORE_URLS: http://+:8080
       ConnectionStrings__BaseDatos: "Host=postgres-ranking;Port=5432;Database=umbral_ranking;Username=umbral;Password=umbral123"
       Keycloak__Authority: "http://keycloak:8080/realms/umbral"
+      ServiciosExternos__IdentidadServicio__Url: "http://identidad-servicio:8080"
+      ServiciosExternos__SesionesServicio__Url: "http://sesiones-servicio:8080"
       RabbitMq__Host: "rabbitmq"
       RabbitMq__Puerto: "5672"
       RabbitMq__Usuario: "umbral"

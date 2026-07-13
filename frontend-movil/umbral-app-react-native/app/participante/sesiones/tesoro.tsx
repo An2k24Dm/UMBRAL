@@ -32,14 +32,21 @@ import {
 import { obtenerDetalleSesionDisponibleApi } from "../../../servicios/sesionesApi";
 import { obtenerProgresoSecuencialSesionApi } from "../../../servicios/sesionesApi";
 import { CronometroActivo } from "../../../servicios/cronometroActivo";
+import { useRankingTiempoReal } from "../../../hooks/useRankingTiempoReal";
+import { useCorrelacionPuntaje } from "../../../hooks/useCorrelacionPuntaje";
 import {
   mapearEstadoSesionJuego,
   type EstadoSesionJuego,
 } from "../../../servicios/estadoSesionJuego";
 
-// Resultado final visible (ms) antes de volver al detalle tras encontrar el
-// tesoro. Coincide con la ventana de feedback autoritativa del backend.
-const MS_FEEDBACK_FINAL_TESORO = 5000;
+// Ventana visual LOCAL de la pantalla de éxito del tesoro. El resultado se
+// muestra al menos MS_FEEDBACK_MIN_TESORO (feedback autoritativo del backend) y
+// se concede una gracia hasta MS_VENTANA_MAXIMA_TESORO para recibir el +X pts
+// real por SignalR. NO retrasa el backend (cierre/transición/siguiente etapa):
+// si llega la navegación autoritativa (EtapaIniciada) la pantalla se desmonta y
+// estos timers se cancelan.
+const MS_FEEDBACK_MIN_TESORO = 5000;
+const MS_VENTANA_MAXIMA_TESORO = 8000;
 
 export default function PantallaTesoro() {
   return (
@@ -74,9 +81,10 @@ function ContenidoTesoro() {
   const [error, setError] = useState<string | null>(null);
   const [estadoEnvio, setEstadoEnvio] = useState<EstadoEnvio>("esperando");
   const [conflictoTipo, setConflictoTipo] = useState<"equipo" | "individual" | null>(null);
-  const [puntosGanados, setPuntosGanados] = useState(0);
   const [etapaCompletada, setEtapaCompletada] = useState(false);
   const [enviando, setEnviando] = useState(false);
+  const { feedbackPuntaje, resueltoRef, esperarPuntaje, alRecibirPuntajeCalculado } =
+    useCorrelacionPuntaje({ esperaMaximaMs: MS_VENTANA_MAXIMA_TESORO });
   // Estado local autoritativo de la sesión (no se asume "Activa" de entrada).
   const [estadoSesion, setEstadoSesion] = useState<EstadoSesionJuego>("Desconocida");
   // Temporizador informativo de la etapa (regresivo). Se congela en pausa.
@@ -91,6 +99,12 @@ function ContenidoTesoro() {
   const yaEscaneadoRef = useRef(false);
   const [codigoEscaneado, setCodigoEscaneado] = useState("");
   const [permisosCamara, solicitarPermisosCamara] = useCameraPermissions();
+
+  useRankingTiempoReal({
+    sesionId,
+    onPuntajeCalculado: alRecibirPuntajeCalculado,
+  });
+
   const jugadorCompleto = estadoEnvio === "valido" || estadoEnvio === "ya_completado";
   const bloquearSalida = estadoSesion === "Activa" && !jugadorCompleto && !etapaCompletada;
 
@@ -220,11 +234,31 @@ function ContenidoTesoro() {
   // etapa (CierrePendiente). Si EtapaIniciada navega antes, el cleanup lo cancela.
   useEffect(() => {
     if ((!jugadorCompleto && !etapaCompletada) || !sesionId) return;
-    const id = setTimeout(() => {
-      enrutador.replace(`/participante/sesiones/${sesionId}`);
-    }, MS_FEEDBACK_FINAL_TESORO);
-    return () => clearTimeout(id);
-  }, [jugadorCompleto, etapaCompletada, sesionId, enrutador]);
+    const inicio = Date.now();
+    let cancelado = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const revisar = () => {
+      if (cancelado) return;
+      const transcurrido = Date.now() - inicio;
+      // Navega al detalle cuando se alcanza el máximo, o cuando ya se mostró el
+      // puntaje real (o su respaldo) y pasó el mínimo visible. Nunca bloquea la
+      // navegación autoritativa: EtapaIniciada desmonta la pantalla y cancela
+      // este timer.
+      if (
+        transcurrido >= MS_VENTANA_MAXIMA_TESORO ||
+        (transcurrido >= MS_FEEDBACK_MIN_TESORO && resueltoRef.current)
+      ) {
+        enrutador.replace(`/participante/sesiones/${sesionId}`);
+        return;
+      }
+      timer = setTimeout(revisar, 250);
+    };
+    timer = setTimeout(revisar, MS_FEEDBACK_MIN_TESORO);
+    return () => {
+      cancelado = true;
+      clearTimeout(timer);
+    };
+  }, [jugadorCompleto, etapaCompletada, sesionId, enrutador, resueltoRef]);
 
   // SignalR: pistas en tiempo real + EtapaCompletada + SesionActualizada
   useFocusEffect(useCallback(() => {
@@ -483,6 +517,7 @@ function ContenidoTesoro() {
         codigo.trim(),
         token,
       );
+      esperarPuntaje(resultado.eventoId);
 
       // La etapa ya estaba completada por el equipo (o por el propio
       // participante). No es un QR incorrecto: se informa y se marca completada
@@ -493,7 +528,6 @@ function ContenidoTesoro() {
         return;
       }
 
-      setPuntosGanados(resultado.puntosGanados);
       setEstadoEnvio(resultado.esValida ? "valido" : "invalido");
 
       if (resultado.etapaCompletada) {
@@ -546,15 +580,10 @@ function ContenidoTesoro() {
               ? "¡Tu equipo encontró el tesoro!"
               : "¡Encontraste el tesoro!"}
           </Text>
-          {puntosGanados > 0 && (
-            <View style={estilos.cajaResumen}>
-              <Text style={estilos.resumenEtiqueta}>PUNTOS GANADOS</Text>
-              <Text style={estilos.resumenPuntos}>+{puntosGanados} pts</Text>
-            </View>
-          )}
           <Text style={estilos.textoInfo}>
             Espera a que los demás terminen para avanzar a la siguiente etapa.
           </Text>
+          <Text style={estilos.textoInfo}>{feedbackPuntaje}</Text>
           <TouchableOpacity
             style={estilos.boton}
             onPress={() => enrutador.replace(`/participante/sesiones/${sesionId}`)}
@@ -671,6 +700,7 @@ function ContenidoTesoro() {
               {estadoEnvio === "invalido" && (
                 <View style={estilos.tarjetaError}>
                   <Text style={estilos.textoErrorPanel}>Código incorrecto.</Text>
+                  <Text style={estilos.textoErrorDetalle}>{feedbackPuntaje}</Text>
                   <Text style={estilos.textoErrorDetalle}>
                     El código escaneado no coincide. Sigue buscando el tesoro.
                   </Text>
@@ -700,10 +730,6 @@ function ContenidoTesoro() {
             </>
           )}
         </View>
-
-        <TouchableOpacity style={estilos.botonVolver} onPress={() => enrutador.back()}>
-          <Text style={estilos.textoBotonVolver}>Volver a la sesión</Text>
-        </TouchableOpacity>
       </ScrollView>
     </PantallaBase>
   );
@@ -907,20 +933,6 @@ const estilos = StyleSheet.create({
   textoErrorDetalle: {
     color: tema.colores.error,
     fontSize: tema.tipografia.tamanos.sm,
-  },
-  botonVolver: {
-    paddingVertical: tema.espacios.md,
-    borderRadius: tema.radios.boton,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: tema.colores.bordeTarjeta,
-    backgroundColor: tema.colores.fondoTarjeta,
-    marginTop: tema.espacios.sm,
-  },
-  textoBotonVolver: {
-    color: tema.colores.texto,
-    fontWeight: tema.tipografia.pesos.bold,
-    fontSize: tema.tipografia.tamanos.md,
   },
   // Cámara / Modal
   modalCamara: {

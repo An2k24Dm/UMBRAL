@@ -1,5 +1,6 @@
 import * as signalR from "@microsoft/signalr";
 import { URL_API } from "./clienteHttp";
+import { crearLoggerSignalRMovil } from "./signalRLogger";
 
 interface DiagnosticoConexionTiempoReal {
   origen: string;
@@ -192,6 +193,9 @@ export function crearConexionSesionesTiempoReal(
       accessTokenFactory: () => tokenLimpio,
     })
     .withAutomaticReconnect([0, 2000, 5000, 10000, 30000])
+    .configureLogging(
+      crearLoggerSignalRMovil(`Sesiones:${origen}:${diagnostico.id}`),
+    )
     .build();
 
   conexion.serverTimeoutInMilliseconds = 60000;
