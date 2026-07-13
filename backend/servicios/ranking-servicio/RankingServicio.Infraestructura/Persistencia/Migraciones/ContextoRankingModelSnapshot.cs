@@ -124,6 +124,58 @@ namespace RankingServicio.Infraestructura.Persistencia.Migraciones
                     b.ToTable("eventos_procesados", "ranking");
                 });
 
+            modelBuilder.Entity("RankingServicio.Infraestructura.RabbitMq.OutboxMensajeRankingModelo", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreadoEnUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("creado_en_utc");
+
+                    b.Property<DateTime?>("EnviadoEnUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("enviado_en_utc");
+
+                    b.Property<string>("Estado")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("estado");
+
+                    b.Property<int>("Intentos")
+                        .HasColumnType("integer")
+                        .HasColumnName("intentos");
+
+                    b.Property<string>("PayloadJson")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("payload_json");
+
+                    b.Property<DateTime?>("ProximoIntentoUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("proximo_intento_utc");
+
+                    b.Property<string>("RoutingKey")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("routing_key");
+
+                    b.Property<string>("UltimoError")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("ultimo_error");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Estado", "ProximoIntentoUtc", "CreadoEnUtc");
+
+                    b.ToTable("outbox_ranking", "ranking");
+                });
+
             modelBuilder.Entity("RankingServicio.Dominio.Entidades.RankingEquipo", b =>
                 {
                     b.HasOne("RankingServicio.Dominio.Entidades.Ranking", null)

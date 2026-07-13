@@ -4,7 +4,6 @@ using SesionesServicio.Aplicacion.Puertos;
 using SesionesServicio.Dominio.Abstract;
 using SesionesServicio.Dominio.Entidades;
 using SesionesServicio.Dominio.Enums;
-using SesionesServicio.Dominio.Estrategias;
 using SesionesServicio.Dominio.Excepciones;
 
 namespace SesionesServicio.Aplicacion.Comandos.EnviarRespuestaTrivia;
@@ -18,11 +17,11 @@ public sealed class EnviarRespuestaTriviaManejador
     private readonly IRepositorioRespuestasTrivia _repositorioRespuestas;
     private readonly INotificadorSesionesTiempoReal _notificador;
     private readonly IServicioFinalizacionSesion _servicioFinalizacion;
-    private readonly IEstrategiaCalculoPuntajeTrivia _estrategiaPuntaje;
     private readonly IServicioProgresoSecuencialSesion _servicioProgresoSecuencial;
     private readonly IServicioTiempoTriviaSesion _servicioTiempoTrivia;
     private readonly IProveedorFechaHora _reloj;
     private readonly IPublicadorEventosRanking _publicadorRanking;
+    private readonly IUnidadTrabajoSesiones _unidadTrabajo;
 
     public EnviarRespuestaTriviaManejador(
         IUsuarioActual usuario,
@@ -31,11 +30,11 @@ public sealed class EnviarRespuestaTriviaManejador
         IRepositorioRespuestasTrivia repositorioRespuestas,
         INotificadorSesionesTiempoReal notificador,
         IServicioFinalizacionSesion servicioFinalizacion,
-        IEstrategiaCalculoPuntajeTrivia estrategiaPuntaje,
         IServicioProgresoSecuencialSesion servicioProgresoSecuencial,
         IServicioTiempoTriviaSesion servicioTiempoTrivia,
         IProveedorFechaHora reloj,
-        IPublicadorEventosRanking publicadorRanking)
+        IPublicadorEventosRanking publicadorRanking,
+        IUnidadTrabajoSesiones unidadTrabajo)
     {
         _usuario = usuario;
         _repositorioSesiones = repositorioSesiones;
@@ -43,11 +42,11 @@ public sealed class EnviarRespuestaTriviaManejador
         _repositorioRespuestas = repositorioRespuestas;
         _notificador = notificador;
         _servicioFinalizacion = servicioFinalizacion;
-        _estrategiaPuntaje = estrategiaPuntaje;
         _servicioProgresoSecuencial = servicioProgresoSecuencial;
         _servicioTiempoTrivia = servicioTiempoTrivia;
         _reloj = reloj;
         _publicadorRanking = publicadorRanking;
+        _unidadTrabajo = unidadTrabajo;
     }
 
     public async Task<EnviarRespuestaTriviaRespuesta> Handle(
@@ -107,7 +106,8 @@ public sealed class EnviarRespuestaTriviaManejador
             cancelacion);
 
         var esCorrecta = false;
-        var puntosGanados = 0;
+        var puntajeBase = pregunta.PuntajeAsignado;
+        var eventoId = Guid.NewGuid();
         var tiempoTardadoMs = CalcularTiempoTardadoServidor(ventanaPregunta, tiempoTrivia.TiempoActivoEtapaMs);
         var respuestaRegistradaPorTimeout = ventanaPregunta.Expirada;
 
@@ -133,29 +133,37 @@ public sealed class EnviarRespuestaTriviaManejador
                 ?? throw new InvalidOperationException("Pregunta u opcion no encontrada.");
 
             esCorrecta = verificacion.EsCorrecta;
-            puntosGanados = _estrategiaPuntaje.Calcular(new ContextoCalculoPuntajeTrivia(
-                EsCorrecta: verificacion.EsCorrecta,
-                PuntajeBase: verificacion.PuntajeBase,
-                TiempoTardadoMs: tiempoTardadoMs,
-                TiempoLimiteMs: ventanaPregunta.DuracionMs));
+            puntajeBase = verificacion.PuntajeBase;
         }
 
         if (!respuestaRegistradaPorTimeout)
         {
-            await _repositorioRespuestas.AgregarAsync(new RespuestaTriviaRegistro(
-                SesionId: comando.SesionId,
-                MisionId: comando.MisionId,
-                EtapaId: comando.EtapaId,
-                TriviaId: comando.TriviaId,
-                PreguntaId: comando.PreguntaId,
-                OpcionSeleccionadaId: comando.OpcionSeleccionadaId,
-                ParticipanteIdentidadId: participanteIdentidadId,
-                EquipoId: equipoId,
-                EsCorrecta: esCorrecta,
-                PuntosGanados: puntosGanados,
-                TiempoTardadoMs: tiempoTardadoMs,
-                FechaRespuestaUtc: ahoraUtc),
-                cancelacion);
+            await _unidadTrabajo.EjecutarEnTransaccionAsync(async ct =>
+            {
+                await _repositorioRespuestas.AgregarAsync(new RespuestaTriviaRegistro(
+                    SesionId: comando.SesionId,
+                    MisionId: comando.MisionId,
+                    EtapaId: comando.EtapaId,
+                    TriviaId: comando.TriviaId,
+                    PreguntaId: comando.PreguntaId,
+                    OpcionSeleccionadaId: comando.OpcionSeleccionadaId,
+                    ParticipanteIdentidadId: participanteIdentidadId,
+                    EquipoId: equipoId,
+                    EsCorrecta: esCorrecta,
+                    PuntosGanados: 0,
+                    EventoPuntuacionId: eventoId,
+                    TiempoTardadoMs: tiempoTardadoMs,
+                    FechaRespuestaUtc: ahoraUtc),
+                    ct);
+
+                await _publicadorRanking.PublicarRespuestaTriviaRegistradaAsync(
+                    eventoId,
+                    comando.SesionId, comando.MisionId, comando.EtapaId,
+                    participante.Id, participanteIdentidadId,
+                    equipoId, comando.TriviaId, comando.PreguntaId, esCorrecta,
+                    puntajeBase, tiempoTardadoMs, ventanaPregunta.DuracionMs,
+                    ct);
+            }, cancelacion);
 
             await _notificador.NotificarRespuestaRegistradaAsync(
                 comando.SesionId,
@@ -164,12 +172,11 @@ public sealed class EnviarRespuestaTriviaManejador
                 participanteIdentidadId,
                 equipoId,
                 esCorrecta,
-                puntosGanados,
                 cancelacion);
-
-            await _publicadorRanking.PublicarRespuestaTriviaRegistradaAsync(
-                comando.SesionId, participante.Id, participanteIdentidadId,
-                equipoId, puntosGanados, cancelacion);
+        }
+        else
+        {
+            eventoId = Guid.Empty;
         }
 
         var totalPreguntas = trivia.Preguntas.Count;
@@ -188,16 +195,13 @@ public sealed class EnviarRespuestaTriviaManejador
             if (jugadoresCompletaron >= totalJugadoresEsperados)
             {
                 etapaCompletada = true;
-                // NO se cierra inmediatamente: se entra en CierrePendiente para que
-                // el último jugador vea su feedback final antes de arrancar la
-                // preparación de 10 s. El worker cierra la etapa al vencer (#10/#13).
                 await _servicioFinalizacion.ProgramarCierreTrasFeedbackAsync(
                     comando.SesionId, comando.EtapaId, cancelacion);
             }
         }
 
         return new EnviarRespuestaTriviaRespuesta(
-            esCorrecta, puntosGanados, etapaCompletada);
+            esCorrecta, eventoId, etapaCompletada);
     }
 
     private async Task RegistrarTimeoutsExpiradosAsync(
@@ -236,6 +240,8 @@ public sealed class EnviarRespuestaTriviaManejador
                     EquipoId: equipoId,
                     EsCorrecta: false,
                     PuntosGanados: 0,
+                    // Los timeouts (0 pts) no se publican a ranking: sin correlación.
+                    EventoPuntuacionId: Guid.Empty,
                     TiempoTardadoMs: ventana.DuracionMs,
                     FechaRespuestaUtc: ahoraUtc),
                     cancelacion);

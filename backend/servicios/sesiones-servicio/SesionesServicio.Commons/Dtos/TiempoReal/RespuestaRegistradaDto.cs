@@ -8,6 +8,5 @@ public sealed class RespuestaRegistradaDto
     public Guid ParticipanteIdentidadId { get; set; }
     public Guid? EquipoId { get; set; }
     public bool EsCorrecta { get; set; }
-    public int PuntosGanados { get; set; }
     public DateTime FechaEventoUtc { get; set; }
 }

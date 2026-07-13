@@ -3,11 +3,6 @@ using RankingServicio.Dominio.ObjetosValor;
 
 namespace RankingServicio.Dominio.Entidades;
 
-// Aggregate Root. Existe exactamente un Ranking por sesión (SesionId único).
-// Contiene solo los participantes y equipos de ESA sesión; nunca acumula
-// equipos o participantes históricos de otras sesiones. Toda modificación de
-// las entidades hijas ocurre a través de este raíz, que garantiza las
-// invariantes (unicidad y puntaje de equipo = suma de sus participantes).
 public sealed class Ranking
 {
     private readonly List<RankingParticipante> _participantes = new();
@@ -38,8 +33,6 @@ public sealed class Ranking
         };
     }
 
-    // Registra (idempotentemente) un participante en el ranking. Si ya existe
-    // por su ParticipanteSesionId no se duplica; si llega su equipo, se fija.
     public RankingParticipante RegistrarParticipante(
         Guid participanteSesionId, Guid participanteIdentidadId, Guid? equipoId)
     {
@@ -57,8 +50,6 @@ public sealed class Ranking
         return nuevo;
     }
 
-    // Registra (idempotentemente) un equipo en el ranking. No se duplica por
-    // EquipoId dentro del mismo Ranking.
     public RankingEquipo RegistrarEquipo(Guid equipoId)
     {
         var existente = BuscarEquipo(equipoId);
@@ -70,13 +61,22 @@ public sealed class Ranking
         return nuevo;
     }
 
-    // Suma puntaje a un participante y mantiene coherente el puntaje del equipo
-    // (si corresponde) recalculándolo como la suma de sus participantes.
     public void RegistrarPuntajeParticipante(
         Guid participanteSesionId,
         Guid participanteIdentidadId,
         Guid? equipoId,
         long puntos)
+        => RegistrarPuntajeParticipante(
+            participanteSesionId,
+            participanteIdentidadId,
+            equipoId,
+            Puntaje.Desde(puntos));
+
+    public void RegistrarPuntajeParticipante(
+        Guid participanteSesionId,
+        Guid participanteIdentidadId,
+        Guid? equipoId,
+        Puntaje puntaje)
     {
         var participante = BuscarParticipante(participanteSesionId);
         if (participante is null)
@@ -90,30 +90,24 @@ public sealed class Ranking
             participante.EstablecerEquipo(equipoId);
         }
 
-        participante.AgregarPuntaje(puntos);
+        participante.AgregarPuntaje(puntaje);
 
         if (equipoId.HasValue)
             RecalcularPuntajeEquipo(equipoId.Value);
     }
 
-    // Participantes ordenados por puntaje descendente. Empate: orden
-    // determinístico por ParticipanteSesionId para posiciones reproducibles.
     public IReadOnlyList<RankingParticipante> ParticipantesOrdenados() =>
         _participantes
             .OrderByDescending(p => p.Puntaje.Valor)
             .ThenBy(p => p.ParticipanteSesionId)
             .ToList();
 
-    // Equipos ordenados por puntaje descendente. Empate: orden determinístico
-    // por EquipoId.
     public IReadOnlyList<RankingEquipo> EquiposOrdenados() =>
         _equipos
             .OrderByDescending(e => e.Puntaje.Valor)
             .ThenBy(e => e.EquipoId)
             .ToList();
 
-    // Participantes que aportan a un equipo (para el detalle desplegable),
-    // ordenados por su aporte descendente.
     public IReadOnlyList<RankingParticipante> ParticipantesDeEquipo(Guid equipoId) =>
         _participantes
             .Where(p => p.EquipoId == equipoId)

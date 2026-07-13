@@ -7,9 +7,10 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
+using RankingServicio.Aplicacion.Comandos.ProcesarEvidenciaTesoro;
 using RankingServicio.Aplicacion.Comandos.ProcesarEquipoCreado;
 using RankingServicio.Aplicacion.Comandos.ProcesarParticipanteUnido;
-using RankingServicio.Aplicacion.Comandos.ProcesarPuntaje;
+using RankingServicio.Aplicacion.Comandos.ProcesarRespuestaTrivia;
 
 namespace RankingServicio.Infraestructura.RabbitMq;
 
@@ -19,6 +20,7 @@ public sealed class ConsumidorEventosRanking : BackgroundService
     private const string RoutingKeyTesoro = "sesion.evidencia_tesoro";
     private const string RoutingKeyParticipante = "sesion.participante_unido";
     private const string RoutingKeyEquipo = "sesion.equipo_creado";
+    private const string SufijoDlq = ".dlq";
 
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly OpcionesRabbitMq _opciones;
@@ -26,6 +28,8 @@ public sealed class ConsumidorEventosRanking : BackgroundService
 
     private IConnection? _conexion;
     private IModel? _canal;
+    private TaskCompletionSource _desconexion =
+        new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     public ConsumidorEventosRanking(
         IServiceScopeFactory scopeFactory,
@@ -45,7 +49,10 @@ public sealed class ConsumidorEventosRanking : BackgroundService
             {
                 IniciarConexion();
                 _log.LogInformation("ConsumidorRanking conectado a RabbitMQ, escuchando cola '{Cola}'", _opciones.Cola);
-                await Task.Delay(Timeout.Infinite, stoppingToken);
+                await _desconexion.Task.WaitAsync(stoppingToken);
+                _log.LogWarning("ConsumidorRanking detecto cierre de conexion/canal RabbitMQ. Reintentando conexion...");
+                LimpiarConexion();
+                await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
             }
             catch (OperationCanceledException)
             {
@@ -62,6 +69,10 @@ public sealed class ConsumidorEventosRanking : BackgroundService
 
     private void IniciarConexion()
     {
+        LimpiarConexion();
+        _desconexion = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+
         var fabrica = new ConnectionFactory
         {
             HostName = _opciones.Host,
@@ -73,12 +84,30 @@ public sealed class ConsumidorEventosRanking : BackgroundService
 
         _conexion = fabrica.CreateConnection("ranking-servicio");
         _canal = _conexion.CreateModel();
+        _conexion.ConnectionShutdown += (_, args) =>
+        {
+            _log.LogWarning(
+                "Conexion RabbitMQ de Ranking cerrada. ReplyCode={ReplyCode} ReplyText={ReplyText}",
+                args.ReplyCode,
+                args.ReplyText);
+            _desconexion.TrySetResult();
+        };
+        _canal.ModelShutdown += (_, args) =>
+        {
+            _log.LogWarning(
+                "Canal RabbitMQ de Ranking cerrado. ReplyCode={ReplyCode} ReplyText={ReplyText}",
+                args.ReplyCode,
+                args.ReplyText);
+            _desconexion.TrySetResult();
+        };
 
         _canal.ExchangeDeclare(
             _opciones.Exchange, ExchangeType.Topic, durable: true, autoDelete: false);
 
         _canal.QueueDeclare(
             _opciones.Cola, durable: true, exclusive: false, autoDelete: false);
+        _canal.QueueDeclare(
+            _opciones.Cola + SufijoDlq, durable: true, exclusive: false, autoDelete: false);
 
         foreach (var routingKey in new[]
         {
@@ -112,8 +141,36 @@ public sealed class ConsumidorEventosRanking : BackgroundService
             _log.LogError(ex,
                 "Error procesando mensaje RabbitMQ. RoutingKey={RoutingKey} Body={Body}",
                 routingKey, cuerpo);
-            _canal?.BasicNack(args.DeliveryTag, multiple: false, requeue: false);
+            if (!args.Redelivered)
+            {
+                _canal?.BasicNack(args.DeliveryTag, multiple: false, requeue: true);
+                return;
+            }
+
+            PublicarDeadLetter(args, cuerpo, ex);
+            _canal?.BasicAck(args.DeliveryTag, multiple: false);
         }
+    }
+
+    private void PublicarDeadLetter(BasicDeliverEventArgs args, string cuerpo, Exception ex)
+    {
+        if (_canal is null) return;
+
+        var props = _canal.CreateBasicProperties();
+        props.Persistent = true;
+        props.ContentType = "application/json";
+        props.Headers = new Dictionary<string, object>
+        {
+            ["x-error"] = ex.Message,
+            ["x-original-routing-key"] = args.RoutingKey,
+            ["x-failed-at-utc"] = DateTime.UtcNow.ToString("O")
+        };
+
+        _canal.BasicPublish(
+            exchange: string.Empty,
+            routingKey: _opciones.Cola + SufijoDlq,
+            basicProperties: props,
+            body: Encoding.UTF8.GetBytes(cuerpo));
     }
 
     private async Task ProcesarAsync(string routingKey, string cuerpo)
@@ -127,18 +184,21 @@ public sealed class ConsumidorEventosRanking : BackgroundService
             {
                 var ev = JsonSerializer.Deserialize<EventoRespuestaTriviaRegistrada>(cuerpo,
                     OpcionesJson)!;
-                await mediator.Send(new ProcesarPuntajeComando(
-                    ev.EventoId, ev.SesionId, ev.ParticipanteSesionId,
-                    ev.ParticipanteIdentidadId, ev.EquipoId, ev.Puntaje, "Trivia"));
+                await mediator.Send(new ProcesarRespuestaTriviaComando(
+                    ev.EventoId, ev.SesionId, ev.MisionId, ev.EtapaId,
+                    ev.ParticipanteSesionId, ev.ParticipanteIdentidadId, ev.EquipoId,
+                    ev.TriviaId, ev.PreguntaId, ev.EsCorrecta, ev.PuntajeBase,
+                    ev.TiempoTardadoMs, ev.TiempoLimiteMs));
                 break;
             }
             case RoutingKeyTesoro:
             {
                 var ev = JsonSerializer.Deserialize<EventoEvidenciaTesoroRegistrada>(cuerpo,
                     OpcionesJson)!;
-                await mediator.Send(new ProcesarPuntajeComando(
-                    ev.EventoId, ev.SesionId, ev.ParticipanteSesionId,
-                    ev.ParticipanteIdentidadId, ev.EquipoId, ev.Puntaje, "Tesoro"));
+                await mediator.Send(new ProcesarEvidenciaTesoroComando(
+                    ev.EventoId, ev.SesionId, ev.MisionId, ev.EtapaId,
+                    ev.ParticipanteSesionId, ev.ParticipanteIdentidadId, ev.EquipoId,
+                    ev.BusquedaId, ev.EsValida, ev.PuntajeBase));
                 break;
             }
             case RoutingKeyParticipante:

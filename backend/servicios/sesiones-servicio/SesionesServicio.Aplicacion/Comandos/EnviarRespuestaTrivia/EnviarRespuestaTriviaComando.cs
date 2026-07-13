@@ -14,5 +14,5 @@ public sealed record EnviarRespuestaTriviaComando(
 
 public sealed record EnviarRespuestaTriviaRespuesta(
     bool EsCorrecta,
-    int PuntosGanados,
+    Guid EventoId,
     bool EtapaCompletada);

@@ -15,9 +15,13 @@ public sealed class RepositorioRanking : IRepositorioRanking
 
     public async Task<Ranking?> ObtenerPorSesionAsync(
         Guid sesionId, CancellationToken cancelacion)
+        // Split query: el agregado tiene dos colecciones hijas; evita el
+        // producto cartesiano de un único JOIN (esta carga ocurre en cada evento
+        // de puntaje). Los datos son acotados por sesión.
         => await _contexto.Rankings
             .Include(r => r.Participantes)
             .Include(r => r.Equipos)
+            .AsSplitQuery()
             .FirstOrDefaultAsync(r => r.SesionId == sesionId, cancelacion);
 
     public async Task AgregarAsync(Ranking ranking, CancellationToken cancelacion)

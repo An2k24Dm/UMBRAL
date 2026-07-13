@@ -8,7 +8,6 @@ using SesionesServicio.Aplicacion.Servicios;
 using SesionesServicio.Commons.Dtos;
 using SesionesServicio.Dominio.Abstract;
 using SesionesServicio.Dominio.Entidades;
-using SesionesServicio.Dominio.Estrategias;
 using SesionesServicio.Dominio.Excepciones;
 using SesionesServicio.PruebasUnitarias.Dominio; // EquipoTestHelpers (CrearEquipo de 4 args)
 
@@ -90,10 +89,10 @@ public class EnviarRespuestaTriviaManejadorPruebas
         public Mock<IServicioFinalizacionSesion> Finalizacion { get; } = new();
         public Mock<IServicioProgresoSecuencialSesion> ProgresoSecuencial { get; } = new();
         public Mock<IProveedorFechaHora> Reloj { get; } = new();
+        public Mock<IPublicadorEventosRanking> PublicadorRanking { get; } = new();
+        public Mock<IUnidadTrabajoSesiones> UnidadTrabajo { get; } = new();
         public IServicioTiempoTriviaSesion ServicioTiempoTrivia { get; } =
             new ServicioTiempoTriviaSesion();
-        public IEstrategiaCalculoPuntajeTrivia Estrategia { get; set; } =
-            new EstrategiaPuntajeTriviaPorTiempo();
 
         public Arranque(
             Sesion sesion,
@@ -143,6 +142,14 @@ public class EnviarRespuestaTriviaManejadorPruebas
             Notificador.Setup(n => n.NotificarRespuestaRegistradaAsync(
                     It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(),
                     It.IsAny<Guid>(), It.IsAny<Guid?>(), It.IsAny<bool>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
+
+            PublicadorRanking.Setup(p => p.PublicarRespuestaTriviaRegistradaAsync(
+                    It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(),
+                    It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(),
+                    It.IsAny<Guid?>(), It.IsAny<Guid>(), It.IsAny<Guid>(),
+                    It.IsAny<bool>(), It.IsAny<int>(), It.IsAny<int>(),
                     It.IsAny<int>(), It.IsAny<CancellationToken>()))
                 .Returns(Task.CompletedTask);
 
@@ -166,14 +173,19 @@ public class EnviarRespuestaTriviaManejadorPruebas
             Finalizacion.Setup(s => s.ProgramarCierreTrasFeedbackAsync(
                     It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
                 .Returns(Task.CompletedTask);
+
+            UnidadTrabajo.Setup(u => u.EjecutarEnTransaccionAsync(
+                    It.IsAny<Func<CancellationToken, Task>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns<Func<CancellationToken, Task>, CancellationToken>((op, ct) => op(ct));
         }
 
         public EnviarRespuestaTriviaManejador Construir()
             => new(
                 Usuario.Object, RepoSesiones.Object, ClienteTrivia.Object,
-                RepoRespuestas.Object, Notificador.Object, Finalizacion.Object, Estrategia,
+                RepoRespuestas.Object, Notificador.Object, Finalizacion.Object,
                 ProgresoSecuencial.Object, ServicioTiempoTrivia, Reloj.Object,
-                Mock.Of<IPublicadorEventosRanking>());
+                PublicadorRanking.Object, UnidadTrabajo.Object);
 
         public Task<EnviarRespuestaTriviaRespuesta> EjecutarAsync(Guid sesionId, int tiempoMs = 0)
             => Construir().Handle(
@@ -213,7 +225,7 @@ public class EnviarRespuestaTriviaManejadorPruebas
             It.IsAny<CancellationToken>()), Times.Once);
         arr.Notificador.Verify(n => n.NotificarRespuestaRegistradaAsync(
             sesion.Id, EtapaId, PreguntaId, ParticipanteId, null,
-            true, It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Once);
+            true, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact] // (2)
@@ -246,43 +258,43 @@ public class EnviarRespuestaTriviaManejadorPruebas
     }
 
     [Fact] // (4)
-    public async Task Individual_PuntajeSeCalculaConLaEstrategiaInyectada()
+    public async Task Individual_NoCalculaPuntajeFinal_YDevuelveEventoId()
     {
         var sesion = IndividualActiva();
-        var estrategia = new Mock<IEstrategiaCalculoPuntajeTrivia>();
-        estrategia.Setup(e => e.Calcular(It.IsAny<ContextoCalculoPuntajeTrivia>())).Returns(777);
-        var arr = new Arranque(sesion, ParticipanteId, verificacion: Verif(puntaje: 100))
-        {
-            Estrategia = estrategia.Object
-        };
+        var arr = new Arranque(sesion, ParticipanteId, verificacion: Verif(puntaje: 100));
 
         var resultado = await arr.EjecutarAsync(sesion.Id);
 
-        resultado.PuntosGanados.Should().Be(777);
+        resultado.EventoId.Should().NotBe(Guid.Empty);
         arr.RepoRespuestas.Verify(r => r.AgregarAsync(
-            It.Is<RespuestaTriviaRegistro>(x => x.PuntosGanados == 777),
+            It.Is<RespuestaTriviaRegistro>(x => x.PuntosGanados == 0),
             It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact] // (5 / 26) El manejador delega en la abstracción; no contiene el algoritmo.
-    public async Task Individual_ManejadorDelegaEnLaEstrategiaConElContextoCorrecto()
+    public async Task Individual_PublicaHechosCrudosParaQueRankingCalcule()
     {
         var sesion = IndividualActiva();
-        var estrategia = new Mock<IEstrategiaCalculoPuntajeTrivia>();
-        estrategia.Setup(e => e.Calcular(It.IsAny<ContextoCalculoPuntajeTrivia>())).Returns(5);
         var arr = new Arranque(sesion, ParticipanteId,
-            verificacion: Verif(correcta: true, puntaje: 5, limite: 10))
-        {
-            Estrategia = estrategia.Object
-        };
+            verificacion: Verif(correcta: true, puntaje: 5, limite: 10));
 
         await arr.EjecutarAsync(sesion.Id, tiempoMs: 3000);
 
-        estrategia.Verify(e => e.Calcular(It.Is<ContextoCalculoPuntajeTrivia>(c =>
-            c.EsCorrecta &&
-            c.PuntajeBase == 5 &&
-            c.TiempoTardadoMs == 1000 &&
-            c.TiempoLimiteMs == 10_000)), Times.Once);
+        arr.PublicadorRanking.Verify(p => p.PublicarRespuestaTriviaRegistradaAsync(
+            It.IsAny<Guid>(),
+            sesion.Id,
+            It.IsAny<Guid>(),
+            It.IsAny<Guid>(),
+            It.IsAny<Guid>(),
+            ParticipanteId,
+            null,
+            TriviaId,
+            PreguntaId,
+            true,
+            5,
+            1000,
+            10_000,
+            It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -308,7 +320,7 @@ public class EnviarRespuestaTriviaManejadorPruebas
 
         var resultado = await arr.EjecutarAsync(sesion.Id, tiempoMs: 0);
 
-        resultado.PuntosGanados.Should().Be(100);
+        resultado.EventoId.Should().NotBe(Guid.Empty);
     }
 
     [Fact]
@@ -320,7 +332,7 @@ public class EnviarRespuestaTriviaManejadorPruebas
         var resultado = await arr.EjecutarAsync(sesion.Id);
 
         resultado.EsCorrecta.Should().BeFalse();
-        resultado.PuntosGanados.Should().Be(0);
+        resultado.EventoId.Should().NotBe(Guid.Empty);
     }
 
     [Fact]
@@ -332,7 +344,7 @@ public class EnviarRespuestaTriviaManejadorPruebas
         var resultado = await arr.EjecutarTimeoutAsync(sesion.Id);
 
         resultado.EsCorrecta.Should().BeFalse();
-        resultado.PuntosGanados.Should().Be(0);
+        resultado.EventoId.Should().Be(Guid.Empty);
         arr.ClienteTrivia.Verify(c => c.VerificarRespuestaAsync(
             It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
         arr.RepoRespuestas.Verify(r => r.AgregarAsync(
@@ -362,7 +374,7 @@ public class EnviarRespuestaTriviaManejadorPruebas
             It.IsAny<CancellationToken>()), Times.Once);
         arr.Notificador.Verify(n => n.NotificarRespuestaRegistradaAsync(
             sesion.Id, EtapaId, PreguntaId, Ana, rojoId,
-            It.IsAny<bool>(), It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Once);
+            It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact] // (7, 8, 9, 10) Segundo integrante rechazado; sin puntos, sin persistir, sin 2º evento.
@@ -381,7 +393,7 @@ public class EnviarRespuestaTriviaManejadorPruebas
         arr.Notificador.Verify(n => n.NotificarRespuestaRegistradaAsync(
             It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(),
             It.IsAny<Guid>(), It.IsAny<Guid?>(), It.IsAny<bool>(),
-            It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);
+            It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact] // (11) Otro equipo sí puede responder la misma pregunta.
@@ -507,7 +519,7 @@ public class EnviarRespuestaTriviaManejadorPruebas
         arr.Notificador.Verify(n => n.NotificarRespuestaRegistradaAsync(
             It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(),
             It.IsAny<Guid>(), It.IsAny<Guid?>(), It.IsAny<bool>(),
-            It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);
+            It.IsAny<CancellationToken>()), Times.Never);
         arr.RepoRespuestas.Verify(r => r.ContarJugadoresQueCompletaronEtapaAsync(
             It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<int>(),
             It.IsAny<CancellationToken>()), Times.Never);

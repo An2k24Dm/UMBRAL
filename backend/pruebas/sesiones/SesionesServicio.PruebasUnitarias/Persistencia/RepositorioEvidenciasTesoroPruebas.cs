@@ -48,6 +48,7 @@ public class RepositorioEvidenciasTesoroPruebas
             CodigoEnviado: "QR",
             EsValida: valida,
             PuntosGanados: valida ? 50 : 0,
+            EventoPuntuacionId: Guid.NewGuid(),
             FechaEnvioUtc: DateTime.UtcNow);
 
     private static async Task SembrarAsync(

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SesionesServicio.Aplicacion.Consultas.ListarSesionesDisponiblesParticipante;
 using SesionesServicio.Aplicacion.Consultas.ObtenerDetalleSesionDisponibleParticipante;
+using SesionesServicio.Aplicacion.Consultas.ObtenerMiDesgloseSesion;
 using SesionesServicio.Aplicacion.Consultas.ObtenerMisParticipaciones;
 using SesionesServicio.Aplicacion.Consultas.ObtenerProgresoSecuencialSesion;
 using SesionesServicio.Aplicacion.Consultas.ObtenerProgresoSesion;
@@ -51,6 +52,20 @@ public sealed class SesionesParticipanteControlador : ControllerBase
         var resultado = await _mediador.Send(
             new ObtenerDetalleSesionDisponibleParticipanteConsulta(sesionId),
             cancelacion);
+        return Ok(resultado);
+    }
+
+    // GET /api/sesiones/participante/disponibles/{sesionId}/mi-desglose
+    // Desglose del puntaje del participante autenticado por misión y etapa.
+    [HttpGet("{sesionId:guid}/mi-desglose")]
+    [ProducesResponseType(typeof(MiDesgloseSesionDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> ObtenerMiDesglose(
+        Guid sesionId, CancellationToken cancelacion)
+    {
+        var resultado = await _mediador.Send(
+            new ObtenerMiDesgloseSesionConsulta(sesionId), cancelacion);
         return Ok(resultado);
     }
 

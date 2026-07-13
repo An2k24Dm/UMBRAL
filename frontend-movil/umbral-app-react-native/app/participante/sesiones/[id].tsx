@@ -21,19 +21,24 @@ import { useDetalleSesionDisponible } from "../../../hooks/useDetalleSesionDispo
 import { useIngresoSesion } from "../../../hooks/useIngresoSesion";
 import { useListadoSesionesTiempoReal } from "../../../hooks/useListadoSesionesTiempoReal";
 import { useNavegacionSegura } from "../../../hooks/useNavegacionSegura";
+import { useRankingTiempoReal } from "../../../hooks/useRankingTiempoReal";
 import { useRefrescarAlEnfocar } from "../../../hooks/useRefrescarAlEnfocar";
 import { useSesionesTiempoReal } from "../../../hooks/useSesionesTiempoReal";
 import type {
   ProgresoSecuencialSesionDto,
-  ProgresoSesionParticipanteDto,
   SesionDetalleMovilDto,
 } from "../../../tipos/sesiones";
 import { formatearFechaHora } from "../../../utilidades/formatoFechas";
 import {
   obtenerDetalleSesionDisponibleApi,
   obtenerProgresoSecuencialSesionApi,
-  obtenerProgresoSesionParticipanteApi,
 } from "../../../servicios/sesionesApi";
+import {
+  obtenerRankingEquiposSesionApi,
+  obtenerRankingParticipantesSesionApi,
+  type RankingEquipoDto,
+  type RankingParticipanteDto,
+} from "../../../servicios/rankingApi";
 
 export default function PantallaDetalleSesionParticipante() {
   return (
@@ -62,8 +67,15 @@ function ContenidoDetalle() {
 
   const [progresoSecuencial, setProgresoSecuencial] =
     useState<ProgresoSecuencialSesionDto | null>(null);
-  const [progreso, setProgreso] = useState<ProgresoSesionParticipanteDto[] | null>(null);
-  const [cargandoProgreso, setCargandoProgreso] = useState(false);
+  const [rankingParticipantes, setRankingParticipantes] =
+    useState<RankingParticipanteDto[] | null>(null);
+  const [rankingEquipos, setRankingEquipos] = useState<RankingEquipoDto[] | null>(null);
+  const [cargandoRanking, setCargandoRanking] = useState(false);
+  // Marca si ya se cargo el ranking al menos una vez (para distinguir la primera
+  // carga de los refetch en segundo plano y no colapsar la expansion de equipos).
+  const rankingConDatosRef = useRef(false);
+  const [versionRanking, setVersionRanking] = useState(0);
+  const [equiposRankingExpandidos, setEquiposRankingExpandidos] = useState<Set<string>>(new Set());
   const [versionProgreso, setVersionProgreso] = useState(0);
   const estaInscritoEnSesion = detalle?.participacionActual?.estaInscrito === true;
   const equipoIdActual = estaInscritoEnSesion
@@ -94,18 +106,48 @@ function ContenidoDetalle() {
     setVersionProgreso((v) => v + 1);
   }, [refrescar, cargarProgresoSecuencial]);
 
-  useEffect(() => {
-    if (!token || !sesionId || !detalle) return;
+  const cargarRanking = useCallback(async () => {
+    if (!token || !sesionId || !detalle || !estaInscritoEnSesion) {
+      rankingConDatosRef.current = false;
+      setRankingParticipantes(null);
+      setRankingEquipos(null);
+      return;
+    }
     const estados = ["Activa", "Pausada", "Finalizada"];
     if (!estados.includes(detalle.estado)) return;
-    let cancelado = false;
-    setCargandoProgreso(true);
-    obtenerProgresoSesionParticipanteApi(token, sesionId)
-      .then((data) => { if (!cancelado) setProgreso(data); })
-      .catch(() => { if (!cancelado) setProgreso(null); })
-      .finally(() => { if (!cancelado) setCargandoProgreso(false); });
-    return () => { cancelado = true; };
-  }, [token, sesionId, detalle?.estado, versionProgreso]);
+
+    // El spinner solo en la primera carga (aun sin datos). Los refetch por
+    // SignalR (PuntajeCalculado) NO deben ocultar la lista: eso colapsaria la
+    // expansion de equipos y provocaria parpadeo. Se usa un ref (no estado) para
+    // no reintroducir cargarRanking como dependencia y evitar un bucle de fetch.
+    const primeraCarga = !rankingConDatosRef.current;
+    if (primeraCarga) setCargandoRanking(true);
+    try {
+      if (detalle.modo === "Grupal") {
+        const equipos = await obtenerRankingEquiposSesionApi(token, sesionId);
+        setRankingEquipos(equipos);
+        setRankingParticipantes(null);
+      } else {
+        const participantes = await obtenerRankingParticipantesSesionApi(token, sesionId);
+        setRankingParticipantes(participantes);
+        setRankingEquipos(null);
+      }
+      rankingConDatosRef.current = true;
+    } catch {
+      // Fallo transitorio de red: si ya habia un ranking bueno lo conservamos
+      // (no colapsar la expansion); el proximo refetch reintenta.
+      if (primeraCarga) {
+        setRankingParticipantes(null);
+        setRankingEquipos(null);
+      }
+    } finally {
+      if (primeraCarga) setCargandoRanking(false);
+    }
+  }, [token, sesionId, detalle, estaInscritoEnSesion]);
+
+  useEffect(() => {
+    void cargarRanking();
+  }, [cargarRanking, versionRanking]);
 
   const navegarSeguro = useNavegacionSegura();
   useRefrescarAlEnfocar(refrescarTodo);
@@ -193,6 +235,26 @@ function ContenidoDetalle() {
   // HU52 — cambio de estado en vivo. Si el operador cancela, avisamos y
   // volvemos al listado. Si finaliza, avisamos pero el participante se queda
   // en la pantalla para ver sus resultados.
+  // Mantiene el detalle actual accesible desde el callback de SignalR sin
+  // capturar una versión obsoleta (para navegar al resultado con nombre/modo).
+  const detalleRef = useRef(detalle);
+  detalleRef.current = detalle;
+  // Evita mostrar la notificación de finalización más de una vez por sesión.
+  const finalizacionNotificadaRef = useRef<string | null>(null);
+
+  const irAlResultado = useCallback(() => {
+    if (!sesionId) return;
+    const d = detalleRef.current;
+    enrutador.push({
+      pathname: "/participante/historial/[id]",
+      params: {
+        id: sesionId,
+        nombre: d?.nombre ?? "",
+        modo: d?.modo ?? "Individual",
+      },
+    });
+  }, [enrutador, sesionId]);
+
   const manejarCambioEstado = useCallback(
     (estado: string | undefined) => {
       if (estado === "Cancelada") {
@@ -209,11 +271,16 @@ function ContenidoDetalle() {
         return;
       }
       if (estado === "Finalizada") {
-        Alert.alert(
-          "Sesión finalizada",
-          "La sesión ha concluido. Puedes revisar tus resultados antes de salir.",
-          [{ text: "Ver resultados", style: "default" }],
-        );
+        // Una sola notificación por sesión (evita duplicados ante varios
+        // eventos SignalR o refetch). Otra sesión distinta muestra la suya.
+        if (finalizacionNotificadaRef.current !== sesionId) {
+          finalizacionNotificadaRef.current = sesionId ?? null;
+          Alert.alert(
+            "La sesión finalizó",
+            "Puedes revisar tus resultados y el ranking final.",
+            [{ text: "Ver resultado", onPress: irAlResultado }],
+          );
+        }
         // Actualización optimista: marca la sesión como finalizada de inmediato
         // para que el participante vea sus resultados aunque el refetch falle.
         actualizarEstadoLocal("Finalizada");
@@ -227,7 +294,7 @@ function ContenidoDetalle() {
         void navegarAEjecucionActual();
       }
     },
-    [refrescar, enrutador, actualizarEstadoLocal, navegarAEjecucionActual],
+    [refrescar, enrutador, actualizarEstadoLocal, navegarAEjecucionActual, irAlResultado, sesionId],
   );
 
   const actualizarProgreso = useCallback(
@@ -252,6 +319,14 @@ function ContenidoDetalle() {
     onEtapaCompletada: actualizarProgreso,
     onEtapaIniciada: navegarAEjecucionActual,
     onProgresoSecuencialActualizado: actualizarProgreso,
+  });
+
+  useRankingTiempoReal({
+    sesionId: estaInscritoEnSesion ? sesionId : null,
+    onPuntajeCalculado: () => setVersionRanking((v) => v + 1),
+    onRankingParticipantesActualizado: () => setVersionRanking((v) => v + 1),
+    onRankingEquiposActualizado: () => setVersionRanking((v) => v + 1),
+    onReconectado: () => setVersionRanking((v) => v + 1),
   });
 
   const [refrescando, setRefrescando] = useState(false);
@@ -386,17 +461,6 @@ function ContenidoDetalle() {
             </View>
           )}
 
-          {detalle.estado === "Finalizada" && (
-            <View style={estilos.bannerFinalizada}>
-              <Text style={estilos.bannerFinalizadaTitulo}>
-                Sesión finalizada
-              </Text>
-              <Text style={estilos.bannerFinalizadaTexto}>
-                La sesión ha concluido. Estos son tus resultados.
-              </Text>
-            </View>
-          )}
-
           {detalle.estado === "Activa" &&
           detalle.fechaInicioUtc &&
           detalle.duracionSegundosLimite !== null &&
@@ -415,12 +479,23 @@ function ContenidoDetalle() {
             }
           />
 
-          {(detalle.estado === "Activa" ||
+          {estaInscritoEnSesion && (detalle.estado === "Activa" ||
             detalle.estado === "Pausada" ||
             detalle.estado === "Finalizada") && (
-            <PanelProgreso
-              progreso={progreso}
-              cargando={cargandoProgreso}
+            <PanelRankingSesion
+              modo={detalle.modo}
+              participantes={rankingParticipantes}
+              equipos={rankingEquipos}
+              cargando={cargandoRanking}
+              expandidos={equiposRankingExpandidos}
+              alternarEquipo={(equipoId) =>
+                setEquiposRankingExpandidos((previo) => {
+                  const siguiente = new Set(previo);
+                  if (siguiente.has(equipoId)) siguiente.delete(equipoId);
+                  else siguiente.add(equipoId);
+                  return siguiente;
+                })
+              }
             />
           )}
 
@@ -658,55 +733,80 @@ function SeccionParticipacion({
   );
 }
 
-function PanelProgreso({
-  progreso,
+function PanelRankingSesion({
+  modo,
+  participantes,
+  equipos,
   cargando,
+  expandidos,
+  alternarEquipo,
 }: {
-  progreso: ProgresoSesionParticipanteDto[] | null;
+  modo: string;
+  participantes: RankingParticipanteDto[] | null;
+  equipos: RankingEquipoDto[] | null;
   cargando: boolean;
+  expandidos: Set<string>;
+  alternarEquipo: (equipoId: string) => void;
 }) {
-  const ordenado = progreso
-    ? [...progreso].sort((a, b) => b.totalPuntosGanados - a.totalPuntosGanados)
+  const esGrupal = modo === "Grupal";
+  const participantesOrdenados = participantes
+    ? [...participantes].sort((a, b) => a.posicion - b.posicion)
+    : [];
+  const equiposOrdenados = equipos
+    ? [...equipos].sort((a, b) => a.posicion - b.posicion)
     : [];
 
   return (
     <View style={estilos.panelProgreso}>
-      <Text style={estilos.tituloSeccion}>TABLA DE POSICIONES</Text>
+      <Text style={estilos.tituloSeccion}>RANKING DE LA SESION</Text>
       {cargando && (
         <ActivityIndicator color={tema.colores.primario} style={{ marginVertical: tema.espacios.sm }} />
       )}
-      {!cargando && progreso !== null && ordenado.length === 0 && (
-        <Text style={estilos.progresoVacio}>Aún no hay actividad registrada.</Text>
+      {!cargando && !esGrupal && participantesOrdenados.length === 0 && (
+        <Text style={estilos.progresoVacio}>Aun no hay puntajes registrados.</Text>
       )}
-      {!cargando && ordenado.map((p, idx) => (
-        <View key={p.participanteIdentidadId} style={estilos.filaProgreso}>
-          <View style={estilos.filaProgresoPuesto}>
-            <Text style={[estilos.puesto, idx === 0 && estilos.puestoOro]}>
-              #{idx + 1}
-            </Text>
-          </View>
-          <View style={estilos.filaProgresoDetalle}>
-            <Text style={estilos.progresoTotal}>{p.totalPuntosGanados} pts</Text>
-            <Text style={estilos.progresoDesglose}>
-              Trivia: {p.triviaPuntosGanados} · Tesoro: {p.tesoroPuntosGanados}
-            </Text>
-          </View>
-          <View style={estilos.filaProgresoExtra}>
-            {p.triviaRespondidas > 0 && (
-              <Text style={estilos.progresoChip}>
-                {p.triviaCorrectas}/{p.triviaRespondidas} ✓
-              </Text>
-            )}
-            {p.tesoroEtapasCompletadas > 0 && (
-              <Text style={estilos.progresoChipTesoro}>
-                {p.tesoroEtapasCompletadas} etapa{p.tesoroEtapasCompletadas !== 1 ? "s" : ""} tesoro
-              </Text>
-            )}
-          </View>
+      {!cargando && !esGrupal && participantesOrdenados.map((p) => (
+        <View key={p.participanteSesionId} style={estilos.filaRanking}>
+          <Text style={estilos.rankingPosicion}>{medallaRanking(p.posicion)}</Text>
+          <Text style={estilos.rankingNombre}>{p.alias}</Text>
+          <Text style={estilos.rankingPuntaje}>{p.puntaje} pts</Text>
         </View>
       ))}
+      {!cargando && esGrupal && equiposOrdenados.length === 0 && (
+        <Text style={estilos.progresoVacio}>Aun no hay puntajes registrados.</Text>
+      )}
+      {!cargando && esGrupal && equiposOrdenados.map((equipo) => {
+        const expandido = expandidos.has(equipo.equipoId);
+        return (
+          <View key={equipo.equipoId}>
+            <TouchableOpacity
+              style={estilos.filaRanking}
+              onPress={() => alternarEquipo(equipo.equipoId)}
+              accessibilityRole="button"
+            >
+              <Text style={estilos.rankingPosicion}>{medallaRanking(equipo.posicion)}</Text>
+              <Text style={estilos.rankingNombre}>{equipo.nombreEquipo}</Text>
+              <Text style={estilos.rankingPuntaje}>{equipo.puntaje} pts {expandido ? "▼" : "▶"}</Text>
+            </TouchableOpacity>
+            {expandido && equipo.participantes.map((p) => (
+              <View key={p.participanteSesionId} style={estilos.filaRankingDetalle}>
+                <Text style={estilos.rankingPosicion}>#{p.posicion}</Text>
+                <Text style={estilos.rankingNombre}>{p.alias}</Text>
+                <Text style={estilos.rankingPuntaje}>{p.puntaje} pts</Text>
+              </View>
+            ))}
+          </View>
+        );
+      })}
     </View>
   );
+}
+
+function medallaRanking(posicion: number): string {
+  if (posicion === 1) return "🥇 #1";
+  if (posicion === 2) return "🥈 #2";
+  if (posicion === 3) return "🥉 #3";
+  return `#${posicion}`;
 }
 
 function CuentaRegresiva({
@@ -875,7 +975,7 @@ const estilos = StyleSheet.create({
     textAlign: "center",
     paddingVertical: tema.espacios.sm,
   },
-  filaProgreso: {
+  filaRanking: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: tema.colores.fondoTarjeta,
@@ -886,72 +986,31 @@ const estilos = StyleSheet.create({
     marginBottom: tema.espacios.xs,
     gap: tema.espacios.sm,
   },
-  filaProgresoPuesto: {
-    width: 36,
+  filaRankingDetalle: {
+    flexDirection: "row",
     alignItems: "center",
-  },
-  puesto: {
-    color: tema.colores.textoTenue,
-    fontWeight: tema.tipografia.pesos.bold,
-    fontSize: tema.tipografia.tamanos.md,
-  },
-  puestoOro: {
-    color: "#f59e0b",
-    fontSize: tema.tipografia.tamanos.lg,
-  },
-  filaProgresoDetalle: {
-    flex: 1,
-  },
-  progresoTotal: {
-    color: tema.colores.texto,
-    fontWeight: tema.tipografia.pesos.extrabold,
-    fontSize: tema.tipografia.tamanos.md,
-  },
-  progresoDesglose: {
-    color: tema.colores.textoTenue,
-    fontSize: tema.tipografia.tamanos.xs,
-    marginTop: 2,
-  },
-  filaProgresoExtra: {
-    gap: 4,
-    alignItems: "flex-end",
-  },
-  progresoChip: {
-    color: "#15803d",
-    backgroundColor: "#dcfce7",
-    fontSize: tema.tipografia.tamanos.xs,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    fontWeight: tema.tipografia.pesos.semibold,
-  },
-  progresoChipTesoro: {
-    color: "#92400e",
-    backgroundColor: "#fef3c7",
-    fontSize: tema.tipografia.tamanos.xs,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    fontWeight: tema.tipografia.pesos.semibold,
-  },
-  bannerFinalizada: {
-    backgroundColor: "#f0fdf4",
-    borderColor: tema.colores.exito,
-    borderWidth: 1,
+    backgroundColor: "#f8fafc",
     borderRadius: tema.radios.entrada,
-    padding: tema.espacios.md,
-    marginBottom: tema.espacios.md,
+    borderWidth: 1,
+    borderColor: tema.colores.bordeTarjeta,
+    padding: tema.espacios.sm,
+    marginLeft: tema.espacios.lg,
+    marginBottom: tema.espacios.xs,
+    gap: tema.espacios.sm,
   },
-  bannerFinalizadaTitulo: {
-    color: "#15803d",
-    fontSize: tema.tipografia.tamanos.md,
+  rankingPosicion: {
+    width: 58,
+    color: tema.colores.texto,
     fontWeight: tema.tipografia.pesos.bold,
   },
-  bannerFinalizadaTexto: {
+  rankingNombre: {
+    flex: 1,
     color: tema.colores.texto,
-    fontSize: tema.tipografia.tamanos.sm,
-    marginTop: tema.espacios.xs,
-    lineHeight: 18,
+    fontWeight: tema.tipografia.pesos.bold,
+  },
+  rankingPuntaje: {
+    color: tema.colores.primario,
+    fontWeight: tema.tipografia.pesos.extrabold,
   },
   bannerCuentaRegresiva: {
     backgroundColor: "#1e293b",

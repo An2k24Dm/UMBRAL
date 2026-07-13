@@ -11,6 +11,10 @@ import {
   type EquipoSesionDetalleDto,
   type IntegranteEquipoDto
 } from '../autenticacion/clienteApiSesiones'
+import {
+  obtenerRankingEquipos,
+  type EntradaRankingEquipoDto
+} from '../autenticacion/clienteApiRanking'
 import { usarAutenticacion } from '../autenticacion/ProveedorAutenticacion'
 import { useSesionesTiempoReal } from '../hooks/useSesionesTiempoReal'
 import { formatearFechaSesion } from '../utilidades/formatoSesiones'
@@ -32,6 +36,7 @@ export function PaginaDetalleEquipo() {
   const [estado, setEstado] = useState<'cargando' | 'error' | 'listo'>('cargando')
   const [mensajeError, setMensajeError] = useState<string | null>(null)
   const [equipo, setEquipo] = useState<EquipoSesionDetalleDto | null>(null)
+  const [rankingEquipo, setRankingEquipo] = useState<EntradaRankingEquipoDto | null>(null)
   const [estadoSesion, setEstadoSesion] = useState<string | null>(null)
   const [versionTiempoReal, setVersionTiempoReal] = useState(0)
 
@@ -70,12 +75,14 @@ export function PaginaDetalleEquipo() {
         // Operador y Administrador usan el mismo endpoint real, que devuelve
         // los integrantes. La sesión se carga en paralelo para conocer su
         // estado (HU45: expulsar solo En Preparación o Pausada).
-        const [equipoDetalle, sesionDetalle] = await Promise.all([
+        const [equipoDetalle, sesionDetalle, rankingEquipos] = await Promise.all([
           obtenerDetalleEquipoSesion(id, equipoId, token),
-          obtenerSesion(id, token)
+          obtenerSesion(id, token),
+          obtenerRankingEquipos(id, token).catch(() => [])
         ])
         if (ref.cancelado) return
         setEquipo(equipoDetalle)
+        setRankingEquipo(rankingEquipos.find(r => r.equipoId === equipoId) ?? null)
         setEstadoSesion(sesionDetalle.estado)
         setEstado('listo')
       } catch (e) {
@@ -146,6 +153,9 @@ export function PaginaDetalleEquipo() {
   // En Preparación o Pausada. El Administrador nunca ve la acción.
   const puedeExpulsar = usuario?.rol === 'Operador' &&
     (estadoSesion === 'EnPreparacion' || estadoSesion === 'Pausada')
+  const puntajesPorParticipante = new Map(
+    (rankingEquipo?.participantes ?? []).map(p => [p.participanteSesionId, p])
+  )
 
   return (
     <LayoutPanel
@@ -181,6 +191,10 @@ export function PaginaDetalleEquipo() {
             </span>
           </div>
           <div className="detalle-campo">
+            <span className="detalle-campo-etiqueta">Puntaje total</span>
+            <span className="detalle-campo-valor">{rankingEquipo?.puntaje ?? 0} pts</span>
+          </div>
+          <div className="detalle-campo">
             <span className="detalle-campo-etiqueta">Fecha de creación</span>
             <span className="detalle-campo-valor">{formatearFechaSesion(equipo.fechaCreacion)}</span>
           </div>
@@ -205,6 +219,7 @@ export function PaginaDetalleEquipo() {
                 <th>Alias</th>
                 <th>Nombre</th>
                 <th>Apellido</th>
+                <th>Puntaje</th>
                 <th>Fecha de unión</th>
                 <th>Rol</th>
                 {puedeExpulsar && <th>Acciones</th>}
@@ -217,6 +232,7 @@ export function PaginaDetalleEquipo() {
                   <td><strong>{p.alias}</strong></td>
                   <td>{p.nombre || '—'}</td>
                   <td>{p.apellido || '—'}</td>
+                  <td>{puntajesPorParticipante.get(p.participanteSesionId)?.puntaje ?? 0} pts</td>
                   <td>{formatearFechaSesion(p.fechaUnion)}</td>
                   <td>
                     <span className={`badge ${p.esLider ? 'badge-equipo-lider' : 'badge-neutro'}`}>

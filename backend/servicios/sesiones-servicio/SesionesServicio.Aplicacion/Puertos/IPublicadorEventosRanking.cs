@@ -8,19 +8,32 @@ namespace SesionesServicio.Aplicacion.Puertos;
 public interface IPublicadorEventosRanking
 {
     Task PublicarRespuestaTriviaRegistradaAsync(
+        Guid eventoId,
         Guid sesionId,
+        Guid misionId,
+        Guid etapaId,
         Guid participanteSesionId,
         Guid participanteIdentidadId,
         Guid? equipoId,
-        int puntaje,
+        Guid triviaId,
+        Guid preguntaId,
+        bool esCorrecta,
+        int puntajeBase,
+        int tiempoTardadoMs,
+        int tiempoLimiteMs,
         CancellationToken cancelacion);
 
     Task PublicarEvidenciaTesoroRegistradaAsync(
+        Guid eventoId,
         Guid sesionId,
+        Guid misionId,
+        Guid etapaId,
         Guid participanteSesionId,
         Guid participanteIdentidadId,
         Guid? equipoId,
-        int puntaje,
+        Guid busquedaId,
+        bool esValida,
+        int puntajeBase,
         CancellationToken cancelacion);
 
     Task PublicarParticipanteUnidoSesionAsync(

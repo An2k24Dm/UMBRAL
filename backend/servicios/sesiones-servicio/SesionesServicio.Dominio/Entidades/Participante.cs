@@ -10,6 +10,7 @@ public sealed class Participante
     public Guid ParticipanteIdentidadId { get; private set; }
     public Guid? EquipoId { get; private set; }
     public PuntajeSesion Puntaje { get; private set; } = null!;
+    public DateTime? SnapshotRankingUtc { get; private set; }
     public DateTime FechaUnionSesion { get; private set; }
     public DateTime? FechaUnionEquipo { get; private set; }
 
@@ -26,6 +27,7 @@ public sealed class Participante
             ParticipanteIdentidadId = participanteIdentidadId,
             EquipoId = null,
             Puntaje = PuntajeSesion.Cero(),
+            SnapshotRankingUtc = null,
             FechaUnionSesion = fechaUnionSesionUtc,
             FechaUnionEquipo = null
         };
@@ -48,6 +50,7 @@ public sealed class Participante
             ParticipanteIdentidadId = participanteIdentidadId,
             EquipoId = equipoId,
             Puntaje = PuntajeSesion.Cero(),
+            SnapshotRankingUtc = null,
             FechaUnionSesion = fechaUnionSesionUtc,
             FechaUnionEquipo = fechaUnionEquipoUtc
         };
@@ -58,7 +61,8 @@ public sealed class Participante
     public static Participante Rehidratar(
         Guid id, Guid sesionId, Guid participanteIdentidadId,
         Guid? equipoId, int puntaje,
-        DateTime fechaUnionSesion, DateTime? fechaUnionEquipo)
+        DateTime fechaUnionSesion, DateTime? fechaUnionEquipo,
+        DateTime? snapshotRankingUtc = null)
         => new()
         {
             Id = id,
@@ -66,6 +70,7 @@ public sealed class Participante
             ParticipanteIdentidadId = participanteIdentidadId,
             EquipoId = equipoId,
             Puntaje = PuntajeSesion.DesdePersistencia(puntaje),
+            SnapshotRankingUtc = snapshotRankingUtc,
             FechaUnionSesion = fechaUnionSesion,
             FechaUnionEquipo = fechaUnionEquipo
         };
@@ -73,6 +78,19 @@ public sealed class Participante
     public void SumarPuntaje(int puntos) => Puntaje = Puntaje.Sumar(puntos);
 
     public void SumarPuntaje(PuntajeSesion puntos) => Puntaje = Puntaje.Sumar(puntos);
+
+    public void EstablecerPuntajeSnapshot(int puntaje)
+        => Puntaje = PuntajeSesion.DesdePersistencia(puntaje);
+
+    public bool EstablecerPuntajeSnapshot(int puntaje, DateTime calculadoEnUtc)
+    {
+        if (SnapshotRankingUtc.HasValue && calculadoEnUtc <= SnapshotRankingUtc.Value)
+            return false;
+
+        Puntaje = PuntajeSesion.DesdePersistencia(puntaje);
+        SnapshotRankingUtc = calculadoEnUtc;
+        return true;
+    }
 
     private static void ValidarObligatorios(Guid sesionId, Guid participanteIdentidadId)
     {

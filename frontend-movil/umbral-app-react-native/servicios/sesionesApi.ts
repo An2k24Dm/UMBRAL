@@ -57,7 +57,18 @@ function mapearError(
   mensajeBackend: string | undefined,
   cuerpoCrudo: unknown,
 ): ErrorConsultaSesiones {
-  if (typeof __DEV__ !== "undefined" && __DEV__) {
+  const codigoBackend =
+    cuerpoCrudo && typeof cuerpoCrudo === "object" && "codigo" in cuerpoCrudo
+      ? String((cuerpoCrudo as { codigo?: unknown }).codigo ?? "")
+      : "";
+  const esParticipacionInvalidaEsperada =
+    estadoHttp === 409 && codigoBackend === "PARTICIPACION_INVALIDA";
+
+  if (
+    typeof __DEV__ !== "undefined" &&
+    __DEV__ &&
+    !esParticipacionInvalidaEsperada
+  ) {
     console.warn(
       `[sesionesApi] Respuesta de error ${estadoHttp}:`,
       cuerpoCrudo,

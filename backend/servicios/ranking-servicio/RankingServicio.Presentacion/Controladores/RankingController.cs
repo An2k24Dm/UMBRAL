@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using RankingServicio.Aplicacion.Consultas.ObtenerRankingGlobal;
 using RankingServicio.Aplicacion.Consultas.ObtenerRankingEquiposSesion;
 using RankingServicio.Aplicacion.Consultas.ObtenerRankingParticipantesSesion;
 
@@ -33,6 +34,17 @@ public sealed class RankingController : ControllerBase
     {
         var resultado = await _mediator.Send(
             new ObtenerRankingEquiposSesionConsulta(sesionId), cancelacion);
+        return Ok(resultado);
+    }
+
+    [HttpGet("global")]
+    [Authorize(Policy = "PoliticaParticipante")]
+    public async Task<IActionResult> ObtenerRankingGlobal(
+        [FromQuery] int top,
+        CancellationToken cancelacion)
+    {
+        var resultado = await _mediator.Send(
+            new ObtenerRankingGlobalConsulta(top), cancelacion);
         return Ok(resultado);
     }
 }

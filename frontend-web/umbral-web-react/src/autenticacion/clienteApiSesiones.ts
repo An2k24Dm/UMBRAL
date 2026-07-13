@@ -515,11 +515,8 @@ export interface ProgresoSesionParticipanteDto {
   triviaRespondidas: number
   triviaCorrectas: number
   triviaIncorrectas: number
-  triviaPuntosGanados: number
   tesoroIntentosEnviados: number
   tesoroEtapasCompletadas: number
-  tesoroPuntosGanados: number
-  totalPuntosGanados: number
 }
 
 export async function obtenerProgresoSesion(

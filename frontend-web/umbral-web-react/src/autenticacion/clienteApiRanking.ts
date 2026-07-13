@@ -19,6 +19,7 @@ export interface EntradaRankingParticipanteDto {
 
 // Aporte de un participante al puntaje de su equipo (detalle desplegable).
 export interface AporteParticipanteEquipoDto {
+  posicion: number
   participanteSesionId: string
   participanteIdentidadId: string
   alias: string

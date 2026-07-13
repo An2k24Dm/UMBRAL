@@ -152,7 +152,6 @@ public sealed class NotificadorSesionesTiempoReal : INotificadorSesionesTiempoRe
         Guid participanteIdentidadId,
         Guid? equipoId,
         bool esCorrecta,
-        int puntosGanados,
         CancellationToken cancelacion)
     {
         var dto = new RespuestaRegistradaDto
@@ -163,7 +162,6 @@ public sealed class NotificadorSesionesTiempoReal : INotificadorSesionesTiempoRe
             ParticipanteIdentidadId = participanteIdentidadId,
             EquipoId = equipoId,
             EsCorrecta = esCorrecta,
-            PuntosGanados = puntosGanados,
             FechaEventoUtc = DateTime.UtcNow
         };
 

@@ -10,6 +10,7 @@ public sealed record EvidenciaTesoroRegistro(
     string CodigoEnviado,
     bool EsValida,
     int PuntosGanados,
+    Guid EventoPuntuacionId,
     DateTime FechaEnvioUtc);
 
 public sealed record ProgresoTesoroItem(
@@ -47,4 +48,14 @@ public interface IRepositorioEvidenciasTesoro
 
     Task<IReadOnlyList<ProgresoTesoroItem>> ObtenerProgresoTesoroAsync(
         Guid sesionId, CancellationToken cancelacion);
+
+    // Fija el puntaje real (calculado por ranking) en la evidencia cuyo
+    // EventoPuntuacionId coincide. Idempotente. Devuelve las filas afectadas.
+    Task<int> ActualizarPuntosGanadosPorEventoAsync(
+        Guid eventoPuntuacionId, int puntosGanados, CancellationToken cancelacion);
+
+    // Desglose del puntaje por etapa de un participante (SUM de PuntosGanados
+    // agrupado por misión y etapa).
+    Task<IReadOnlyList<PuntajeEtapaItem>> ObtenerPuntajePorEtapaParticipanteAsync(
+        Guid sesionId, Guid participanteIdentidadId, CancellationToken cancelacion);
 }

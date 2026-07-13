@@ -55,6 +55,7 @@ public sealed class EquipoModelo
     public string Nombre { get; set; } = string.Empty;
     public Guid LiderParticipanteId { get; set; }
     public int Puntaje { get; set; }
+    public DateTime? SnapshotRankingUtc { get; set; }
     public TipoEquipo Tipo { get; set; }
     // Hash de la contraseña (solo equipos privados); null en públicos.
     public string? ContrasenaHash { get; set; }
@@ -69,6 +70,7 @@ public sealed class ParticipanteModelo
     public Guid ParticipanteIdentidadId { get; set; }
     public Guid? EquipoId { get; set; }
     public int Puntaje { get; set; }
+    public DateTime? SnapshotRankingUtc { get; set; }
     public DateTime FechaUnionSesion { get; set; }
     public DateTime? FechaUnionEquipo { get; set; }
 }
@@ -93,6 +95,9 @@ public sealed class RespuestaTriviaModelo
     public Guid? EquipoId { get; set; }
     public bool EsCorrecta { get; set; }
     public int PuntosGanados { get; set; }
+    // EventoId publicado a ranking; correlaciona el resultado (PuntajeGanado)
+    // que ranking devuelve para fijar PuntosGanados con el puntaje real.
+    public Guid EventoPuntuacionId { get; set; }
     public int TiempoTardadoMs { get; set; }
     public DateTime FechaRespuestaUtc { get; set; }
 }

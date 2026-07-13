@@ -34,6 +34,7 @@ public static class RegistroInfraestructura
         servicios.AddScoped<IUnidadTrabajoRanking, UnidadTrabajoRanking>();
 
         servicios.AddSingleton<INotificadorRankingTiempoReal, NotificadorRankingTiempoReal>();
+        servicios.AddScoped<IPublicadorResultadosPuntaje, PublicadorResultadosPuntajeOutbox>();
         servicios.AddSingleton<IProveedorFechaHora, ProveedorFechaHoraUtc>();
 
         // Clientes HTTP para enriquecer alias y nombres de equipo al consultar.
@@ -47,6 +48,7 @@ public static class RegistroInfraestructura
         servicios.Configure<OpcionesRabbitMq>(
             configuracion.GetSection(OpcionesRabbitMq.Seccion));
         servicios.AddHostedService<ConsumidorEventosRanking>();
+        servicios.AddHostedService<DespachadorOutboxResultadosRabbitMq>();
 
         return servicios;
     }

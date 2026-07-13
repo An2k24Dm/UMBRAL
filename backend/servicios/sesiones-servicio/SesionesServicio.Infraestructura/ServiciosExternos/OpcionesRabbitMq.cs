@@ -9,4 +9,5 @@ public sealed class OpcionesRabbitMq
     public string Usuario { get; set; } = "umbral";
     public string Contrasena { get; set; } = "umbral123";
     public string Exchange { get; set; } = "umbral.eventos";
+    public string ColaResultadosRanking { get; set; } = "sesiones.ranking.resultados";
 }

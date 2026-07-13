@@ -11,7 +11,7 @@ interface OpcionMenu {
   clave: string
   titulo: string
   descripcion: string
-  ruta: '/participante/perfil' | '/participante/sesiones' | '/participante/sesiones/finalizadas'
+  ruta: '/participante/perfil' | '/participante/sesiones' | '/participante/sesiones/finalizadas' | '/participante/ranking'
 }
 
 const OPCIONES: OpcionMenu[] = [
@@ -32,6 +32,12 @@ const OPCIONES: OpcionMenu[] = [
     titulo: 'Sesiones finalizadas',
     descripcion: 'Revisa el historial de tus últimas 20 participaciones.',
     ruta: '/participante/sesiones/finalizadas',
+  },
+  {
+    clave: 'ranking-global',
+    titulo: 'Ranking global',
+    descripcion: 'Consulta la clasificacion global de participantes.',
+    ruta: '/participante/ranking',
   },
 ]
 
@@ -118,3 +124,4 @@ const estilos = StyleSheet.create({
     lineHeight: 20,
   },
 })
+

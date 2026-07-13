@@ -61,6 +61,10 @@ namespace SesionesServicio.Infraestructura.Persistencia.Migraciones
                         .HasColumnType("uuid")
                         .HasColumnName("sesion_id");
 
+                    b.Property<DateTime?>("SnapshotRankingUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("snapshot_ranking_utc");
+
                     b.Property<int>("Tipo")
                         .HasColumnType("integer")
                         .HasColumnName("tipo_equipo");
@@ -123,6 +127,10 @@ namespace SesionesServicio.Infraestructura.Persistencia.Migraciones
                         .HasColumnType("uuid")
                         .HasColumnName("etapa_id");
 
+                    b.Property<Guid>("EventoPuntuacionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("evento_puntuacion_id");
+
                     b.Property<DateTime>("FechaEnvioUtc")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("fecha_envio_utc");
@@ -144,6 +152,8 @@ namespace SesionesServicio.Infraestructura.Persistencia.Migraciones
                         .HasColumnName("sesion_id");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("EventoPuntuacionId");
 
                     b.HasIndex("SesionId", "EtapaId");
 
@@ -188,6 +198,10 @@ namespace SesionesServicio.Infraestructura.Persistencia.Migraciones
                     b.Property<Guid>("SesionId")
                         .HasColumnType("uuid")
                         .HasColumnName("sesion_id");
+
+                    b.Property<DateTime?>("SnapshotRankingUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("snapshot_ranking_utc");
 
                     b.HasKey("Id");
 
@@ -258,6 +272,10 @@ namespace SesionesServicio.Infraestructura.Persistencia.Migraciones
                         .HasColumnType("uuid")
                         .HasColumnName("etapa_id");
 
+                    b.Property<Guid>("EventoPuntuacionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("evento_puntuacion_id");
+
                     b.Property<DateTime>("FechaRespuestaUtc")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("fecha_respuesta_utc");
@@ -295,6 +313,8 @@ namespace SesionesServicio.Infraestructura.Persistencia.Migraciones
                         .HasColumnName("trivia_id");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("EventoPuntuacionId");
 
                     b.HasIndex("SesionId", "EtapaId");
 
@@ -482,6 +502,58 @@ namespace SesionesServicio.Infraestructura.Persistencia.Migraciones
                     b.HasIndex("TipoSesion");
 
                     b.ToTable("Sesion", "sesiones");
+                });
+
+            modelBuilder.Entity("SesionesServicio.Infraestructura.ServiciosExternos.OutboxMensajeRankingModelo", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreadoEnUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("creado_en_utc");
+
+                    b.Property<DateTime?>("EnviadoEnUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("enviado_en_utc");
+
+                    b.Property<string>("Estado")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("estado");
+
+                    b.Property<int>("Intentos")
+                        .HasColumnType("integer")
+                        .HasColumnName("intentos");
+
+                    b.Property<string>("PayloadJson")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("payload_json");
+
+                    b.Property<DateTime?>("ProximoIntentoUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("proximo_intento_utc");
+
+                    b.Property<string>("RoutingKey")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("routing_key");
+
+                    b.Property<string>("UltimoError")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("ultimo_error");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Estado", "ProximoIntentoUtc", "CreadoEnUtc");
+
+                    b.ToTable("OutboxRanking", "sesiones");
                 });
 
             modelBuilder.Entity("SesionesServicio.Infraestructura.Persistencia.EquipoModelo", b =>

@@ -14,6 +14,7 @@ public sealed class Equipo
     public NombreEquipo Nombre { get; private set; } = null!;
     public Guid LiderParticipanteId { get; private set; }
     public PuntajeSesion Puntaje { get; private set; } = null!;
+    public DateTime? SnapshotRankingUtc { get; private set; }
     public TipoEquipo Tipo { get; private set; }
     public ContrasenaEquipoHash? ContrasenaHash { get; private set; }
     public int CapacidadMaxima { get; private set; }
@@ -48,6 +49,7 @@ public sealed class Equipo
             Nombre = nombre,
             LiderParticipanteId = lider.Id,
             Puntaje = PuntajeSesion.Cero(),
+            SnapshotRankingUtc = null,
             Tipo = tipo,
             ContrasenaHash = tipo == TipoEquipo.Privado ? contrasenaHash : null,
             CapacidadMaxima = capacidadMaxima,
@@ -195,6 +197,47 @@ public sealed class Equipo
     public void SumarPuntajeAParticipante(Guid participanteSesionId, int puntos)
         => SumarPuntajeAParticipante(participanteSesionId, PuntajeSesion.Crear(puntos));
 
+    public void EstablecerPuntajeSnapshotParticipante(
+        Guid participanteSesionId,
+        int puntajeParticipante,
+        int? puntajeEquipo)
+    {
+        var participante = _participantes.FirstOrDefault(p => p.Id == participanteSesionId)
+            ?? throw new ParticipanteNoEncontradoExcepcion(
+                "El participante indicado no pertenece a este equipo.");
+
+        participante.EstablecerPuntajeSnapshot(puntajeParticipante);
+        Puntaje = puntajeEquipo.HasValue
+            ? PuntajeSesion.DesdePersistencia(puntajeEquipo.Value)
+            : _participantes.Aggregate(PuntajeSesion.Cero(), (total, p) => total.Sumar(p.Puntaje));
+    }
+
+    public bool EstablecerPuntajeSnapshotParticipante(
+        Guid participanteSesionId,
+        int puntajeParticipante,
+        int? puntajeEquipo,
+        DateTime calculadoEnUtc)
+    {
+        var participante = _participantes.FirstOrDefault(p => p.Id == participanteSesionId)
+            ?? throw new ParticipanteNoEncontradoExcepcion(
+                "El participante indicado no pertenece a este equipo.");
+
+        var participanteActualizado = participante.EstablecerPuntajeSnapshot(
+            puntajeParticipante, calculadoEnUtc);
+        var equipoActualizado = !SnapshotRankingUtc.HasValue
+            || calculadoEnUtc > SnapshotRankingUtc.Value;
+
+        if (equipoActualizado)
+        {
+            Puntaje = puntajeEquipo.HasValue
+                ? PuntajeSesion.DesdePersistencia(puntajeEquipo.Value)
+                : _participantes.Aggregate(PuntajeSesion.Cero(), (total, p) => total.Sumar(p.Puntaje));
+            SnapshotRankingUtc = calculadoEnUtc;
+        }
+
+        return participanteActualizado || equipoActualizado;
+    }
+
     private void RecalcularPuntajeDesdeParticipantes()
     {
         var total = PuntajeSesion.Cero();
@@ -211,7 +254,8 @@ public sealed class Equipo
         Guid liderParticipanteId, int puntaje,
         TipoEquipo tipo, string? contrasenaHash, int capacidadMaxima,
         DateTime fechaCreacion,
-        IEnumerable<Participante>? integrantes = null)
+        IEnumerable<Participante>? integrantes = null,
+        DateTime? snapshotRankingUtc = null)
     {
         var equipo = new Equipo
         {
@@ -220,6 +264,7 @@ public sealed class Equipo
             Nombre = NombreEquipo.Crear(nombre),
             LiderParticipanteId = liderParticipanteId,
             Puntaje = PuntajeSesion.DesdePersistencia(puntaje),
+            SnapshotRankingUtc = snapshotRankingUtc,
             Tipo = tipo,
             ContrasenaHash = tipo == TipoEquipo.Privado && !string.IsNullOrWhiteSpace(contrasenaHash)
                 ? ContrasenaEquipoHash.Crear(contrasenaHash)

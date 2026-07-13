@@ -7,18 +7,29 @@ namespace RankingServicio.Infraestructura.RabbitMq;
 public sealed record EventoRespuestaTriviaRegistrada(
     Guid EventoId,
     Guid SesionId,
+    Guid MisionId,
+    Guid EtapaId,
     Guid ParticipanteSesionId,
     Guid ParticipanteIdentidadId,
     Guid? EquipoId,
-    int Puntaje);
+    Guid TriviaId,
+    Guid PreguntaId,
+    bool EsCorrecta,
+    int PuntajeBase,
+    int TiempoTardadoMs,
+    int TiempoLimiteMs);
 
 public sealed record EventoEvidenciaTesoroRegistrada(
     Guid EventoId,
     Guid SesionId,
+    Guid MisionId,
+    Guid EtapaId,
     Guid ParticipanteSesionId,
     Guid ParticipanteIdentidadId,
     Guid? EquipoId,
-    int Puntaje);
+    Guid BusquedaId,
+    bool EsValida,
+    int PuntajeBase);
 
 public sealed record EventoParticipanteUnidoSesion(
     Guid EventoId,

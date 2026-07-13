@@ -23,9 +23,14 @@ import { useEliminarEquipo } from "../../../hooks/useEliminarEquipo";
 import { useExpulsarParticipanteEquipo } from "../../../hooks/useExpulsarParticipanteEquipo";
 import { useIngresarEquipo } from "../../../hooks/useIngresarEquipo";
 import { useNavegacionSegura } from "../../../hooks/useNavegacionSegura";
+import { useRankingTiempoReal } from "../../../hooks/useRankingTiempoReal";
 import { useRefrescarAlEnfocar } from "../../../hooks/useRefrescarAlEnfocar";
 import { useSesionesTiempoReal } from "../../../hooks/useSesionesTiempoReal";
 import type { IntegranteEquipo } from "../../../tipos/equipos";
+import {
+  obtenerRankingEquiposSesionApi,
+  type RankingEquipoDto,
+} from "../../../servicios/rankingApi";
 import { formatearFechaHora } from "../../../utilidades/formatoFechas";
 
 // HU43/HU47 — Detalle real de un equipo de la sesión, con ingreso al equipo
@@ -40,16 +45,35 @@ export default function PantallaDetalleEquipo() {
 
 function Contenido() {
   const enrutador = useRouter();
-  const { cerrarSesion } = useAutenticacion();
+  const { sesion, cerrarSesion } = useAutenticacion();
+  const token = sesion?.tokenAcceso ?? null;
   const parametros = useLocalSearchParams<{ sesionId?: string; equipoId?: string }>();
   const sesionId = parametros.sesionId ?? "";
   const equipoId = parametros.equipoId ?? "";
 
   const { equipo, cargando, error, sesionExpirada, refrescar } =
     useDetalleEquipoSesion(sesionId, equipoId);
+  const [rankingEquipo, setRankingEquipo] = useState<RankingEquipoDto | null>(null);
 
   const navegarSeguro = useNavegacionSegura();
   useRefrescarAlEnfocar(refrescar);
+
+  const cargarRankingEquipo = useCallback(async () => {
+    if (!token || !sesionId || !equipoId) {
+      setRankingEquipo(null);
+      return;
+    }
+    try {
+      const ranking = await obtenerRankingEquiposSesionApi(token, sesionId);
+      setRankingEquipo(ranking.find((r) => r.equipoId === equipoId) ?? null);
+    } catch {
+      setRankingEquipo(null);
+    }
+  }, [token, sesionId, equipoId]);
+
+  useEffect(() => {
+    void cargarRankingEquipo();
+  }, [cargarRankingEquipo]);
 
   // HU52 — si el operador cancela la sesión mientras el participante está en el
   // equipo, avisamos y volvemos al listado; pausa/reanudación solo refrescan.
@@ -69,6 +93,7 @@ function Contenido() {
         return;
       }
       void refrescar();
+      void cargarRankingEquipo();
     },
     [refrescar, enrutador],
   );
@@ -80,8 +105,18 @@ function Contenido() {
     sesionId,
     equipoId,
     onEquiposSesionActualizados: refrescar,
-    onEquipoActualizado: refrescar,
+    onEquipoActualizado: () => {
+      void refrescar();
+      void cargarRankingEquipo();
+    },
     onSesionActualizada: manejarCambioEstado,
+  });
+
+  useRankingTiempoReal({
+    sesionId,
+    onPuntajeCalculado: cargarRankingEquipo,
+    onRankingEquiposActualizado: cargarRankingEquipo,
+    onReconectado: cargarRankingEquipo,
   });
 
   const [refrescando, setRefrescando] = useState(false);
@@ -89,10 +124,11 @@ function Contenido() {
     setRefrescando(true);
     try {
       await refrescar();
+      await cargarRankingEquipo();
     } finally {
       setRefrescando(false);
     }
-  }, [refrescar]);
+  }, [refrescar, cargarRankingEquipo]);
 
   const [mostrarConfirmacion, setMostrarConfirmacion] = useState(false);
   const {
@@ -269,6 +305,9 @@ function Contenido() {
       ),
     );
   };
+  const puntajesPorParticipante = new Map(
+    (rankingEquipo?.participantes ?? []).map((p) => [p.participanteSesionId, p.puntaje]),
+  );
 
   return (
     <PantallaBase
@@ -320,7 +359,7 @@ function Contenido() {
             <Text style={estilos.metaLinea}>
               {equipo.tipo === "Privado" ? "Privado" : "Público"}
             </Text>
-            <Text style={estilos.metaLinea}>Puntaje: {equipo.puntaje}</Text>
+            <Text style={estilos.metaLinea}>Puntaje: {rankingEquipo?.puntaje ?? 0} pts</Text>
             <Text style={estilos.metaLinea}>
               Integrantes: {equipo.cantidadParticipantes} / {equipo.capacidadMaxima}
             </Text>
@@ -343,6 +382,7 @@ function Contenido() {
               <FilaParticipante
                 key={p.participanteSesionId}
                 participante={p}
+                puntajeRanking={puntajesPorParticipante.get(p.participanteSesionId) ?? 0}
                 // HU45 — Solo el líder desliza, nunca sobre el líder (él mismo).
                 expulsable={equipo.soyLider && !p.esLider && !expulsandoParticipante}
                 onExpulsar={() => solicitarExpulsion(p)}
@@ -508,10 +548,12 @@ const DESPLAZAMIENTO_MAXIMO = -120;
 
 function FilaParticipante({
   participante,
+  puntajeRanking,
   expulsable,
   onExpulsar,
 }: {
   participante: IntegranteEquipo;
+  puntajeRanking: number;
   expulsable: boolean;
   onExpulsar: () => void;
 }) {
@@ -566,7 +608,7 @@ function FilaParticipante({
             )}
           </View>
           <Text style={estilos.metaLinea}>@{participante.alias}</Text>
-          <Text style={estilos.metaLinea}>Puntaje: {participante.puntaje}</Text>
+          <Text style={estilos.metaLinea}>Puntaje: {puntajeRanking} pts</Text>
           <Text style={estilos.metaLinea}>
             Fecha de unión: {formatearFechaHora(participante.fechaUnion)}
           </Text>

@@ -31,6 +31,8 @@ import {
 import { obtenerDetalleSesionDisponibleApi } from "../../../servicios/sesionesApi";
 import { obtenerProgresoSecuencialSesionApi } from "../../../servicios/sesionesApi";
 import { CronometroActivo } from "../../../servicios/cronometroActivo";
+import { useRankingTiempoReal } from "../../../hooks/useRankingTiempoReal";
+import { useCorrelacionPuntaje } from "../../../hooks/useCorrelacionPuntaje";
 import {
   mapearEstadoSesionJuego,
   type EstadoSesionJuego,
@@ -39,6 +41,11 @@ import {
 // Feedback final visible (ms) antes de volver al detalle al completar la etapa.
 // Coincide con la ventana de feedback autoritativa del backend (CierrePendiente).
 const MS_FEEDBACK_FINAL = 5000;
+
+// Tiempo que el overlay de resultado (correcta/incorrecta + puntaje) permanece
+// visible tras responder, incluida la última pregunta, antes de pasar a la
+// pantalla de etapa completada. No bloquea la ejecución real del backend.
+const MS_FEEDBACK_RESPUESTA = 5000;
 
 export default function PantallaJugar() {
   return (
@@ -93,8 +100,8 @@ function ContenidoJuego() {
   const [todosCompletaron, setTodosCompletaron] = useState(false);
   const [esGrupal, setEsGrupal] = useState(false);
   const [enviando, setEnviando] = useState(false);
-  const [puntosGanadosUltima, setPuntosGanadosUltima] = useState<number | null>(null);
-  const [puntosAcumulados, setPuntosAcumulados] = useState(0);
+  const { feedbackPuntaje, esperarPuntaje, alRecibirPuntajeCalculado } =
+    useCorrelacionPuntaje({ esperaMaximaMs: 6000 });
   const [conflictoTipo, setConflictoTipo] = useState<"equipo" | "individual" | null>(null);
   // Countdown autoritativo de la ventana de feedback entre preguntas (segundos).
   // null = no estamos en transición. El valor viene del backend, por lo que
@@ -108,8 +115,16 @@ function ContenidoJuego() {
   const cronometroRef = useRef(new CronometroActivo());
   // Índice mostrado (en ref, para leerlo sin cierres obsoletos en la resync).
   const indicePreguntaRef = useRef(0);
-  // Previene que SignalR corte la ventana de 1500ms donde se muestra el puntaje de la última respuesta.
+  // Previene que SignalR corte la ventana donde se muestra el puntaje de la respuesta.
   const mostrandoResultadoRef = useRef(false);
+  // Si EtapaCompletada llega por SignalR mientras se muestra el feedback, se
+  // difiere para aplicarlo cuando termine el feedback de 5 s (no cortarlo).
+  const etapaCompletadaPendienteRef = useRef(false);
+
+  useRankingTiempoReal({
+    sesionId,
+    onPuntajeCalculado: alRecibirPuntajeCalculado,
+  });
 
   const preguntaActual: PreguntaTrivia | undefined = trivia?.preguntas[indicePregunta];
   const tiempoLimite = preguntaActual?.tiempoEstimado ?? trivia?.tiempoLimitePorPregunta ?? 10;
@@ -340,7 +355,6 @@ function ContenidoJuego() {
     setIndicePregunta(idxActual);
     setSegundosRestantesPreguntaServidor(restanteSeg);
     setOpcionSeleccionada(null);
-    setPuntosGanadosUltima(null);
     setConflictoTipo(null);
     setEstadoPregunta("esperando");
   }, [token, sesionId, trivia]);
@@ -394,7 +408,6 @@ function ContenidoJuego() {
     // No disparar el timeout si la sesión no está Activa (p. ej. pausada).
     if (estadoSesion !== "Activa") return;
     setEstadoPregunta("tiempo_agotado");
-    setPuntosGanadosUltima(0);
     setEnviando(true);
 
     try {
@@ -405,6 +418,7 @@ function ContenidoJuego() {
         tiempoLimite * 1000 + 1,
         token,
       );
+      esperarPuntaje(resultado.eventoId);
 
       if (resultado.conflicto) {
         setConflictoTipo(resultado.conflicto);
@@ -417,15 +431,33 @@ function ContenidoJuego() {
       // autoritativa (feedback de 5 s); el resultado permanece visible durante
       // el countdown que devuelve el backend.
       mostrandoResultadoRef.current = true;
-      setTimeout(() => {
-        mostrandoResultadoRef.current = false;
-        if (resultado.etapaCompletada) {
+      if (resultado.etapaCompletada) {
+        // Última pregunta del jugador: el overlay (correcta/incorrecta + puntaje)
+        // permanece 5 s antes de la pantalla de etapa completada.
+        setTimeout(() => {
+          mostrandoResultadoRef.current = false;
           setTodosCompletaron(true);
           setEtapaTerminada(true);
-          return;
-        }
-        void resincronizarPregunta();
-      }, 1000);
+        }, MS_FEEDBACK_RESPUESTA);
+      } else {
+        // Se muestra el resultado ~1 s y se resincroniza con la transición
+        // autoritativa (que mantiene el overlay con su cuenta regresiva). Si la
+        // etapa se completó globalmente durante el feedback, se completan los 5 s
+        // antes de la pantalla final.
+        setTimeout(() => {
+          if (etapaCompletadaPendienteRef.current) {
+            etapaCompletadaPendienteRef.current = false;
+            setTimeout(() => {
+              mostrandoResultadoRef.current = false;
+              setTodosCompletaron(true);
+              setEtapaTerminada(true);
+            }, MS_FEEDBACK_RESPUESTA - 1000);
+            return;
+          }
+          mostrandoResultadoRef.current = false;
+          void resincronizarPregunta();
+        }, 1000);
+      }
     } catch (e) {
       if (e instanceof ErrorRespuestaTrivia && e.codigo === "OPERACION_SESION_INVALIDA") {
         // La ventana temporal cambió: resincronizar con la pregunta autoritativa.
@@ -472,6 +504,7 @@ function ContenidoJuego() {
         tiempoTardadoMs,
         token,
       );
+      esperarPuntaje(resultado.eventoId);
 
       // La pregunta ya estaba respondida (por el equipo en grupal, o por el
       // propio participante). No se marca como incorrecta ni suma puntos: se
@@ -479,12 +512,9 @@ function ContenidoJuego() {
       if (resultado.conflicto) {
         setConflictoTipo(resultado.conflicto);
         setEstadoPregunta("ya_respondida");
-        setPuntosGanadosUltima(0);
       } else {
         setConflictoTipo(null);
         setEstadoPregunta(resultado.esCorrecta ? "correcta" : "incorrecta");
-        setPuntosGanadosUltima(resultado.puntosGanados);
-        setPuntosAcumulados((prev) => prev + resultado.puntosGanados);
       }
 
       // Tras mostrar el resultado, NO se avanza por índice local: se resincroniza
@@ -494,15 +524,33 @@ function ContenidoJuego() {
       // autoritativa (feedback de 5 s); el resultado permanece visible durante
       // el countdown que devuelve el backend.
       mostrandoResultadoRef.current = true;
-      setTimeout(() => {
-        mostrandoResultadoRef.current = false;
-        if (resultado.etapaCompletada) {
+      if (resultado.etapaCompletada) {
+        // Última pregunta del jugador: el overlay (correcta/incorrecta + puntaje)
+        // permanece 5 s antes de la pantalla de etapa completada.
+        setTimeout(() => {
+          mostrandoResultadoRef.current = false;
           setTodosCompletaron(true);
           setEtapaTerminada(true);
-          return;
-        }
-        void resincronizarPregunta();
-      }, 1000);
+        }, MS_FEEDBACK_RESPUESTA);
+      } else {
+        // Se muestra el resultado ~1 s y se resincroniza con la transición
+        // autoritativa (que mantiene el overlay con su cuenta regresiva). Si la
+        // etapa se completó globalmente durante el feedback, se completan los 5 s
+        // antes de la pantalla final.
+        setTimeout(() => {
+          if (etapaCompletadaPendienteRef.current) {
+            etapaCompletadaPendienteRef.current = false;
+            setTimeout(() => {
+              mostrandoResultadoRef.current = false;
+              setTodosCompletaron(true);
+              setEtapaTerminada(true);
+            }, MS_FEEDBACK_RESPUESTA - 1000);
+            return;
+          }
+          mostrandoResultadoRef.current = false;
+          void resincronizarPregunta();
+        }, 1000);
+      }
     } catch (e) {
       if (e instanceof ErrorRespuestaTrivia && e.codigo === "OPERACION_SESION_INVALIDA") {
         // La pregunta aún no está en su ventana temporal: no es error del jugador
@@ -551,11 +599,11 @@ function ContenidoJuego() {
       const eid = (evento.etapaId ?? evento.EtapaId ?? "").toLowerCase();
       if (sid === sesionId.toLowerCase() && eid === etapaId.toLowerCase()) {
         if (desmontado) return;
-        // EtapaCompletada global: el backend confirma que TODOS terminaron.
+        // EtapaCompletada global: el backend confirma que TODOS terminaron. Si
+        // se está mostrando el feedback de una respuesta, se difiere para no
+        // cortar el overlay de 5 s; el timer del feedback lo aplicará al terminar.
         if (mostrandoResultadoRef.current) {
-          setTimeout(() => {
-            if (!desmontado) { setTodosCompletaron(true); setEtapaTerminada(true); }
-          }, 1600);
+          etapaCompletadaPendienteRef.current = true;
         } else {
           setTodosCompletaron(true);
           setEtapaTerminada(true);
@@ -729,10 +777,6 @@ function ContenidoJuego() {
           <Text style={estilos.textoExito}>
             {esGrupal ? "¡Tu equipo completó esta etapa!" : "¡Has completado esta etapa!"}
           </Text>
-          <View style={estilos.cajaResumen}>
-            <Text style={estilos.resumenEtiqueta}>TUS PUNTOS EN ESTA ETAPA</Text>
-            <Text style={estilos.resumenPuntos}>{puntosAcumulados} pts</Text>
-          </View>
           <Text style={estilos.textoInfo}>
             {todosCompletaron
               ? "Todos los participantes han completado esta etapa."
@@ -788,13 +832,10 @@ function ContenidoJuego() {
           </View>
         )}
 
-        {/* Progreso y puntos acumulados */}
+        {/* Progreso */}
         <View style={estilos.filaProgreso}>
           <Text style={estilos.progreso}>
             Pregunta {indicePregunta + 1} / {trivia.preguntas.length}
-          </Text>
-          <Text style={estilos.puntosTotal}>
-            Total: {puntosAcumulados} pts
           </Text>
         </View>
 
@@ -867,21 +908,21 @@ function ContenidoJuego() {
               <>
                 <Text style={[estilos.feedbackIcono, { color: tema.colores.exito }]}>✓</Text>
                 <Text style={estilos.feedbackCorrecto}>¡Correcto!</Text>
-                <Text style={estilos.feedbackPuntos}>+{puntosGanadosUltima ?? 0} pts</Text>
+                <Text style={estilos.feedbackPuntos}>{feedbackPuntaje}</Text>
               </>
             )}
             {estadoPregunta === "incorrecta" && (
               <>
                 <Text style={[estilos.feedbackIcono, { color: tema.colores.error }]}>✕</Text>
                 <Text style={estilos.feedbackIncorrecto}>Incorrecta</Text>
-                <Text style={estilos.feedbackPuntos}>+0 pts</Text>
+                <Text style={estilos.feedbackPuntos}>{feedbackPuntaje}</Text>
               </>
             )}
             {estadoPregunta === "tiempo_agotado" && (
               <>
                 <Text style={[estilos.feedbackIcono, { color: tema.colores.aviso }]}>⌛</Text>
                 <Text style={estilos.feedbackIncorrecto}>Tiempo agotado</Text>
-                <Text style={estilos.feedbackPuntos}>+0 pts</Text>
+                <Text style={estilos.feedbackPuntos}>{feedbackPuntaje}</Text>
               </>
             )}
             {estadoPregunta === "ya_respondida" && (

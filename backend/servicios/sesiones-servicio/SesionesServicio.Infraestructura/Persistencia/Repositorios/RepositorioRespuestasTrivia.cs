@@ -31,6 +31,7 @@ public sealed class RepositorioRespuestasTrivia : IRepositorioRespuestasTrivia
             EquipoId = registro.EquipoId,
             EsCorrecta = registro.EsCorrecta,
             PuntosGanados = registro.PuntosGanados,
+            EventoPuntuacionId = registro.EventoPuntuacionId,
             TiempoTardadoMs = registro.TiempoTardadoMs,
             FechaRespuestaUtc = registro.FechaRespuestaUtc
         });
@@ -166,6 +167,28 @@ public sealed class RepositorioRespuestasTrivia : IRepositorioRespuestasTrivia
                 PuntosGanados: g.Sum(r => r.PuntosGanados)))
             .ToList()
             .AsReadOnly();
+    }
+
+    public Task<int> ActualizarPuntosGanadosPorEventoAsync(
+        Guid eventoPuntuacionId, int puntosGanados, CancellationToken cancelacion)
+        => _contexto.RespuestasTrivia
+            .Where(r => r.EventoPuntuacionId == eventoPuntuacionId)
+            .ExecuteUpdateAsync(
+                s => s.SetProperty(r => r.PuntosGanados, puntosGanados), cancelacion);
+
+    public async Task<IReadOnlyList<PuntajeEtapaItem>> ObtenerPuntajePorEtapaParticipanteAsync(
+        Guid sesionId, Guid participanteIdentidadId, CancellationToken cancelacion)
+    {
+        var filas = await _contexto.RespuestasTrivia
+            .AsNoTracking()
+            .Where(r => r.SesionId == sesionId &&
+                        r.ParticipanteIdentidadId == participanteIdentidadId)
+            .GroupBy(r => new { r.MisionId, r.EtapaId })
+            .Select(g => new PuntajeEtapaItem(
+                g.Key.MisionId, g.Key.EtapaId, g.Sum(r => r.PuntosGanados)))
+            .ToListAsync(cancelacion);
+
+        return filas.AsReadOnly();
     }
 
     private static bool EsViolacionUnicidad(DbUpdateException ex)

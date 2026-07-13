@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using SesionesServicio.Infraestructura.ServiciosExternos;
 
 namespace SesionesServicio.Infraestructura.Persistencia;
 
@@ -14,6 +15,7 @@ public sealed class ContextoSesiones : DbContext
     public DbSet<EvidenciaTesoroModelo> EvidenciasTesoro => Set<EvidenciaTesoroModelo>();
     public DbSet<PistaLiberadaModelo> PistasLiberadas => Set<PistaLiberadaModelo>();
     public DbSet<EtapaCompletadaModelo> EtapasCompletadas => Set<EtapaCompletadaModelo>();
+    public DbSet<OutboxMensajeRankingModelo> OutboxRanking => Set<OutboxMensajeRankingModelo>();
 
     protected override void OnModelCreating(ModelBuilder constructor)
     {
@@ -98,6 +100,7 @@ public sealed class ContextoSesiones : DbContext
             e.Property(x => x.Nombre).HasColumnName("nombre").HasMaxLength(80).IsRequired();
             e.Property(x => x.LiderParticipanteId).HasColumnName("lider_participante_id").IsRequired();
             e.Property(x => x.Puntaje).HasColumnName("puntaje").IsRequired();
+            e.Property(x => x.SnapshotRankingUtc).HasColumnName("snapshot_ranking_utc");
             e.Property(x => x.Tipo).HasColumnName("tipo_equipo").IsRequired();
             e.Property(x => x.ContrasenaHash).HasColumnName("contrasena_hash").HasMaxLength(256);
             e.Property(x => x.CapacidadMaxima).HasColumnName("capacidad_maxima").IsRequired();
@@ -115,6 +118,7 @@ public sealed class ContextoSesiones : DbContext
             e.Property(x => x.ParticipanteIdentidadId).HasColumnName("participante_identidad_id").IsRequired();
             e.Property(x => x.EquipoId).HasColumnName("equipo_id");
             e.Property(x => x.Puntaje).HasColumnName("puntaje").IsRequired();
+            e.Property(x => x.SnapshotRankingUtc).HasColumnName("snapshot_ranking_utc");
             e.Property(x => x.FechaUnionSesion).HasColumnName("fecha_union_sesion").IsRequired();
             e.Property(x => x.FechaUnionEquipo).HasColumnName("fecha_union_equipo");
 
@@ -137,6 +141,8 @@ public sealed class ContextoSesiones : DbContext
             e.Property(x => x.EquipoId).HasColumnName("equipo_id");
             e.Property(x => x.EsCorrecta).HasColumnName("es_correcta").IsRequired();
             e.Property(x => x.PuntosGanados).HasColumnName("puntos_ganados").IsRequired();
+            e.Property(x => x.EventoPuntuacionId).HasColumnName("evento_puntuacion_id").IsRequired();
+            e.HasIndex(x => x.EventoPuntuacionId);
             e.Property(x => x.TiempoTardadoMs).HasColumnName("tiempo_tardado_ms").IsRequired();
             e.Property(x => x.FechaRespuestaUtc).HasColumnName("fecha_respuesta_utc").IsRequired();
             e.HasIndex(x => new { x.SesionId, x.EtapaId, x.PreguntaId, x.ParticipanteIdentidadId })
@@ -163,6 +169,8 @@ public sealed class ContextoSesiones : DbContext
             e.Property(x => x.CodigoEnviado).HasColumnName("codigo_enviado").HasMaxLength(64).IsRequired();
             e.Property(x => x.EsValida).HasColumnName("es_valida").IsRequired();
             e.Property(x => x.PuntosGanados).HasColumnName("puntos_ganados").IsRequired();
+            e.Property(x => x.EventoPuntuacionId).HasColumnName("evento_puntuacion_id").IsRequired();
+            e.HasIndex(x => x.EventoPuntuacionId);
             e.Property(x => x.FechaEnvioUtc).HasColumnName("fecha_envio_utc").IsRequired();
 
             // Unicidad de la evidencia VÁLIDA por jugador mediante índices únicos
@@ -205,6 +213,22 @@ public sealed class ContextoSesiones : DbContext
             e.Property(x => x.EtapaId).HasColumnName("etapa_id").IsRequired();
             e.Property(x => x.FechaCompletadaUtc).HasColumnName("fecha_completada_utc").IsRequired();
             e.HasIndex(x => x.SesionId);
+        });
+
+        constructor.Entity<OutboxMensajeRankingModelo>(e =>
+        {
+            e.ToTable("OutboxRanking");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.RoutingKey).HasColumnName("routing_key").HasMaxLength(120).IsRequired();
+            e.Property(x => x.PayloadJson).HasColumnName("payload_json").IsRequired();
+            e.Property(x => x.CreadoEnUtc).HasColumnName("creado_en_utc").IsRequired();
+            e.Property(x => x.EnviadoEnUtc).HasColumnName("enviado_en_utc");
+            e.Property(x => x.Intentos).HasColumnName("intentos").IsRequired();
+            e.Property(x => x.ProximoIntentoUtc).HasColumnName("proximo_intento_utc");
+            e.Property(x => x.UltimoError).HasColumnName("ultimo_error").HasMaxLength(1000);
+            e.Property(x => x.Estado).HasColumnName("estado").HasMaxLength(40).IsRequired();
+            e.HasIndex(x => new { x.Estado, x.ProximoIntentoUtc, x.CreadoEnUtc });
         });
     }
 }

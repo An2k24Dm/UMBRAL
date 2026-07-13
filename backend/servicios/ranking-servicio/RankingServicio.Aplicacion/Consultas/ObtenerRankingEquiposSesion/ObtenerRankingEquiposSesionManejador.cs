@@ -46,7 +46,8 @@ public sealed class ObtenerRankingEquiposSesionManejador
             var equipo = equipos[indice];
 
             var aportes = ranking.ParticipantesDeEquipo(equipo.EquipoId)
-                .Select(p => new AporteParticipanteEquipoDto(
+                .Select((p, indiceParticipante) => new AporteParticipanteEquipoDto(
+                    indiceParticipante + 1,
                     p.ParticipanteSesionId,
                     p.ParticipanteIdentidadId,
                     ResolucionAlias.Resolver(p.ParticipanteIdentidadId, datosParticipantes),

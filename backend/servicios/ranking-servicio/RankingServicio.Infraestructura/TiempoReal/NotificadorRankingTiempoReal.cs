@@ -12,6 +12,12 @@ public sealed class NotificadorRankingTiempoReal : INotificadorRankingTiempoReal
         _hub = hub;
     }
 
+    public Task NotificarPuntajeCalculadoAsync(
+        PuntajeCalculadoDto puntaje, CancellationToken cancelacion)
+        => _hub.Clients
+            .Group($"sesion:{puntaje.SesionId}")
+            .SendAsync("PuntajeCalculado", puntaje, cancelacion);
+
     public Task NotificarRankingParticipantesActualizadoAsync(
         Guid sesionId, CancellationToken cancelacion)
         => _hub.Clients
