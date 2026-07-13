@@ -124,16 +124,32 @@ function ContenidoFinalizadas() {
             <TouchableOpacity
               key={p.sesionId}
               style={estilos.tarjeta}
-              onPress={() => enrutador.push(`/participante/historial/${p.sesionId}`)}
+              onPress={() =>
+                enrutador.push({
+                  pathname: "/participante/historial/[id]",
+                  params: {
+                    id: p.sesionId,
+                    nombre: p.nombreSesion,
+                    modo: p.modo,
+                    puntaje: String(p.puntajeObtenido),
+                    fechaFin: p.fechaFinalizacionUtc ?? "",
+                  },
+                })
+              }
               accessibilityRole="button"
             >
               <View style={estilos.tarjetaCabecera}>
-                <Text style={estilos.tarjetaNombre}>{p.nombreSesion}</Text>
+                <Text style={estilos.tarjetaNombre} numberOfLines={2}>{p.nombreSesion}</Text>
                 <View style={estilos.badgeModo}>
                   <Text style={estilos.badgeModoTexto}>{p.modo}</Text>
                 </View>
               </View>
 
+              {p.fechaInicioUtc && (
+                <Text style={estilos.tarjetaFecha}>
+                  Inicio: {formatearFechaHora(p.fechaInicioUtc)}
+                </Text>
+              )}
               {p.fechaFinalizacionUtc && (
                 <Text style={estilos.tarjetaFecha}>
                   Finalizada: {formatearFechaHora(p.fechaFinalizacionUtc)}
@@ -143,6 +159,11 @@ function ContenidoFinalizadas() {
               <View style={estilos.filaPuntaje}>
                 <Text style={estilos.puntajeEtiqueta}>Puntaje obtenido</Text>
                 <Text style={estilos.puntajeValor}>{p.puntajeObtenido} pts</Text>
+              </View>
+
+              <View style={estilos.filaDetalle}>
+                <Text style={estilos.textoDetalle}>Ver detalle y ranking</Text>
+                <Text style={estilos.flecha}>›</Text>
               </View>
             </TouchableOpacity>
           ))}
@@ -291,6 +312,25 @@ const estilos = StyleSheet.create({
     color: tema.colores.textoBlanco,
     fontWeight: tema.tipografia.pesos.bold,
     fontSize: tema.tipografia.tamanos.lg,
+  },
+  filaDetalle: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: tema.espacios.sm,
+    borderTopWidth: 1,
+    borderTopColor: tema.colores.bordeTarjeta,
+    paddingTop: tema.espacios.xs,
+  },
+  textoDetalle: {
+    color: tema.colores.primario,
+    fontSize: tema.tipografia.tamanos.sm,
+    fontWeight: tema.tipografia.pesos.bold,
+  },
+  flecha: {
+    color: tema.colores.primario,
+    fontSize: 20,
+    lineHeight: 22,
   },
   botonSecundario: {
     paddingVertical: tema.espacios.md,
