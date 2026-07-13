@@ -270,13 +270,22 @@ public sealed class NotificadorSesionesTiempoReal : INotificadorSesionesTiempoRe
             FechaEventoUtc = DateTime.UtcNow
         };
 
-        return equipoId.HasValue
+        var tareas = new List<Task>
+        {
+            _hub.Clients
+                .Group(SesionesHub.GrupoSesion(sesionId))
+                .SendAsync("ProgresoSecuencialActualizado", dto, cancelacion)
+        };
+
+        tareas.Add(equipoId.HasValue
             ? _hub.Clients
                 .Group(SesionesHub.GrupoEquipo(equipoId.Value))
                 .SendAsync("ProgresoSecuencialActualizado", dto, cancelacion)
             : _hub.Clients
                 .User(participanteIdentidadId.ToString())
-                .SendAsync("ProgresoSecuencialActualizado", dto, cancelacion);
+                .SendAsync("ProgresoSecuencialActualizado", dto, cancelacion));
+
+        return Task.WhenAll(tareas);
     }
 
     public Task NotificarPistaLiberadaAsync(

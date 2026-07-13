@@ -1,9 +1,5 @@
 namespace RankingServicio.Infraestructura.RabbitMq;
 
-// Contratos de los eventos que ranking-servicio consume desde sesiones-servicio.
-// Solo transportan lo estrictamente necesario para construir el dominio de
-// ranking por identificadores; los nombres/alias se enriquecen al consultar.
-
 public sealed record EventoRespuestaTriviaRegistrada(
     Guid EventoId,
     Guid SesionId,
@@ -29,7 +25,11 @@ public sealed record EventoEvidenciaTesoroRegistrada(
     Guid? EquipoId,
     Guid BusquedaId,
     bool EsValida,
-    int PuntajeBase);
+    int PuntajeBase,
+    int OrdenResolucion,
+    int TotalCompetidores,
+    int TiempoTranscurridoMs,
+    int TiempoLimiteMs);
 
 public sealed record EventoParticipanteUnidoSesion(
     Guid EventoId,

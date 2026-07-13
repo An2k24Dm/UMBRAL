@@ -34,6 +34,15 @@ public interface IRepositorioEvidenciasTesoro
 {
     Task AgregarAsync(EvidenciaTesoroRegistro registro, CancellationToken cancelacion);
 
+    // Serializa la asignación de orden de resolución de una etapa entre
+    // competidores concurrentes (y entre instancias del servicio) tomando un
+    // bloqueo transaccional en PostgreSQL. Debe invocarse dentro de la
+    // transacción, antes de insertar la evidencia válida y contar los completados,
+    // de modo que dos competidores no obtengan el mismo orden. Se libera al
+    // confirmar/revertir la transacción.
+    Task BloquearEtapaParaOrdenAsync(
+        Guid sesionId, Guid etapaId, CancellationToken cancelacion);
+
     Task<bool> ExisteEvidenciaValidaIndividualAsync(
         Guid sesionId, Guid etapaId, Guid participanteIdentidadId, CancellationToken cancelacion);
 

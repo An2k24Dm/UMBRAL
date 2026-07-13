@@ -1,10 +1,5 @@
 namespace SesionesServicio.Aplicacion.Puertos;
 
-// Publica hacia ranking-servicio solo los identificadores estrictamente
-// necesarios para construir su dominio. Ranking no almacena nombres ni alias:
-// los enriquece por id al consultar. ParticipanteSesionId identifica la
-// participación concreta (Participante.Id); ParticipanteIdentidadId identifica
-// al usuario para agrupar en el ranking global.
 public interface IPublicadorEventosRanking
 {
     Task PublicarRespuestaTriviaRegistradaAsync(
@@ -34,6 +29,10 @@ public interface IPublicadorEventosRanking
         Guid busquedaId,
         bool esValida,
         int puntajeBase,
+        int ordenResolucion,
+        int totalCompetidores,
+        int tiempoTranscurridoMs,
+        int tiempoLimiteMs,
         CancellationToken cancelacion);
 
     Task PublicarParticipanteUnidoSesionAsync(

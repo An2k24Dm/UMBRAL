@@ -78,11 +78,11 @@ public sealed class EstrategiasPuntajePruebas
     }
 
     [Fact]
-    public void Tesoro_evidenciaValida_devuelvePuntajeBase()
+    public void Tesoro_evidenciaValida_unicoCompetidor_devuelvePuntajeBase()
     {
         var estrategia = new EstrategiaPuntajeBusquedaTesoro();
 
-        estrategia.Calcular(new(true, 50)).Valor.Should().Be(50);
+        estrategia.Calcular(new(true, 50, 1, 1, 0, 300_000)).Valor.Should().Be(50);
     }
 
     [Fact]
@@ -90,7 +90,7 @@ public sealed class EstrategiasPuntajePruebas
     {
         var estrategia = new EstrategiaPuntajeBusquedaTesoro();
 
-        estrategia.Calcular(new(false, 50)).Valor.Should().Be(0);
+        estrategia.Calcular(new(false, 50, 1, 3, 0, 300_000)).Valor.Should().Be(0);
     }
 
     private static int FormulaAnterior(ContextoCalculoPuntajeTrivia contexto)

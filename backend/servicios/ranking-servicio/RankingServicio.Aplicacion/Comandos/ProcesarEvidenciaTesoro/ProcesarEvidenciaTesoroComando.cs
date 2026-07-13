@@ -12,5 +12,9 @@ public sealed record ProcesarEvidenciaTesoroComando(
     Guid? EquipoId,
     Guid BusquedaId,
     bool EsValida,
-    int PuntajeBase)
+    int PuntajeBase,
+    int OrdenResolucion,
+    int TotalCompetidores,
+    int TiempoTranscurridoMs,
+    int TiempoLimiteMs)
     : IRequest;

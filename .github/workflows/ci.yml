@@ -33,9 +33,10 @@ jobs:
         run: dotnet build UMBRAL.sln --no-restore --configuration Release
 
       # Ejecuta TODAS las suites de prueba backend disponibles (sesiones,
-      # identidad y juegos) con cobertura y logger trx. No usa `set -e`: corre
-      # todas las suites aunque alguna falle (para publicar todos los
-      # resultados) y falla el paso al final si hubo algún error.
+      # identidad, juegos y ranking) con cobertura y logger trx. No usa `set -e`:
+      # corre todas las suites aunque alguna falle (para publicar todos los
+      # resultados) y falla el paso al final si hubo algún error. Este listado
+      # debe mantenerse en paridad con el de verificar-backend.ps1.
       - name: Probar backend (todas las suites con cobertura)
         run: |
           fallo=0
@@ -45,6 +46,7 @@ jobs:
             "identidad-unitarias|backend/pruebas/identidad/IdentidadServicio.PruebasUnitarias/IdentidadServicio.PruebasUnitarias.csproj"
             "identidad-integracion|backend/pruebas/identidad/IdentidadServicio.PruebasIntegracion/IdentidadServicio.PruebasIntegracion.csproj"
             "juegos-unitarias|backend/pruebas/juegos/JuegosServicio.PruebasUnitarias/JuegosServicio.PruebasUnitarias.csproj"
+            "ranking-unitarias|backend/pruebas/ranking/RankingServicio.PruebasUnitarias/RankingServicio.PruebasUnitarias.csproj"
           )
           for entrada in "${suites[@]}"; do
             nombre="${entrada%%|*}"

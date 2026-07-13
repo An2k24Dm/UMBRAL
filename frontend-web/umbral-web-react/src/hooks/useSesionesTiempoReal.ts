@@ -21,8 +21,10 @@ interface OpcionesUseSesionesTiempoReal {
   onEquipoExpulsado?: () => void | Promise<void>
   onRespuestaRegistrada?: () => void | Promise<void>
   onEtapaCompletada?: () => void | Promise<void>
+  onEtapaPorComenzar?: () => void | Promise<void>
   onEtapaIniciada?: () => void | Promise<void>
   onProgresoSecuencialActualizado?: () => void | Promise<void>
+  onReconectado?: () => void | Promise<void>
 }
 
 type CallbacksTiempoReal = Omit<OpcionesUseSesionesTiempoReal, 'token' | 'sesionId' | 'equipoId'>
@@ -45,8 +47,10 @@ export function useSesionesTiempoReal({
   onEquipoExpulsado,
   onRespuestaRegistrada,
   onEtapaCompletada,
+  onEtapaPorComenzar,
   onEtapaIniciada,
-  onProgresoSecuencialActualizado
+  onProgresoSecuencialActualizado,
+  onReconectado
 }: OpcionesUseSesionesTiempoReal) {
   const callbacksRef = useRef<CallbacksTiempoReal>({})
   callbacksRef.current = {
@@ -58,8 +62,10 @@ export function useSesionesTiempoReal({
     onEquipoExpulsado,
     onRespuestaRegistrada,
     onEtapaCompletada,
+    onEtapaPorComenzar,
     onEtapaIniciada,
-    onProgresoSecuencialActualizado
+    onProgresoSecuencialActualizado,
+    onReconectado
   }
 
   const tokenLimpio = token?.trim() ?? ''
@@ -155,6 +161,13 @@ export function useSesionesTiempoReal({
       }
     }
 
+    const manejarEtapaPorComenzar = (evento: EventoSesionTiempoReal) => {
+      logDetalle('evento recibido', 'EtapaPorComenzar', evento)
+      if (coincideSesion(evento)) {
+        refrescar(callbacksRef.current.onEtapaPorComenzar)
+      }
+    }
+
     const manejarProgresoSecuencial = (evento: EventoSesionTiempoReal) => {
       logDetalle('evento recibido', 'ProgresoSecuencialActualizado', evento)
       if (coincideSesion(evento)) {
@@ -181,6 +194,7 @@ export function useSesionesTiempoReal({
     conexion.on('EquipoExpulsadoSesion', manejarEquipoExpulsado)
     conexion.on('RespuestaRegistrada', manejarRespuesta)
     conexion.on('EtapaCompletada', manejarEtapa)
+    conexion.on('EtapaPorComenzar', manejarEtapaPorComenzar)
     conexion.on('EtapaIniciada', manejarEtapaIniciada)
     conexion.on('ProgresoSecuencialActualizado', manejarProgresoSecuencial)
 
@@ -191,7 +205,7 @@ export function useSesionesTiempoReal({
         .then(() => {
           if (!desmontado) {
             logDetalle('refrescando detalle')
-            void callbacksRef.current.onSesionActualizada?.(undefined)
+            void callbacksRef.current.onReconectado?.()
           }
         })
         .catch(manejarErrorConexion)
@@ -224,6 +238,7 @@ export function useSesionesTiempoReal({
       conexion.off('EquipoExpulsadoSesion', manejarEquipoExpulsado)
       conexion.off('RespuestaRegistrada', manejarRespuesta)
       conexion.off('EtapaCompletada', manejarEtapa)
+      conexion.off('EtapaPorComenzar', manejarEtapaPorComenzar)
       conexion.off('EtapaIniciada', manejarEtapaIniciada)
       conexion.off('ProgresoSecuencialActualizado', manejarProgresoSecuencial)
 

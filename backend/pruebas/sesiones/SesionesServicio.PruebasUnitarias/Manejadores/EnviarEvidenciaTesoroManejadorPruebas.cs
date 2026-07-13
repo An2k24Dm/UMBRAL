@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using SesionesServicio.Aplicacion.Cadena.EvidenciasTesoro;
 using SesionesServicio.Aplicacion.Comandos.EnviarEvidenciaTesoro;
 using SesionesServicio.Aplicacion.Excepciones;
 using SesionesServicio.Aplicacion.Puertos;
@@ -33,14 +34,19 @@ public class EnviarEvidenciaTesoroManejadorPruebas
     // Constructores de sesiones
     // ----------------------------------------------------------------------
 
+    // Duración de la etapa de tesoro en las pruebas (ms = 300_000).
+    private const int DuracionEtapaSegundos = 300;
+
     private static SesionIndividual IndividualActiva(Guid? participanteExtra = null)
     {
         var s = SesionIndividual.Crear(
             "Tesoro", "Demo", AhoraUtc.AddHours(1), "TESO01", Operador, AhoraUtc, 5);
+        s.AsignarMisiones(new[] { MisionId });
         s.Preparar();
         s.AgregarParticipante(ParticipanteId, AhoraUtc);
         if (participanteExtra.HasValue) s.AgregarParticipante(participanteExtra.Value, AhoraUtc);
-        s.Iniciar(AhoraUtc);
+        s.IniciarPrimeraEtapa(
+            MisionId, EtapaId, BusquedaId, "BusquedaTesoro", 1, AhoraUtc, DuracionEtapaSegundos);
         return s;
     }
 
@@ -49,12 +55,14 @@ public class EnviarEvidenciaTesoroManejadorPruebas
         var s = SesionGrupal.Crear(
             "Tesoro", "Demo", AhoraUtc.AddHours(1), "TESO01", Operador, AhoraUtc,
             maximoEquipos: 5, maximoParticipantesPorEquipo: 2);
+        s.AsignarMisiones(new[] { MisionId });
         s.Preparar();
         var rojo = s.CrearEquipo("Rojo", Ana, AhoraUtc, AhoraUtc);
         s.AgregarParticipanteAEquipo(rojo.Id, Pedro, AhoraUtc, AhoraUtc);
         var azul = s.CrearEquipo("Azul", Carlos, AhoraUtc, AhoraUtc);
         s.AgregarParticipanteAEquipo(azul.Id, Maria, AhoraUtc, AhoraUtc);
-        s.Iniciar(AhoraUtc);
+        s.IniciarPrimeraEtapa(
+            MisionId, EtapaId, BusquedaId, "BusquedaTesoro", 1, AhoraUtc, DuracionEtapaSegundos);
         return (s, rojo.Id, azul.Id);
     }
 
@@ -72,6 +80,7 @@ public class EnviarEvidenciaTesoroManejadorPruebas
         public Mock<IServicioFinalizacionSesion> Finalizacion { get; } = new();
         public Mock<IServicioProgresoSecuencialSesion> ProgresoSecuencial { get; } = new();
         public Mock<IPublicadorEventosRanking> PublicadorRanking { get; } = new();
+        public Mock<IProveedorFechaHora> Reloj { get; } = new();
         public Mock<IUnidadTrabajoSesiones> UnidadTrabajo { get; } = new();
 
         public Arranque(
@@ -83,6 +92,10 @@ public class EnviarEvidenciaTesoroManejadorPruebas
             int participantesCompletaron = 0,
             int equiposCompletaron = 0)
         {
+            Reloj.Setup(r => r.ObtenerFechaHoraUtc()).Returns(AhoraUtc);
+            RepoEvidencias.Setup(r => r.BloquearEtapaParaOrdenAsync(
+                    It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
             Usuario.Setup(u => u.ObtenerId()).Returns(pid);
             RepoSesiones.Setup(r => r.ObtenerPorIdAsync(sesion.Id, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(sesion);
@@ -103,7 +116,8 @@ public class EnviarEvidenciaTesoroManejadorPruebas
                     It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(),
                     It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(),
                     It.IsAny<Guid?>(), It.IsAny<Guid>(), It.IsAny<bool>(),
-                    It.IsAny<int>(), It.IsAny<CancellationToken>()))
+                    It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>(),
+                    It.IsAny<int>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
                 .Returns(Task.CompletedTask);
 
             ClienteTesoro.Setup(c => c.ValidarCodigoQrAsync(
@@ -139,11 +153,23 @@ public class EnviarEvidenciaTesoroManejadorPruebas
                 .Returns<Func<CancellationToken, Task>, CancellationToken>((op, ct) => op(ct));
         }
 
+        // Construye el manejador con la CADENA REAL de validación (Chain of
+        // Responsibility) armada sobre los mismos dobles, de modo que las pruebas
+        // del manejador siguen verificando el comportamiento de extremo a extremo.
         public EnviarEvidenciaTesoroManejador Construir()
-            => new(
-                Usuario.Object, RepoSesiones.Object, ClienteTesoro.Object,
+        {
+            var fabricaCadena = new FabricaCadenaValidacionEvidenciaTesoro(
+                new EslabonSesionActiva(RepoSesiones.Object),
+                new EslabonParticipanteInscrito(),
+                new EslabonEtapaActual(ProgresoSecuencial.Object),
+                new EslabonEvidenciaNoDuplicada(RepoEvidencias.Object),
+                new EslabonCodigoQr(ClienteTesoro.Object));
+
+            return new(
+                Usuario.Object, fabricaCadena, ClienteTesoro.Object,
                 RepoEvidencias.Object, Notificador.Object, Finalizacion.Object,
-                ProgresoSecuencial.Object, PublicadorRanking.Object, UnidadTrabajo.Object);
+                PublicadorRanking.Object, Reloj.Object, UnidadTrabajo.Object);
+        }
 
         public Task<EvidenciaTesoroRespuestaDto> EjecutarAsync(Guid sesionId)
             => Construir().Handle(
@@ -222,6 +248,28 @@ public class EnviarEvidenciaTesoroManejadorPruebas
             It.IsAny<CancellationToken>()), Times.Never);
     }
 
+    [Fact] // (§13) QR inválido: no toma bloqueo ni ocupa posición (orden 0).
+    public async Task Individual_QrInvalido_NoTomaBloqueoNiOrden()
+    {
+        var sesion = IndividualActiva();
+        var arr = new Arranque(sesion, ParticipanteId, esValida: false, puntajeBase: 40);
+
+        await arr.EjecutarAsync(sesion.Id);
+
+        arr.RepoEvidencias.Verify(r => r.BloquearEtapaParaOrdenAsync(
+            It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+        arr.PublicadorRanking.Verify(p => p.PublicarEvidenciaTesoroRegistradaAsync(
+            It.IsAny<Guid>(), sesion.Id, MisionId, EtapaId,
+            It.IsAny<Guid>(), ParticipanteId, null, BusquedaId,
+            false,      // EsValida
+            40,         // PuntajeBase
+            0,          // OrdenResolucion (no ocupa posición)
+            1,          // TotalCompetidores (1 participante)
+            0,          // TiempoTranscurridoMs
+            300_000,    // TiempoLimiteMs
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
     // ======================================================================
     // SESIÓN GRUPAL
     // ======================================================================
@@ -230,7 +278,8 @@ public class EnviarEvidenciaTesoroManejadorPruebas
     public async Task Grupal_PrimerIntegranteRojo_RegistraConEquipoYAutor()
     {
         var (sesion, rojoId, _) = GrupalActiva();
-        var arr = new Arranque(sesion, Ana);
+        // Tras insertar la evidencia válida, el conteo de equipos = 1 (Rojo primero).
+        var arr = new Arranque(sesion, Ana, equiposCompletaron: 1);
 
         await arr.EjecutarAsync(sesion.Id);
 
@@ -240,6 +289,9 @@ public class EnviarEvidenciaTesoroManejadorPruebas
                 x.EquipoId == rojoId &&               // jugador lógico = equipo
                 x.EsValida),
             It.IsAny<CancellationToken>()), Times.Once);
+        // El orden se asigna bajo bloqueo, antes de publicar.
+        arr.RepoEvidencias.Verify(r => r.BloquearEtapaParaOrdenAsync(
+            sesion.Id, EtapaId, It.IsAny<CancellationToken>()), Times.Once);
         arr.PublicadorRanking.Verify(p => p.PublicarEvidenciaTesoroRegistradaAsync(
             It.IsAny<Guid>(),
             sesion.Id,
@@ -251,6 +303,10 @@ public class EnviarEvidenciaTesoroManejadorPruebas
             BusquedaId,
             true,
             50,
+            1,          // OrdenResolucion (primer equipo válido)
+            2,          // TotalCompetidores (2 equipos)
+            0,          // TiempoTranscurridoMs (inicio == ahora)
+            300_000,    // TiempoLimiteMs (300 s)
             It.IsAny<CancellationToken>()), Times.Once);
     }
 

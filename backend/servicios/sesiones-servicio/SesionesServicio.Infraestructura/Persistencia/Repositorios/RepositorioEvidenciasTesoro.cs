@@ -7,12 +7,21 @@ namespace SesionesServicio.Infraestructura.Persistencia.Repositorios;
 
 public sealed class RepositorioEvidenciasTesoro : IRepositorioEvidenciasTesoro
 {
-    // Código SQLSTATE de PostgreSQL para violación de restricción única.
     private const string CodigoViolacionUnicidad = "23505";
-
     private readonly ContextoSesiones _contexto;
-
     public RepositorioEvidenciasTesoro(ContextoSesiones contexto) => _contexto = contexto;
+
+    public Task BloquearEtapaParaOrdenAsync(
+        Guid sesionId, Guid etapaId, CancellationToken cancelacion)
+    {
+        if (!_contexto.Database.IsNpgsql())
+            return Task.CompletedTask;
+
+        return _contexto.Database.ExecuteSqlRawAsync(
+            "SELECT pg_advisory_xact_lock(hashtextextended({0}, 0))",
+            new object[] { $"{sesionId}:{etapaId}" },
+            cancelacion);
+    }
 
     public async Task AgregarAsync(EvidenciaTesoroRegistro registro, CancellationToken cancelacion)
     {
@@ -37,9 +46,6 @@ public sealed class RepositorioEvidenciasTesoro : IRepositorioEvidenciasTesoro
         }
         catch (DbUpdateException ex) when (EsViolacionUnicidad(ex))
         {
-            // Otro integrante del equipo (o el mismo participante) ganó la carrera:
-            // el índice único filtrado (es_valida = true) rechazó esta inserción.
-            // Se desacopla la entidad fallida y se convierte en conflicto de negocio.
             foreach (var entrada in ex.Entries)
                 entrada.State = EntityState.Detached;
             throw new EvidenciaTesoroDuplicadaExcepcion(esEquipo: registro.EquipoId.HasValue);
