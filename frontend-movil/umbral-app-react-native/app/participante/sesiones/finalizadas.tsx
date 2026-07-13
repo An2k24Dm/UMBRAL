@@ -121,7 +121,12 @@ function ContenidoFinalizadas() {
       {!cargando && !error && participaciones.length > 0 && (
         <View style={estilos.lista}>
           {participaciones.map((p) => (
-            <View key={p.sesionId} style={estilos.tarjeta}>
+            <TouchableOpacity
+              key={p.sesionId}
+              style={estilos.tarjeta}
+              onPress={() => enrutador.push(`/participante/historial/${p.sesionId}`)}
+              accessibilityRole="button"
+            >
               <View style={estilos.tarjetaCabecera}>
                 <Text style={estilos.tarjetaNombre}>{p.nombreSesion}</Text>
                 <View style={estilos.badgeModo}>
@@ -139,17 +144,17 @@ function ContenidoFinalizadas() {
                 <Text style={estilos.puntajeEtiqueta}>Puntaje obtenido</Text>
                 <Text style={estilos.puntajeValor}>{p.puntajeObtenido} pts</Text>
               </View>
-            </View>
+            </TouchableOpacity>
           ))}
         </View>
       )}
 
       <TouchableOpacity
         style={estilos.botonSecundario}
-        onPress={() => enrutador.replace("/participante/sesiones")}
+        onPress={() => enrutador.replace("/participante/menu")}
         accessibilityRole="button"
       >
-        <Text style={estilos.botonSecundarioTexto}>Volver al listado</Text>
+        <Text style={estilos.botonSecundarioTexto}>Volver al menú</Text>
       </TouchableOpacity>
     </PantallaBase>
   );
