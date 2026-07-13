@@ -54,7 +54,8 @@ public sealed class EnviarEvidenciaTesoroManejador
             throw new OperacionSesionInvalidaExcepcion(
                 $"La sesion no esta activa. Estado actual: {sesion.Estado}.");
 
-        var (equipoId, totalJugadoresEsperados) = ObtenerJugador(sesion, participanteId);
+        var (participante, totalJugadoresEsperados) = ObtenerJugador(sesion, participanteId);
+        var equipoId = participante.EquipoId;
 
         await _servicioProgresoSecuencial.ValidarEtapaActualAsync(
             sesion,
@@ -102,14 +103,9 @@ public sealed class EnviarEvidenciaTesoroManejador
         var etapaCompletada = false;
         if (esValida)
         {
-            var nombreParticipante = _usuario.ObtenerNombreUsuario() ?? participanteId.ToString();
-            string? nombreEquipo = null;
-            if (equipoId.HasValue && sesion is SesionGrupal grupalTesoro)
-                nombreEquipo = grupalTesoro.Equipos
-                    .FirstOrDefault(e => e.Id == equipoId.Value)?.Nombre.Valor;
             await _publicadorRanking.PublicarEvidenciaTesoroRegistradaAsync(
-                comando.SesionId, participanteId, nombreParticipante,
-                equipoId, nombreEquipo, puntosGanados, cancelacion);
+                comando.SesionId, participante.Id, participanteId,
+                equipoId, puntosGanados, cancelacion);
 
             await _notificador.NotificarProgresoSecuencialActualizadoAsync(
                 comando.SesionId, participanteId, equipoId, cancelacion);
@@ -138,25 +134,30 @@ public sealed class EnviarEvidenciaTesoroManejador
         };
     }
 
-    private static (Guid? equipoId, int totalJugadores) ObtenerJugador(
+    private static (Participante participante, int totalJugadores) ObtenerJugador(
         Sesion sesion, Guid participanteId)
     {
         if (sesion is SesionIndividual individual)
         {
-            if (!individual.Participantes.Any(p => p.ParticipanteIdentidadId == participanteId))
-                throw new ParticipacionInvalidaExcepcion(
+            var p = individual.Participantes
+                .FirstOrDefault(x => x.ParticipanteIdentidadId == participanteId)
+                ?? throw new ParticipacionInvalidaExcepcion(
                     "El participante no esta inscrito en esta sesion.");
-            return (null, individual.Participantes.Count);
+            return (p, individual.Participantes.Count);
         }
 
         if (sesion is SesionGrupal grupal)
         {
-            var equipo = grupal.Equipos
-                .FirstOrDefault(e => e.Participantes.Any(
-                    p => p.ParticipanteIdentidadId == participanteId))
-                ?? throw new ParticipacionInvalidaExcepcion(
-                    "El participante no esta inscrito en esta sesion.");
-            return (equipo.Id, grupal.Equipos.Count);
+            foreach (var equipo in grupal.Equipos)
+            {
+                var p = equipo.Participantes
+                    .FirstOrDefault(x => x.ParticipanteIdentidadId == participanteId);
+                if (p is not null)
+                    return (p, grupal.Equipos.Count);
+            }
+
+            throw new ParticipacionInvalidaExcepcion(
+                "El participante no esta inscrito en esta sesion.");
         }
 
         throw new SesionInvalidaExcepcion("Tipo de sesion no soportado.");

@@ -16,7 +16,10 @@ public static class RegistroSeguridad
             {
                 parametros.Authority = opciones.Authority;
                 parametros.RequireHttpsMetadata = false;
-                parametros.MetadataAddress = opciones.MetadataAddress;
+                if (!string.IsNullOrWhiteSpace(opciones.MetadataAddress))
+                {
+                    parametros.MetadataAddress = opciones.MetadataAddress;
+                }
                 parametros.TokenValidationParameters = new TokenValidationParameters
                 {
                     ValidateIssuer = true,

@@ -10,7 +10,6 @@ using RabbitMQ.Client.Events;
 using RankingServicio.Aplicacion.Comandos.ProcesarEquipoCreado;
 using RankingServicio.Aplicacion.Comandos.ProcesarParticipanteUnido;
 using RankingServicio.Aplicacion.Comandos.ProcesarPuntaje;
-using RankingServicio.Aplicacion.Comandos.ProcesarSesionFinalizada;
 
 namespace RankingServicio.Infraestructura.RabbitMq;
 
@@ -18,7 +17,6 @@ public sealed class ConsumidorEventosRanking : BackgroundService
 {
     private const string RoutingKeyTrivia = "sesion.respuesta_trivia";
     private const string RoutingKeyTesoro = "sesion.evidencia_tesoro";
-    private const string RoutingKeyFinalizada = "sesion.finalizada";
     private const string RoutingKeyParticipante = "sesion.participante_unido";
     private const string RoutingKeyEquipo = "sesion.equipo_creado";
 
@@ -84,7 +82,7 @@ public sealed class ConsumidorEventosRanking : BackgroundService
 
         foreach (var routingKey in new[]
         {
-            RoutingKeyTrivia, RoutingKeyTesoro, RoutingKeyFinalizada,
+            RoutingKeyTrivia, RoutingKeyTesoro,
             RoutingKeyParticipante, RoutingKeyEquipo
         })
         {
@@ -130,9 +128,8 @@ public sealed class ConsumidorEventosRanking : BackgroundService
                 var ev = JsonSerializer.Deserialize<EventoRespuestaTriviaRegistrada>(cuerpo,
                     OpcionesJson)!;
                 await mediator.Send(new ProcesarPuntajeComando(
-                    ev.EventoId, ev.SesionId, ev.ParticipanteIdentidadId,
-                    ev.NombreParticipante, ev.EquipoId, ev.NombreEquipo,
-                    ev.Puntaje, ev.EsCorrecta, "Trivia"));
+                    ev.EventoId, ev.SesionId, ev.ParticipanteSesionId,
+                    ev.ParticipanteIdentidadId, ev.EquipoId, ev.Puntaje, "Trivia"));
                 break;
             }
             case RoutingKeyTesoro:
@@ -140,17 +137,8 @@ public sealed class ConsumidorEventosRanking : BackgroundService
                 var ev = JsonSerializer.Deserialize<EventoEvidenciaTesoroRegistrada>(cuerpo,
                     OpcionesJson)!;
                 await mediator.Send(new ProcesarPuntajeComando(
-                    ev.EventoId, ev.SesionId, ev.ParticipanteIdentidadId,
-                    ev.NombreParticipante, ev.EquipoId, ev.NombreEquipo,
-                    ev.Puntaje, true, "Tesoro"));
-                break;
-            }
-            case RoutingKeyFinalizada:
-            {
-                var ev = JsonSerializer.Deserialize<EventoSesionFinalizada>(cuerpo,
-                    OpcionesJson)!;
-                await mediator.Send(new ProcesarSesionFinalizadaComando(
-                    ev.EventoId, ev.SesionId, ev.EsGrupal));
+                    ev.EventoId, ev.SesionId, ev.ParticipanteSesionId,
+                    ev.ParticipanteIdentidadId, ev.EquipoId, ev.Puntaje, "Tesoro"));
                 break;
             }
             case RoutingKeyParticipante:
@@ -158,7 +146,8 @@ public sealed class ConsumidorEventosRanking : BackgroundService
                 var ev = JsonSerializer.Deserialize<EventoParticipanteUnidoSesion>(cuerpo,
                     OpcionesJson)!;
                 await mediator.Send(new ProcesarParticipanteUnidoComando(
-                    ev.EventoId, ev.SesionId, ev.ParticipanteIdentidadId, ev.NombreParticipante));
+                    ev.EventoId, ev.SesionId, ev.ParticipanteSesionId,
+                    ev.ParticipanteIdentidadId, ev.EquipoId));
                 break;
             }
             case RoutingKeyEquipo:
@@ -166,7 +155,7 @@ public sealed class ConsumidorEventosRanking : BackgroundService
                 var ev = JsonSerializer.Deserialize<EventoEquipoCreadoSesion>(cuerpo,
                     OpcionesJson)!;
                 await mediator.Send(new ProcesarEquipoCreadoComando(
-                    ev.EventoId, ev.SesionId, ev.EquipoId, ev.NombreEquipo));
+                    ev.EventoId, ev.SesionId, ev.EquipoId));
                 break;
             }
             default:

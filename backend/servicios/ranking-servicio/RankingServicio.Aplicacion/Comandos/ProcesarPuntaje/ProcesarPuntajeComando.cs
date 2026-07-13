@@ -5,11 +5,9 @@ namespace RankingServicio.Aplicacion.Comandos.ProcesarPuntaje;
 public sealed record ProcesarPuntajeComando(
     Guid EventoId,
     Guid SesionId,
+    Guid ParticipanteSesionId,
     Guid ParticipanteIdentidadId,
-    string NombreParticipante,
     Guid? EquipoId,
-    string? NombreEquipo,
     int Puntaje,
-    bool EsCorrecta,
     string TipoJuego)
     : IRequest;

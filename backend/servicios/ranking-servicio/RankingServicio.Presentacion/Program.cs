@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using RankingServicio.Aplicacion.Dependencias;
+using RankingServicio.Aplicacion.Puertos;
 using RankingServicio.Infraestructura.Dependencias;
 using RankingServicio.Infraestructura.Persistencia;
 using RankingServicio.Infraestructura.TiempoReal;
@@ -36,6 +37,11 @@ constructor.Services.AddSignalR(opciones =>
     opciones.KeepAliveInterval = TimeSpan.FromSeconds(15);
     opciones.ClientTimeoutInterval = TimeSpan.FromSeconds(60);
 });
+
+// Necesario para que los clientes HTTP de enriquecimiento reenvíen el token
+// Bearer del usuario actual hacia identidad/sesiones.
+constructor.Services.AddHttpContextAccessor();
+constructor.Services.AddScoped<IPropagadorTokenActual, PropagadorTokenActualHttp>();
 
 constructor.Services.AgregarAplicacion();
 constructor.Services.AgregarInfraestructura(constructor.Configuration);

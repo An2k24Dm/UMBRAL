@@ -11,7 +11,6 @@ public sealed class PublicadorEventosRankingRabbitMq : IPublicadorEventosRanking
 {
     private const string RoutingKeyTrivia = "sesion.respuesta_trivia";
     private const string RoutingKeyTesoro = "sesion.evidencia_tesoro";
-    private const string RoutingKeyFinalizada = "sesion.finalizada";
     private const string RoutingKeyParticipante = "sesion.participante_unido";
     private const string RoutingKeyEquipo = "sesion.equipo_creado";
 
@@ -30,65 +29,50 @@ public sealed class PublicadorEventosRankingRabbitMq : IPublicadorEventosRanking
     }
 
     public Task PublicarRespuestaTriviaRegistradaAsync(
-        Guid sesionId, Guid participanteIdentidadId, string nombreParticipante,
-        Guid? equipoId, string? nombreEquipo, int puntaje, bool esCorrecta,
-        CancellationToken cancelacion)
+        Guid sesionId, Guid participanteSesionId, Guid participanteIdentidadId,
+        Guid? equipoId, int puntaje, CancellationToken cancelacion)
         => PublicarAsync(RoutingKeyTrivia, new
         {
             EventoId = Guid.NewGuid(),
             SesionId = sesionId,
+            ParticipanteSesionId = participanteSesionId,
             ParticipanteIdentidadId = participanteIdentidadId,
-            NombreParticipante = nombreParticipante,
             EquipoId = equipoId,
-            NombreEquipo = nombreEquipo,
-            Puntaje = puntaje,
-            EsCorrecta = esCorrecta
+            Puntaje = puntaje
         });
 
     public Task PublicarEvidenciaTesoroRegistradaAsync(
-        Guid sesionId, Guid participanteIdentidadId, string nombreParticipante,
-        Guid? equipoId, string? nombreEquipo, int puntaje,
-        CancellationToken cancelacion)
+        Guid sesionId, Guid participanteSesionId, Guid participanteIdentidadId,
+        Guid? equipoId, int puntaje, CancellationToken cancelacion)
         => PublicarAsync(RoutingKeyTesoro, new
         {
             EventoId = Guid.NewGuid(),
             SesionId = sesionId,
+            ParticipanteSesionId = participanteSesionId,
             ParticipanteIdentidadId = participanteIdentidadId,
-            NombreParticipante = nombreParticipante,
             EquipoId = equipoId,
-            NombreEquipo = nombreEquipo,
             Puntaje = puntaje
         });
 
-    public Task PublicarSesionFinalizadaAsync(
-        Guid sesionId, bool esGrupal, CancellationToken cancelacion)
-        => PublicarAsync(RoutingKeyFinalizada, new
-        {
-            EventoId = Guid.NewGuid(),
-            SesionId = sesionId,
-            EsGrupal = esGrupal
-        });
-
     public Task PublicarParticipanteUnidoSesionAsync(
-        Guid sesionId, Guid participanteIdentidadId, string nombreParticipante,
-        CancellationToken cancelacion)
+        Guid sesionId, Guid participanteSesionId, Guid participanteIdentidadId,
+        Guid? equipoId, CancellationToken cancelacion)
         => PublicarAsync(RoutingKeyParticipante, new
         {
             EventoId = Guid.NewGuid(),
             SesionId = sesionId,
+            ParticipanteSesionId = participanteSesionId,
             ParticipanteIdentidadId = participanteIdentidadId,
-            NombreParticipante = nombreParticipante
+            EquipoId = equipoId
         });
 
     public Task PublicarEquipoCreadoSesionAsync(
-        Guid sesionId, Guid equipoId, string nombreEquipo,
-        CancellationToken cancelacion)
+        Guid sesionId, Guid equipoId, CancellationToken cancelacion)
         => PublicarAsync(RoutingKeyEquipo, new
         {
             EventoId = Guid.NewGuid(),
             SesionId = sesionId,
-            EquipoId = equipoId,
-            NombreEquipo = nombreEquipo
+            EquipoId = equipoId
         });
 
     private Task PublicarAsync(string routingKey, object payload)

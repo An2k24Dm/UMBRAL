@@ -120,7 +120,7 @@ public sealed class CrearEquipoManejador
             });
 
         await _publicadorRanking.PublicarEquipoCreadoSesionAsync(
-            sesionGrupal.Id, equipo.Id, equipo.Nombre.Valor, cancelacion);
+            sesionGrupal.Id, equipo.Id, cancelacion);
 
         return new CrearEquipoRespuestaDto
         {

@@ -9,13 +9,13 @@ public sealed class ProcesarParticipanteUnidoManejador
 {
     private const string TipoEvento = "ParticipanteUnidoSesion";
 
-    private readonly IRepositorioRankingParticipante _repo;
+    private readonly IRepositorioRanking _repo;
     private readonly IRepositorioEventosProcesados _repoEventos;
     private readonly IUnidadTrabajoRanking _unidadTrabajo;
     private readonly IProveedorFechaHora _reloj;
 
     public ProcesarParticipanteUnidoManejador(
-        IRepositorioRankingParticipante repo,
+        IRepositorioRanking repo,
         IRepositorioEventosProcesados repoEventos,
         IUnidadTrabajoRanking unidadTrabajo,
         IProveedorFechaHora reloj)
@@ -36,17 +36,19 @@ public sealed class ProcesarParticipanteUnidoManejador
 
         await _unidadTrabajo.EjecutarEnTransaccionAsync(async ct =>
         {
-            var existente = await _repo.ObtenerPorSesionYParticipanteAsync(
-                comando.SesionId, comando.ParticipanteIdentidadId, ct);
-
-            if (existente is null)
+            var ranking = await _repo.ObtenerPorSesionAsync(comando.SesionId, ct);
+            if (ranking is null)
             {
-                var entrada = EntradaRankingParticipante.Crear(
-                    comando.SesionId, comando.ParticipanteIdentidadId,
-                    comando.NombreParticipante, ahora);
-                await _repo.AgregarAsync(entrada, ct);
+                ranking = Ranking.Crear(comando.SesionId);
+                await _repo.AgregarAsync(ranking, ct);
             }
 
+            ranking.RegistrarParticipante(
+                comando.ParticipanteSesionId,
+                comando.ParticipanteIdentidadId,
+                comando.EquipoId);
+
+            await _repo.ActualizarAsync(ranking, ct);
             await _repoEventos.RegistrarAsync(comando.EventoId, TipoEvento, ahora, ct);
         }, cancelacion);
     }

@@ -24,7 +24,6 @@ function obtenerEnlaces(rol: Rol): EnlaceNavegacion[] {
       { destino: '/administrador/busquedas', etiqueta: 'Búsquedas del tesoro' },
       { destino: '/administrador/misiones', etiqueta: 'Misiones' },
       { destino: '/administrador/sesiones', etiqueta: 'Sesiones' },
-      { destino: '/administrador/ranking', etiqueta: 'Ranking global' },
       { destino: '/administrador/perfil', etiqueta: 'Mi perfil' }
     ]
   }
@@ -35,7 +34,6 @@ function obtenerEnlaces(rol: Rol): EnlaceNavegacion[] {
     return [
       { destino: '/operador', etiqueta: 'Dashboard' },
       { destino: '/operador/sesiones', etiqueta: 'Sesiones' },
-      { destino: '/operador/ranking', etiqueta: 'Ranking global' },
       { destino: '/operador/usuarios/participantes', etiqueta: 'Participantes' },
       { destino: '/operador/perfil', etiqueta: 'Mi perfil' }
     ]

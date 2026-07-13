@@ -23,7 +23,26 @@ namespace RankingServicio.Infraestructura.Persistencia.Migraciones
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("RankingServicio.Infraestructura.Persistencia.Modelos.EntradaRankingEquipoModelo", b =>
+            modelBuilder.Entity("RankingServicio.Dominio.Entidades.Ranking", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("SesionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("sesion_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SesionId")
+                        .IsUnique();
+
+                    b.ToTable("rankings", "ranking");
+                });
+
+            modelBuilder.Entity("RankingServicio.Dominio.Entidades.RankingEquipo", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -34,95 +53,55 @@ namespace RankingServicio.Infraestructura.Persistencia.Migraciones
                         .HasColumnType("uuid")
                         .HasColumnName("equipo_id");
 
-                    b.Property<int>("EtapasCompletadas")
-                        .HasColumnType("integer")
-                        .HasColumnName("etapas_completadas");
+                    b.Property<long>("Puntaje")
+                        .HasColumnType("bigint")
+                        .HasColumnName("puntaje");
 
-                    b.Property<string>("NombreEquipo")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("nombre_equipo");
-
-                    b.Property<int>("Posicion")
-                        .HasColumnType("integer")
-                        .HasColumnName("posicion");
-
-                    b.Property<int>("PuntajeTotal")
-                        .HasColumnType("integer")
-                        .HasColumnName("puntaje_total");
-
-                    b.Property<Guid>("SesionId")
+                    b.Property<Guid>("RankingId")
                         .HasColumnType("uuid")
-                        .HasColumnName("sesion_id");
-
-                    b.Property<DateTime>("UltimaActualizacionUtc")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("ultima_actualizacion_utc");
+                        .HasColumnName("ranking_id");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("SesionId", "EquipoId")
+                    b.HasIndex("RankingId", "EquipoId")
                         .IsUnique();
 
-                    b.HasIndex("SesionId", "Posicion");
-
-                    b.ToTable("entradas_ranking_equipo", "ranking");
+                    b.ToTable("ranking_equipos", "ranking");
                 });
 
-            modelBuilder.Entity("RankingServicio.Infraestructura.Persistencia.Modelos.EntradaRankingParticipanteModelo", b =>
+            modelBuilder.Entity("RankingServicio.Dominio.Entidades.RankingParticipante", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
-                    b.Property<int>("EtapasCompletadas")
-                        .HasColumnType("integer")
-                        .HasColumnName("etapas_completadas");
-
-                    b.Property<string>("NombreParticipante")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("nombre_participante");
+                    b.Property<Guid?>("EquipoId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("equipo_id");
 
                     b.Property<Guid>("ParticipanteIdentidadId")
                         .HasColumnType("uuid")
                         .HasColumnName("participante_identidad_id");
 
-                    b.Property<int>("Posicion")
-                        .HasColumnType("integer")
-                        .HasColumnName("posicion");
-
-                    b.Property<int>("PuntajeTotal")
-                        .HasColumnType("integer")
-                        .HasColumnName("puntaje_total");
-
-                    b.Property<int>("RespuestasCorrectas")
-                        .HasColumnType("integer")
-                        .HasColumnName("respuestas_correctas");
-
-                    b.Property<int>("RespuestasTotales")
-                        .HasColumnType("integer")
-                        .HasColumnName("respuestas_totales");
-
-                    b.Property<Guid>("SesionId")
+                    b.Property<Guid>("ParticipanteSesionId")
                         .HasColumnType("uuid")
-                        .HasColumnName("sesion_id");
+                        .HasColumnName("participante_sesion_id");
 
-                    b.Property<DateTime>("UltimaActualizacionUtc")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("ultima_actualizacion_utc");
+                    b.Property<long>("Puntaje")
+                        .HasColumnType("bigint")
+                        .HasColumnName("puntaje");
+
+                    b.Property<Guid>("RankingId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("ranking_id");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("SesionId", "ParticipanteIdentidadId")
+                    b.HasIndex("RankingId", "ParticipanteSesionId")
                         .IsUnique();
 
-                    b.HasIndex("SesionId", "Posicion");
-
-                    b.ToTable("entradas_ranking_participante", "ranking");
+                    b.ToTable("ranking_participantes", "ranking");
                 });
 
             modelBuilder.Entity("RankingServicio.Infraestructura.Persistencia.Modelos.EventoProcesadoModelo", b =>
@@ -145,47 +124,29 @@ namespace RankingServicio.Infraestructura.Persistencia.Migraciones
                     b.ToTable("eventos_procesados", "ranking");
                 });
 
-            modelBuilder.Entity("RankingServicio.Infraestructura.Persistencia.Modelos.RankingGlobalParticipanteModelo", b =>
+            modelBuilder.Entity("RankingServicio.Dominio.Entidades.RankingEquipo", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
+                    b.HasOne("RankingServicio.Dominio.Entidades.Ranking", null)
+                        .WithMany("Equipos")
+                        .HasForeignKey("RankingId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
 
-                    b.Property<int>("EtapasCompletadasTotal")
-                        .HasColumnType("integer")
-                        .HasColumnName("etapas_completadas_total");
+            modelBuilder.Entity("RankingServicio.Dominio.Entidades.RankingParticipante", b =>
+                {
+                    b.HasOne("RankingServicio.Dominio.Entidades.Ranking", null)
+                        .WithMany("Participantes")
+                        .HasForeignKey("RankingId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
 
-                    b.Property<string>("NombreParticipante")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("nombre_participante");
+            modelBuilder.Entity("RankingServicio.Dominio.Entidades.Ranking", b =>
+                {
+                    b.Navigation("Equipos");
 
-                    b.Property<Guid>("ParticipanteIdentidadId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("participante_identidad_id");
-
-                    b.Property<long>("PuntajeAcumulado")
-                        .HasColumnType("bigint")
-                        .HasColumnName("puntaje_acumulado");
-
-                    b.Property<int>("SesionesJugadas")
-                        .HasColumnType("integer")
-                        .HasColumnName("sesiones_jugadas");
-
-                    b.Property<DateTime>("UltimaActualizacionUtc")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("ultima_actualizacion_utc");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ParticipanteIdentidadId")
-                        .IsUnique();
-
-                    b.HasIndex("PuntajeAcumulado");
-
-                    b.ToTable("ranking_global_participante", "ranking");
+                    b.Navigation("Participantes");
                 });
 #pragma warning restore 612, 618
         }

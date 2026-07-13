@@ -8,13 +8,13 @@ public sealed class ProcesarEquipoCreadoManejador : IRequestHandler<ProcesarEqui
 {
     private const string TipoEvento = "EquipoCreadoSesion";
 
-    private readonly IRepositorioRankingEquipo _repo;
+    private readonly IRepositorioRanking _repo;
     private readonly IRepositorioEventosProcesados _repoEventos;
     private readonly IUnidadTrabajoRanking _unidadTrabajo;
     private readonly IProveedorFechaHora _reloj;
 
     public ProcesarEquipoCreadoManejador(
-        IRepositorioRankingEquipo repo,
+        IRepositorioRanking repo,
         IRepositorioEventosProcesados repoEventos,
         IUnidadTrabajoRanking unidadTrabajo,
         IProveedorFechaHora reloj)
@@ -35,16 +35,16 @@ public sealed class ProcesarEquipoCreadoManejador : IRequestHandler<ProcesarEqui
 
         await _unidadTrabajo.EjecutarEnTransaccionAsync(async ct =>
         {
-            var existente = await _repo.ObtenerPorSesionYEquipoAsync(
-                comando.SesionId, comando.EquipoId, ct);
-
-            if (existente is null)
+            var ranking = await _repo.ObtenerPorSesionAsync(comando.SesionId, ct);
+            if (ranking is null)
             {
-                var entrada = EntradaRankingEquipo.Crear(
-                    comando.SesionId, comando.EquipoId, comando.NombreEquipo, ahora);
-                await _repo.AgregarAsync(entrada, ct);
+                ranking = Ranking.Crear(comando.SesionId);
+                await _repo.AgregarAsync(ranking, ct);
             }
 
+            ranking.RegistrarEquipo(comando.EquipoId);
+
+            await _repo.ActualizarAsync(ranking, ct);
             await _repoEventos.RegistrarAsync(comando.EventoId, TipoEvento, ahora, ct);
         }, cancelacion);
     }

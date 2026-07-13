@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { Fragment, useCallback, useEffect, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { LayoutPanel } from '../componentes/LayoutPanel'
 import { Alerta } from '../componentes/Alerta'
@@ -179,6 +179,16 @@ export function PaginaDetalleSesion() {
   const [cargandoRanking, setCargandoRanking] = useState(false)
   const [errorRanking, setErrorRanking] = useState<string | null>(null)
   const [versionRanking, setVersionRanking] = useState(0)
+  const [equiposExpandidos, setEquiposExpandidos] = useState<Set<string>>(new Set())
+
+  const alternarEquipoExpandido = (equipoId: string) => {
+    setEquiposExpandidos(previo => {
+      const siguiente = new Set(previo)
+      if (siguiente.has(equipoId)) siguiente.delete(equipoId)
+      else siguiente.add(equipoId)
+      return siguiente
+    })
+  }
 
   // HU52 — Operación del ciclo de vida. accionOperacion no nula ⇒ modal abierto.
   const [accionOperacion, setAccionOperacion] = useState<AccionOperacionSesion | null>(null)
@@ -925,25 +935,49 @@ export function PaginaDetalleSesion() {
                       <th>#</th>
                       <th>Equipo</th>
                       <th>Puntaje</th>
-                      <th>Etapas completadas</th>
+                      <th aria-label="Detalle" />
                     </tr>
                   </thead>
                   <tbody>
                     {rankingEquipos
                       .slice()
                       .sort((a, b) => a.posicion - b.posicion)
-                      .map(e => (
-                        <tr key={e.equipoId}>
-                          <td>
-                            <strong style={{ fontSize: '1.1rem' }}>
-                              {e.posicion === 1 ? '🥇' : e.posicion === 2 ? '🥈' : e.posicion === 3 ? '🥉' : `#${e.posicion}`}
-                            </strong>
-                          </td>
-                          <td><strong>{e.nombreEquipo}</strong></td>
-                          <td><strong style={{ color: 'var(--color-primario, #6366f1)' }}>{e.puntajeTotal} pts</strong></td>
-                          <td>{e.etapasCompletadas}</td>
-                        </tr>
-                      ))}
+                      .map(e => {
+                        const expandido = equiposExpandidos.has(e.equipoId)
+                        return (
+                          <Fragment key={e.equipoId}>
+                            <tr>
+                              <td>
+                                <strong style={{ fontSize: '1.1rem' }}>
+                                  {e.posicion === 1 ? '🥇' : e.posicion === 2 ? '🥈' : e.posicion === 3 ? '🥉' : `#${e.posicion}`}
+                                </strong>
+                              </td>
+                              <td><strong>{e.nombreEquipo}</strong></td>
+                              <td><strong style={{ color: 'var(--color-primario, #6366f1)' }}>{e.puntaje} pts</strong></td>
+                              <td>
+                                {e.participantes.length > 0 && (
+                                  <Boton
+                                    variante="secundario"
+                                    onClick={() => alternarEquipoExpandido(e.equipoId)}
+                                  >
+                                    {expandido ? '▲ Ocultar detalle' : '▼ Ver detalle'}
+                                  </Boton>
+                                )}
+                              </td>
+                            </tr>
+                            {expandido && e.participantes.map(p => (
+                              <tr key={`${e.equipoId}-${p.participanteSesionId}`}>
+                                <td />
+                                <td style={{ paddingLeft: 'var(--espacio-4)', opacity: 0.85 }}>
+                                  {p.alias}
+                                </td>
+                                <td>{p.puntaje} pts</td>
+                                <td />
+                              </tr>
+                            ))}
+                          </Fragment>
+                        )
+                      })}
                   </tbody>
                 </table>
               </div>
@@ -964,8 +998,6 @@ export function PaginaDetalleSesion() {
                       <th>#</th>
                       <th>Participante</th>
                       <th>Puntaje</th>
-                      <th title="Respuestas correctas / totales">Resp. correctas</th>
-                      <th>Etapas comp.</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -973,21 +1005,14 @@ export function PaginaDetalleSesion() {
                       .slice()
                       .sort((a, b) => a.posicion - b.posicion)
                       .map(p => (
-                        <tr key={p.participanteIdentidadId}>
+                        <tr key={p.participanteSesionId}>
                           <td>
                             <strong style={{ fontSize: '1.1rem' }}>
                               {p.posicion === 1 ? '🥇' : p.posicion === 2 ? '🥈' : p.posicion === 3 ? '🥉' : `#${p.posicion}`}
                             </strong>
                           </td>
-                          <td>{p.nombreParticipante}</td>
-                          <td><strong style={{ color: 'var(--color-primario, #6366f1)' }}>{p.puntajeTotal} pts</strong></td>
-                          <td>
-                            <span style={{ color: 'var(--color-exito, #22c55e)', fontWeight: 600 }}>
-                              {p.respuestasCorrectas}
-                            </span>
-                            {' / '}{p.respuestasTotales}
-                          </td>
-                          <td>{p.etapasCompletadas}</td>
+                          <td>{p.alias}</td>
+                          <td><strong style={{ color: 'var(--color-primario, #6366f1)' }}>{p.puntaje} pts</strong></td>
                         </tr>
                       ))}
                   </tbody>

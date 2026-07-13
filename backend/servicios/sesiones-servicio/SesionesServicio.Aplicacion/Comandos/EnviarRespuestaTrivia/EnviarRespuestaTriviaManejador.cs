@@ -167,16 +167,9 @@ public sealed class EnviarRespuestaTriviaManejador
                 puntosGanados,
                 cancelacion);
 
-            var nombreParticipante = _usuario.ObtenerNombreUsuario() ?? participanteIdentidadId.ToString();
-            string? nombreEquipo = null;
-            if (equipoId.HasValue && sesion is SesionGrupal grupalTrivia)
-            {
-                nombreEquipo = grupalTrivia.Equipos
-                    .FirstOrDefault(e => e.Id == equipoId.Value)?.Nombre.Valor;
-            }
             await _publicadorRanking.PublicarRespuestaTriviaRegistradaAsync(
-                comando.SesionId, participanteIdentidadId, nombreParticipante,
-                equipoId, nombreEquipo, puntosGanados, esCorrecta, cancelacion);
+                comando.SesionId, participante.Id, participanteIdentidadId,
+                equipoId, puntosGanados, cancelacion);
         }
 
         var totalPreguntas = trivia.Preguntas.Count;

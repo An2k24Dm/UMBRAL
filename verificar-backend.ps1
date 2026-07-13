@@ -36,6 +36,10 @@ $suites = @(
     @{
         Nombre = 'juegos-unitarias'
         Proyecto = 'backend\pruebas\juegos\JuegosServicio.PruebasUnitarias\JuegosServicio.PruebasUnitarias.csproj'
+    },
+    @{
+        Nombre = 'ranking-unitarias'
+        Proyecto = 'backend\pruebas\ranking\RankingServicio.PruebasUnitarias\RankingServicio.PruebasUnitarias.csproj'
     }
 )
 
