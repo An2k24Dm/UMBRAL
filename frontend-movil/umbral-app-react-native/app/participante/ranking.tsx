@@ -8,29 +8,37 @@ import {
   View,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { useAutenticacion } from "../../../autenticacion/ContextoAutenticacion";
-import RutaProtegidaMovil from "../../../autenticacion/RutaProtegidaMovil";
-import { PantallaBase } from "../../../componentes/PantallaBase";
-import { tema } from "../../../estilos/tema";
-import { useRefrescarAlEnfocar } from "../../../hooks/useRefrescarAlEnfocar";
-import { obtenerMisParticipacionesApi } from "../../../servicios/sesionesApi";
-import type { MiParticipacionDto } from "../../../tipos/sesiones";
-import { formatearFechaHora } from "../../../utilidades/formatoFechas";
+import { useAutenticacion } from "../../autenticacion/ContextoAutenticacion";
+import RutaProtegidaMovil from "../../autenticacion/RutaProtegidaMovil";
+import { PantallaBase } from "../../componentes/PantallaBase";
+import { tema } from "../../estilos/tema";
+import { useRefrescarAlEnfocar } from "../../hooks/useRefrescarAlEnfocar";
+import {
+  obtenerRankingGlobalApi,
+  type EntradaRankingGlobalDto,
+} from "../../servicios/rankingApi";
 
-export default function PantallaSesionesFinalizadas() {
+export default function PantallaRankingGlobal() {
   return (
     <RutaProtegidaMovil>
-      <ContenidoFinalizadas />
+      <ContenidoRanking />
     </RutaProtegidaMovil>
   );
 }
 
-function ContenidoFinalizadas() {
+function medalla(idx: number): string {
+  if (idx === 0) return "🥇";
+  if (idx === 1) return "🥈";
+  if (idx === 2) return "🥉";
+  return `#${idx + 1}`;
+}
+
+function ContenidoRanking() {
   const enrutador = useRouter();
   const { sesion: sesionAuth, cerrarSesion } = useAutenticacion();
   const token = sesionAuth?.tokenAcceso ?? null;
 
-  const [participaciones, setParticipaciones] = useState<MiParticipacionDto[]>([]);
+  const [entradas, setEntradas] = useState<EntradaRankingGlobalDto[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sesionExpirada, setSesionExpirada] = useState(false);
@@ -40,14 +48,21 @@ function ContenidoFinalizadas() {
     setCargando(true);
     setError(null);
     try {
-      const datos = await obtenerMisParticipacionesApi(token);
-      setParticipaciones(datos);
+      const datos = await obtenerRankingGlobalApi(token, 50);
+      setEntradas(datos);
     } catch (e: unknown) {
-      if (e && typeof e === "object" && "estadoHttp" in e && (e as { estadoHttp: number }).estadoHttp === 401) {
+      if (
+        e &&
+        typeof e === "object" &&
+        "estadoHttp" in e &&
+        (e as { estadoHttp: number }).estadoHttp === 401
+      ) {
         setSesionExpirada(true);
         return;
       }
-      setError(e instanceof Error ? e.message : "No se pudieron cargar tus sesiones.");
+      setError(
+        e instanceof Error ? e.message : "No se pudo cargar el ranking global.",
+      );
     } finally {
       setCargando(false);
     }
@@ -88,13 +103,13 @@ function ContenidoFinalizadas() {
     >
       <View style={estilos.encabezado}>
         <Text style={estilos.titulo}>UMBRAL</Text>
-        <Text style={estilos.subtitulo}>Mis sesiones finalizadas</Text>
+        <Text style={estilos.subtitulo}>Ranking global</Text>
       </View>
 
       {cargando && (
         <View style={estilos.contenedorEstado}>
           <ActivityIndicator color={tema.colores.primario} size="large" />
-          <Text style={estilos.textoEstado}>Cargando historial…</Text>
+          <Text style={estilos.textoEstado}>Cargando ranking…</Text>
         </View>
       )}
 
@@ -109,63 +124,41 @@ function ContenidoFinalizadas() {
         </View>
       )}
 
-      {!cargando && !error && participaciones.length === 0 && (
+      {!cargando && !error && entradas.length === 0 && (
         <View style={estilos.cuadroVacio}>
-          <Text style={estilos.cuadroVacioTitulo}>Sin historial</Text>
+          <Text style={estilos.cuadroVacioTitulo}>Sin datos</Text>
           <Text style={estilos.cuadroVacioTexto}>
-            Aún no participaste en ninguna sesión finalizada.
+            Aún no hay puntajes en el ranking global. Los puntajes se acumulan
+            cuando finalizan las sesiones.
           </Text>
         </View>
       )}
 
-      {!cargando && !error && participaciones.length > 0 && (
+      {!cargando && !error && entradas.length > 0 && (
         <View style={estilos.lista}>
-          {participaciones.map((p) => (
-            <TouchableOpacity
-              key={p.sesionId}
-              style={estilos.tarjeta}
-              onPress={() =>
-                enrutador.push({
-                  pathname: "/participante/historial/[id]",
-                  params: {
-                    id: p.sesionId,
-                    nombre: p.nombreSesion,
-                    modo: p.modo,
-                    puntaje: String(p.puntajeObtenido),
-                    fechaFin: p.fechaFinalizacionUtc ?? "",
-                  },
-                })
-              }
-              accessibilityRole="button"
+          {entradas.map((e, idx) => (
+            <View
+              key={e.participanteIdentidadId}
+              style={[estilos.fila, idx === 0 && estilos.filaOro]}
             >
-              <View style={estilos.tarjetaCabecera}>
-                <Text style={estilos.tarjetaNombre} numberOfLines={2}>{p.nombreSesion}</Text>
-                <View style={estilos.badgeModo}>
-                  <Text style={estilos.badgeModoTexto}>{p.modo}</Text>
-                </View>
-              </View>
-
-              {p.fechaInicioUtc && (
-                <Text style={estilos.tarjetaFecha}>
-                  Inicio: {formatearFechaHora(p.fechaInicioUtc)}
+              <View style={estilos.filaPuesto}>
+                <Text
+                  style={[estilos.puesto, idx < 3 && estilos.puestoDestacado]}
+                >
+                  {medalla(idx)}
                 </Text>
-              )}
-              {p.fechaFinalizacionUtc && (
-                <Text style={estilos.tarjetaFecha}>
-                  Finalizada: {formatearFechaHora(p.fechaFinalizacionUtc)}
-                </Text>
-              )}
-
-              <View style={estilos.filaPuntaje}>
-                <Text style={estilos.puntajeEtiqueta}>Puntaje obtenido</Text>
-                <Text style={estilos.puntajeValor}>{p.puntajeObtenido} pts</Text>
               </View>
-
               <View style={estilos.filaDetalle}>
-                <Text style={estilos.textoDetalle}>Ver detalle y ranking</Text>
-                <Text style={estilos.flecha}>›</Text>
+                <Text style={estilos.nombre}>{e.nombreParticipante}</Text>
+                <Text style={estilos.desglose}>
+                  {e.sesionesJugadas} sesión{e.sesionesJugadas !== 1 ? "es" : ""} · {e.etapasCompletadasTotal} etapas
+                </Text>
               </View>
-            </TouchableOpacity>
+              <View style={estilos.filaPuntaje}>
+                <Text style={estilos.puntaje}>{e.puntajeAcumulado}</Text>
+                <Text style={estilos.puntajeEtiqueta}>pts</Text>
+              </View>
+            </View>
           ))}
         </View>
       )}
@@ -200,7 +193,6 @@ const estilos = StyleSheet.create({
     letterSpacing: tema.tipografia.espaciadoLetra.sm,
     textTransform: "uppercase",
   },
-  lista: { marginTop: tema.espacios.sm, gap: tema.espacios.sm },
   contenedorEstado: {
     alignItems: "center",
     justifyContent: "center",
@@ -245,61 +237,57 @@ const estilos = StyleSheet.create({
     textAlign: "center",
     lineHeight: 20,
   },
-  tarjeta: {
+  lista: { marginTop: tema.espacios.sm, gap: tema.espacios.xs },
+  fila: {
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: tema.colores.fondoTarjeta,
-    borderRadius: tema.radios.tarjeta,
+    borderRadius: tema.radios.entrada,
     borderWidth: 1,
     borderColor: tema.colores.bordeTarjeta,
-    padding: tema.espacios.md,
+    padding: tema.espacios.sm,
+    gap: tema.espacios.sm,
   },
-  tarjetaCabecera: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: tema.espacios.xs,
+  filaOro: {
+    borderColor: "#f59e0b",
+    backgroundColor: "#fffbeb",
   },
-  tarjetaNombre: {
-    color: tema.colores.texto,
-    fontSize: tema.tipografia.tamanos.md,
-    fontWeight: tema.tipografia.pesos.bold,
-    flex: 1,
-    marginRight: tema.espacios.sm,
+  filaPuesto: {
+    width: 40,
+    alignItems: "center",
   },
-  badgeModo: {
-    backgroundColor: "#ede9fe",
-    borderRadius: 6,
-    paddingHorizontal: tema.espacios.sm,
-    paddingVertical: 2,
-  },
-  badgeModoTexto: {
-    color: tema.colores.primario,
-    fontSize: tema.tipografia.tamanos.xs,
-    fontWeight: tema.tipografia.pesos.bold,
-  },
-  tarjetaFecha: {
+  puesto: {
     color: tema.colores.textoTenue,
-    fontSize: tema.tipografia.tamanos.sm,
-    marginBottom: tema.espacios.sm,
+    fontWeight: tema.tipografia.pesos.bold,
+    fontSize: tema.tipografia.tamanos.md,
+  },
+  puestoDestacado: {
+    fontSize: tema.tipografia.tamanos.lg,
+  },
+  filaDetalle: {
+    flex: 1,
+  },
+  nombre: {
+    color: tema.colores.texto,
+    fontWeight: tema.tipografia.pesos.bold,
+    fontSize: tema.tipografia.tamanos.md,
+  },
+  desglose: {
+    color: tema.colores.textoTenue,
+    fontSize: tema.tipografia.tamanos.xs,
+    marginTop: 2,
   },
   filaPuntaje: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    borderTopWidth: 1,
-    borderTopColor: tema.colores.bordeTarjeta,
-    paddingTop: tema.espacios.sm,
-    marginTop: tema.espacios.xs,
+    alignItems: "flex-end",
+  },
+  puntaje: {
+    color: tema.colores.primario,
+    fontWeight: tema.tipografia.pesos.extrabold,
+    fontSize: tema.tipografia.tamanos.lg,
   },
   puntajeEtiqueta: {
     color: tema.colores.textoTenue,
-    fontSize: tema.tipografia.tamanos.sm,
-    textTransform: "uppercase",
-    letterSpacing: tema.tipografia.espaciadoLetra.sm,
-  },
-  puntajeValor: {
-    color: tema.colores.exito,
-    fontSize: tema.tipografia.tamanos.lg,
-    fontWeight: tema.tipografia.pesos.extrabold,
+    fontSize: tema.tipografia.tamanos.xs,
   },
   botonPrimario: {
     backgroundColor: tema.colores.primario,
@@ -312,25 +300,6 @@ const estilos = StyleSheet.create({
     color: tema.colores.textoBlanco,
     fontWeight: tema.tipografia.pesos.bold,
     fontSize: tema.tipografia.tamanos.lg,
-  },
-  filaDetalle: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: tema.espacios.sm,
-    borderTopWidth: 1,
-    borderTopColor: tema.colores.bordeTarjeta,
-    paddingTop: tema.espacios.xs,
-  },
-  textoDetalle: {
-    color: tema.colores.primario,
-    fontSize: tema.tipografia.tamanos.sm,
-    fontWeight: tema.tipografia.pesos.bold,
-  },
-  flecha: {
-    color: tema.colores.primario,
-    fontSize: 20,
-    lineHeight: 22,
   },
   botonSecundario: {
     paddingVertical: tema.espacios.md,

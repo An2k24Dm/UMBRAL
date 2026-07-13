@@ -318,7 +318,12 @@ public sealed class RepositorioSesiones : IRepositorioSesiones, IConsultasSesion
                 s.TipoSesion,
                 s.FechaInicioUtc,
                 s.FechaFinalizacionUtc,
-                p.Puntaje))
+                (_contexto.RespuestasTrivia
+                    .Where(r => r.SesionId == s.Id && r.ParticipanteIdentidadId == participanteIdentidadId)
+                    .Sum(r => (int?)r.PuntosGanados) ?? 0) +
+                (_contexto.EvidenciasTesoro
+                    .Where(e => e.SesionId == s.Id && e.ParticipanteIdentidadId == participanteIdentidadId && e.EsValida)
+                    .Sum(e => (int?)e.PuntosGanados) ?? 0)))
             .Take(limite)
             .ToListAsync(cancelacion);
     }
