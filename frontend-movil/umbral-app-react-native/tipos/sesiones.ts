@@ -105,6 +105,7 @@ export interface EjecucionActualSesionDto {
 export interface ProgresoSesionParticipanteDto {
   participanteIdentidadId: string;
   equipoId?: string | null;
+  triviaEtapasCompletadas: number;
   triviaRespondidas: number;
   triviaCorrectas: number;
   triviaIncorrectas: number;

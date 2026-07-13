@@ -26,7 +26,6 @@ namespace RankingServicio.Infraestructura.Persistencia.Migraciones
             modelBuilder.Entity("RankingServicio.Dominio.Entidades.Ranking", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
@@ -45,7 +44,6 @@ namespace RankingServicio.Infraestructura.Persistencia.Migraciones
             modelBuilder.Entity("RankingServicio.Dominio.Entidades.RankingEquipo", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
@@ -72,7 +70,6 @@ namespace RankingServicio.Infraestructura.Persistencia.Migraciones
             modelBuilder.Entity("RankingServicio.Dominio.Entidades.RankingParticipante", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
@@ -127,7 +124,6 @@ namespace RankingServicio.Infraestructura.Persistencia.Migraciones
             modelBuilder.Entity("RankingServicio.Infraestructura.RabbitMq.OutboxMensajeRankingModelo", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 

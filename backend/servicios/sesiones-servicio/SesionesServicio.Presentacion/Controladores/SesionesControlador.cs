@@ -222,7 +222,7 @@ public sealed class SesionesControlador : ControllerBase
     // Progreso completo (trivia + búsqueda del tesoro) por participante.
     [HttpGet("{sesionId:guid}/progreso")]
     [Authorize(Policy = "PoliticaAdministradorUOperador")]
-    [ProducesResponseType(typeof(List<ProgresoSesionParticipanteDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProgresoSesionDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> ObtenerProgresoSesion(

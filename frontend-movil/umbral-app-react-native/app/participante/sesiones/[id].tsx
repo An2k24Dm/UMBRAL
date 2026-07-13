@@ -792,7 +792,7 @@ function PanelRankingSesion({
               <View key={p.participanteSesionId} style={estilos.filaRankingDetalle}>
                 <Text style={estilos.rankingPosicion}>#{p.posicion}</Text>
                 <Text style={estilos.rankingNombre}>{p.alias}</Text>
-                <Text style={estilos.rankingPuntaje}>{p.puntaje} pts</Text>
+                <Text style={estilos.rankingPuntajeDetalle}>{p.puntaje} pts</Text>
               </View>
             ))}
           </View>
@@ -989,7 +989,7 @@ const estilos = StyleSheet.create({
   filaRankingDetalle: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f8fafc",
+    backgroundColor: tema.colores.entradaFondo,
     borderRadius: tema.radios.entrada,
     borderWidth: 1,
     borderColor: tema.colores.bordeTarjeta,
@@ -1010,6 +1010,10 @@ const estilos = StyleSheet.create({
   },
   rankingPuntaje: {
     color: tema.colores.primario,
+    fontWeight: tema.tipografia.pesos.extrabold,
+  },
+  rankingPuntajeDetalle: {
+    color: tema.colores.enlace,
     fontWeight: tema.tipografia.pesos.extrabold,
   },
   bannerCuentaRegresiva: {

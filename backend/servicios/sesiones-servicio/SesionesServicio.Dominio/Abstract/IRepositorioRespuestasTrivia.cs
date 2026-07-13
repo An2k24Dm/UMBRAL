@@ -26,6 +26,9 @@ public interface IRepositorioRespuestasTrivia
     Task<IReadOnlyList<ProgresoTriviaItem>> ObtenerProgresoTriviaAsync(
         Guid sesionId, CancellationToken cancelacion);
 
+    Task<IReadOnlyList<ProgresoTriviaEtapaItem>> ObtenerProgresoTriviaPorEtapaAsync(
+        Guid sesionId, CancellationToken cancelacion);
+
     // Fija el puntaje real (calculado por ranking) en la respuesta cuyo
     // EventoPuntuacionId coincide. Idempotente: repetir con el mismo valor no
     // altera el resultado. Devuelve las filas afectadas.
@@ -59,6 +62,12 @@ public sealed record ProgresoTriviaItem(
     {
     }
 }
+
+public sealed record ProgresoTriviaEtapaItem(
+    Guid ParticipanteIdentidadId,
+    Guid? EquipoId,
+    Guid EtapaId,
+    int PreguntasRespondidas);
 
 public sealed record RespuestaTriviaRegistro(
     Guid SesionId,

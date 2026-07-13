@@ -184,6 +184,9 @@ public sealed class ConsumidorEventosRanking : BackgroundService
             {
                 var ev = JsonSerializer.Deserialize<EventoRespuestaTriviaRegistrada>(cuerpo,
                     OpcionesJson)!;
+                RegistrarEventoRecibido(
+                    routingKey, ev.EventoId, ev.SesionId,
+                    ev.ParticipanteSesionId, ev.ParticipanteIdentidadId, ev.EquipoId);
                 await mediator.Send(new ProcesarRespuestaTriviaComando(
                     ev.EventoId, ev.SesionId, ev.MisionId, ev.EtapaId,
                     ev.ParticipanteSesionId, ev.ParticipanteIdentidadId, ev.EquipoId,
@@ -195,6 +198,9 @@ public sealed class ConsumidorEventosRanking : BackgroundService
             {
                 var ev = JsonSerializer.Deserialize<EventoEvidenciaTesoroRegistrada>(cuerpo,
                     OpcionesJson)!;
+                RegistrarEventoRecibido(
+                    routingKey, ev.EventoId, ev.SesionId,
+                    ev.ParticipanteSesionId, ev.ParticipanteIdentidadId, ev.EquipoId);
                 await mediator.Send(new ProcesarEvidenciaTesoroComando(
                     ev.EventoId, ev.SesionId, ev.MisionId, ev.EtapaId,
                     ev.ParticipanteSesionId, ev.ParticipanteIdentidadId, ev.EquipoId,
@@ -205,6 +211,9 @@ public sealed class ConsumidorEventosRanking : BackgroundService
             {
                 var ev = JsonSerializer.Deserialize<EventoParticipanteUnidoSesion>(cuerpo,
                     OpcionesJson)!;
+                RegistrarEventoRecibido(
+                    routingKey, ev.EventoId, ev.SesionId,
+                    ev.ParticipanteSesionId, ev.ParticipanteIdentidadId, ev.EquipoId);
                 await mediator.Send(new ProcesarParticipanteUnidoComando(
                     ev.EventoId, ev.SesionId, ev.ParticipanteSesionId,
                     ev.ParticipanteIdentidadId, ev.EquipoId));
@@ -214,6 +223,12 @@ public sealed class ConsumidorEventosRanking : BackgroundService
             {
                 var ev = JsonSerializer.Deserialize<EventoEquipoCreadoSesion>(cuerpo,
                     OpcionesJson)!;
+                _log.LogInformation(
+                    "Evento recibido en Ranking. RoutingKey={RoutingKey} EventoId={EventoId} SesionId={SesionId} EquipoId={EquipoId}",
+                    routingKey,
+                    ev.EventoId,
+                    ev.SesionId,
+                    ev.EquipoId);
                 await mediator.Send(new ProcesarEquipoCreadoComando(
                     ev.EventoId, ev.SesionId, ev.EquipoId));
                 break;
@@ -223,6 +238,22 @@ public sealed class ConsumidorEventosRanking : BackgroundService
                 break;
         }
     }
+
+    private void RegistrarEventoRecibido(
+        string routingKey,
+        Guid eventoId,
+        Guid sesionId,
+        Guid participanteSesionId,
+        Guid participanteIdentidadId,
+        Guid? equipoId)
+        => _log.LogInformation(
+            "Evento recibido en Ranking. RoutingKey={RoutingKey} EventoId={EventoId} SesionId={SesionId} ParticipanteSesionId={ParticipanteSesionId} ParticipanteIdentidadId={ParticipanteIdentidadId} EquipoId={EquipoId}",
+            routingKey,
+            eventoId,
+            sesionId,
+            participanteSesionId,
+            participanteIdentidadId,
+            equipoId);
 
     private void LimpiarConexion()
     {

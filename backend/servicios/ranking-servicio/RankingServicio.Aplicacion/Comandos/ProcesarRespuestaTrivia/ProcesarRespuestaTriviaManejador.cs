@@ -56,12 +56,15 @@ public sealed class ProcesarRespuestaTriviaManejador
         var resultado = await RegistrarPuntajeAsync(comando, puntajeGanado, cancelacion);
 
         _log.LogInformation(
-            "Emitiendo PuntajeCalculado Trivia. EventoId={EventoId} SesionId={SesionId} ParticipanteSesionId={ParticipanteSesionId} PuntajeGanado={PuntajeGanado} PuntajeTotalParticipante={PuntajeTotalParticipante}",
+            "Emitiendo PuntajeCalculado Trivia. EventoId={EventoId} SesionId={SesionId} ParticipanteSesionId={ParticipanteSesionId} ParticipanteIdentidadId={ParticipanteIdentidadId} EquipoId={EquipoId} PuntajeGanado={PuntajeGanado} PuntajeTotalParticipante={PuntajeTotalParticipante} PuntajeTotalEquipo={PuntajeTotalEquipo}",
             resultado.EventoIdOrigen,
             resultado.SesionId,
             resultado.ParticipanteSesionId,
+            resultado.ParticipanteIdentidadId,
+            resultado.EquipoId,
             resultado.PuntajeGanado,
-            resultado.PuntajeTotalParticipante);
+            resultado.PuntajeTotalParticipante,
+            resultado.PuntajeTotalEquipo);
 
         await _notificador.NotificarPuntajeCalculadoAsync(resultado, cancelacion);
         await _notificador.NotificarRankingParticipantesActualizadoAsync(comando.SesionId, cancelacion);

@@ -19,6 +19,7 @@ import {
   type EquipoSesionListadoDto,
   type OperacionSesionRespuestaDto,
   type ParticipanteSesionDto,
+  type ProgresoSesionDto,
   type ProgresoSesionParticipanteDto,
   type SesionDetalleDto
 } from '../autenticacion/clienteApiSesiones'
@@ -170,7 +171,7 @@ export function PaginaDetalleSesion() {
   const [expulsando, setExpulsando] = useState(false)
   const [errorExpulsar, setErrorExpulsar] = useState<string | null>(null)
 
-  const [progresoSesion, setProgresoSesion] = useState<ProgresoSesionParticipanteDto[] | null>(null)
+  const [progresoSesion, setProgresoSesion] = useState<ProgresoSesionDto | null>(null)
   const [cargandoProgreso, setCargandoProgreso] = useState(false)
   const [errorProgreso, setErrorProgreso] = useState<string | null>(null)
 
@@ -220,7 +221,9 @@ export function PaginaDetalleSesion() {
     onParticipanteExpulsado: refrescarDetalleTiempoReal,
     onEquipoExpulsado: refrescarDetalleTiempoReal,
     onRespuestaRegistrada: refrescarProgresoTiempoReal,
-    onEtapaCompletada: refrescarProgresoTiempoReal
+    onEtapaCompletada: refrescarProgresoTiempoReal,
+    onEtapaIniciada: refrescarProgresoTiempoReal,
+    onProgresoSecuencialActualizado: refrescarProgresoTiempoReal
   })
 
   useRankingTiempoReal({
@@ -554,6 +557,32 @@ export function PaginaDetalleSesion() {
     esMiEquipo: false,
     soyLider: false
   }))
+  const filasProgreso = progresoSesion?.filas ?? []
+  const tituloProgreso = esGrupal ? 'Progreso por equipo' : 'Progreso por participante'
+  const descripcionProgreso = esGrupal
+    ? 'Trivia y b\u00fasqueda del tesoro \u2014 avance de ejecuci\u00f3n por equipo.'
+    : 'Trivia y b\u00fasqueda del tesoro \u2014 avance de ejecuci\u00f3n por participante.'
+  const etiquetaUbicacionProgreso =
+    progresoSesion?.ordenMisionActual && progresoSesion?.ordenEtapaActual
+      ? `Misi\u00f3n ${progresoSesion.ordenMisionActual} \u00b7 Etapa ${progresoSesion.ordenEtapaActual}`
+      : sesion.estado === 'Finalizada'
+        ? 'Ejecuci\u00f3n finalizada'
+        : null
+  const resolverNombreProgreso = (p: ProgresoSesionParticipanteDto) => {
+    if (esGrupal) {
+      const equipo = p.equipoId
+        ? equiposMostrados.find(e => e.id === p.equipoId)
+        : null
+      return equipo?.nombre ?? 'Equipo'
+    }
+
+    const participante = sesion.participantesIndividuales.find(
+      pi => pi.participanteIdentidadId === p.participanteIdentidadId
+    )
+    return participante
+      ? (participante.alias || `${participante.nombre} ${participante.apellido}`.trim() || 'Participante')
+      : 'Participante'
+  }
 
   return (
     <LayoutPanel
@@ -1036,8 +1065,21 @@ export function PaginaDetalleSesion() {
         <section className="seccion">
           <div className="detalle-subtitulo">
             <div>
-              <h3>Progreso por participante</h3>
-              <p>Trivia y búsqueda del tesoro — avance de ejecución por participante.</p>
+              <h3>{tituloProgreso}</h3>
+              <p>{descripcionProgreso}</p>
+              {etiquetaUbicacionProgreso && (
+                <span
+                  className="badge"
+                  style={{
+                    display: 'inline-block',
+                    marginTop: 'var(--espacio-2)',
+                    background: 'var(--color-fondo-tarjeta)',
+                    border: '1px solid var(--color-borde-tarjeta)'
+                  }}
+                >
+                  {etiquetaUbicacionProgreso}
+                </span>
+              )}
             </div>
           </div>
           {cargandoProgreso && (
@@ -1046,42 +1088,35 @@ export function PaginaDetalleSesion() {
           {!cargandoProgreso && errorProgreso && (
             <Alerta tono="aviso">{errorProgreso}</Alerta>
           )}
-          {!cargandoProgreso && !errorProgreso && progresoSesion !== null && progresoSesion.length === 0 && (
+          {!cargandoProgreso && !errorProgreso && progresoSesion !== null && filasProgreso.length === 0 && (
             <p className="detalle-mensaje-vacio">Aún no hay actividad registrada.</p>
           )}
-          {!cargandoProgreso && !errorProgreso && progresoSesion !== null && progresoSesion.length > 0 && (
+          {!cargandoProgreso && !errorProgreso && progresoSesion !== null && filasProgreso.length > 0 && (
             <div style={{ overflowX: 'auto' }}>
               <table className="tabla-usuarios">
                 <thead>
                   <tr>
                     <th>#</th>
-                    <th>Participante</th>
-                    <th title="Preguntas respondidas">Trivia resp.</th>
-                    <th title="Respuestas correctas" style={{ color: 'var(--color-exito, #22c55e)' }}>✓ Correct.</th>
-                    <th title="Respuestas incorrectas" style={{ color: 'var(--color-error, #ef4444)' }}>✗ Incorr.</th>
-                    <th title="Etapas de tesoro completadas">Tesoro comp.</th>
-                    <th title="Intentos enviados en búsqueda del tesoro">Tesoro int.</th>
+                    <th>{esGrupal ? 'Equipo' : 'Participante'}</th>
+                    <th title="Etapas de trivia completadas">Trivia completadas</th>
+                    <th title="Respuestas correctas" style={{ color: 'var(--color-exito, #22c55e)' }}>✓ Correctas</th>
+                    <th title="Respuestas incorrectas" style={{ color: 'var(--color-error, #ef4444)' }}>✗ Incorrectas</th>
+                    <th title="Etapas de tesoro completadas">Tesoro completadas</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {progresoSesion
+                  {filasProgreso
                     .slice()
-                    .sort((a, b) => b.triviaRespondidas + b.tesoroIntentosEnviados - (a.triviaRespondidas + a.tesoroIntentosEnviados))
+                    .sort((a, b) =>
+                      b.triviaEtapasCompletadas + b.tesoroEtapasCompletadas
+                      - (a.triviaEtapasCompletadas + a.tesoroEtapasCompletadas))
                     .map((p, idx) => {
-                      const participante = sesion.participantesIndividuales.find(
-                        pi => pi.participanteIdentidadId === p.participanteIdentidadId
-                      )
-                      const nombre = participante
-                        ? (participante.alias || `${participante.nombre} ${participante.apellido}`.trim() || 'Participante')
-                        : p.participanteIdentidadId.slice(0, 8) + '…'
-                      const pctTrivia = p.triviaRespondidas > 0
-                        ? Math.round((p.triviaCorrectas / p.triviaRespondidas) * 100)
-                        : 0
+                      const nombre = resolverNombreProgreso(p)
                       return (
-                        <tr key={p.participanteIdentidadId}>
+                        <tr key={p.equipoId ?? p.participanteIdentidadId}>
                           <td>{idx + 1}</td>
                           <td>{nombre}</td>
-                          <td>{p.triviaRespondidas} ({pctTrivia}%)</td>
+                          <td>{p.triviaEtapasCompletadas}</td>
                           <td style={{ color: 'var(--color-exito, #22c55e)', fontWeight: 600 }}>
                             {p.triviaCorrectas}
                           </td>
@@ -1091,7 +1126,6 @@ export function PaginaDetalleSesion() {
                           <td style={{ color: 'var(--color-exito, #22c55e)', fontWeight: 600 }}>
                             {p.tesoroEtapasCompletadas}
                           </td>
-                          <td>{p.tesoroIntentosEnviados}</td>
                         </tr>
                       )
                     })}

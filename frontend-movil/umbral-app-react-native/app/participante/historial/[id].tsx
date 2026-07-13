@@ -254,7 +254,7 @@ function ContenidoResultado() {
                 <View key={p.participanteSesionId} style={estilos.filaDetalle}>
                   <Text style={estilos.posicion}>#{p.posicion}</Text>
                   <Text style={estilos.nombreEntrada}>{p.alias}</Text>
-                  <Text style={estilos.puntaje}>{p.puntaje} pts</Text>
+                  <Text style={estilos.puntajeDetalle}>{p.puntaje} pts</Text>
                 </View>
               ))}
             </View>
@@ -354,7 +354,7 @@ const estilos = StyleSheet.create({
   filaDetalle: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f8fafc",
+    backgroundColor: tema.colores.entradaFondo,
     borderColor: tema.colores.bordeTarjeta,
     borderWidth: 1,
     borderRadius: tema.radios.entrada,
@@ -375,6 +375,10 @@ const estilos = StyleSheet.create({
   },
   puntaje: {
     color: tema.colores.primario,
+    fontWeight: tema.tipografia.pesos.extrabold,
+  },
+  puntajeDetalle: {
+    color: tema.colores.enlace,
     fontWeight: tema.tipografia.pesos.extrabold,
   },
   error: {

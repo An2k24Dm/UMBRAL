@@ -79,7 +79,7 @@ public sealed class SesionesParticipanteControlador : ControllerBase
     {
         var resultado = await _mediador.Send(
             new ObtenerProgresoSesionConsulta(sesionId), cancelacion);
-        return Ok(resultado);
+        return Ok(resultado.Filas);
     }
 
     // GET /api/sesiones/participante/disponibles/{sesionId}/progreso-secuencial

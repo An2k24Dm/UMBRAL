@@ -26,7 +26,7 @@ public sealed class ContextoRanking : DbContext
         {
             e.ToTable("rankings");
             e.HasKey(x => x.Id);
-            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.Id).HasColumnName("id").ValueGeneratedNever();
             e.Property(x => x.SesionId).HasColumnName("sesion_id").IsRequired();
             e.HasIndex(x => x.SesionId).IsUnique();
 
@@ -50,7 +50,7 @@ public sealed class ContextoRanking : DbContext
         {
             e.ToTable("ranking_participantes");
             e.HasKey(x => x.Id);
-            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.Id).HasColumnName("id").ValueGeneratedNever();
             e.Property<Guid>("RankingId").HasColumnName("ranking_id");
             e.Property(x => x.ParticipanteSesionId)
                 .HasColumnName("participante_sesion_id").IsRequired();
@@ -67,7 +67,7 @@ public sealed class ContextoRanking : DbContext
         {
             e.ToTable("ranking_equipos");
             e.HasKey(x => x.Id);
-            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.Id).HasColumnName("id").ValueGeneratedNever();
             e.Property<Guid>("RankingId").HasColumnName("ranking_id");
             e.Property(x => x.EquipoId).HasColumnName("equipo_id").IsRequired();
             e.Property(x => x.Puntaje)
@@ -80,7 +80,7 @@ public sealed class ContextoRanking : DbContext
         {
             e.ToTable("eventos_procesados");
             e.HasKey(x => new { x.Id, x.TipoEvento });
-            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.Id).HasColumnName("id").ValueGeneratedNever();
             e.Property(x => x.TipoEvento).HasColumnName("tipo_evento").HasMaxLength(100);
             e.Property(x => x.ProcesadoEnUtc).HasColumnName("procesado_en_utc");
         });
@@ -89,7 +89,7 @@ public sealed class ContextoRanking : DbContext
         {
             e.ToTable("outbox_ranking");
             e.HasKey(x => x.Id);
-            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.Id).HasColumnName("id").ValueGeneratedNever();
             e.Property(x => x.RoutingKey).HasColumnName("routing_key").HasMaxLength(120).IsRequired();
             e.Property(x => x.PayloadJson).HasColumnName("payload_json").IsRequired();
             e.Property(x => x.CreadoEnUtc).HasColumnName("creado_en_utc").IsRequired();
