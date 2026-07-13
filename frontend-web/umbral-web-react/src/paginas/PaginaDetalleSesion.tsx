@@ -211,27 +211,57 @@ export function PaginaDetalleSesion() {
     setVersionProgreso(v => v + 1)
   }, [])
 
+  const refrescarRankingTiempoReal = useCallback(() => {
+    if (import.meta.env.DEV) {
+      console.debug('[DetalleSesion Web] refresco ranking solicitado por SignalR')
+    }
+    setVersionRanking(v => v + 1)
+  }, [])
+
+  const refrescarDetalleYProgresoTiempoReal = useCallback(() => {
+    refrescarDetalleTiempoReal()
+    refrescarProgresoTiempoReal()
+  }, [refrescarDetalleTiempoReal, refrescarProgresoTiempoReal])
+
+  const refrescarTodoTiempoReal = useCallback(() => {
+    refrescarDetalleTiempoReal()
+    refrescarProgresoTiempoReal()
+    refrescarRankingTiempoReal()
+  }, [refrescarDetalleTiempoReal, refrescarProgresoTiempoReal, refrescarRankingTiempoReal])
+
+  const manejarSesionActualizadaTiempoReal = useCallback((estado?: string) => {
+    if (estado === 'Finalizada') {
+      refrescarTodoTiempoReal()
+      return
+    }
+
+    refrescarDetalleTiempoReal()
+  }, [refrescarDetalleTiempoReal, refrescarTodoTiempoReal])
+
   useSesionesTiempoReal({
     token,
     sesionId: id,
     onParticipantesSesionActualizados: refrescarDetalleTiempoReal,
     onEquiposSesionActualizados: refrescarDetalleTiempoReal,
     onEquipoActualizado: refrescarDetalleTiempoReal,
-    onSesionActualizada: refrescarDetalleTiempoReal,
+    onSesionActualizada: manejarSesionActualizadaTiempoReal,
     onParticipanteExpulsado: refrescarDetalleTiempoReal,
     onEquipoExpulsado: refrescarDetalleTiempoReal,
     onRespuestaRegistrada: refrescarProgresoTiempoReal,
     onEtapaCompletada: refrescarProgresoTiempoReal,
-    onEtapaIniciada: refrescarProgresoTiempoReal,
-    onProgresoSecuencialActualizado: refrescarProgresoTiempoReal
+    onEtapaPorComenzar: refrescarDetalleYProgresoTiempoReal,
+    onEtapaIniciada: refrescarDetalleYProgresoTiempoReal,
+    onProgresoSecuencialActualizado: refrescarProgresoTiempoReal,
+    onReconectado: refrescarDetalleYProgresoTiempoReal
   })
 
   useRankingTiempoReal({
     token,
     sesionId: id,
-    onPuntajeCalculado: () => setVersionRanking(v => v + 1),
-    onRankingParticipantesActualizado: () => setVersionRanking(v => v + 1),
-    onRankingEquiposActualizado: () => setVersionRanking(v => v + 1)
+    onPuntajeCalculado: refrescarRankingTiempoReal,
+    onRankingParticipantesActualizado: refrescarRankingTiempoReal,
+    onRankingEquiposActualizado: refrescarRankingTiempoReal,
+    onReconectado: refrescarRankingTiempoReal
   })
 
   function abrirModalEliminar() {

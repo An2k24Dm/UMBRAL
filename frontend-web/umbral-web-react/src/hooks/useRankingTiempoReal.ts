@@ -9,6 +9,7 @@ interface OpcionesUseRankingTiempoReal {
   onPuntajeCalculado?: () => void
   onRankingParticipantesActualizado?: () => void
   onRankingEquiposActualizado?: () => void
+  onReconectado?: () => void
 }
 
 type Callbacks = Omit<OpcionesUseRankingTiempoReal, 'token' | 'sesionId'>
@@ -18,13 +19,15 @@ export function useRankingTiempoReal({
   sesionId,
   onPuntajeCalculado,
   onRankingParticipantesActualizado,
-  onRankingEquiposActualizado
+  onRankingEquiposActualizado,
+  onReconectado
 }: OpcionesUseRankingTiempoReal) {
   const callbacksRef = useRef<Callbacks>({})
   callbacksRef.current = {
     onPuntajeCalculado,
     onRankingParticipantesActualizado,
-    onRankingEquiposActualizado
+    onRankingEquiposActualizado,
+    onReconectado
   }
 
   const tokenLimpio = token?.trim() ?? ''
@@ -53,7 +56,13 @@ export function useRankingTiempoReal({
 
     conexion.onreconnected(() => {
       if (desmontado) return
-      conexion.invoke('UnirseASesion', sesionId).catch(manejarError)
+      conexion.invoke('UnirseASesion', sesionId)
+        .then(() => {
+          if (!desmontado) {
+            callbacksRef.current.onReconectado?.()
+          }
+        })
+        .catch(manejarError)
     })
 
     conexion.onreconnecting(manejarError)

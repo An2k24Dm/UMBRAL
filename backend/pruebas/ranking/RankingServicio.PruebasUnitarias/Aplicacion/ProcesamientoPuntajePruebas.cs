@@ -162,6 +162,82 @@ public sealed class ProcesamientoPuntajePruebas
     }
 
     [Fact]
+    public async Task Tesoro_ultimoCompetidor_aplicaPenalizacionPorPosicion()
+    {
+        var entorno = new EntornoHandler();
+        var comando = CrearComandoTesoro(
+            esValida: true, puntajeBase: 30,
+            ordenResolucion: 3, totalCompetidores: 3);
+        var manejador = entorno.CrearManejadorTesoro();
+
+        await manejador.Handle(comando, CancellationToken.None);
+
+        entorno.Repositorio.Ranking!.Participantes.Single().Puntaje.Valor.Should().Be(10);
+        var puntaje = entorno.Notificador.Puntajes.Single();
+        puntaje.PuntajeGanado.Should().Be(10);
+        puntaje.PuntajeTotalParticipante.Should().Be(10);
+    }
+
+    [Fact]
+    public async Task Tesoro_grupal_ordenIntermedio_participanteYEquipoReducidos()
+    {
+        var entorno = new EntornoHandler();
+        var equipoId = Guid.NewGuid();
+        var comando = CrearComandoTesoro(
+            esValida: true, puntajeBase: 30, equipoId,
+            ordenResolucion: 2, totalCompetidores: 3);
+        var manejador = entorno.CrearManejadorTesoro();
+
+        await manejador.Handle(comando, CancellationToken.None);
+
+        var ranking = entorno.Repositorio.Ranking!;
+        ranking.Participantes.Single().Puntaje.Valor.Should().Be(20);
+        ranking.Equipos.Single(e => e.EquipoId == equipoId).Puntaje.Valor.Should().Be(20);
+        entorno.Notificador.Puntajes.Single().PuntajeTotalEquipo.Should().Be(20);
+    }
+
+    [Fact]
+    public async Task Tesoro_grupal_dosEquipos_primeroTreintaSegundoQuince()
+    {
+        var entorno = new EntornoHandler();
+        var sesionId = Guid.NewGuid();
+        var equipoA = Guid.NewGuid();
+        var equipoB = Guid.NewGuid();
+        var manejador = entorno.CrearManejadorTesoro();
+        var comandoA = CrearComandoTesoro(
+            esValida: true, puntajeBase: 30, equipoId: equipoA, sesionId: sesionId,
+            ordenResolucion: 1, totalCompetidores: 2);
+        var comandoB = CrearComandoTesoro(
+            esValida: true, puntajeBase: 30, equipoId: equipoB, sesionId: sesionId,
+            ordenResolucion: 2, totalCompetidores: 2);
+
+        await manejador.Handle(comandoA, CancellationToken.None);
+        await manejador.Handle(comandoB, CancellationToken.None);
+
+        var ranking = entorno.Repositorio.Ranking!;
+        ranking.Equipos.Single(e => e.EquipoId == equipoA).Puntaje.Valor.Should().Be(30);
+        ranking.Equipos.Single(e => e.EquipoId == equipoB).Puntaje.Valor.Should().Be(15);
+        entorno.Notificador.Puntajes.Select(p => p.PuntajeGanado).Should().Equal(30, 15);
+    }
+
+    [Fact]
+    public async Task Tesoro_eventoDuplicado_noSumaDosVeces()
+    {
+        var entorno = new EntornoHandler();
+        var comando = CrearComandoTesoro(
+            esValida: true, puntajeBase: 30,
+            ordenResolucion: 2, totalCompetidores: 3);
+        var manejador = entorno.CrearManejadorTesoro();
+
+        await manejador.Handle(comando, CancellationToken.None);
+        await manejador.Handle(comando, CancellationToken.None);
+
+        entorno.Repositorio.Ranking!.Participantes.Single().Puntaje.Valor.Should().Be(20);
+        entorno.Notificador.Puntajes.Should().ContainSingle();
+        entorno.Publicador.Puntajes.Should().ContainSingle();
+    }
+
+    [Fact]
     public async Task EventoDuplicado_noSumaDosVecesNiReemite()
     {
         var entorno = new EntornoHandler();
@@ -219,10 +295,15 @@ public sealed class ProcesamientoPuntajePruebas
     private static ProcesarEvidenciaTesoroComando CrearComandoTesoro(
         bool esValida,
         int puntajeBase,
-        Guid? equipoId = null)
+        Guid? equipoId = null,
+        Guid? sesionId = null,
+        int ordenResolucion = 1,
+        int totalCompetidores = 1,
+        int tiempoTranscurridoMs = 0,
+        int tiempoLimiteMs = 300_000)
         => new(
             Guid.NewGuid(),
-            Guid.NewGuid(),
+            sesionId ?? Guid.NewGuid(),
             Guid.NewGuid(),
             Guid.NewGuid(),
             Guid.NewGuid(),
@@ -230,7 +311,11 @@ public sealed class ProcesamientoPuntajePruebas
             equipoId,
             Guid.NewGuid(),
             esValida,
-            puntajeBase);
+            puntajeBase,
+            ordenResolucion,
+            totalCompetidores,
+            tiempoTranscurridoMs,
+            tiempoLimiteMs);
 
     private sealed class EntornoHandler
     {

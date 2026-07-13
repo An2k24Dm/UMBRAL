@@ -1,11 +1,9 @@
 using MediatR;
+using SesionesServicio.Aplicacion.Cadena.EvidenciasTesoro;
 using SesionesServicio.Aplicacion.Excepciones;
 using SesionesServicio.Aplicacion.Puertos;
 using SesionesServicio.Commons.Dtos;
 using SesionesServicio.Dominio.Abstract;
-using SesionesServicio.Dominio.Entidades;
-using SesionesServicio.Dominio.Enums;
-using SesionesServicio.Dominio.Excepciones;
 
 namespace SesionesServicio.Aplicacion.Comandos.EnviarEvidenciaTesoro;
 
@@ -13,34 +11,34 @@ public sealed class EnviarEvidenciaTesoroManejador
     : IRequestHandler<EnviarEvidenciaTesoroComando, EvidenciaTesoroRespuestaDto>
 {
     private readonly IUsuarioActual _usuario;
-    private readonly IRepositorioSesiones _repositorioSesiones;
+    private readonly FabricaCadenaValidacionEvidenciaTesoro _fabricaCadena;
     private readonly IClienteBusquedaTesoro _clienteTesoro;
     private readonly IRepositorioEvidenciasTesoro _repositorioEvidencias;
     private readonly INotificadorSesionesTiempoReal _notificador;
     private readonly IServicioFinalizacionSesion _servicioFinalizacion;
-    private readonly IServicioProgresoSecuencialSesion _servicioProgresoSecuencial;
     private readonly IPublicadorEventosRanking _publicadorRanking;
+    private readonly IProveedorFechaHora _reloj;
     private readonly IUnidadTrabajoSesiones _unidadTrabajo;
 
     public EnviarEvidenciaTesoroManejador(
         IUsuarioActual usuario,
-        IRepositorioSesiones repositorioSesiones,
+        FabricaCadenaValidacionEvidenciaTesoro fabricaCadena,
         IClienteBusquedaTesoro clienteTesoro,
         IRepositorioEvidenciasTesoro repositorioEvidencias,
         INotificadorSesionesTiempoReal notificador,
         IServicioFinalizacionSesion servicioFinalizacion,
-        IServicioProgresoSecuencialSesion servicioProgresoSecuencial,
         IPublicadorEventosRanking publicadorRanking,
+        IProveedorFechaHora reloj,
         IUnidadTrabajoSesiones unidadTrabajo)
     {
         _usuario = usuario;
-        _repositorioSesiones = repositorioSesiones;
+        _fabricaCadena = fabricaCadena;
         _clienteTesoro = clienteTesoro;
         _repositorioEvidencias = repositorioEvidencias;
         _notificador = notificador;
         _servicioFinalizacion = servicioFinalizacion;
-        _servicioProgresoSecuencial = servicioProgresoSecuencial;
         _publicadorRanking = publicadorRanking;
+        _reloj = reloj;
         _unidadTrabajo = unidadTrabajo;
     }
 
@@ -50,45 +48,47 @@ public sealed class EnviarEvidenciaTesoroManejador
         var participanteId = _usuario.ObtenerId()
             ?? throw new UnauthorizedAccessException("Usuario no autenticado.");
 
-        var sesion = await _repositorioSesiones.ObtenerPorIdAsync(comando.SesionId, cancelacion)
-            ?? throw new SesionNoEncontradaExcepcion("La sesion solicitada no existe.");
+        var contexto = new ContextoValidacionEvidenciaTesoro
+        {
+            SesionId = comando.SesionId,
+            ParticipanteIdentidadId = participanteId,
+            MisionId = comando.MisionId,
+            EtapaId = comando.EtapaId,
+            BusquedaId = comando.BusquedaId,
+            CodigoEscaneado = comando.CodigoEscaneado
+        };
 
-        if (sesion.Estado != EstadoSesion.Activa)
-            throw new OperacionSesionInvalidaExcepcion(
-                $"La sesion no esta activa. Estado actual: {sesion.Estado}.");
+        var cadena = _fabricaCadena.Crear();
+        await cadena.ManejarAsync(contexto, cancelacion);
 
-        var (participante, totalJugadoresEsperados) = ObtenerJugador(sesion, participanteId);
-        var equipoId = participante.EquipoId;
-
-        await _servicioProgresoSecuencial.ValidarEtapaActualAsync(
-            sesion,
-            participanteId,
-            comando.MisionId,
-            comando.EtapaId,
-            "BusquedaTesoro",
-            comando.BusquedaId,
-            cancelacion);
-
-        var yaCompletado = equipoId.HasValue
-            ? await _repositorioEvidencias.ExisteEvidenciaValidaEquipoAsync(
-                comando.SesionId, comando.EtapaId, equipoId.Value, cancelacion)
-            : await _repositorioEvidencias.ExisteEvidenciaValidaIndividualAsync(
-                comando.SesionId, comando.EtapaId, participanteId, cancelacion);
-
-        if (yaCompletado)
-            throw new EvidenciaTesoroDuplicadaExcepcion(esEquipo: equipoId.HasValue);
-
-        var esValida = await _clienteTesoro.ValidarCodigoQrAsync(
-            comando.BusquedaId, comando.CodigoEscaneado, cancelacion)
-            ?? throw new InvalidOperationException("Búsqueda del tesoro no encontrada.");
+        var sesion = contexto.Sesion!;
+        var participante = contexto.Participante!;
+        var equipoId = contexto.EquipoId;
+        var totalJugadoresEsperados = contexto.TotalCompetidores;
+        var esValida = contexto.EsCodigoQrValido;
 
         var busqueda = await _clienteTesoro.ObtenerBusquedaParticipanteAsync(
             comando.BusquedaId, cancelacion)
             ?? throw new InvalidOperationException("Búsqueda del tesoro no encontrada.");
+
+        var ejecucion = sesion.EjecucionActual
+            ?? throw new OperacionSesionInvalidaExcepcion(
+                "La sesion no tiene una etapa activa.");
+        var ahoraUtc = _reloj.ObtenerFechaHoraUtc();
+        var tiempoLimiteMs = (int)Math.Min(
+            (long)ejecucion.DuracionSegundos * 1000L, int.MaxValue);
+        var tiempoTranscurridoMs = (int)Math.Clamp(
+            ejecucion.CalcularTiempoActivoTranscurridoMs(ahoraUtc), 0L, tiempoLimiteMs);
+
         var eventoId = Guid.NewGuid();
+        var ordenResolucion = 0;
 
         await _unidadTrabajo.EjecutarEnTransaccionAsync(async ct =>
         {
+            if (esValida)
+                await _repositorioEvidencias.BloquearEtapaParaOrdenAsync(
+                    comando.SesionId, comando.EtapaId, ct);
+
             await _repositorioEvidencias.AgregarAsync(new EvidenciaTesoroRegistro(
                 SesionId: comando.SesionId,
                 MisionId: comando.MisionId,
@@ -100,15 +100,23 @@ public sealed class EnviarEvidenciaTesoroManejador
                 EsValida: esValida,
                 PuntosGanados: 0,
                 EventoPuntuacionId: eventoId,
-                FechaEnvioUtc: DateTime.UtcNow),
+                FechaEnvioUtc: ahoraUtc),
                 ct);
+
+            if (esValida)
+                ordenResolucion = equipoId.HasValue
+                    ? await _repositorioEvidencias.ContarEquiposConEvidenciaValidaAsync(
+                        comando.SesionId, comando.EtapaId, ct)
+                    : await _repositorioEvidencias.ContarParticipantesConEvidenciaValidaAsync(
+                        comando.SesionId, comando.EtapaId, ct);
 
             await _publicadorRanking.PublicarEvidenciaTesoroRegistradaAsync(
                 eventoId,
                 comando.SesionId, comando.MisionId, comando.EtapaId,
                 participante.Id, participanteId,
                 equipoId, comando.BusquedaId, esValida,
-                busqueda.Puntaje, ct);
+                busqueda.Puntaje, ordenResolucion, totalJugadoresEsperados,
+                tiempoTranscurridoMs, tiempoLimiteMs, ct);
         }, cancelacion);
 
         var etapaCompletada = false;
@@ -117,13 +125,7 @@ public sealed class EnviarEvidenciaTesoroManejador
             await _notificador.NotificarProgresoSecuencialActualizadoAsync(
                 comando.SesionId, participanteId, equipoId, cancelacion);
 
-            var completados = equipoId.HasValue
-                ? await _repositorioEvidencias.ContarEquiposConEvidenciaValidaAsync(
-                    comando.SesionId, comando.EtapaId, cancelacion)
-                : await _repositorioEvidencias.ContarParticipantesConEvidenciaValidaAsync(
-                    comando.SesionId, comando.EtapaId, cancelacion);
-
-            if (completados >= totalJugadoresEsperados)
+            if (ordenResolucion >= totalJugadoresEsperados)
             {
                 etapaCompletada = true;
                 await _servicioFinalizacion.ProgramarCierreTrasFeedbackAsync(
@@ -137,34 +139,5 @@ public sealed class EnviarEvidenciaTesoroManejador
             EventoId = eventoId,
             EtapaCompletada = etapaCompletada
         };
-    }
-
-    private static (Participante participante, int totalJugadores) ObtenerJugador(
-        Sesion sesion, Guid participanteId)
-    {
-        if (sesion is SesionIndividual individual)
-        {
-            var p = individual.Participantes
-                .FirstOrDefault(x => x.ParticipanteIdentidadId == participanteId)
-                ?? throw new ParticipacionInvalidaExcepcion(
-                    "El participante no esta inscrito en esta sesion.");
-            return (p, individual.Participantes.Count);
-        }
-
-        if (sesion is SesionGrupal grupal)
-        {
-            foreach (var equipo in grupal.Equipos)
-            {
-                var p = equipo.Participantes
-                    .FirstOrDefault(x => x.ParticipanteIdentidadId == participanteId);
-                if (p is not null)
-                    return (p, grupal.Equipos.Count);
-            }
-
-            throw new ParticipacionInvalidaExcepcion(
-                "El participante no esta inscrito en esta sesion.");
-        }
-
-        throw new SesionInvalidaExcepcion("Tipo de sesion no soportado.");
     }
 }

@@ -47,7 +47,9 @@ public sealed class PublicadorEventosRankingOutbox : IPublicadorEventosRanking
         Guid sesionId, Guid misionId, Guid etapaId,
         Guid participanteSesionId, Guid participanteIdentidadId,
         Guid? equipoId, Guid busquedaId, bool esValida,
-        int puntajeBase, CancellationToken cancelacion)
+        int puntajeBase, int ordenResolucion, int totalCompetidores,
+        int tiempoTranscurridoMs, int tiempoLimiteMs,
+        CancellationToken cancelacion)
         => EncolarAsync(eventoId, RoutingKeyTesoro, new
         {
             EventoId = eventoId,
@@ -59,7 +61,11 @@ public sealed class PublicadorEventosRankingOutbox : IPublicadorEventosRanking
             EquipoId = equipoId,
             BusquedaId = busquedaId,
             EsValida = esValida,
-            PuntajeBase = puntajeBase
+            PuntajeBase = puntajeBase,
+            OrdenResolucion = ordenResolucion,
+            TotalCompetidores = totalCompetidores,
+            TiempoTranscurridoMs = tiempoTranscurridoMs,
+            TiempoLimiteMs = tiempoLimiteMs
         }, cancelacion);
 
     public Task PublicarParticipanteUnidoSesionAsync(

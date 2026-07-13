@@ -204,7 +204,9 @@ public sealed class ConsumidorEventosRanking : BackgroundService
                 await mediator.Send(new ProcesarEvidenciaTesoroComando(
                     ev.EventoId, ev.SesionId, ev.MisionId, ev.EtapaId,
                     ev.ParticipanteSesionId, ev.ParticipanteIdentidadId, ev.EquipoId,
-                    ev.BusquedaId, ev.EsValida, ev.PuntajeBase));
+                    ev.BusquedaId, ev.EsValida, ev.PuntajeBase,
+                    ev.OrdenResolucion, ev.TotalCompetidores,
+                    ev.TiempoTranscurridoMs, ev.TiempoLimiteMs));
                 break;
             }
             case RoutingKeyParticipante:

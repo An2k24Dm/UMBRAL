@@ -9,6 +9,7 @@ using SesionesServicio.Aplicacion.Comandos.IngresarEquipo;
 using SesionesServicio.Aplicacion.Comandos.IngresarSesionPorCodigo;
 using SesionesServicio.Aplicacion.Comandos.ModificarEquipo;
 using SesionesServicio.Aplicacion.Comandos.ModificarSesion;
+using SesionesServicio.Aplicacion.Cadena.EvidenciasTesoro;
 using SesionesServicio.Aplicacion.Fachadas;
 using SesionesServicio.Aplicacion.Mapeadores;
 using SesionesServicio.Aplicacion.Mapeadores.IngresoSesion;
@@ -60,6 +61,17 @@ public static class RegistroAplicacion
 
         servicios.AddScoped<IServicioFinalizacionSesion, ServicioFinalizacionSesion>();
         servicios.AddScoped<IServicioProgresoSecuencialSesion, ServicioProgresoSecuencialSesion>();
+
+        // Chain of Responsibility para la validación estructural de evidencias de
+        // Búsqueda del Tesoro. Scoped: los eslabones dependen de repositorios,
+        // cliente HTTP y servicios de ciclo de vida por petición. La fábrica
+        // enlaza los eslabones y expone el primero de la cadena.
+        servicios.AddScoped<EslabonSesionActiva>();
+        servicios.AddScoped<EslabonParticipanteInscrito>();
+        servicios.AddScoped<EslabonEtapaActual>();
+        servicios.AddScoped<EslabonEvidenciaNoDuplicada>();
+        servicios.AddScoped<EslabonCodigoQr>();
+        servicios.AddScoped<FabricaCadenaValidacionEvidenciaTesoro>();
         // Reloj de Trivia por jugador con la espera de feedback autoritativa (5 s
         // por defecto). Fuente única del intervalo entre preguntas.
         servicios.AddSingleton<IServicioTiempoTriviaSesion>(

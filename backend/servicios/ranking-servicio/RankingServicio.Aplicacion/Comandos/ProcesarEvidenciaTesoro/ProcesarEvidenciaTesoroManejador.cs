@@ -49,7 +49,11 @@ public sealed class ProcesarEvidenciaTesoroManejador
 
         var puntajeGanado = _estrategia.Calcular(new ContextoCalculoPuntajeBusquedaTesoro(
             comando.EsValida,
-            comando.PuntajeBase));
+            comando.PuntajeBase,
+            comando.OrdenResolucion,
+            comando.TotalCompetidores,
+            comando.TiempoTranscurridoMs,
+            comando.TiempoLimiteMs));
 
         var resultado = await RegistrarPuntajeAsync(comando, puntajeGanado, cancelacion);
 
