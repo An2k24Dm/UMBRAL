@@ -375,6 +375,21 @@ public class EnviarRespuestaTriviaManejadorPruebas
         arr.Notificador.Verify(n => n.NotificarRespuestaRegistradaAsync(
             sesion.Id, EtapaId, PreguntaId, Ana, rojoId,
             It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Once);
+        arr.PublicadorRanking.Verify(p => p.PublicarRespuestaTriviaRegistradaAsync(
+            It.IsAny<Guid>(),
+            sesion.Id,
+            MisionId,
+            EtapaId,
+            It.IsAny<Guid>(),
+            Ana,
+            rojoId,
+            TriviaId,
+            PreguntaId,
+            true,
+            100,
+            It.IsAny<int>(),
+            It.IsAny<int>(),
+            It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact] // (7, 8, 9, 10) Segundo integrante rechazado; sin puntos, sin persistir, sin 2º evento.

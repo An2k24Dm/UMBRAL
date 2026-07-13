@@ -240,6 +240,18 @@ public class EnviarEvidenciaTesoroManejadorPruebas
                 x.EquipoId == rojoId &&               // jugador lógico = equipo
                 x.EsValida),
             It.IsAny<CancellationToken>()), Times.Once);
+        arr.PublicadorRanking.Verify(p => p.PublicarEvidenciaTesoroRegistradaAsync(
+            It.IsAny<Guid>(),
+            sesion.Id,
+            MisionId,
+            EtapaId,
+            It.IsAny<Guid>(),
+            Ana,
+            rojoId,
+            BusquedaId,
+            true,
+            50,
+            It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact] // (6) Segundo integrante del mismo equipo es rechazado, sin puntos ni progreso.

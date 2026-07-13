@@ -38,14 +38,9 @@ import {
   type EstadoSesionJuego,
 } from "../../../servicios/estadoSesionJuego";
 
-// Feedback final visible (ms) antes de volver al detalle al completar la etapa.
-// Coincide con la ventana de feedback autoritativa del backend (CierrePendiente).
-const MS_FEEDBACK_FINAL = 5000;
-
-// Tiempo que el overlay de resultado (correcta/incorrecta + puntaje) permanece
-// visible tras responder, incluida la última pregunta, antes de pasar a la
-// pantalla de etapa completada. No bloquea la ejecución real del backend.
 const MS_FEEDBACK_RESPUESTA = 5000;
+const SEGUNDOS_FEEDBACK_FINAL = MS_FEEDBACK_RESPUESTA / 1000;
+const MS_PANTALLA_ETAPA_COMPLETADA = 1000;
 
 export default function PantallaJugar() {
   return (
@@ -62,8 +57,6 @@ type EstadoPregunta =
   | "incorrecta"
   | "tiempo_agotado"
   | "ya_respondida"
-  // El jugador ya respondió la pregunta actual y aún no llega la ventana de la
-  // siguiente pregunta según el backend: se espera y se resincroniza.
   | "esperando_siguiente";
 
 function ContenidoJuego() {
@@ -94,32 +87,25 @@ function ContenidoJuego() {
   const [segundosRestantesEtapa, setSegundosRestantesEtapa] = useState<number | null>(null);
   const [segundosRestantesPreguntaServidor, setSegundosRestantesPreguntaServidor] = useState<number | null>(null);
   const [etapaTerminada, setEtapaTerminada] = useState(false);
-  // Solo es true cuando el BACKEND confirma que TODOS los jugadores completaron
-  // la etapa (respuesta HTTP etapaCompletada o evento SignalR EtapaCompletada).
-  // No se infiere localmente por haber terminado el participante/equipo actual.
   const [todosCompletaron, setTodosCompletaron] = useState(false);
   const [esGrupal, setEsGrupal] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const { feedbackPuntaje, esperarPuntaje, alRecibirPuntajeCalculado } =
     useCorrelacionPuntaje({ esperaMaximaMs: 6000 });
   const [conflictoTipo, setConflictoTipo] = useState<"equipo" | "individual" | null>(null);
-  // Countdown autoritativo de la ventana de feedback entre preguntas (segundos).
-  // null = no estamos en transición. El valor viene del backend, por lo que
-  // sobrevive a reconexiones (no se reinicia a 5).
   const [transicionRestanteSeg, setTransicionRestanteSeg] = useState<number | null>(null);
-  // Estado local autoritativo de la sesión. Empieza "Desconocida" hasta que se
-  // consulta el estado real por HTTP (no se asume "Activa").
+  const [feedbackFinalRestanteSeg, setFeedbackFinalRestanteSeg] =
+    useState<number | null>(null);
   const [estadoSesion, setEstadoSesion] = useState<EstadoSesionJuego>("Desconocida");
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  // Mide solo el tiempo ACTIVO de la pregunta (excluye el tiempo en pausa).
   const cronometroRef = useRef(new CronometroActivo());
-  // Índice mostrado (en ref, para leerlo sin cierres obsoletos en la resync).
   const indicePreguntaRef = useRef(0);
-  // Previene que SignalR corte la ventana donde se muestra el puntaje de la respuesta.
   const mostrandoResultadoRef = useRef(false);
-  // Si EtapaCompletada llega por SignalR mientras se muestra el feedback, se
-  // difiere para aplicarlo cuando termine el feedback de 5 s (no cortarlo).
   const etapaCompletadaPendienteRef = useRef(false);
+  const feedbackFinalActivoRef = useRef(false);
+  const feedbackFinalTodosCompletaronRef = useRef(false);
+  const feedbackFinalTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const feedbackRespuestaTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useRankingTiempoReal({
     sesionId,
@@ -152,9 +138,6 @@ function ContenidoJuego() {
     };
   }, [bloquearSalida, navegacion]);
 
-  // Consulta por HTTP el estado real de la sesión (autoritativo). Si falla, se
-  // asume "Activa" para no bloquear el juego: el backend sigue siendo la
-  // autoridad final y rechaza cualquier acción si la sesión no está Activa.
   const refrescarEstadoSesion = useCallback(async () => {
     if (!token || !sesionId) return;
     try {
@@ -165,6 +148,80 @@ function ContenidoJuego() {
       setEstadoSesion("Desconocida");
     }
   }, [token, sesionId]);
+
+  const limpiarFeedbackFinalTimer = useCallback(() => {
+    if (feedbackFinalTimerRef.current) {
+      clearTimeout(feedbackFinalTimerRef.current);
+      feedbackFinalTimerRef.current = null;
+    }
+  }, []);
+
+  const limpiarFeedbackRespuestaTimer = useCallback(() => {
+    if (feedbackRespuestaTimerRef.current) {
+      clearTimeout(feedbackRespuestaTimerRef.current);
+      feedbackRespuestaTimerRef.current = null;
+    }
+  }, []);
+
+  const completarFeedbackFinalEtapa = useCallback(() => {
+    limpiarFeedbackFinalTimer();
+    feedbackFinalActivoRef.current = false;
+    setFeedbackFinalRestanteSeg(null);
+    mostrandoResultadoRef.current = false;
+
+    const todosCompletaron =
+      feedbackFinalTodosCompletaronRef.current ||
+      etapaCompletadaPendienteRef.current;
+    feedbackFinalTodosCompletaronRef.current = false;
+    etapaCompletadaPendienteRef.current = false;
+
+    setTodosCompletaron(todosCompletaron);
+    setEtapaTerminada(true);
+  }, [limpiarFeedbackFinalTimer]);
+
+  const iniciarFeedbackFinalEtapa = useCallback(
+    (todosCompletaronBackend = false) => {
+      if (todosCompletaronBackend) {
+        feedbackFinalTodosCompletaronRef.current = true;
+      }
+
+      if (feedbackFinalActivoRef.current) return;
+
+      limpiarFeedbackRespuestaTimer();
+      limpiarFeedbackFinalTimer();
+      feedbackFinalActivoRef.current = true;
+      mostrandoResultadoRef.current = true;
+      setTransicionRestanteSeg(null);
+      setFeedbackFinalRestanteSeg(SEGUNDOS_FEEDBACK_FINAL);
+
+      let restante = SEGUNDOS_FEEDBACK_FINAL;
+      const tick = () => {
+        restante -= 1;
+        if (restante <= 0) {
+          completarFeedbackFinalEtapa();
+          return;
+        }
+
+        setFeedbackFinalRestanteSeg(restante);
+        feedbackFinalTimerRef.current = setTimeout(tick, 1000);
+      };
+
+      feedbackFinalTimerRef.current = setTimeout(tick, 1000);
+    },
+    [
+      completarFeedbackFinalEtapa,
+      limpiarFeedbackFinalTimer,
+      limpiarFeedbackRespuestaTimer,
+    ],
+  );
+
+  useEffect(
+    () => () => {
+      limpiarFeedbackFinalTimer();
+      limpiarFeedbackRespuestaTimer();
+    },
+    [limpiarFeedbackFinalTimer, limpiarFeedbackRespuestaTimer],
+  );
 
   // Carga inicial
   useEffect(() => {
@@ -192,8 +249,6 @@ function ContenidoJuego() {
           return;
         }
 
-        // Reconexión durante el feedback entre preguntas (#5): reconstruir el
-        // countdown con el restante REAL del backend (no reiniciar a 5 s).
         if (progresoSecuencial.triviaEnTransicionEntrePreguntas) {
           setTransicionRestanteSeg(
             Math.max(1, Math.ceil(
@@ -321,6 +376,11 @@ function ContenidoJuego() {
       progreso.todoCompletado
     ) {
       setTransicionRestanteSeg(null);
+      if (mostrandoResultadoRef.current || feedbackFinalActivoRef.current) {
+        iniciarFeedbackFinalEtapa(progreso.todoCompletado === true);
+        return;
+      }
+      setTodosCompletaron(progreso.todoCompletado === true);
       setEtapaTerminada(true);
       return;
     }
@@ -351,13 +411,15 @@ function ContenidoJuego() {
     }
 
     // Avanzar a la pregunta autoritativa actual del backend (ya pasó el feedback).
+    mostrandoResultadoRef.current = false;
     setTransicionRestanteSeg(null);
+    setFeedbackFinalRestanteSeg(null);
     setIndicePregunta(idxActual);
     setSegundosRestantesPreguntaServidor(restanteSeg);
     setOpcionSeleccionada(null);
     setConflictoTipo(null);
     setEstadoPregunta("esperando");
-  }, [token, sesionId, trivia]);
+  }, [token, sesionId, trivia, iniciarFeedbackFinalEtapa]);
 
   // Countdown de la ventana de feedback autoritativa. Cada segundo decrementa; al
   // llegar a 0 se re-consulta el progreso y, si el backend ya habilitó la
@@ -390,16 +452,41 @@ function ContenidoJuego() {
     resincronizarRef.current = resincronizarPregunta;
   }, [resincronizarPregunta]);
 
-  // #10/#17/#27: al completar su Trivia, el resultado final (con los puntos)
-  // permanece visible al menos 5 s antes de volver automáticamente al detalle.
-  // Los 10 s de preparación NO empiezan aquí: los inicia el backend al cerrar la
-  // etapa (CierrePendiente), no este redirect. Si EtapaIniciada navega antes, el
-  // cleanup cancela este timer.
+  const finalizarRespuesta = useCallback(
+    (etapaCompletadaBackend: boolean) => {
+      mostrandoResultadoRef.current = true;
+
+      if (etapaCompletadaBackend) {
+        iniciarFeedbackFinalEtapa(true);
+        return;
+      }
+
+      limpiarFeedbackRespuestaTimer();
+      feedbackRespuestaTimerRef.current = setTimeout(() => {
+        feedbackRespuestaTimerRef.current = null;
+
+        if (etapaCompletadaPendienteRef.current) {
+          iniciarFeedbackFinalEtapa(true);
+          return;
+        }
+
+        void resincronizarPregunta();
+      }, 1000);
+    },
+    [
+      iniciarFeedbackFinalEtapa,
+      limpiarFeedbackRespuestaTimer,
+      resincronizarPregunta,
+    ],
+  );
+
+  // La pantalla de etapa completada se muestra solo brevemente; el countdown de
+  // preparación de 10 s se observa en el detalle de la sesión.
   useEffect(() => {
     if (!etapaTerminada || !sesionId) return;
     const id = setTimeout(() => {
       enrutador.replace(`/participante/sesiones/${sesionId}`);
-    }, MS_FEEDBACK_FINAL);
+    }, MS_PANTALLA_ETAPA_COMPLETADA);
     return () => clearTimeout(id);
   }, [etapaTerminada, sesionId, enrutador]);
 
@@ -427,37 +514,7 @@ function ContenidoJuego() {
         setConflictoTipo(null);
       }
 
-      // Se muestra el resultado ~1 s y luego se consulta la transición
-      // autoritativa (feedback de 5 s); el resultado permanece visible durante
-      // el countdown que devuelve el backend.
-      mostrandoResultadoRef.current = true;
-      if (resultado.etapaCompletada) {
-        // Última pregunta del jugador: el overlay (correcta/incorrecta + puntaje)
-        // permanece 5 s antes de la pantalla de etapa completada.
-        setTimeout(() => {
-          mostrandoResultadoRef.current = false;
-          setTodosCompletaron(true);
-          setEtapaTerminada(true);
-        }, MS_FEEDBACK_RESPUESTA);
-      } else {
-        // Se muestra el resultado ~1 s y se resincroniza con la transición
-        // autoritativa (que mantiene el overlay con su cuenta regresiva). Si la
-        // etapa se completó globalmente durante el feedback, se completan los 5 s
-        // antes de la pantalla final.
-        setTimeout(() => {
-          if (etapaCompletadaPendienteRef.current) {
-            etapaCompletadaPendienteRef.current = false;
-            setTimeout(() => {
-              mostrandoResultadoRef.current = false;
-              setTodosCompletaron(true);
-              setEtapaTerminada(true);
-            }, MS_FEEDBACK_RESPUESTA - 1000);
-            return;
-          }
-          mostrandoResultadoRef.current = false;
-          void resincronizarPregunta();
-        }, 1000);
-      }
+      finalizarRespuesta(resultado.etapaCompletada);
     } catch (e) {
       if (e instanceof ErrorRespuestaTrivia && e.codigo === "OPERACION_SESION_INVALIDA") {
         // La ventana temporal cambió: resincronizar con la pregunta autoritativa.
@@ -470,7 +527,7 @@ function ContenidoJuego() {
     } finally {
       setEnviando(false);
     }
-  }, [token, preguntaActual, trivia, sesionId, misionId, etapaId, triviaId, tiempoLimite, enviando, estadoSesion, resincronizarPregunta]);
+  }, [token, preguntaActual, trivia, sesionId, misionId, etapaId, triviaId, tiempoLimite, enviando, estadoSesion, finalizarRespuesta, resincronizarPregunta]);
 
   const seleccionarOpcion = async (opcionId: string) => {
     if (estadoPregunta !== "esperando" || enviando || !preguntaActual || !trivia || !token) return;
@@ -518,39 +575,9 @@ function ContenidoJuego() {
       }
 
       // Tras mostrar el resultado, NO se avanza por índice local: se resincroniza
-      // con la pregunta autoritativa del backend (que respeta las ventanas
-      // temporales por pregunta).
-      // Se muestra el resultado ~1 s y luego se consulta la transición
-      // autoritativa (feedback de 5 s); el resultado permanece visible durante
-      // el countdown que devuelve el backend.
-      mostrandoResultadoRef.current = true;
-      if (resultado.etapaCompletada) {
-        // Última pregunta del jugador: el overlay (correcta/incorrecta + puntaje)
-        // permanece 5 s antes de la pantalla de etapa completada.
-        setTimeout(() => {
-          mostrandoResultadoRef.current = false;
-          setTodosCompletaron(true);
-          setEtapaTerminada(true);
-        }, MS_FEEDBACK_RESPUESTA);
-      } else {
-        // Se muestra el resultado ~1 s y se resincroniza con la transición
-        // autoritativa (que mantiene el overlay con su cuenta regresiva). Si la
-        // etapa se completó globalmente durante el feedback, se completan los 5 s
-        // antes de la pantalla final.
-        setTimeout(() => {
-          if (etapaCompletadaPendienteRef.current) {
-            etapaCompletadaPendienteRef.current = false;
-            setTimeout(() => {
-              mostrandoResultadoRef.current = false;
-              setTodosCompletaron(true);
-              setEtapaTerminada(true);
-            }, MS_FEEDBACK_RESPUESTA - 1000);
-            return;
-          }
-          mostrandoResultadoRef.current = false;
-          void resincronizarPregunta();
-        }, 1000);
-      }
+      // con la pregunta autoritativa del backend, salvo que sea el cierre visual
+      // de la última pregunta.
+      finalizarRespuesta(resultado.etapaCompletada);
     } catch (e) {
       if (e instanceof ErrorRespuestaTrivia && e.codigo === "OPERACION_SESION_INVALIDA") {
         // La pregunta aún no está en su ventana temporal: no es error del jugador
@@ -932,7 +959,13 @@ function ContenidoJuego() {
                   : "Ya habías respondido esta pregunta."}
               </Text>
             )}
-            {transicionRestanteSeg !== null && (
+            {feedbackFinalRestanteSeg !== null && (
+              <View style={estilos.transicionContenedor}>
+                <Text style={estilos.transicionTitulo}>FINALIZANDO ETAPA EN</Text>
+                <Text style={estilos.transicionCuenta}>{feedbackFinalRestanteSeg}s</Text>
+              </View>
+            )}
+            {feedbackFinalRestanteSeg === null && transicionRestanteSeg !== null && (
               <View style={estilos.transicionContenedor}>
                 <Text style={estilos.transicionTitulo}>Siguiente pregunta en</Text>
                 <Text style={estilos.transicionCuenta}>{transicionRestanteSeg}s</Text>
