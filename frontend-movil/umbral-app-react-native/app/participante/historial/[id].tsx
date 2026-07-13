@@ -19,10 +19,8 @@ import {
   type EntradaRankingParticipanteDto,
   type EntradaRankingEquipoDto,
 } from "../../../servicios/rankingApi";
-import {
-  obtenerProgresoSesionParticipanteApi,
-  type ProgresoSesionParticipanteDto,
-} from "../../../servicios/sesionesApi";
+import { obtenerProgresoSesionParticipanteApi } from "../../../servicios/sesionesApi";
+import type { ProgresoSesionParticipanteDto } from "../../../tipos/sesiones";
 import { formatearFechaHora } from "../../../utilidades/formatoFechas";
 
 function subDesdeToken(token: string): string | null {
