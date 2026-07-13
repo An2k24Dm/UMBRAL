@@ -169,6 +169,38 @@ public sealed class RepositorioRespuestasTrivia : IRepositorioRespuestasTrivia
             .AsReadOnly();
     }
 
+    public async Task<IReadOnlyList<ProgresoTriviaEtapaItem>> ObtenerProgresoTriviaPorEtapaAsync(
+        Guid sesionId, CancellationToken cancelacion)
+    {
+        var registros = await _contexto.RespuestasTrivia
+            .AsNoTracking()
+            .Where(r => r.SesionId == sesionId)
+            .Select(r => new
+            {
+                r.ParticipanteIdentidadId,
+                r.EquipoId,
+                r.EtapaId,
+                r.PreguntaId
+            })
+            .ToListAsync(cancelacion);
+
+        return registros
+            .GroupBy(r => new
+            {
+                Clave = r.EquipoId.HasValue
+                    ? $"e:{r.EquipoId.Value}"
+                    : $"p:{r.ParticipanteIdentidadId}",
+                r.EtapaId
+            })
+            .Select(g => new ProgresoTriviaEtapaItem(
+                ParticipanteIdentidadId: g.Select(r => r.ParticipanteIdentidadId).First(),
+                EquipoId: g.Select(r => r.EquipoId).First(),
+                EtapaId: g.Key.EtapaId,
+                PreguntasRespondidas: g.Select(r => r.PreguntaId).Distinct().Count()))
+            .ToList()
+            .AsReadOnly();
+    }
+
     public Task<int> ActualizarPuntosGanadosPorEventoAsync(
         Guid eventoPuntuacionId, int puntosGanados, CancellationToken cancelacion)
         => _contexto.RespuestasTrivia

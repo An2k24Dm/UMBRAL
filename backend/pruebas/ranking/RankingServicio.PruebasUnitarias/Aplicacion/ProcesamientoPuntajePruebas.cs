@@ -64,6 +64,89 @@ public sealed class ProcesamientoPuntajePruebas
     }
 
     [Fact]
+    public async Task Trivia_grupal_correcta_actualizaParticipanteYEquipo()
+    {
+        var entorno = new EntornoHandler();
+        var equipoId = Guid.NewGuid();
+        var comando = CrearComandoTrivia(esCorrecta: true, puntajeBase: 5, equipoId);
+        var manejador = entorno.CrearManejadorTrivia();
+
+        await manejador.Handle(comando, CancellationToken.None);
+
+        var ranking = entorno.Repositorio.Ranking!;
+        var participante = ranking.Participantes.Single();
+        participante.EquipoId.Should().Be(equipoId);
+        participante.Puntaje.Valor.Should().Be(5);
+        ranking.Equipos.Single(e => e.EquipoId == equipoId).Puntaje.Valor.Should().Be(5);
+
+        var puntaje = entorno.Notificador.Puntajes.Single();
+        puntaje.EventoIdOrigen.Should().Be(comando.EventoId);
+        puntaje.EquipoId.Should().Be(equipoId);
+        puntaje.PuntajeGanado.Should().Be(5);
+        puntaje.PuntajeTotalParticipante.Should().Be(5);
+        puntaje.PuntajeTotalEquipo.Should().Be(5);
+        entorno.Publicador.Puntajes.Should().ContainSingle(p =>
+            p.EventoIdOrigen == comando.EventoId &&
+            p.PuntajeTotalEquipo == 5);
+    }
+
+    [Fact]
+    public async Task Tesoro_grupal_valido_actualizaParticipanteYEquipo()
+    {
+        var entorno = new EntornoHandler();
+        var equipoId = Guid.NewGuid();
+        var comando = CrearComandoTesoro(esValida: true, puntajeBase: 50, equipoId);
+        var manejador = entorno.CrearManejadorTesoro();
+
+        await manejador.Handle(comando, CancellationToken.None);
+
+        var ranking = entorno.Repositorio.Ranking!;
+        var participante = ranking.Participantes.Single();
+        participante.EquipoId.Should().Be(equipoId);
+        participante.Puntaje.Valor.Should().Be(50);
+        ranking.Equipos.Single(e => e.EquipoId == equipoId).Puntaje.Valor.Should().Be(50);
+
+        var puntaje = entorno.Notificador.Puntajes.Single();
+        puntaje.EventoIdOrigen.Should().Be(comando.EventoId);
+        puntaje.EquipoId.Should().Be(equipoId);
+        puntaje.PuntajeGanado.Should().Be(50);
+        puntaje.PuntajeTotalParticipante.Should().Be(50);
+        puntaje.PuntajeTotalEquipo.Should().Be(50);
+    }
+
+    [Fact]
+    public async Task Trivia_grupal_conEquipoPreexistente_agregaParticipanteYRecalculaEquipo()
+    {
+        var sesionId = Guid.NewGuid();
+        var equipoId = Guid.NewGuid();
+        var participanteSesionId = Guid.NewGuid();
+        var identidadId = Guid.NewGuid();
+        var ranking = Ranking.Crear(sesionId);
+        ranking.RegistrarEquipo(equipoId);
+        var entorno = new EntornoHandler();
+        entorno.Repositorio.Inicializar(ranking);
+        var comando = CrearComandoTrivia(
+            esCorrecta: true,
+            puntajeBase: 5,
+            equipoId,
+            sesionId,
+            participanteSesionId,
+            identidadId);
+
+        await entorno.CrearManejadorTrivia().Handle(comando, CancellationToken.None);
+
+        var rankingActualizado = entorno.Repositorio.Ranking!;
+        rankingActualizado.Participantes.Should().ContainSingle(p =>
+            p.ParticipanteSesionId == participanteSesionId &&
+            p.ParticipanteIdentidadId == identidadId &&
+            p.EquipoId == equipoId &&
+            p.Puntaje.Valor == 5);
+        rankingActualizado.Equipos.Single(e => e.EquipoId == equipoId)
+            .Puntaje.Valor.Should().Be(5);
+        entorno.Notificador.Puntajes.Single().PuntajeTotalEquipo.Should().Be(5);
+    }
+
+    [Fact]
     public async Task Tesoro_invalido_emitePuntajeCalculadoConCero()
     {
         var entorno = new EntornoHandler();
@@ -93,17 +176,39 @@ public sealed class ProcesamientoPuntajePruebas
         entorno.Publicador.Puntajes.Should().ContainSingle();
     }
 
+    [Fact]
+    public async Task EventoDuplicado_grupal_noSumaDosVecesNiReemite()
+    {
+        var entorno = new EntornoHandler();
+        var equipoId = Guid.NewGuid();
+        var comando = CrearComandoTrivia(esCorrecta: true, puntajeBase: 5, equipoId);
+        var manejador = entorno.CrearManejadorTrivia();
+
+        await manejador.Handle(comando, CancellationToken.None);
+        await manejador.Handle(comando, CancellationToken.None);
+
+        var ranking = entorno.Repositorio.Ranking!;
+        ranking.Participantes.Single().Puntaje.Valor.Should().Be(5);
+        ranking.Equipos.Single(e => e.EquipoId == equipoId).Puntaje.Valor.Should().Be(5);
+        entorno.Notificador.Puntajes.Should().ContainSingle();
+        entorno.Publicador.Puntajes.Should().ContainSingle();
+    }
+
     private static ProcesarRespuestaTriviaComando CrearComandoTrivia(
         bool esCorrecta,
-        int puntajeBase)
+        int puntajeBase,
+        Guid? equipoId = null,
+        Guid? sesionId = null,
+        Guid? participanteSesionId = null,
+        Guid? participanteIdentidadId = null)
         => new(
             Guid.NewGuid(),
+            sesionId ?? Guid.NewGuid(),
             Guid.NewGuid(),
             Guid.NewGuid(),
-            Guid.NewGuid(),
-            Guid.NewGuid(),
-            Guid.NewGuid(),
-            EquipoId: null,
+            participanteSesionId ?? Guid.NewGuid(),
+            participanteIdentidadId ?? Guid.NewGuid(),
+            equipoId,
             Guid.NewGuid(),
             Guid.NewGuid(),
             esCorrecta,
@@ -113,7 +218,8 @@ public sealed class ProcesamientoPuntajePruebas
 
     private static ProcesarEvidenciaTesoroComando CrearComandoTesoro(
         bool esValida,
-        int puntajeBase)
+        int puntajeBase,
+        Guid? equipoId = null)
         => new(
             Guid.NewGuid(),
             Guid.NewGuid(),
@@ -121,7 +227,7 @@ public sealed class ProcesamientoPuntajePruebas
             Guid.NewGuid(),
             Guid.NewGuid(),
             Guid.NewGuid(),
-            EquipoId: null,
+            equipoId,
             Guid.NewGuid(),
             esValida,
             puntajeBase);
@@ -159,6 +265,8 @@ public sealed class ProcesamientoPuntajePruebas
     private sealed class FakeRepositorioRanking : IRepositorioRanking
     {
         public Ranking? Ranking { get; private set; }
+
+        public void Inicializar(Ranking ranking) => Ranking = ranking;
 
         public Task<Ranking?> ObtenerPorSesionAsync(Guid sesionId, CancellationToken cancelacion)
             => Task.FromResult(Ranking?.SesionId == sesionId ? Ranking : null);

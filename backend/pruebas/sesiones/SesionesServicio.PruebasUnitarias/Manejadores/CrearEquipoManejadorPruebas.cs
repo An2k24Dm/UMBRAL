@@ -33,6 +33,7 @@ public class CrearEquipoManejadorPruebas
         public Mock<IProveedorFechaHora> Reloj { get; } = new();
         public Mock<IConsultasSesiones> Consultas { get; } = new();
         public Mock<INotificadorSesionesTiempoReal> Notificador { get; } = new();
+        public Mock<IPublicadorEventosRanking> PublicadorRanking { get; } = new();
         public Sesion? Actualizada;
 
         public Contexto(Sesion? sesion = null)
@@ -74,7 +75,7 @@ public class CrearEquipoManejadorPruebas
                 new PoliticaParticipacionUnicaSesion(Consultas.Object),
                 Notificador.Object,
                 Mock.Of<IRegistroLogsAplicacion>(),
-                Mock.Of<IPublicadorEventosRanking>());
+                PublicadorRanking.Object);
     }
 
     private static SesionGrupal SesionGrupalEnPreparacion(
@@ -120,6 +121,14 @@ public class CrearEquipoManejadorPruebas
         ctx.Notificador.Verify(n => n.NotificarSesionActualizadaAsync(
             SesionId, EstadoSesion.EnPreparacion.ToString(), It.IsAny<CancellationToken>()),
             Times.Once);
+        ctx.PublicadorRanking.Verify(p => p.PublicarEquipoCreadoSesionAsync(
+            SesionId, dto.Id, It.IsAny<CancellationToken>()), Times.Once);
+        ctx.PublicadorRanking.Verify(p => p.PublicarParticipanteUnidoSesionAsync(
+            SesionId,
+            dto.LiderParticipanteId,
+            Participante,
+            dto.Id,
+            It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]

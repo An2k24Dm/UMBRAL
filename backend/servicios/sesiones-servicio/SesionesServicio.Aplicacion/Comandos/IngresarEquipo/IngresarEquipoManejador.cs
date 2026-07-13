@@ -24,6 +24,7 @@ public sealed class IngresarEquipoManejador
     private readonly PoliticaParticipacionUnicaSesion _participacionUnica;
     private readonly INotificadorSesionesTiempoReal _notificadorTiempoReal;
     private readonly IRegistroLogsAplicacion _registroLogs;
+    private readonly IPublicadorEventosRanking _publicadorRanking;
 
     public IngresarEquipoManejador(
         IValidador<IngresarEquipoComando> validador,
@@ -34,7 +35,8 @@ public sealed class IngresarEquipoManejador
         IProveedorFechaHora reloj,
         PoliticaParticipacionUnicaSesion participacionUnica,
         INotificadorSesionesTiempoReal notificadorTiempoReal,
-        IRegistroLogsAplicacion registroLogs)
+        IRegistroLogsAplicacion registroLogs,
+        IPublicadorEventosRanking publicadorRanking)
     {
         _validador = validador;
         _repositorio = repositorio;
@@ -45,6 +47,7 @@ public sealed class IngresarEquipoManejador
         _participacionUnica = participacionUnica;
         _notificadorTiempoReal = notificadorTiempoReal;
         _registroLogs = registroLogs;
+        _publicadorRanking = publicadorRanking;
     }
 
     public async Task<IngresarEquipoRespuestaDto> Handle(
@@ -110,7 +113,7 @@ public sealed class IngresarEquipoManejador
 
         var ahoraUtc = _reloj.ObtenerFechaHoraUtc();
 
-        sesionGrupal.AgregarParticipanteAEquipo(
+        var participante = sesionGrupal.AgregarParticipanteAEquipo(
             comando.EquipoId, participanteId, ahoraUtc, ahoraUtc);
 
         await _repositorio.ActualizarAsync(sesionGrupal, cancelacion);
@@ -133,6 +136,13 @@ public sealed class IngresarEquipoManejador
                 ["EquipoId"] = comando.EquipoId,
                 ["ParticipanteId"] = participanteId
             });
+
+        await _publicadorRanking.PublicarParticipanteUnidoSesionAsync(
+            sesionGrupal.Id,
+            participante.Id,
+            participante.ParticipanteIdentidadId,
+            participante.EquipoId,
+            cancelacion);
 
         return new IngresarEquipoRespuestaDto
         {

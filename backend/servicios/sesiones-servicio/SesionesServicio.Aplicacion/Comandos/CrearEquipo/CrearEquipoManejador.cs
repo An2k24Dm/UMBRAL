@@ -122,6 +122,14 @@ public sealed class CrearEquipoManejador
         await _publicadorRanking.PublicarEquipoCreadoSesionAsync(
             sesionGrupal.Id, equipo.Id, cancelacion);
 
+        var lider = equipo.Participantes.Single(p => p.Id == equipo.LiderParticipanteId);
+        await _publicadorRanking.PublicarParticipanteUnidoSesionAsync(
+            sesionGrupal.Id,
+            lider.Id,
+            lider.ParticipanteIdentidadId,
+            lider.EquipoId,
+            cancelacion);
+
         return new CrearEquipoRespuestaDto
         {
             Id = equipo.Id,

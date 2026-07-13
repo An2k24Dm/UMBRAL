@@ -123,6 +123,15 @@ public sealed class ConsumidorResultadosRankingRabbitMq : BackgroundService
             var ev = JsonSerializer.Deserialize<EventoPuntajeActualizadoRanking>(
                 cuerpo, OpcionesJson)!;
 
+            _log.LogInformation(
+                "Resultado de Ranking recibido. RoutingKey={RoutingKey} EventoIdOrigen={EventoIdOrigen} SesionId={SesionId} ParticipanteSesionId={ParticipanteSesionId} ParticipanteIdentidadId={ParticipanteIdentidadId} EquipoId={EquipoId}",
+                args.RoutingKey,
+                ev.EventoIdOrigen,
+                ev.SesionId,
+                ev.ParticipanteSesionId,
+                ev.ParticipanteIdentidadId,
+                ev.EquipoId);
+
             using var scope = _scopeFactory.CreateScope();
             var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
             await mediator.Send(new AplicarPuntajeRankingComando(
