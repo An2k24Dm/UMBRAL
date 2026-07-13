@@ -19,7 +19,21 @@ import {
   type EntradaRankingParticipanteDto,
   type EntradaRankingEquipoDto,
 } from "../../../servicios/rankingApi";
+import {
+  obtenerProgresoSesionParticipanteApi,
+  type ProgresoSesionParticipanteDto,
+} from "../../../servicios/sesionesApi";
 import { formatearFechaHora } from "../../../utilidades/formatoFechas";
+
+function subDesdeToken(token: string): string | null {
+  try {
+    const payload = token.split(".")[1];
+    const json = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/"))) as Record<string, unknown>;
+    return typeof json["sub"] === "string" ? json["sub"] : null;
+  } catch {
+    return null;
+  }
+}
 
 export default function PantallaResultadoSesion() {
   return (
@@ -59,6 +73,7 @@ function ContenidoResultado() {
 
   const [rankingParticipantes, setRankingParticipantes] = useState<EntradaRankingParticipanteDto[] | null>(null);
   const [rankingEquipos, setRankingEquipos] = useState<EntradaRankingEquipoDto[] | null>(null);
+  const [miProgreso, setMiProgreso] = useState<ProgresoSesionParticipanteDto | null>(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sesionExpirada, setSesionExpirada] = useState(false);
@@ -68,12 +83,16 @@ function ContenidoResultado() {
     setCargando(true);
     setError(null);
     try {
-      if (esGrupal) {
-        const datos = await obtenerRankingEquiposSesionApi(token, sesionId);
-        setRankingEquipos(datos);
-      } else {
-        const datos = await obtenerRankingParticipantesSesionApi(token, sesionId);
-        setRankingParticipantes(datos);
+      const miSub = subDesdeToken(token);
+      const [progreso, ...rankingResult] = await Promise.all([
+        obtenerProgresoSesionParticipanteApi(token, sesionId).catch(() => [] as ProgresoSesionParticipanteDto[]),
+        esGrupal
+          ? obtenerRankingEquiposSesionApi(token, sesionId).then((d) => { setRankingEquipos(d); return d; })
+          : obtenerRankingParticipantesSesionApi(token, sesionId).then((d) => { setRankingParticipantes(d); return d; }),
+      ]);
+      void rankingResult;
+      if (miSub) {
+        setMiProgreso(progreso.find((p) => p.participanteIdentidadId === miSub) ?? null);
       }
     } catch (e: unknown) {
       if (
@@ -88,7 +107,7 @@ function ContenidoResultado() {
       setError(
         e instanceof Error
           ? e.message
-          : "No se pudo cargar el ranking de la sesión.",
+          : "No se pudo cargar el detalle de la sesión.",
       );
     } finally {
       setCargando(false);
@@ -155,6 +174,44 @@ function ContenidoResultado() {
           <Text style={estilos.puntajePropioValor}>{puntajePropio} pts</Text>
         </View>
       </View>
+
+      {/* Mis estadísticas detalladas */}
+      {miProgreso && (
+        <>
+          <Text style={estilos.tituloSeccion}>MIS ESTADÍSTICAS</Text>
+          <View style={estilos.tarjetaStats}>
+            {miProgreso.triviaRespondidas > 0 && (
+              <View style={estilos.filaStat}>
+                <View style={estilos.filaStatIzq}>
+                  <Text style={estilos.statEtiqueta}>Trivia respondidas</Text>
+                  <Text style={estilos.statValor}>
+                    {miProgreso.triviaCorrectas} correctas · {miProgreso.triviaIncorrectas} incorrectas
+                    {" "}({miProgreso.triviaRespondidas > 0
+                      ? Math.round((miProgreso.triviaCorrectas / miProgreso.triviaRespondidas) * 100)
+                      : 0}% acierto)
+                  </Text>
+                </View>
+                <Text style={estilos.statPts}>{miProgreso.triviaPuntosGanados} pts</Text>
+              </View>
+            )}
+            {miProgreso.tesoroIntentosEnviados > 0 && (
+              <View style={[estilos.filaStat, miProgreso.triviaRespondidas > 0 && estilos.filaStatBorde]}>
+                <View style={estilos.filaStatIzq}>
+                  <Text style={estilos.statEtiqueta}>Búsqueda del tesoro</Text>
+                  <Text style={estilos.statValor}>
+                    {miProgreso.tesoroEtapasCompletadas} etapa{miProgreso.tesoroEtapasCompletadas !== 1 ? "s" : ""} completada{miProgreso.tesoroEtapasCompletadas !== 1 ? "s" : ""} · {miProgreso.tesoroIntentosEnviados} intento{miProgreso.tesoroIntentosEnviados !== 1 ? "s" : ""}
+                  </Text>
+                </View>
+                <Text style={estilos.statPts}>{miProgreso.tesoroPuntosGanados} pts</Text>
+              </View>
+            )}
+            <View style={[estilos.filaStat, estilos.filaStatBorde, estilos.filaStatTotal]}>
+              <Text style={estilos.statTotalEtiqueta}>TOTAL</Text>
+              <Text style={estilos.statTotalValor}>{miProgreso.totalPuntosGanados} pts</Text>
+            </View>
+          </View>
+        </>
+      )}
 
       {/* Ranking */}
       <Text style={estilos.tituloSeccion}>
@@ -438,6 +495,58 @@ const estilos = StyleSheet.create({
   botonPrimarioTexto: {
     color: tema.colores.textoBlanco,
     fontWeight: tema.tipografia.pesos.bold,
+    fontSize: tema.tipografia.tamanos.lg,
+  },
+  tarjetaStats: {
+    backgroundColor: tema.colores.fondoTarjeta,
+    borderRadius: tema.radios.tarjeta,
+    borderWidth: 1,
+    borderColor: tema.colores.bordeTarjeta,
+    padding: tema.espacios.md,
+    marginBottom: tema.espacios.md,
+  },
+  filaStat: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: tema.espacios.sm,
+  },
+  filaStatBorde: {
+    borderTopWidth: 1,
+    borderTopColor: tema.colores.bordeTarjeta,
+  },
+  filaStatIzq: {
+    flex: 1,
+    marginRight: tema.espacios.sm,
+  },
+  statEtiqueta: {
+    color: tema.colores.texto,
+    fontWeight: tema.tipografia.pesos.bold,
+    fontSize: tema.tipografia.tamanos.sm,
+  },
+  statValor: {
+    color: tema.colores.textoTenue,
+    fontSize: tema.tipografia.tamanos.xs,
+    marginTop: 2,
+  },
+  statPts: {
+    color: tema.colores.primario,
+    fontWeight: tema.tipografia.pesos.extrabold,
+    fontSize: tema.tipografia.tamanos.md,
+  },
+  filaStatTotal: {
+    marginTop: 2,
+  },
+  statTotalEtiqueta: {
+    color: tema.colores.textoTenue,
+    fontWeight: tema.tipografia.pesos.bold,
+    fontSize: tema.tipografia.tamanos.xs,
+    letterSpacing: tema.tipografia.espaciadoLetra.sm,
+    textTransform: "uppercase",
+  },
+  statTotalValor: {
+    color: tema.colores.exito,
+    fontWeight: tema.tipografia.pesos.extrabold,
     fontSize: tema.tipografia.tamanos.lg,
   },
   botonSecundario: {
