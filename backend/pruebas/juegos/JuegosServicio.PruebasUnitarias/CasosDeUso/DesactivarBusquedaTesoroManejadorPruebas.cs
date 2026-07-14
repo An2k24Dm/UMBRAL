@@ -28,7 +28,7 @@ public class DesactivarBusquedaTesoroManejadorPruebas
         var busqueda = BusquedaTesoro.Crear("Búsqueda Test", "Descripción", Guid.NewGuid(), FechaFija);
         // La regla nueva exige al menos una pista antes de activar; de
         // lo contrario `Activar` lanza ExcepcionDominio.
-        busqueda.AgregarPista("Pista única");
+        busqueda.AgregarPista(null, TipoPista.CoordenadaGps, -34.6037, -58.3816);
         busqueda.Activar();
         return busqueda;
     }

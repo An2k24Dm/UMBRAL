@@ -26,5 +26,8 @@ public sealed class PistaLiberadaModelo
     public Guid EtapaId { get; set; }
     public Guid? PistaId { get; set; }
     public string Contenido { get; set; } = string.Empty;
+    public int Tipo { get; set; }
+    public double? Latitud { get; set; }
+    public double? Longitud { get; set; }
     public DateTime FechaLiberacionUtc { get; set; }
 }

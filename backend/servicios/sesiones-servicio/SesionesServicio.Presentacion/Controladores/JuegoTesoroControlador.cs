@@ -80,7 +80,7 @@ public sealed class JuegoTesoroControlador : ControllerBase
         try
         {
             await _mediador.Send(
-                new LiberarPistaComando(sesionId, etapaId, dto.PistaId, dto.Contenido),
+                new LiberarPistaComando(sesionId, etapaId, dto.PistaId, dto.Contenido, dto.Tipo, dto.Latitud, dto.Longitud),
                 cancelacion);
             return NoContent();
         }

@@ -21,7 +21,7 @@ public class ModificarPistaManejadorPruebas
     private static BusquedaTesoro BusquedaConPista(out Guid pistaId)
     {
         var busqueda = BusquedaTesoro.Crear("Búsqueda Test", "Descripción", Guid.NewGuid(), FechaFija);
-        var pista = busqueda.AgregarPista("Pista original.");
+        var pista = busqueda.AgregarPista("Pista original.", TipoPista.Texto, null, null);
         pistaId = pista.Id;
         return busqueda;
     }

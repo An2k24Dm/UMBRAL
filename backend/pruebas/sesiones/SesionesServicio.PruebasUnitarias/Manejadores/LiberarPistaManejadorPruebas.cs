@@ -50,7 +50,8 @@ public class LiberarPistaManejadorPruebas
 
             Notificador.Setup(n => n.NotificarPistaLiberadaAsync(
                     It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid?>(),
-                    It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                    It.IsAny<string>(), It.IsAny<string>(), It.IsAny<double?>(), It.IsAny<double?>(),
+                    It.IsAny<CancellationToken>()))
                 .Returns(Task.CompletedTask);
         }
 
@@ -59,7 +60,7 @@ public class LiberarPistaManejadorPruebas
 
         public Task Ejecutar(Guid? pistaId = null, string? contenido = Contenido)
             => Construir().Handle(
-                new LiberarPistaComando(SesionId, EtapaId, pistaId, contenido),
+                new LiberarPistaComando(SesionId, EtapaId, pistaId, contenido, "Texto", null, null),
                 CancellationToken.None);
     }
 
@@ -80,7 +81,9 @@ public class LiberarPistaManejadorPruebas
             It.IsAny<CancellationToken>()), Times.Once);
 
         ctx.Notificador.Verify(n => n.NotificarPistaLiberadaAsync(
-            sesion.Id, EtapaId, PistaId, Contenido, It.IsAny<CancellationToken>()),
+            sesion.Id, EtapaId, PistaId, Contenido,
+            It.IsAny<string>(), It.IsAny<double?>(), It.IsAny<double?>(),
+            It.IsAny<CancellationToken>()),
             Times.Once);
     }
 
@@ -101,6 +104,7 @@ public class LiberarPistaManejadorPruebas
 
         ctx.Notificador.Verify(n => n.NotificarPistaLiberadaAsync(
             sesion.Id, EtapaId, null, contenidoPersonalizado,
+            It.IsAny<string>(), It.IsAny<double?>(), It.IsAny<double?>(),
             It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -115,7 +119,7 @@ public class LiberarPistaManejadorPruebas
             Mock.Of<INotificadorSesionesTiempoReal>());
 
         Func<Task> accion = () => manejador.Handle(
-            new LiberarPistaComando(Guid.NewGuid(), EtapaId, PistaId, Contenido),
+            new LiberarPistaComando(Guid.NewGuid(), EtapaId, PistaId, Contenido, "Texto", null, null),
             CancellationToken.None);
 
         await accion.Should().ThrowAsync<InvalidOperationException>()

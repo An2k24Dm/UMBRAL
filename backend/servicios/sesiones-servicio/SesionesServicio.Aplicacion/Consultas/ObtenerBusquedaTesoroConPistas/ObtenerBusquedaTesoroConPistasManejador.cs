@@ -80,6 +80,9 @@ public sealed class ObtenerBusquedaTesoroConPistasManejador
             {
                 PistaId = p.PistaId,
                 Contenido = p.Contenido,
+                Tipo = p.Tipo == 1 ? "CoordenadaGps" : "Texto",
+                Latitud = p.Latitud,
+                Longitud = p.Longitud,
                 FechaLiberacionUtc = p.FechaLiberacionUtc
             }).ToList(),
             YaEnvioEvidencia = yaCompletado

@@ -21,13 +21,20 @@ public sealed class ServicioGruposSesionesTiempoReal : IServicioGruposSesionesTi
     public Task SalirDeListadoAsync(string connectionId, CancellationToken cancelacion)
         => _hub.Groups.RemoveFromGroupAsync(connectionId, SesionesHub.GrupoListadoSesiones, cancelacion);
 
-    public Task UnirseASesionAsync(
+    public async Task UnirseASesionAsync(
         string connectionId, Guid? usuarioId, IReadOnlyCollection<string> roles,
         Guid sesionId, CancellationToken cancelacion)
-        => _hub.Groups.AddToGroupAsync(connectionId, SesionesHub.GrupoSesion(sesionId), cancelacion);
+    {
+        await _hub.Groups.AddToGroupAsync(connectionId, SesionesHub.GrupoSesion(sesionId), cancelacion);
+        if (roles.Contains(ContextoActorTiempoReal.RolOperador) || roles.Contains(ContextoActorTiempoReal.RolAdministrador))
+            await _hub.Groups.AddToGroupAsync(connectionId, SesionesHub.GrupoOperadoresSesion(sesionId), cancelacion);
+    }
 
-    public Task SalirDeSesionAsync(string connectionId, Guid sesionId, CancellationToken cancelacion)
-        => _hub.Groups.RemoveFromGroupAsync(connectionId, SesionesHub.GrupoSesion(sesionId), cancelacion);
+    public async Task SalirDeSesionAsync(string connectionId, Guid sesionId, CancellationToken cancelacion)
+    {
+        await _hub.Groups.RemoveFromGroupAsync(connectionId, SesionesHub.GrupoSesion(sesionId), cancelacion);
+        await _hub.Groups.RemoveFromGroupAsync(connectionId, SesionesHub.GrupoOperadoresSesion(sesionId), cancelacion);
+    }
 
     public Task UnirseAEquipoAsync(
         string connectionId, Guid? usuarioId, IReadOnlyCollection<string> roles,

@@ -14,9 +14,19 @@ module.exports = {
           cameraPermission: "UMBRAL necesita acceso a la cámara para escanear el código QR del tesoro.",
         },
       ],
+      [
+        "expo-location",
+        {
+          locationWhenInUsePermission: "UMBRAL necesita tu ubicación para mostrarla a tus compañeros de equipo durante la búsqueda del tesoro.",
+        },
+      ],
     ],
     android: {
-      permissions: ["android.permission.CAMERA"],
+      permissions: [
+        "android.permission.CAMERA",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+      ],
     },
     extra: {
       urlApi: process.env.EXPO_PUBLIC_API_URL || "http://localhost:5000",
