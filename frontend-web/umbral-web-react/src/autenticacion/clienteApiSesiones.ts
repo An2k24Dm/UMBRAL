@@ -460,14 +460,17 @@ export async function liberarPista(
   etapaId: string,
   pistaId: string | null,
   contenido: string,
-  token: string
+  token: string,
+  tipo?: 'Texto' | 'CoordenadaGps',
+  latitud?: number,
+  longitud?: number
 ): Promise<void> {
   const respuesta = await fetch(
     `${URL_API}${ENDPOINTS.porId(sesionId)}/etapas/${encodeURIComponent(etapaId)}/pistas-liberadas`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...auth(token) },
-      body: JSON.stringify({ pistaId, contenido })
+      body: JSON.stringify({ pistaId, contenido, tipo: tipo ?? 'Texto', latitud, longitud })
     }
   )
   if (respuesta.status === 204) return

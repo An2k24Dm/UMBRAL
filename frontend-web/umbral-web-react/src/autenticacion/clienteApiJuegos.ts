@@ -225,6 +225,9 @@ export interface DatosModificarBusquedaTesoro {
 export interface PistaDetalleDto {
   id: string;
   contenido: string;
+  tipo: 'Texto' | 'CoordenadaGps';
+  latitud?: number;
+  longitud?: number;
 }
 
 export interface BusquedaTesoroDetalleDto {
@@ -240,11 +243,17 @@ export interface BusquedaTesoroDetalleDto {
 }
 
 export interface DatosAgregarPista {
-  contenido: string;
+  contenido?: string;
+  tipo?: 'Texto' | 'CoordenadaGps';
+  latitud?: number;
+  longitud?: number;
 }
 
 export interface DatosModificarPista {
-  nuevoContenido: string;
+  nuevoContenido?: string;
+  tipo?: 'Texto' | 'CoordenadaGps';
+  latitud?: number;
+  longitud?: number;
 }
 
 // --- Misiones ---

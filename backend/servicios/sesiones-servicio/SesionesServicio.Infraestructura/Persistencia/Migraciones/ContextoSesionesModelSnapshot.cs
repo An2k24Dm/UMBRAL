@@ -234,6 +234,14 @@ namespace SesionesServicio.Infraestructura.Persistencia.Migraciones
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("fecha_liberacion_utc");
 
+                    b.Property<double?>("Latitud")
+                        .HasColumnType("double precision")
+                        .HasColumnName("latitud");
+
+                    b.Property<double?>("Longitud")
+                        .HasColumnType("double precision")
+                        .HasColumnName("longitud");
+
                     b.Property<Guid?>("PistaId")
                         .HasColumnType("uuid")
                         .HasColumnName("pista_id");
@@ -241,6 +249,11 @@ namespace SesionesServicio.Infraestructura.Persistencia.Migraciones
                     b.Property<Guid>("SesionId")
                         .HasColumnType("uuid")
                         .HasColumnName("sesion_id");
+
+                    b.Property<int>("Tipo")
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("tipo");
 
                     b.HasKey("Id");
 

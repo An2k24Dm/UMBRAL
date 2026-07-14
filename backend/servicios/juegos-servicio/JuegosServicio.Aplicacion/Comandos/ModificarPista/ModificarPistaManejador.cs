@@ -2,6 +2,7 @@ using JuegosServicio.Aplicacion.Puertos;
 using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Dominio.Excepciones;
 using MediatR;
+using static JuegosServicio.Dominio.Enums.TipoPista;
 
 namespace JuegosServicio.Aplicacion.Comandos.ModificarPista;
 
@@ -31,7 +32,8 @@ public sealed class ModificarPistaManejador : IRequestHandler<ModificarPistaComa
             ?? throw new ExcepcionNoEncontrado(
                 $"No se encontró la búsqueda del tesoro con ID '{comando.BusquedaId}'.");
 
-        busqueda.ModificarPista(comando.PistaId, comando.Dto.NuevoContenido);
+        var tipo = comando.Dto.Tipo == "CoordenadaGps" ? TipoPista.CoordenadaGps : Texto;
+        busqueda.ModificarPista(comando.PistaId, comando.Dto.NuevoContenido, tipo, comando.Dto.Latitud, comando.Dto.Longitud);
 
         var pista = busqueda.Pistas.First(p => p.Id == comando.PistaId);
         await _repositorio.ModificarPistaAsync(pista, cancelacion);

@@ -32,6 +32,7 @@ import {
   type BusquedaTesoroDetalleDto
 } from '../autenticacion/clienteApiJuegos'
 import { liberarPista } from '../autenticacion/clienteApiSesiones'
+import { MapaLeaflet } from '../componentes/MapaLeaflet'
 import {
   obtenerRankingParticipantes,
   obtenerRankingEquipos,
@@ -1311,15 +1312,24 @@ function BloqueBusqueda({
     ? `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(busqueda.codigoQr)}`
     : null
 
-  async function handleLiberarPista(pistaId: string, contenido: string) {
+  async function handleLiberarPista(
+    pistaId: string,
+    contenido: string,
+    tipo?: 'Texto' | 'CoordenadaGps',
+    latitud?: number,
+    longitud?: number
+  ) {
     if (!token || liberando) return
     setLiberando(pistaId)
     setErrorPista(null)
     setExitoPista(null)
     try {
-      await liberarPista(sesionId, etapaId, pistaId, contenido, token)
+      await liberarPista(sesionId, etapaId, pistaId, contenido, token, tipo, latitud, longitud)
       setPistasLiberadasIds(prev => new Set([...prev, pistaId]))
-      setExitoPista(`Pista liberada: "${contenido.slice(0, 40)}${contenido.length > 40 ? '…' : ''}"`)
+      const desc = tipo === 'CoordenadaGps'
+        ? `GPS: ${latitud?.toFixed(4)}, ${longitud?.toFixed(4)}`
+        : `"${contenido.slice(0, 40)}${contenido.length > 40 ? '…' : ''}"`
+      setExitoPista(`Pista liberada: ${desc}`)
     } catch (e) {
       setErrorPista(e instanceof Error ? e.message : 'No se pudo liberar la pista.')
     } finally {
@@ -1398,15 +1408,24 @@ function BloqueBusqueda({
         <ul className="lista-pistas" style={{ marginTop: 16 }}>
           {busqueda.pistas.map((p, idx) => {
             const yaLiberada = pistasLiberadasIds.has(p.id)
+            const esGps = p.tipo === 'CoordenadaGps'
             return (
-              <li key={p.id} className="pista-item" style={{ alignItems: 'center', gap: 12 }}>
+              <li key={p.id} className="pista-item" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <span className="pista-orden">{idx + 1}</span>
-                <span style={{ flex: 1 }}>{p.contenido}</span>
+                <span style={{ flex: 1 }}>
+                  {esGps ? (
+                    <>
+                      <span style={{ display: 'inline-block', fontSize: '0.7rem', fontWeight: 700, padding: '1px 6px', borderRadius: 4, background: '#dbeafe', color: '#1d4ed8', marginRight: 6 }}>GPS</span>
+                      {p.latitud != null && p.longitud != null ? `${p.latitud.toFixed(6)}, ${p.longitud.toFixed(6)}` : 'Coordenadas no disponibles'}
+                    </>
+                  ) : p.contenido}
+                </span>
                 {esOperador && sesionActiva && (
                   <button
                     type="button"
                     disabled={yaLiberada || liberando === p.id}
-                    onClick={() => void handleLiberarPista(p.id, p.contenido)}
+                    onClick={() => void handleLiberarPista(p.id, p.contenido, p.tipo, p.latitud, p.longitud)}
                     style={{
                       fontSize: '0.8rem',
                       padding: '4px 10px',
@@ -1421,6 +1440,12 @@ function BloqueBusqueda({
                   >
                     {yaLiberada ? 'Liberada' : liberando === p.id ? '…' : 'Liberar'}
                   </button>
+                )}
+                </div>
+                {esGps && p.latitud != null && p.longitud != null && (
+                  <div style={{ marginLeft: 36 }}>
+                    <MapaLeaflet latitud={p.latitud} longitud={p.longitud} alto={200} />
+                  </div>
                 )}
               </li>
             )

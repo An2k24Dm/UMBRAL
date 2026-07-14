@@ -7,6 +7,9 @@ import {
 export interface PistaLiberadaSesion {
   pistaId: string | null;
   contenido: string;
+  tipo?: "Texto" | "CoordenadaGps";
+  latitud?: number | null;
+  longitud?: number | null;
   fechaLiberacionUtc: string;
 }
 

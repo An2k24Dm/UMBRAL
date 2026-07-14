@@ -3,6 +3,7 @@ using JuegosServicio.Aplicacion.Validaciones;
 using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Dominio.Excepciones;
 using MediatR;
+using static JuegosServicio.Dominio.Enums.TipoPista;
 
 namespace JuegosServicio.Aplicacion.Comandos.AgregarPista;
 
@@ -37,7 +38,8 @@ public sealed class AgregarPistaManejador : IRequestHandler<AgregarPistaComando,
             ?? throw new ExcepcionNoEncontrado(
                 $"No se encontró la búsqueda del tesoro con ID '{comando.BusquedaId}'.");
 
-        var pista = busqueda.AgregarPista(comando.Dto.Contenido);
+        var tipo = comando.Dto.Tipo == "CoordenadaGps" ? TipoPista.CoordenadaGps : Texto;
+        var pista = busqueda.AgregarPista(comando.Dto.Contenido, tipo, comando.Dto.Latitud, comando.Dto.Longitud);
 
         await _repositorio.AgregarPistaAsync(pista, cancelacion);
 

@@ -1,4 +1,4 @@
-﻿using JuegosServicio.Dominio.Entidades;
+using JuegosServicio.Dominio.Entidades;
 using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Infraestructura.Persistencia.Modelos;
 
@@ -29,7 +29,10 @@ public static class BusquedasMapeador
         {
             Id = pista.Id,
             BusquedaId = pista.BusquedaId,
-            Contenido = pista.Contenido
+            Contenido = pista.Contenido,
+            Tipo = (int)pista.Tipo,
+            Latitud = pista.Latitud,
+            Longitud = pista.Longitud
         };
     }
 
@@ -50,5 +53,6 @@ public static class BusquedasMapeador
     }
 
     public static Pista ADominio(PistaModelo modelo) =>
-        Pista.Reconstituir(modelo.Id, modelo.BusquedaId, modelo.Contenido);
+        Pista.Reconstituir(modelo.Id, modelo.BusquedaId, modelo.Contenido,
+            (TipoPista)modelo.Tipo, modelo.Latitud, modelo.Longitud);
 }

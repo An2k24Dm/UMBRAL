@@ -233,6 +233,19 @@ namespace JuegosServicio.Infraestructura.Persistencia.Migraciones
                         .HasColumnType("character varying(1000)")
                         .HasColumnName("contenido");
 
+                    b.Property<double?>("Latitud")
+                        .HasColumnType("double precision")
+                        .HasColumnName("latitud");
+
+                    b.Property<double?>("Longitud")
+                        .HasColumnType("double precision")
+                        .HasColumnName("longitud");
+
+                    b.Property<int>("Tipo")
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("tipo");
+
                     b.HasKey("Id");
 
                     b.HasIndex("BusquedaId");

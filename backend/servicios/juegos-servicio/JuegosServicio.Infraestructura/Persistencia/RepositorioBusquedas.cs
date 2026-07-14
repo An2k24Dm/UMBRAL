@@ -105,7 +105,10 @@ public sealed class RepositorioBusquedas : IRepositorioBusquedas
             Pistas = modelo.Pistas.Select(p => new PistaDetalleDto
             {
                 Id = p.Id,
-                Contenido = p.Contenido
+                Contenido = p.Contenido,
+                Tipo = ((JuegosServicio.Dominio.Enums.TipoPista)p.Tipo).ToString(),
+                Latitud = p.Latitud,
+                Longitud = p.Longitud
             }).ToList()
         };
     }
@@ -222,7 +225,10 @@ public sealed class RepositorioBusquedas : IRepositorioBusquedas
             Pistas = modelo.Pistas.Select(p => new PistaDetalleDto
             {
                 Id = p.Id,
-                Contenido = p.Contenido
+                Contenido = p.Contenido,
+                Tipo = ((JuegosServicio.Dominio.Enums.TipoPista)p.Tipo).ToString(),
+                Latitud = p.Latitud,
+                Longitud = p.Longitud
             }).ToList()
         };
     }

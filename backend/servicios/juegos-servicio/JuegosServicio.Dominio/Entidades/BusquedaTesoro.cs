@@ -55,20 +55,20 @@ public sealed class BusquedaTesoro : IComponenteJuego
         return busqueda;
     }
 
-    public Pista AgregarPista(string contenido)
+    public Pista AgregarPista(string? contenido, Enums.TipoPista tipo, double? latitud, double? longitud)
     {
         if (Estado == EstadoBusqueda.Activa)
             throw new ExcepcionDominio("No se pueden agregar pistas a una búsqueda que está activa.");
-        var pista = Pista.Crear(Id, contenido);
+        var pista = Pista.Crear(Id, contenido, tipo, latitud, longitud);
         _pistas.Add(pista);
         return pista;
     }
 
-    public void ModificarPista(Guid pistaId, string nuevoContenido)
+    public void ModificarPista(Guid pistaId, string? nuevoContenido, Enums.TipoPista tipo, double? latitud, double? longitud)
     {
         if (Estado == EstadoBusqueda.Activa)
             throw new ExcepcionDominio("No se pueden modificar pistas a una búsqueda que está activa.");
-        ObtenerPista(pistaId).Modificar(nuevoContenido);
+        ObtenerPista(pistaId).Modificar(nuevoContenido, tipo, latitud, longitud);
     }
 
     public void EliminarPista(Guid pistaId)

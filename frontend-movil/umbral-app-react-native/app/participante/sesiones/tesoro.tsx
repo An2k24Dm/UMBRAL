@@ -16,6 +16,7 @@ import { CameraView, useCameraPermissions } from "expo-camera";
 import { useAutenticacion } from "../../../autenticacion/ContextoAutenticacion";
 import RutaProtegidaMovil from "../../../autenticacion/RutaProtegidaMovil";
 import { PantallaBase } from "../../../componentes/PantallaBase";
+import { MapaGps } from "../../../componentes/MapaGps";
 import { tema } from "../../../estilos/tema";
 import {
   enviarEvidenciaTesoro,
@@ -291,6 +292,9 @@ function ContenidoTesoro() {
       etapaId?: string; EtapaId?: string;
       contenido?: string; Contenido?: string;
       pistaId?: string | null; PistaId?: string | null;
+      tipo?: string; Tipo?: string;
+      latitud?: number | null; Latitud?: number | null;
+      longitud?: number | null; Longitud?: number | null;
       fechaEventoUtc?: string; FechaEventoUtc?: string;
     }) => {
       const sid = (evento.sesionId ?? evento.SesionId ?? "").toLowerCase();
@@ -299,6 +303,9 @@ function ContenidoTesoro() {
 
       const contenido = evento.contenido ?? evento.Contenido ?? "";
       const pistaId = evento.pistaId ?? evento.PistaId ?? null;
+      const tipo = (evento.tipo ?? evento.Tipo ?? "Texto") as "Texto" | "CoordenadaGps";
+      const latitud = evento.latitud ?? evento.Latitud ?? null;
+      const longitud = evento.longitud ?? evento.Longitud ?? null;
       const fecha = evento.fechaEventoUtc ?? evento.FechaEventoUtc ?? new Date().toISOString();
 
       if (!desmontado) {
@@ -308,7 +315,7 @@ function ContenidoTesoro() {
             ? prev.pistasLiberadas.some((p) => p.pistaId === pistaId)
             : false;
           if (yaExiste) return prev;
-          const nueva: PistaLiberadaSesion = { pistaId, contenido, fechaLiberacionUtc: fecha };
+          const nueva: PistaLiberadaSesion = { pistaId, contenido, tipo, latitud, longitud, fechaLiberacionUtc: fecha };
           return { ...prev, pistasLiberadas: [...prev.pistasLiberadas, nueva] };
         });
       }
@@ -677,7 +684,16 @@ function ContenidoTesoro() {
             busqueda.pistasLiberadas.map((pista, idx) => (
               <View key={pista.pistaId ?? `custom-${idx}`} style={estilos.tarjetaPista}>
                 <Text style={estilos.numeroPista}>Pista {idx + 1}</Text>
-                <Text style={estilos.contenidoPista}>{pista.contenido}</Text>
+                {pista.tipo === "CoordenadaGps" && pista.latitud != null && pista.longitud != null ? (
+                  <>
+                    <Text style={[estilos.contenidoPista, { marginBottom: 10 }]}>
+                      📍 Coordenada GPS: {pista.latitud.toFixed(6)}, {pista.longitud.toFixed(6)}
+                    </Text>
+                    <MapaGps latitud={pista.latitud} longitud={pista.longitud} alto={240} />
+                  </>
+                ) : (
+                  <Text style={estilos.contenidoPista}>{pista.contenido}</Text>
+                )}
               </View>
             ))
           )}

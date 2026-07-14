@@ -293,6 +293,9 @@ public sealed class NotificadorSesionesTiempoReal : INotificadorSesionesTiempoRe
         Guid etapaId,
         Guid? pistaId,
         string contenido,
+        string tipo,
+        double? latitud,
+        double? longitud,
         CancellationToken cancelacion)
     {
         var dto = new PistaLiberadaDto
@@ -301,6 +304,9 @@ public sealed class NotificadorSesionesTiempoReal : INotificadorSesionesTiempoRe
             EtapaId = etapaId,
             PistaId = pistaId,
             Contenido = contenido,
+            Tipo = tipo,
+            Latitud = latitud,
+            Longitud = longitud,
             FechaEventoUtc = DateTime.UtcNow
         };
 
