@@ -59,6 +59,8 @@ public sealed class BusquedaTesoro : IComponenteJuego
     {
         if (Estado == EstadoBusqueda.Activa)
             throw new ExcepcionDominio("No se pueden agregar pistas a una búsqueda que está activa.");
+        if (tipo == Enums.TipoPista.CoordenadaGps && _pistas.Any(p => p.Tipo == Enums.TipoPista.CoordenadaGps))
+            throw new ExcepcionDominio("La búsqueda del tesoro ya tiene una coordenada GPS definida. Solo se permite una.");
         var pista = Pista.Crear(Id, contenido, tipo, latitud, longitud);
         _pistas.Add(pista);
         return pista;
@@ -101,8 +103,8 @@ public sealed class BusquedaTesoro : IComponenteJuego
     {
         if (Estado == EstadoBusqueda.Activa)
             throw new ExcepcionDominio("La búsqueda del tesoro ya está activa.");
-        if (_pistas.Count == 0)
-            throw new ExcepcionDominio("La búsqueda del tesoro debe tener al menos una pista para poder activarse.");
+        if (!_pistas.Any(p => p.Tipo == Enums.TipoPista.CoordenadaGps))
+            throw new ExcepcionDominio("La búsqueda del tesoro debe tener una coordenada GPS del tesoro para poder activarse.");
 
         Estado = EstadoBusqueda.Activa;
         _eventos.Add(new BusquedaActivadaEvento(Id, Nombre));

@@ -21,9 +21,6 @@ const PUNTAJE_OPCIONES = Array.from({ length: 20 }, (_, i) => (i + 1) * 5)
 
 type TipoPista = 'Texto' | 'CoordenadaGps'
 
-function etiquetaTipo(tipo: TipoPista | undefined) {
-  return tipo === 'CoordenadaGps' ? 'GPS' : 'Texto'
-}
 
 export function PaginaGestionEtapas() {
   const { busquedaId } = useParams<{ busquedaId: string }>()
@@ -220,6 +217,7 @@ export function PaginaGestionEtapas() {
   }
 
   const esInactiva = busqueda.estado === 'Inactiva'
+  const yaHayPistaGps = busqueda.pistas.some(p => p.tipo === 'CoordenadaGps')
 
   return (
     <LayoutPanel titulo={busqueda.nombre} descripcion="Pistas de ayuda de la búsqueda del tesoro">
@@ -245,7 +243,8 @@ export function PaginaGestionEtapas() {
               </Boton>
             )}
             {esInactiva && !mostrarFormEditar && (
-              <Boton variante="primario" onClick={manejarActivar} disabled={activando}>
+              <Boton variante="primario" onClick={manejarActivar} disabled={activando || !yaHayPistaGps}
+                title={!yaHayPistaGps ? 'Debe agregar la coordenada GPS del tesoro antes de activar' : undefined}>
                 {activando ? 'Activando…' : 'Activar búsqueda'}
               </Boton>
             )}
@@ -261,6 +260,9 @@ export function PaginaGestionEtapas() {
 
         {errorCarga && <Alerta tono="error">{errorCarga}</Alerta>}
         {errorActivacion && <Alerta tono="error">{errorActivacion}</Alerta>}
+        {esInactiva && !yaHayPistaGps && (
+          <Alerta tono="aviso">Agregue la coordenada GPS del tesoro antes de activar la búsqueda.</Alerta>
+        )}
 
         {mostrarFormEditar && (
           <div className="formulario-pregunta-panel">
@@ -322,7 +324,9 @@ export function PaginaGestionEtapas() {
                   }}
                   disabled={enviandoPista}>
                   <option value="Texto">Texto libre</option>
-                  <option value="CoordenadaGps">Coordenada GPS (mapa interactivo)</option>
+                  <option value="CoordenadaGps" disabled={yaHayPistaGps}>
+                    Coordenada GPS (mapa interactivo){yaHayPistaGps ? ' — ya definida' : ''}
+                  </option>
                 </select>
               </CampoFormulario>
 
