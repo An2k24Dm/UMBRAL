@@ -140,6 +140,9 @@ public sealed class RepositorioBusquedas : IRepositorioBusquedas
         if (modelo is null) return;
 
         modelo.Contenido = pista.Contenido;
+        modelo.Tipo = (int)pista.Tipo;
+        modelo.Latitud = pista.Latitud;
+        modelo.Longitud = pista.Longitud;
         await _contexto.SaveChangesAsync(cancelacion);
     }
 
