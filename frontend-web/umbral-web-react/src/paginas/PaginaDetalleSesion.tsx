@@ -32,6 +32,7 @@ import {
   type BusquedaTesoroDetalleDto
 } from '../autenticacion/clienteApiJuegos'
 import { liberarPista } from '../autenticacion/clienteApiSesiones'
+import { MapaLeaflet, type MarcadorMapa } from '../componentes/MapaLeaflet'
 import {
   obtenerRankingParticipantes,
   obtenerRankingEquipos,
@@ -39,7 +40,7 @@ import {
   type EntradaRankingEquipoDto
 } from '../autenticacion/clienteApiRanking'
 import { usarAutenticacion } from '../autenticacion/ProveedorAutenticacion'
-import { useSesionesTiempoReal } from '../hooks/useSesionesTiempoReal'
+import { useSesionesTiempoReal, type UbicacionActualizadaTR } from '../hooks/useSesionesTiempoReal'
 import { useRankingTiempoReal } from '../hooks/useRankingTiempoReal'
 import {
   formatearFechaSesion,
@@ -181,6 +182,7 @@ export function PaginaDetalleSesion() {
   const [errorRanking, setErrorRanking] = useState<string | null>(null)
   const [versionRanking, setVersionRanking] = useState(0)
   const [equiposExpandidos, setEquiposExpandidos] = useState<Set<string>>(new Set())
+  const [ubicacionesParticipantes, setUbicacionesParticipantes] = useState<Map<string, { nombre: string, latitud: number, longitud: number }>>(new Map())
 
   const alternarEquipoExpandido = (equipoId: string) => {
     setEquiposExpandidos(previo => {
@@ -238,6 +240,19 @@ export function PaginaDetalleSesion() {
     refrescarDetalleTiempoReal()
   }, [refrescarDetalleTiempoReal, refrescarTodoTiempoReal])
 
+  const manejarUbicacionActualizada = useCallback((dto: UbicacionActualizadaTR) => {
+    const pid = dto.participanteIdentidadId ?? dto.ParticipanteIdentidadId ?? ''
+    const nombre = dto.nombre ?? dto.Nombre ?? ''
+    const lat = dto.latitud ?? dto.Latitud
+    const lng = dto.longitud ?? dto.Longitud
+    if (!pid || lat == null || lng == null) return
+    setUbicacionesParticipantes(prev => {
+      const siguiente = new Map(prev)
+      siguiente.set(pid, { nombre, latitud: lat, longitud: lng })
+      return siguiente
+    })
+  }, [])
+
   useSesionesTiempoReal({
     token,
     sesionId: id,
@@ -252,7 +267,8 @@ export function PaginaDetalleSesion() {
     onEtapaPorComenzar: refrescarDetalleYProgresoTiempoReal,
     onEtapaIniciada: refrescarDetalleYProgresoTiempoReal,
     onProgresoSecuencialActualizado: refrescarProgresoTiempoReal,
-    onReconectado: refrescarDetalleYProgresoTiempoReal
+    onReconectado: refrescarDetalleYProgresoTiempoReal,
+    onUbicacionActualizada: manejarUbicacionActualizada
   })
 
   useRankingTiempoReal({
@@ -837,6 +853,7 @@ export function PaginaDetalleSesion() {
                             etapaId={etapa.id}
                             sesionActiva={sesion.estado === 'Activa'}
                             esOperador={esOperador}
+                            ubicacionesParticipantes={ubicacionesParticipantes}
                           />
                         )}
                         {!etapa.trivia && !etapa.busqueda && !etapa.errorContenido && (
@@ -1291,13 +1308,15 @@ function BloqueBusqueda({
   sesionId,
   etapaId,
   sesionActiva,
-  esOperador
+  esOperador,
+  ubicacionesParticipantes
 }: {
   busqueda: BusquedaTesoroDetalleDto
   sesionId: string
   etapaId: string
   sesionActiva: boolean
   esOperador: boolean
+  ubicacionesParticipantes?: Map<string, { nombre: string, latitud: number, longitud: number }>
 }) {
   const { token } = usarAutenticacion()
   const [liberando, setLiberando] = useState<string | null>(null)
@@ -1311,15 +1330,38 @@ function BloqueBusqueda({
     ? `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(busqueda.codigoQr)}`
     : null
 
-  async function handleLiberarPista(pistaId: string, contenido: string) {
+  const pistaGps = esOperador && sesionActiva
+    ? busqueda.pistas.find(p => p.tipo === 'CoordenadaGps' && p.latitud != null && p.longitud != null)
+    : undefined
+
+  const marcadoresParticipantes: MarcadorMapa[] = pistaGps
+    ? [...(ubicacionesParticipantes?.entries() ?? [])].map(([id, u]) => ({
+        id,
+        latitud: u.latitud,
+        longitud: u.longitud,
+        etiqueta: u.nombre,
+        color: '#f97316'
+      }))
+    : []
+
+  async function handleLiberarPista(
+    pistaId: string,
+    contenido: string,
+    tipo?: 'Texto' | 'CoordenadaGps',
+    latitud?: number,
+    longitud?: number
+  ) {
     if (!token || liberando) return
     setLiberando(pistaId)
     setErrorPista(null)
     setExitoPista(null)
     try {
-      await liberarPista(sesionId, etapaId, pistaId, contenido, token)
+      await liberarPista(sesionId, etapaId, pistaId, contenido, token, tipo, latitud, longitud)
       setPistasLiberadasIds(prev => new Set([...prev, pistaId]))
-      setExitoPista(`Pista liberada: "${contenido.slice(0, 40)}${contenido.length > 40 ? '…' : ''}"`)
+      const desc = tipo === 'CoordenadaGps'
+        ? `GPS: ${latitud?.toFixed(4)}, ${longitud?.toFixed(4)}`
+        : `"${contenido.slice(0, 40)}${contenido.length > 40 ? '…' : ''}"`
+      setExitoPista(`Pista liberada: ${desc}`)
     } catch (e) {
       setErrorPista(e instanceof Error ? e.message : 'No se pudo liberar la pista.')
     } finally {
@@ -1391,6 +1433,26 @@ function BloqueBusqueda({
         </div>
       )}
 
+      {/* Mapa de ubicaciones en tiempo real — solo operadores con sesión activa */}
+      {pistaGps && pistaGps.latitud != null && pistaGps.longitud != null && (
+        <div style={{ marginTop: 16 }}>
+          <p style={{ fontSize: '0.85rem', fontWeight: 600, margin: '0 0 8px' }}>
+            Ubicaciones en tiempo real
+            {marcadoresParticipantes.length > 0 && (
+              <span style={{ fontWeight: 400, color: 'var(--color-texto-tenue)', marginLeft: 8 }}>
+                ({marcadoresParticipantes.length} participante{marcadoresParticipantes.length !== 1 ? 's' : ''} activo{marcadoresParticipantes.length !== 1 ? 's' : ''})
+              </span>
+            )}
+          </p>
+          <MapaLeaflet
+            latitud={pistaGps.latitud}
+            longitud={pistaGps.longitud}
+            marcadores={marcadoresParticipantes}
+            alto={320}
+          />
+        </div>
+      )}
+
       {/* Pistas predefinidas */}
       {busqueda.pistas.length === 0 ? (
         <p className="detalle-mensaje-vacio">Esta búsqueda no tiene pistas registradas.</p>
@@ -1398,15 +1460,24 @@ function BloqueBusqueda({
         <ul className="lista-pistas" style={{ marginTop: 16 }}>
           {busqueda.pistas.map((p, idx) => {
             const yaLiberada = pistasLiberadasIds.has(p.id)
+            const esGps = p.tipo === 'CoordenadaGps'
             return (
-              <li key={p.id} className="pista-item" style={{ alignItems: 'center', gap: 12 }}>
+              <li key={p.id} className="pista-item" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <span className="pista-orden">{idx + 1}</span>
-                <span style={{ flex: 1 }}>{p.contenido}</span>
+                <span style={{ flex: 1 }}>
+                  {esGps ? (
+                    <>
+                      <span style={{ display: 'inline-block', fontSize: '0.7rem', fontWeight: 700, padding: '1px 6px', borderRadius: 4, background: '#dbeafe', color: '#1d4ed8', marginRight: 6 }}>GPS</span>
+                      {p.latitud != null && p.longitud != null ? `${p.latitud.toFixed(6)}, ${p.longitud.toFixed(6)}` : 'Coordenadas no disponibles'}
+                    </>
+                  ) : p.contenido}
+                </span>
                 {esOperador && sesionActiva && (
                   <button
                     type="button"
                     disabled={yaLiberada || liberando === p.id}
-                    onClick={() => void handleLiberarPista(p.id, p.contenido)}
+                    onClick={() => void handleLiberarPista(p.id, p.contenido, p.tipo, p.latitud, p.longitud)}
                     style={{
                       fontSize: '0.8rem',
                       padding: '4px 10px',
@@ -1421,6 +1492,12 @@ function BloqueBusqueda({
                   >
                     {yaLiberada ? 'Liberada' : liberando === p.id ? '…' : 'Liberar'}
                   </button>
+                )}
+                </div>
+                {esGps && p.latitud != null && p.longitud != null && (
+                  <div style={{ marginLeft: 36 }}>
+                    <MapaLeaflet latitud={p.latitud} longitud={p.longitud} alto={200} />
+                  </div>
                 )}
               </li>
             )

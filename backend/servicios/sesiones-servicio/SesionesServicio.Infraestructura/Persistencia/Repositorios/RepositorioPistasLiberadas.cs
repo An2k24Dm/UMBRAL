@@ -18,6 +18,9 @@ public sealed class RepositorioPistasLiberadas : IRepositorioPistasLiberadas
             EtapaId = registro.EtapaId,
             PistaId = registro.PistaId,
             Contenido = registro.Contenido,
+            Tipo = registro.Tipo,
+            Latitud = registro.Latitud,
+            Longitud = registro.Longitud,
             FechaLiberacionUtc = registro.FechaLiberacionUtc
         });
         await _contexto.SaveChangesAsync(cancelacion);
@@ -38,7 +41,8 @@ public sealed class RepositorioPistasLiberadas : IRepositorioPistasLiberadas
             .ToListAsync(cancelacion);
 
         return modelos.Select(m => new PistaLiberadaRegistro(
-            m.SesionId, m.EtapaId, m.PistaId, m.Contenido, m.FechaLiberacionUtc))
+            m.SesionId, m.EtapaId, m.PistaId, m.Contenido,
+            m.Tipo, m.Latitud, m.Longitud, m.FechaLiberacionUtc))
             .ToList();
     }
 }

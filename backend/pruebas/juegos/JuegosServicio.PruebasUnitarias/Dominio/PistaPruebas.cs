@@ -1,4 +1,5 @@
 using JuegosServicio.Dominio.Entidades;
+using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Dominio.Excepciones;
 
 namespace JuegosServicio.PruebasUnitarias.Dominio;
@@ -17,7 +18,7 @@ public class PistaPruebas
     {
         var busqueda = BusquedaInactiva();
 
-        var pista = busqueda.AgregarPista("Busca el árbol más alto del parque.");
+        var pista = busqueda.AgregarPista("Busca el árbol más alto del parque.", TipoPista.Texto, null, null);
 
         pista.Id.Should().NotBe(Guid.Empty);
     }
@@ -27,7 +28,7 @@ public class PistaPruebas
     {
         var busqueda = BusquedaInactiva();
 
-        var pista = busqueda.AgregarPista("Pista de prueba.");
+        var pista = busqueda.AgregarPista("Pista de prueba.", TipoPista.Texto, null, null);
 
         pista.BusquedaId.Should().Be(busqueda.Id);
     }
@@ -37,8 +38,8 @@ public class PistaPruebas
     {
         var busqueda = BusquedaInactiva();
 
-        busqueda.AgregarPista("Pista 1.");
-        busqueda.AgregarPista("Pista 2.");
+        busqueda.AgregarPista("Pista 1.", TipoPista.Texto, null, null);
+        busqueda.AgregarPista("Pista 2.", TipoPista.Texto, null, null);
 
         busqueda.Pistas.Should().HaveCount(2);
     }
@@ -50,7 +51,7 @@ public class PistaPruebas
     {
         var busqueda = BusquedaInactiva();
 
-        Action accion = () => busqueda.AgregarPista(contenido);
+        Action accion = () => busqueda.AgregarPista(contenido, TipoPista.Texto, null, null);
 
         accion.Should().Throw<ExcepcionDominio>();
     }
@@ -60,10 +61,10 @@ public class PistaPruebas
     {
         // Cambio de regla: una búsqueda activa no acepta pistas nuevas.
         var busqueda = BusquedaInactiva();
-        busqueda.AgregarPista("Pista inicial que habilita activar.");
+        busqueda.AgregarPista(null, TipoPista.CoordenadaGps, -34.6037, -58.3816);
         busqueda.Activar();
 
-        Action accion = () => busqueda.AgregarPista("Mira cerca de la fuente.");
+        Action accion = () => busqueda.AgregarPista("Mira cerca de la fuente.", TipoPista.Texto, null, null);
 
         accion.Should().Throw<ExcepcionDominio>();
     }
@@ -73,7 +74,7 @@ public class PistaPruebas
     {
         var busqueda = BusquedaInactiva();
 
-        var pista = busqueda.AgregarPista("  Mira hacia el norte  ");
+        var pista = busqueda.AgregarPista("  Mira hacia el norte  ", TipoPista.Texto, null, null);
 
         pista.Contenido.Should().Be("Mira hacia el norte");
     }

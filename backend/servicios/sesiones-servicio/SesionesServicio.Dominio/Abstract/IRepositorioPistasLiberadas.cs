@@ -5,6 +5,9 @@ public sealed record PistaLiberadaRegistro(
     Guid EtapaId,
     Guid? PistaId,
     string Contenido,
+    int Tipo,
+    double? Latitud,
+    double? Longitud,
     DateTime FechaLiberacionUtc);
 
 public interface IRepositorioPistasLiberadas

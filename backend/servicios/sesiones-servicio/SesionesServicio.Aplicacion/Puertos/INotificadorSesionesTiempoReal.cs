@@ -85,5 +85,8 @@ public interface INotificadorSesionesTiempoReal
         Guid etapaId,
         Guid? pistaId,
         string contenido,
+        string tipo,
+        double? latitud,
+        double? longitud,
         CancellationToken cancelacion);
 }

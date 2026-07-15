@@ -197,6 +197,9 @@ public sealed class ContextoSesiones : DbContext
             e.Property(x => x.EtapaId).HasColumnName("etapa_id").IsRequired();
             e.Property(x => x.PistaId).HasColumnName("pista_id");
             e.Property(x => x.Contenido).HasColumnName("contenido").HasMaxLength(1000).IsRequired();
+            e.Property(x => x.Tipo).HasColumnName("tipo").IsRequired().HasDefaultValue(0);
+            e.Property(x => x.Latitud).HasColumnName("latitud");
+            e.Property(x => x.Longitud).HasColumnName("longitud");
             e.Property(x => x.FechaLiberacionUtc).HasColumnName("fecha_liberacion_utc").IsRequired();
             // No se puede liberar la misma pista predefinida dos veces en la misma sesión/etapa
             e.HasIndex(x => new { x.SesionId, x.EtapaId, x.PistaId })

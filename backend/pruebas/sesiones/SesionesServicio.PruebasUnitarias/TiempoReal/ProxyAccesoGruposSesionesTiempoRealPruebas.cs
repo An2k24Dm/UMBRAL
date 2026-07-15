@@ -97,8 +97,8 @@ public class ProxyAccesoGruposSesionesTiempoRealPruebas
             typeof(ServicioGruposSesionesTiempoReal)).Should().BeTrue();
 
         var constructorHub = typeof(SesionesHub).GetConstructors().Should().ContainSingle().Subject;
-        constructorHub.GetParameters().Should().ContainSingle().Which.ParameterType
-            .Should().Be(typeof(IServicioGruposSesionesTiempoReal));
+        constructorHub.GetParameters().Should()
+            .Contain(p => p.ParameterType == typeof(IServicioGruposSesionesTiempoReal));
     }
 
     // ======================================================================

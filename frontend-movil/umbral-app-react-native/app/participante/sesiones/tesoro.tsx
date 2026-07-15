@@ -10,12 +10,14 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import * as Location from "expo-location";
 import { useFocusEffect, useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import * as signalR from "@microsoft/signalr";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { useAutenticacion } from "../../../autenticacion/ContextoAutenticacion";
 import RutaProtegidaMovil from "../../../autenticacion/RutaProtegidaMovil";
 import { PantallaBase } from "../../../componentes/PantallaBase";
+import { MapaGps, type MarcadorMovil } from "../../../componentes/MapaGps";
 import { tema } from "../../../estilos/tema";
 import {
   enviarEvidenciaTesoro,
@@ -92,6 +94,19 @@ function ContenidoTesoro() {
   const cronometroRef = useRef(new CronometroActivo());
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Ubicaciones compañeros de equipo (tiempo real, solo grupal)
+  const [ubicacionesCompaneros, setUbicacionesCompaneros] = useState<Map<string, { nombre: string, latitud: number, longitud: number }>>(new Map());
+  // Propia ubicación (local, sin depender del eco SignalR)
+  const [miUbicacion, setMiUbicacion] = useState<{ latitud: number; longitud: number } | null>(null);
+
+  // Refs de lectura rápida desde callbacks asíncronos
+  const equipoIdRef = useRef<string | null>(null);
+  const conexionRef = useRef<import("@microsoft/signalr").HubConnection | null>(null);
+  const estadoSesionRef = useRef<EstadoSesionJuego>(estadoSesion);
+  const permisoUbicacionRef = useRef<boolean>(false);
+
+  useEffect(() => { estadoSesionRef.current = estadoSesion; }, [estadoSesion]);
+
   // QR scanner
   const [mostrandoCamara, setMostrandoCamara] = useState(false);
   // useRef para bloqueo sincrónico: onBarcodeScanned puede disparar varias veces
@@ -151,6 +166,7 @@ function ContenidoTesoro() {
       );
       const detalleSesion = await obtenerDetalleSesionDisponibleApi(token, sesionId);
       setBusqueda(datos);
+      equipoIdRef.current = detalleSesion.participacionActual.equipoId ?? null;
       // Temporizador informativo de la etapa (regresivo). No afecta al puntaje
       // (la evidencia del tesoro no puntúa por tiempo); solo se muestra y se
       // congela durante la pausa.
@@ -177,6 +193,31 @@ function ContenidoTesoro() {
   useEffect(() => {
     void cargarBusqueda();
   }, [cargarBusqueda]);
+
+  // Solicitar permiso de ubicación al montar
+  useEffect(() => {
+    void (async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      permisoUbicacionRef.current = status === "granted";
+      if (status === "denied") {
+        Alert.alert(
+          "Permiso de ubicación necesario",
+          "Para mostrar tu posición al equipo durante la búsqueda del tesoro, UMBRAL necesita acceso a tu ubicación. Actívalo en Configuración → Expo Go → Ubicación.",
+          [{ text: "Aceptar" }],
+        );
+      }
+    })();
+  }, []);
+
+  // Unirse al grupo del equipo en cuanto sepamos el equipoId y la conexión esté lista
+  useEffect(() => {
+    const eid = equipoIdRef.current;
+    const conexion = conexionRef.current;
+    if (!eid || !conexion) return;
+    if (conexion.state !== signalR.HubConnectionState.Connected) return;
+    void conexion.invoke("UnirseAEquipo", eid).catch(() => undefined);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [busqueda]);
 
   // Temporizador regresivo informativo: solo corre cuando la sesión está Activa
   // y aún no se completó la etapa. En pausa se congela (clearInterval) y el
@@ -268,7 +309,9 @@ function ContenidoTesoro() {
     let cerrando = false;
     let cierreRegistrado = false;
     let inicioPromise: Promise<void> | null = null;
+    let intervaloUbicacion: ReturnType<typeof setInterval> | null = null;
     const conexion = crearConexionSesionesTiempoReal(token, "Tesoro");
+    conexionRef.current = conexion;
     const logDev = (mensaje: string) => {
       registrarEventoConexionSesionesTiempoReal(conexion, mensaje);
     };
@@ -291,6 +334,9 @@ function ContenidoTesoro() {
       etapaId?: string; EtapaId?: string;
       contenido?: string; Contenido?: string;
       pistaId?: string | null; PistaId?: string | null;
+      tipo?: string; Tipo?: string;
+      latitud?: number | null; Latitud?: number | null;
+      longitud?: number | null; Longitud?: number | null;
       fechaEventoUtc?: string; FechaEventoUtc?: string;
     }) => {
       const sid = (evento.sesionId ?? evento.SesionId ?? "").toLowerCase();
@@ -299,6 +345,9 @@ function ContenidoTesoro() {
 
       const contenido = evento.contenido ?? evento.Contenido ?? "";
       const pistaId = evento.pistaId ?? evento.PistaId ?? null;
+      const tipo = (evento.tipo ?? evento.Tipo ?? "Texto") as "Texto" | "CoordenadaGps";
+      const latitud = evento.latitud ?? evento.Latitud ?? null;
+      const longitud = evento.longitud ?? evento.Longitud ?? null;
       const fecha = evento.fechaEventoUtc ?? evento.FechaEventoUtc ?? new Date().toISOString();
 
       if (!desmontado) {
@@ -308,7 +357,7 @@ function ContenidoTesoro() {
             ? prev.pistasLiberadas.some((p) => p.pistaId === pistaId)
             : false;
           if (yaExiste) return prev;
-          const nueva: PistaLiberadaSesion = { pistaId, contenido, fechaLiberacionUtc: fecha };
+          const nueva: PistaLiberadaSesion = { pistaId, contenido, tipo, latitud, longitud, fechaLiberacionUtc: fecha };
           return { ...prev, pistasLiberadas: [...prev.pistasLiberadas, nueva] };
         });
       }
@@ -396,20 +445,91 @@ function ContenidoTesoro() {
       }
     };
 
+    const manejarUbicacionActualizada = (dto: {
+      SesionId?: string; sesionId?: string;
+      ParticipanteIdentidadId?: string; participanteIdentidadId?: string;
+      Nombre?: string; nombre?: string;
+      Latitud?: number; latitud?: number;
+      Longitud?: number; longitud?: number;
+    }) => {
+      if (desmontado) return;
+      const sid = (dto.SesionId ?? dto.sesionId ?? "").toLowerCase();
+      if (sid !== sesionId.toLowerCase()) return;
+      const pid = dto.ParticipanteIdentidadId ?? dto.participanteIdentidadId ?? "";
+      const nombre = dto.Nombre ?? dto.nombre ?? "";
+      const lat = dto.Latitud ?? dto.latitud;
+      const lng = dto.Longitud ?? dto.longitud;
+      if (!pid || lat == null || lng == null) return;
+      setUbicacionesCompaneros(prev => {
+        const sig = new Map(prev);
+        sig.set(pid, { nombre, latitud: lat, longitud: lng });
+        return sig;
+      });
+    };
+
+    const unirseAGrupos = async () => {
+      await conexion.invoke("UnirseASesion", sesionId)
+        .then(() => logDev("unido a sesion"))
+        .catch((error: unknown) => manejarErrorConexion(error));
+      if (equipoIdRef.current) {
+        await conexion.invoke("UnirseAEquipo", equipoIdRef.current)
+          .then(() => logDev("unido a equipo"))
+          .catch((error: unknown) => manejarErrorConexion(error));
+      }
+    };
+
+    const iniciarEnvioUbicacion = () => {
+      console.log("[Ubicacion] intervalo iniciado");
+      intervaloUbicacion = setInterval(() => {
+        void (async () => {
+          if (desmontado) return;
+          if (!permisoUbicacionRef.current) {
+            console.warn("[Ubicacion] sin permiso, saltando tick");
+            return;
+          }
+          if (conexion.state !== signalR.HubConnectionState.Connected) {
+            console.warn("[Ubicacion] conexion no lista:", conexion.state);
+            return;
+          }
+          if (estadoSesionRef.current !== "Activa") {
+            console.warn("[Ubicacion] sesion no activa:", estadoSesionRef.current);
+            return;
+          }
+          try {
+            const pos = await Location.getCurrentPositionAsync({
+              accuracy: Location.Accuracy.Balanced,
+            });
+            console.log("[Ubicacion] enviando:", pos.coords.latitude, pos.coords.longitude);
+            if (!desmontado) {
+              setMiUbicacion({ latitud: pos.coords.latitude, longitud: pos.coords.longitude });
+            }
+            await conexion.invoke(
+              "EnviarUbicacion",
+              sesionId,
+              equipoIdRef.current ?? null,
+              pos.coords.latitude,
+              pos.coords.longitude,
+            );
+          } catch (e) {
+            console.error("[Ubicacion] error en tick:", e);
+          }
+        })();
+      }, 5000);
+    };
+
     conexion.on("PistaLiberada", manejarPistaLiberada);
     conexion.on("EtapaCompletada", manejarEtapaCompletada);
     conexion.on("EtapaIniciada", manejarEtapaIniciada);
     conexion.on("SesionActualizada", manejarSesionActualizada);
     conexion.on("ProgresoSecuencialActualizado", manejarProgresoActualizado);
+    conexion.on("UbicacionActualizada", manejarUbicacionActualizada);
 
     // Al reconectar, re-unirse al grupo (pasa de nuevo por el Proxy) y
     // resincronizar el estado real por HTTP.
     conexion.onreconnected(async () => {
       if (desmontado) return;
       logDev("reconectado");
-      await conexion.invoke("UnirseASesion", sesionId)
-        .then(() => logDev("unido a sesion"))
-        .catch((error: unknown) => manejarErrorConexion(error));
+      await unirseAGrupos();
       await refrescarEstadoSesion();
     });
     conexion.onreconnecting((error) => {
@@ -447,9 +567,8 @@ function ContenidoTesoro() {
           await cerrarConexion();
           return;
         }
-        await conexion.invoke("UnirseASesion", sesionId)
-          .then(() => logDev("unido a sesion"))
-          .catch((error: unknown) => manejarErrorConexion(error));
+        await unirseAGrupos();
+        iniciarEnvioUbicacion();
       })
       .catch((e: unknown) => {
         if (desmontado) return;
@@ -458,11 +577,14 @@ function ContenidoTesoro() {
 
     return () => {
       desmontado = true;
+      if (intervaloUbicacion) clearInterval(intervaloUbicacion);
+      conexionRef.current = null;
       conexion.off("PistaLiberada", manejarPistaLiberada);
       conexion.off("EtapaCompletada", manejarEtapaCompletada);
       conexion.off("EtapaIniciada", manejarEtapaIniciada);
       conexion.off("SesionActualizada", manejarSesionActualizada);
       conexion.off("ProgresoSecuencialActualizado", manejarProgresoActualizado);
+      conexion.off("UbicacionActualizada", manejarUbicacionActualizada);
       void cerrarConexion();
     };
   }, [token, sesionId, etapaId, cerrarSesion, enrutador, refrescarEstadoSesion]));
@@ -595,6 +717,11 @@ function ContenidoTesoro() {
     );
   }
 
+  const marcadoresCompaneros: MarcadorMovil[] = [
+    ...(miUbicacion ? [{ id: "yo", latitud: miUbicacion.latitud, longitud: miUbicacion.longitud, nombre: "Tú", color: "#3b82f6" }] : []),
+    ...[...ubicacionesCompaneros.entries()].map(([id, u]) => ({ id, latitud: u.latitud, longitud: u.longitud, nombre: u.nombre, color: "#f97316" })),
+  ];
+
   return (
     <PantallaBase>
       {/* Modal con cámara para escanear QR */}
@@ -677,7 +804,16 @@ function ContenidoTesoro() {
             busqueda.pistasLiberadas.map((pista, idx) => (
               <View key={pista.pistaId ?? `custom-${idx}`} style={estilos.tarjetaPista}>
                 <Text style={estilos.numeroPista}>Pista {idx + 1}</Text>
-                <Text style={estilos.contenidoPista}>{pista.contenido}</Text>
+                {pista.tipo === "CoordenadaGps" && pista.latitud != null && pista.longitud != null ? (
+                  <>
+                    <Text style={[estilos.contenidoPista, { marginBottom: 10 }]}>
+                      📍 Coordenada GPS: {pista.latitud.toFixed(6)}, {pista.longitud.toFixed(6)}
+                    </Text>
+                    <MapaGps latitud={pista.latitud} longitud={pista.longitud} alto={240} marcadores={marcadoresCompaneros} />
+                  </>
+                ) : (
+                  <Text style={estilos.contenidoPista}>{pista.contenido}</Text>
+                )}
               </View>
             ))
           )}

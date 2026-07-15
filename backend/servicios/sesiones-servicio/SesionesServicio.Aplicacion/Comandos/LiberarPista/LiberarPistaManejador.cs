@@ -44,11 +44,11 @@ public sealed class LiberarPistaManejador : IRequestHandler<LiberarPistaComando>
                 throw new InvalidOperationException(
                     "Esta pista ya fue liberada en esta etapa de la sesión.");
 
-            if (string.IsNullOrWhiteSpace(comando.Contenido))
+            if (comando.Tipo != "CoordenadaGps" && string.IsNullOrWhiteSpace(comando.Contenido))
                 throw new InvalidOperationException(
                     "El contenido de la pista es requerido.");
 
-            contenido = comando.Contenido;
+            contenido = comando.Contenido ?? string.Empty;
         }
         else
         {
@@ -60,17 +60,23 @@ public sealed class LiberarPistaManejador : IRequestHandler<LiberarPistaComando>
             contenido = comando.Contenido;
         }
 
+        var tipoInt = comando.Tipo == "CoordenadaGps" ? 1 : 0;
+
         await _repositorioPistas.AgregarAsync(new PistaLiberadaRegistro(
             SesionId: comando.SesionId,
             EtapaId: comando.EtapaId,
             PistaId: comando.PistaId,
             Contenido: contenido,
+            Tipo: tipoInt,
+            Latitud: comando.Latitud,
+            Longitud: comando.Longitud,
             FechaLiberacionUtc: DateTime.UtcNow),
             cancelacion);
 
         // Notificar en tiempo real a todos los participantes de la sesión.
         await _notificador.NotificarPistaLiberadaAsync(
             comando.SesionId, comando.EtapaId,
-            comando.PistaId, contenido, cancelacion);
+            comando.PistaId, contenido, comando.Tipo,
+            comando.Latitud, comando.Longitud, cancelacion);
     }
 }

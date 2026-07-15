@@ -10,9 +10,17 @@ public sealed class ValidadorAgregarPista : ValidadorBase<AgregarPistaComando>
     {
         var dto = comando.Dto;
 
-        if (string.IsNullOrWhiteSpace(dto.Contenido))
-            resultado.Agregar("contenido", "El contenido de la pista es obligatorio.");
-        else if (dto.Contenido.Trim().Length > LongitudMaximaContenido)
-            resultado.Agregar("contenido", $"El contenido no puede superar {LongitudMaximaContenido} caracteres.");
+        if (dto.Tipo == "CoordenadaGps")
+        {
+            if (dto.Latitud == null || dto.Longitud == null)
+                resultado.Agregar("coordenadas", "Las coordenadas GPS son obligatorias.");
+        }
+        else
+        {
+            if (string.IsNullOrWhiteSpace(dto.Contenido))
+                resultado.Agregar("contenido", "El contenido de la pista es obligatorio.");
+            else if (dto.Contenido.Trim().Length > LongitudMaximaContenido)
+                resultado.Agregar("contenido", $"El contenido no puede superar {LongitudMaximaContenido} caracteres.");
+        }
     }
 }
