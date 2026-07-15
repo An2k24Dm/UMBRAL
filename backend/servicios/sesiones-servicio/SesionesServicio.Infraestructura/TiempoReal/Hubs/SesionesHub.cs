@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Logging;
 using SesionesServicio.Aplicacion.Puertos;
 using SesionesServicio.Commons.Dtos.TiempoReal;
 using SesionesServicio.Infraestructura.TiempoReal.Grupos;
@@ -18,11 +19,13 @@ public sealed class SesionesHub : Hub
 
     private readonly IServicioGruposSesionesTiempoReal _grupos;
     private readonly IAlmacenUbicaciones _almacen;
+    private readonly ILogger<SesionesHub> _logger;
 
-    public SesionesHub(IServicioGruposSesionesTiempoReal grupos, IAlmacenUbicaciones almacen)
+    public SesionesHub(IServicioGruposSesionesTiempoReal grupos, IAlmacenUbicaciones almacen, ILogger<SesionesHub> logger)
     {
         _grupos = grupos;
         _almacen = almacen;
+        _logger = logger;
     }
 
     public Task UnirseAListadoSesiones()
@@ -71,6 +74,10 @@ public sealed class SesionesHub : Hub
 
         Guid? equipoGuid = Guid.TryParse(equipoId, out var eq) ? eq : null;
 
+        _logger.LogInformation(
+            "[Ubicacion] recibido: sesion={SesionId} usuario={UserId} ({Nombre}) equipo={EquipoId} lat={Lat} lng={Lng}",
+            id, actor.UsuarioId, actor.NombreUsuario, equipoGuid, latitud, longitud);
+
         _almacen.Actualizar(id, actor.UsuarioId.Value, actor.NombreUsuario ?? string.Empty, equipoGuid, latitud, longitud);
 
         var dto = new UbicacionActualizadaDto
@@ -84,15 +91,19 @@ public sealed class SesionesHub : Hub
             FechaEventoUtc = DateTime.UtcNow
         };
 
+        var grupoOp = GrupoOperadoresSesion(id);
+        _logger.LogInformation("[Ubicacion] enviando a grupo={Grupo}", grupoOp);
         var tareas = new List<Task>
         {
-            // Operadores ven todas las ubicaciones
-            Clients.Group(GrupoOperadoresSesion(id)).SendAsync("UbicacionActualizada", dto, Context.ConnectionAborted)
+            Clients.Group(grupoOp).SendAsync("UbicacionActualizada", dto, Context.ConnectionAborted)
         };
 
-        // Compañeros de equipo ven entre sí
         if (equipoGuid.HasValue)
-            tareas.Add(Clients.Group(GrupoEquipo(equipoGuid.Value)).SendAsync("UbicacionActualizada", dto, Context.ConnectionAborted));
+        {
+            var grupoEq = GrupoEquipo(equipoGuid.Value);
+            _logger.LogInformation("[Ubicacion] enviando a equipo={Grupo}", grupoEq);
+            tareas.Add(Clients.Group(grupoEq).SendAsync("UbicacionActualizada", dto, Context.ConnectionAborted));
+        }
 
         await Task.WhenAll(tareas);
     }

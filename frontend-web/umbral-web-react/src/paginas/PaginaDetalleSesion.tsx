@@ -241,13 +241,14 @@ export function PaginaDetalleSesion() {
   }, [refrescarDetalleTiempoReal, refrescarTodoTiempoReal])
 
   const manejarUbicacionActualizada = useCallback((dto: UbicacionActualizadaTR) => {
+    const pid = dto.participanteIdentidadId ?? dto.ParticipanteIdentidadId ?? ''
+    const nombre = dto.nombre ?? dto.Nombre ?? ''
+    const lat = dto.latitud ?? dto.Latitud
+    const lng = dto.longitud ?? dto.Longitud
+    if (!pid || lat == null || lng == null) return
     setUbicacionesParticipantes(prev => {
       const siguiente = new Map(prev)
-      siguiente.set(dto.ParticipanteIdentidadId, {
-        nombre: dto.Nombre,
-        latitud: dto.Latitud,
-        longitud: dto.Longitud
-      })
+      siguiente.set(pid, { nombre, latitud: lat, longitud: lng })
       return siguiente
     })
   }, [])

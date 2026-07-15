@@ -10,13 +10,20 @@ import {
 } from '../servicios/sesionesTiempoReal'
 
 export interface UbicacionActualizadaTR {
-  SesionId: string
-  ParticipanteIdentidadId: string
-  Nombre: string
+  sesionId?: string
+  SesionId?: string
+  participanteIdentidadId?: string
+  ParticipanteIdentidadId?: string
+  nombre?: string
+  Nombre?: string
+  equipoId?: string | null
   EquipoId?: string | null
-  Latitud: number
-  Longitud: number
-  FechaEventoUtc: string
+  latitud?: number
+  Latitud?: number
+  longitud?: number
+  Longitud?: number
+  fechaEventoUtc?: string
+  FechaEventoUtc?: string
 }
 
 interface OpcionesUseSesionesTiempoReal {
@@ -190,7 +197,8 @@ export function useSesionesTiempoReal({
 
     const manejarUbicacion = (dto: UbicacionActualizadaTR) => {
       logDetalle('evento recibido', 'UbicacionActualizada', dto)
-      if (!sesionActual || dto.SesionId?.toLowerCase() === sesionActual) {
+      const sid = (dto.sesionId ?? dto.SesionId ?? '').toLowerCase()
+      if (!sesionActual || sid === sesionActual) {
         void callbacksRef.current.onUbicacionActualizada?.(dto)
       }
     }

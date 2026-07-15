@@ -96,6 +96,8 @@ function ContenidoTesoro() {
 
   // Ubicaciones compañeros de equipo (tiempo real, solo grupal)
   const [ubicacionesCompaneros, setUbicacionesCompaneros] = useState<Map<string, { nombre: string, latitud: number, longitud: number }>>(new Map());
+  // Propia ubicación (local, sin depender del eco SignalR)
+  const [miUbicacion, setMiUbicacion] = useState<{ latitud: number; longitud: number } | null>(null);
 
   // Refs de lectura rápida desde callbacks asíncronos
   const equipoIdRef = useRef<string | null>(null);
@@ -194,9 +196,17 @@ function ContenidoTesoro() {
 
   // Solicitar permiso de ubicación al montar
   useEffect(() => {
-    void Location.requestForegroundPermissionsAsync().then(({ status }) => {
+    void (async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
       permisoUbicacionRef.current = status === "granted";
-    });
+      if (status === "denied") {
+        Alert.alert(
+          "Permiso de ubicación necesario",
+          "Para mostrar tu posición al equipo durante la búsqueda del tesoro, UMBRAL necesita acceso a tu ubicación. Actívalo en Configuración → Expo Go → Ubicación.",
+          [{ text: "Aceptar" }],
+        );
+      }
+    })();
   }, []);
 
   // Unirse al grupo del equipo en cuanto sepamos el equipoId y la conexión esté lista
@@ -469,16 +479,30 @@ function ContenidoTesoro() {
     };
 
     const iniciarEnvioUbicacion = () => {
-      if (!permisoUbicacionRef.current) return;
+      console.log("[Ubicacion] intervalo iniciado");
       intervaloUbicacion = setInterval(() => {
         void (async () => {
           if (desmontado) return;
-          if (conexion.state !== signalR.HubConnectionState.Connected) return;
-          if (estadoSesionRef.current !== "Activa") return;
+          if (!permisoUbicacionRef.current) {
+            console.warn("[Ubicacion] sin permiso, saltando tick");
+            return;
+          }
+          if (conexion.state !== signalR.HubConnectionState.Connected) {
+            console.warn("[Ubicacion] conexion no lista:", conexion.state);
+            return;
+          }
+          if (estadoSesionRef.current !== "Activa") {
+            console.warn("[Ubicacion] sesion no activa:", estadoSesionRef.current);
+            return;
+          }
           try {
             const pos = await Location.getCurrentPositionAsync({
               accuracy: Location.Accuracy.Balanced,
             });
+            console.log("[Ubicacion] enviando:", pos.coords.latitude, pos.coords.longitude);
+            if (!desmontado) {
+              setMiUbicacion({ latitud: pos.coords.latitude, longitud: pos.coords.longitude });
+            }
             await conexion.invoke(
               "EnviarUbicacion",
               sesionId,
@@ -486,8 +510,8 @@ function ContenidoTesoro() {
               pos.coords.latitude,
               pos.coords.longitude,
             );
-          } catch {
-            // silencioso — se reintenta en el siguiente tick
+          } catch (e) {
+            console.error("[Ubicacion] error en tick:", e);
           }
         })();
       }, 5000);
@@ -693,9 +717,10 @@ function ContenidoTesoro() {
     );
   }
 
-  const marcadoresCompaneros: MarcadorMovil[] = [...ubicacionesCompaneros.entries()].map(
-    ([id, u]) => ({ id, latitud: u.latitud, longitud: u.longitud, nombre: u.nombre, color: "#f97316" }),
-  );
+  const marcadoresCompaneros: MarcadorMovil[] = [
+    ...(miUbicacion ? [{ id: "yo", latitud: miUbicacion.latitud, longitud: miUbicacion.longitud, nombre: "Tú", color: "#3b82f6" }] : []),
+    ...[...ubicacionesCompaneros.entries()].map(([id, u]) => ({ id, latitud: u.latitud, longitud: u.longitud, nombre: u.nombre, color: "#f97316" })),
+  ];
 
   return (
     <PantallaBase>
