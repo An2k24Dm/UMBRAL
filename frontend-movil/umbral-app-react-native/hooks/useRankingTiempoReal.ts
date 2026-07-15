@@ -6,7 +6,10 @@ import {
   crearConexionRankingTiempoReal,
   type PuntajeCalculadoEvento,
 } from "../servicios/rankingTiempoReal";
-import { esErrorNoAutenticadoTiempoReal } from "../servicios/sesionesTiempoReal";
+import {
+  esErrorNoAutenticadoTiempoReal,
+  registrarErrorConexionTiempoRealDev,
+} from "../servicios/sesionesTiempoReal";
 
 interface OpcionesUseRankingTiempoReal {
   sesionId?: string | null;
@@ -55,15 +58,21 @@ export function useRankingTiempoReal({
       let inicioPromise: Promise<void> | null = null;
       const conexion = crearConexionRankingTiempoReal(token);
 
-      const manejarError = async (error: unknown) => {
+      const manejarError = async (error: unknown, contexto?: string) => {
         if (!error || desmontado) return;
+        // Solo el 401 cierra sesión; el transporte transitorio se registra como
+        // diagnóstico (dev) y la reconexión automática se encarga del resto.
         if (esErrorNoAutenticadoTiempoReal(error)) {
           await cerrarSesion();
+          return;
         }
+        registrarErrorConexionTiempoRealDev(error, contexto ?? "Ranking");
       };
 
       const unirse = () =>
-        conexion.invoke("UnirseASesion", sesionId).catch(manejarError);
+        conexion
+          .invoke("UnirseASesion", sesionId)
+          .catch((error: unknown) => manejarError(error, "UnirseASesion"));
 
       conexion.on("PuntajeCalculado", (evento: PuntajeCalculadoEvento) => {
         void callbacksRef.current.onPuntajeCalculado?.(evento);

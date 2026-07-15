@@ -1,6 +1,9 @@
 import * as signalR from "@microsoft/signalr";
 import { URL_API } from "./clienteHttp";
-import { crearLoggerSignalRMovil } from "./signalRLogger";
+import {
+  crearLoggerSignalRMovil,
+  esErrorSignalRTransitorio,
+} from "./signalRLogger";
 
 interface DiagnosticoConexionTiempoReal {
   origen: string;
@@ -135,6 +138,13 @@ export function esErrorNoAutenticadoTiempoReal(error: unknown): boolean {
   );
 }
 
+function extraerMensajeErrorTiempoReal(error: unknown): string {
+  const candidato = error as { message?: unknown };
+  if (typeof candidato?.message === "string") return candidato.message;
+  if (typeof error === "string") return error;
+  return "";
+}
+
 export function mensajeSeguroErrorTiempoReal(error: unknown): string {
   const candidato = error as {
     statusCode?: unknown;
@@ -152,13 +162,60 @@ export function mensajeSeguroErrorTiempoReal(error: unknown): string {
   return estado ? `${estado}: ${mensaje}` : mensaje;
 }
 
-export function registrarAccesoGrupoRechazadoDev(error: unknown) {
-  if (__DEV__ && !esErrorNoAutenticadoTiempoReal(error)) {
-    console.log(
-      "[SignalR Movil] acceso a grupo rechazado:",
-      mensajeSeguroErrorTiempoReal(error),
+// Clasificación honesta de un error de conexión SignalR a nivel de OBJETO (no
+// solo del mensaje). Distingue autenticación (401) de una interrupción de
+// transporte recuperable (timeout/WebSocket cerrado/network failed) para no
+// etiquetar un fallo de red como "acceso a grupo rechazado" (ver requerimiento).
+// No es posible distinguir de forma fiable en el cliente un rechazo real del
+// servidor de un fallo terminal de transporte: se agrupan como "grave" y el
+// contexto de la operación se registra explícitamente en el log.
+export type CategoriaErrorConexionTiempoReal =
+  | "autenticacion"
+  | "transitorio"
+  | "grave";
+
+export function esErrorConexionTransitorioTiempoReal(error: unknown): boolean {
+  if (!error) return false;
+  if (esErrorNoAutenticadoTiempoReal(error)) return false;
+  return esErrorSignalRTransitorio(extraerMensajeErrorTiempoReal(error));
+}
+
+export function clasificarErrorConexionTiempoReal(
+  error: unknown,
+): CategoriaErrorConexionTiempoReal {
+  if (esErrorNoAutenticadoTiempoReal(error)) return "autenticacion";
+  if (esErrorConexionTransitorioTiempoReal(error)) return "transitorio";
+  return "grave";
+}
+
+// Registro de diagnóstico (solo __DEV__) de un error de conexión que el hook NO
+// trata como 401. Nunca usa console.error: un fallo terminal real ya lo escala
+// el propio logger de SignalR (crearLoggerSignalRMovil). Aquí solo aportamos
+// contexto de la operación (unión a grupo, reconexión, cierre) sin caja roja.
+export function registrarErrorConexionTiempoRealDev(
+  error: unknown,
+  contexto?: string,
+) {
+  if (!__DEV__ || !error) return;
+
+  const categoria = clasificarErrorConexionTiempoReal(error);
+  // El 401 lo maneja el flujo de seguridad del hook; no es ruido de diagnóstico.
+  if (categoria === "autenticacion") return;
+
+  const sufijo = contexto ? `[${contexto}] ` : "";
+  const mensaje = mensajeSeguroErrorTiempoReal(error);
+
+  if (categoria === "transitorio") {
+    console.warn(
+      `[SignalR Movil] ${sufijo}conexión interrumpida temporalmente; ` +
+        `se intentará reconectar. Detalle: ${mensaje}`,
     );
+    return;
   }
+
+  console.warn(
+    `[SignalR Movil] ${sufijo}error de conexión en tiempo real: ${mensaje}`,
+  );
 }
 
 export function registrarEventoConexionSesionesTiempoReal(

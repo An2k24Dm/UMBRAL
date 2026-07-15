@@ -39,6 +39,7 @@ import {
   type RankingEquipoDto,
   type RankingParticipanteDto,
 } from "../../../servicios/rankingApi";
+import { intentarMarcarFinalizacionNotificada } from "../../../servicios/notificacionesFinalizacionSesion";
 
 export default function PantallaDetalleSesionParticipante() {
   return (
@@ -71,8 +72,6 @@ function ContenidoDetalle() {
     useState<RankingParticipanteDto[] | null>(null);
   const [rankingEquipos, setRankingEquipos] = useState<RankingEquipoDto[] | null>(null);
   const [cargandoRanking, setCargandoRanking] = useState(false);
-  // Marca si ya se cargo el ranking al menos una vez (para distinguir la primera
-  // carga de los refetch en segundo plano y no colapsar la expansion de equipos).
   const rankingConDatosRef = useRef(false);
   const [versionRanking, setVersionRanking] = useState(0);
   const [equiposRankingExpandidos, setEquiposRankingExpandidos] = useState<Set<string>>(new Set());
@@ -116,10 +115,6 @@ function ContenidoDetalle() {
     const estados = ["Activa", "Pausada", "Finalizada"];
     if (!estados.includes(detalle.estado)) return;
 
-    // El spinner solo en la primera carga (aun sin datos). Los refetch por
-    // SignalR (PuntajeCalculado) NO deben ocultar la lista: eso colapsaria la
-    // expansion de equipos y provocaria parpadeo. Se usa un ref (no estado) para
-    // no reintroducir cargarRanking como dependencia y evitar un bucle de fetch.
     const primeraCarga = !rankingConDatosRef.current;
     if (primeraCarga) setCargandoRanking(true);
     try {
@@ -134,8 +129,6 @@ function ContenidoDetalle() {
       }
       rankingConDatosRef.current = true;
     } catch {
-      // Fallo transitorio de red: si ya habia un ranking bueno lo conservamos
-      // (no colapsar la expansion); el proximo refetch reintenta.
       if (primeraCarga) {
         setRankingParticipantes(null);
         setRankingEquipos(null);
@@ -155,12 +148,8 @@ function ContenidoDetalle() {
   const navegarAEjecucionActual = useCallback(async () => {
     if (!token || !sesionId) return;
 
-    // Best-effort: cualquier fallo (no inscrito, red, expulsado) se ignora
-    // silenciosamente; nunca debe propagarse como "uncaught in promise".
     try {
-      // Primero el detalle: si la sesión no está Activa o el usuario NO está
-      // inscrito, no se consulta el progreso secuencial (ese endpoint rechaza a
-      // los no inscritos) ni se redirige.
+
       const detalleActualizado = await obtenerDetalleSesionDisponibleApi(token, sesionId);
       if (
         detalleActualizado.estado !== "Activa" ||
@@ -170,13 +159,9 @@ function ContenidoDetalle() {
       }
 
       const progresoActualizado = await obtenerProgresoSecuencialSesionApi(token, sesionId);
-      // Mantiene el progreso del detalle fresco (estados COMPLETADA de
-      // etapas/misiones) aunque se pierda el evento SignalR EtapaCompletada.
+
       setProgresoSecuencial(progresoActualizado);
-      // #16: durante la preparación (Preparacion) o el cierre pendiente
-      // (CierrePendiente) la etapa NO es jugable todavía. El participante
-      // permanece en el detalle viendo el banner global; la navegación al juego
-      // solo ocurre en fase Activa o al llegar EtapaIniciada.
+
       if (
         progresoActualizado.faseEtapaActual === "Preparacion" ||
         progresoActualizado.faseEtapaActual === "CierrePendiente" ||
@@ -206,24 +191,10 @@ function ContenidoDetalle() {
     }
   }, [token, sesionId, enrutador]);
 
-  // Escenario de reapertura / entrada directa al detalle durante una etapa
-  // activa: si la sesión está Activa, el participante está inscrito y NO
-  // completó la etapa actual, se le envía automáticamente a la ejecución actual.
-  // navegarAEjecucionActual es best-effort y tiene guardas internas (no redirige
-  // si ya completó su parte o si no procede), evitando loops de navegación.
   useEffect(() => {
     void navegarAEjecucionActual();
   }, [navegarAEjecucionActual]);
 
-  // Red de seguridad mientras el participante ESPERA en el detalle (etapa que él
-  // ya completó, cierre pendiente o preparación de la siguiente): consulta el
-  // progreso cada ~2,5 s. Aunque se pierda el evento SignalR EtapaIniciada/
-  // EtapaCompletada (p. ej. app en background), se refrescan los estados
-  // COMPLETADA y se redirige en cuanto el backend activa la siguiente etapa
-  // (fase Activa). El backend sigue siendo la única autoridad del tiempo/fase; el
-  // reloj local no decide nada, solo consulta. Solo corre en el detalle de una
-  // sesión Activa en la que el participante está inscrito; al navegar al juego la
-  // pantalla se desmonta y el intervalo se limpia.
   useEffect(() => {
     if (detalle?.estado !== "Activa" || !estaInscritoEnSesion) return;
     const id = setInterval(() => {
@@ -232,15 +203,8 @@ function ContenidoDetalle() {
     return () => clearInterval(id);
   }, [detalle?.estado, estaInscritoEnSesion, navegarAEjecucionActual]);
 
-  // HU52 — cambio de estado en vivo. Si el operador cancela, avisamos y
-  // volvemos al listado. Si finaliza, avisamos pero el participante se queda
-  // en la pantalla para ver sus resultados.
-  // Mantiene el detalle actual accesible desde el callback de SignalR sin
-  // capturar una versión obsoleta (para navegar al resultado con nombre/modo).
   const detalleRef = useRef(detalle);
   detalleRef.current = detalle;
-  // Evita mostrar la notificación de finalización más de una vez por sesión.
-  const finalizacionNotificadaRef = useRef<string | null>(null);
 
   const irAlResultado = useCallback(() => {
     if (!sesionId) return;
@@ -271,10 +235,10 @@ function ContenidoDetalle() {
         return;
       }
       if (estado === "Finalizada") {
-        // Una sola notificación por sesión (evita duplicados ante varios
-        // eventos SignalR o refetch). Otra sesión distinta muestra la suya.
-        if (finalizacionNotificadaRef.current !== sesionId) {
-          finalizacionNotificadaRef.current = sesionId ?? null;
+        // Dedup compartida con el hook global de Avisos (y Trivia/Tesoro): una
+        // sola alerta por sesión aunque varias pantallas/conexiones reciban el
+        // evento. Otra sesión distinta muestra la suya.
+        if (intentarMarcarFinalizacionNotificada(sesionId ?? "")) {
           Alert.alert(
             "La sesión finalizó",
             "Puedes revisar tus resultados y el ranking final.",

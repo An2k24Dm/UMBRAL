@@ -28,8 +28,9 @@ import {
 import {
   crearConexionSesionesTiempoReal,
   esErrorNoAutenticadoTiempoReal,
+  esErrorConexionTransitorioTiempoReal,
   registrarEventoConexionSesionesTiempoReal,
-  registrarAccesoGrupoRechazadoDev,
+  registrarErrorConexionTiempoRealDev,
 } from "../../../servicios/sesionesTiempoReal";
 import { obtenerDetalleSesionDisponibleApi } from "../../../servicios/sesionesApi";
 import { obtenerProgresoSecuencialSesionApi } from "../../../servicios/sesionesApi";
@@ -320,13 +321,13 @@ function ContenidoTesoro() {
       cierreRegistrado = true;
       logDev("cerrado");
     };
-    const manejarErrorConexion = async (error: unknown) => {
+    const manejarErrorConexion = async (error: unknown, contexto?: string) => {
       if (desmontado || !error) return;
       if (esErrorNoAutenticadoTiempoReal(error)) {
         await cerrarSesion();
         return;
       }
-      registrarAccesoGrupoRechazadoDev(error);
+      registrarErrorConexionTiempoRealDev(error, contexto);
     };
 
     const manejarPistaLiberada = (evento: {
@@ -418,13 +419,21 @@ function ContenidoTesoro() {
         return;
       }
 
-      if (estado === "Cancelada" || estado === "Finalizada") {
+      if (estado === "Cancelada") {
         setEstadoSesion(nuevo);
         Alert.alert(
           "Sesión terminada",
-          `La sesión ha sido ${estado.toLowerCase()}.`,
+          "La sesión ha sido cancelada.",
           [{ text: "Aceptar", onPress: () => enrutador.replace("/participante/sesiones") }],
         );
+        return;
+      }
+
+      if (estado === "Finalizada") {
+        // El aviso consistente "La sesión finalizó / Ver resultado" (con el modo
+        // real) lo muestra el hook global useAvisosSesionTiempoReal, evitando
+        // alertas duplicadas. Aquí solo se detiene el juego local.
+        setEstadoSesion(nuevo);
       }
     };
 
@@ -470,36 +479,38 @@ function ContenidoTesoro() {
     const unirseAGrupos = async () => {
       await conexion.invoke("UnirseASesion", sesionId)
         .then(() => logDev("unido a sesion"))
-        .catch((error: unknown) => manejarErrorConexion(error));
+        .catch((error: unknown) => manejarErrorConexion(error, "UnirseASesion"));
       if (equipoIdRef.current) {
         await conexion.invoke("UnirseAEquipo", equipoIdRef.current)
           .then(() => logDev("unido a equipo"))
-          .catch((error: unknown) => manejarErrorConexion(error));
+          .catch((error: unknown) => manejarErrorConexion(error, "UnirseAEquipo"));
       }
     };
 
     const iniciarEnvioUbicacion = () => {
-      console.log("[Ubicacion] intervalo iniciado");
+      if (__DEV__) console.log("[Ubicacion] intervalo iniciado");
       intervaloUbicacion = setInterval(() => {
         void (async () => {
           if (desmontado) return;
           if (!permisoUbicacionRef.current) {
-            console.warn("[Ubicacion] sin permiso, saltando tick");
+            if (__DEV__) console.warn("[Ubicacion] sin permiso, saltando tick");
             return;
           }
           if (conexion.state !== signalR.HubConnectionState.Connected) {
-            console.warn("[Ubicacion] conexion no lista:", conexion.state);
+            if (__DEV__) console.warn("[Ubicacion] conexion no lista:", conexion.state);
             return;
           }
           if (estadoSesionRef.current !== "Activa") {
-            console.warn("[Ubicacion] sesion no activa:", estadoSesionRef.current);
+            if (__DEV__) console.warn("[Ubicacion] sesion no activa:", estadoSesionRef.current);
             return;
           }
           try {
             const pos = await Location.getCurrentPositionAsync({
               accuracy: Location.Accuracy.Balanced,
             });
-            console.log("[Ubicacion] enviando:", pos.coords.latitude, pos.coords.longitude);
+            if (__DEV__) {
+              console.log("[Ubicacion] enviando:", pos.coords.latitude, pos.coords.longitude);
+            }
             if (!desmontado) {
               setMiUbicacion({ latitud: pos.coords.latitude, longitud: pos.coords.longitude });
             }
@@ -511,7 +522,18 @@ function ContenidoTesoro() {
               pos.coords.longitude,
             );
           } catch (e) {
-            console.error("[Ubicacion] error en tick:", e);
+            // Un tick fallido por transporte transitorio (timeout/WebSocket) no
+            // es un error grave: la reconexión lo resuelve y el próximo tick
+            // reintenta. Solo un fallo no transitorio se registra como error.
+            if (esErrorConexionTransitorioTiempoReal(e)) {
+              if (__DEV__) {
+                console.warn(
+                  "[Ubicacion] tick omitido por conexión interrumpida; se reintentará.",
+                );
+              }
+            } else if (__DEV__) {
+              console.error("[Ubicacion] error en tick:", e);
+            }
           }
         })();
       }, 5000);
@@ -534,11 +556,11 @@ function ContenidoTesoro() {
     });
     conexion.onreconnecting((error) => {
       logDev("reconectando");
-      void manejarErrorConexion(error);
+      void manejarErrorConexion(error, "reconectando");
     });
     conexion.onclose((error) => {
       registrarCerrado();
-      void manejarErrorConexion(error);
+      void manejarErrorConexion(error, "onclose");
     });
 
     const cerrarConexion = async () => {
@@ -572,7 +594,7 @@ function ContenidoTesoro() {
       })
       .catch((e: unknown) => {
         if (desmontado) return;
-        void manejarErrorConexion(e);
+        void manejarErrorConexion(e, "start");
       });
 
     return () => {

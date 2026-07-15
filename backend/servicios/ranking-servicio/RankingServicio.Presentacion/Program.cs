@@ -14,6 +14,8 @@ constructor.Logging.AddSimpleConsole(opciones =>
 {
     opciones.SingleLine = true;
     opciones.TimestampFormat = "HH:mm:ss ";
+    // IncludeScopes conserva CorrelationId y Servicio (BeginScope del middleware).
+    opciones.IncludeScopes = true;
 });
 constructor.Logging.AddDebug();
 
@@ -58,6 +60,12 @@ if (aplicacion.Environment.IsDevelopment())
 
 aplicacion.UseCors(RegistroCors.PoliticaUmbral);
 aplicacion.UseAuthentication();
+
+// El logging va después de la autenticación para poder registrar el usuario y
+// el rol del token, y envuelve al manejador de errores: mide el tiempo total
+// del request y registra el código final, incluso cuando hubo una excepción
+// que el manejador de errores tradujo a respuesta JSON.
+aplicacion.UseMiddleware<LoggingSolicitudesMiddleware>();
 aplicacion.UseMiddleware<ManejadorErroresMiddleware>();
 aplicacion.UseAuthorization();
 

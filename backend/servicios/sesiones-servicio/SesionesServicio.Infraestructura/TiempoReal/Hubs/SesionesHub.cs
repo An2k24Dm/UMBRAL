@@ -28,55 +28,134 @@ public sealed class SesionesHub : Hub
         _logger = logger;
     }
 
-    public Task UnirseAListadoSesiones()
+    public override Task OnConnectedAsync()
     {
         var actor = ObtenerActor();
-        return _grupos.UnirseAListadoAsync(
-            Context.ConnectionId, actor.UsuarioId, actor.Roles, Context.ConnectionAborted);
+        _logger.LogInformation(
+            "SignalR Sesiones conectado. ConnectionId={ConnectionId} UsuarioId={UsuarioId} Usuario={Usuario} Roles={Roles}",
+            Context.ConnectionId,
+            actor.UsuarioId,
+            actor.NombreUsuario,
+            string.Join(",", actor.Roles));
+        return base.OnConnectedAsync();
     }
 
-    public Task SalirDeListadoSesiones()
-        => _grupos.SalirDeListadoAsync(Context.ConnectionId, Context.ConnectionAborted);
+    public override Task OnDisconnectedAsync(Exception? exception)
+    {
+        var usuarioId = ObtenerActor().UsuarioId;
+        if (exception is null)
+        {
+            _logger.LogInformation(
+                "SignalR Sesiones desconectado. ConnectionId={ConnectionId} UsuarioId={UsuarioId}",
+                Context.ConnectionId,
+                usuarioId);
+        }
+        else if (EsDesconexionTransitoria(exception))
+        {
+            _logger.LogWarning(
+                "SignalR Sesiones desconexión transitoria. ConnectionId={ConnectionId} UsuarioId={UsuarioId} TipoExcepcion={TipoExcepcion} Mensaje={Mensaje}",
+                Context.ConnectionId,
+                usuarioId,
+                exception.GetType().Name,
+                exception.Message);
+        }
+        else
+        {
+            _logger.LogError(
+                exception,
+                "SignalR Sesiones desconexión inesperada. ConnectionId={ConnectionId} UsuarioId={UsuarioId} TipoExcepcion={TipoExcepcion}",
+                Context.ConnectionId,
+                usuarioId,
+                exception.GetType().Name);
+        }
 
-    public Task UnirseASesion(string sesionId)
+        return base.OnDisconnectedAsync(exception);
+    }
+
+    public async Task UnirseAListadoSesiones()
+    {
+        var actor = ObtenerActor();
+        await _grupos.UnirseAListadoAsync(
+            Context.ConnectionId, actor.UsuarioId, actor.Roles, Context.ConnectionAborted);
+        _logger.LogInformation(
+            "SignalR Sesiones unido al listado. ConnectionId={ConnectionId} UsuarioId={UsuarioId}",
+            Context.ConnectionId,
+            actor.UsuarioId);
+    }
+
+    public async Task SalirDeListadoSesiones()
+    {
+        await _grupos.SalirDeListadoAsync(Context.ConnectionId, Context.ConnectionAborted);
+        _logger.LogDebug(
+            "SignalR Sesiones salió del listado. ConnectionId={ConnectionId}",
+            Context.ConnectionId);
+    }
+
+    public async Task UnirseASesion(string sesionId)
     {
         var id = ParsearGuid(sesionId, "la sesión");
         var actor = ObtenerActor();
-        return _grupos.UnirseASesionAsync(
+        await _grupos.UnirseASesionAsync(
             Context.ConnectionId, actor.UsuarioId, actor.Roles, id, Context.ConnectionAborted);
+        _logger.LogInformation(
+            "SignalR Sesiones unido a sesión. ConnectionId={ConnectionId} UsuarioId={UsuarioId} SesionId={SesionId}",
+            Context.ConnectionId,
+            actor.UsuarioId,
+            id);
     }
 
-    public Task SalirDeSesion(string sesionId)
+    public async Task SalirDeSesion(string sesionId)
     {
-        if (!Guid.TryParse(sesionId, out var id)) return Task.CompletedTask;
-        return _grupos.SalirDeSesionAsync(Context.ConnectionId, id, Context.ConnectionAborted);
+        if (!Guid.TryParse(sesionId, out var id)) return;
+        await _grupos.SalirDeSesionAsync(Context.ConnectionId, id, Context.ConnectionAborted);
+        _logger.LogDebug(
+            "SignalR Sesiones salió de sesión. ConnectionId={ConnectionId} SesionId={SesionId}",
+            Context.ConnectionId,
+            id);
     }
 
-    public Task UnirseAEquipo(string equipoId)
+    public async Task UnirseAEquipo(string equipoId)
     {
         var id = ParsearGuid(equipoId, "el equipo");
         var actor = ObtenerActor();
-        return _grupos.UnirseAEquipoAsync(
+        await _grupos.UnirseAEquipoAsync(
             Context.ConnectionId, actor.UsuarioId, actor.Roles, id, Context.ConnectionAborted);
+        _logger.LogInformation(
+            "SignalR Sesiones unido a equipo. ConnectionId={ConnectionId} UsuarioId={UsuarioId} EquipoId={EquipoId}",
+            Context.ConnectionId,
+            actor.UsuarioId,
+            id);
     }
 
-    public Task SalirDeEquipo(string equipoId)
+    public async Task SalirDeEquipo(string equipoId)
     {
-        if (!Guid.TryParse(equipoId, out var id)) return Task.CompletedTask;
-        return _grupos.SalirDeEquipoAsync(Context.ConnectionId, id, Context.ConnectionAborted);
+        if (!Guid.TryParse(equipoId, out var id)) return;
+        await _grupos.SalirDeEquipoAsync(Context.ConnectionId, id, Context.ConnectionAborted);
+        _logger.LogDebug(
+            "SignalR Sesiones salió de equipo. ConnectionId={ConnectionId} EquipoId={EquipoId}",
+            Context.ConnectionId,
+            id);
     }
 
     public async Task EnviarUbicacion(string sesionId, string? equipoId, double latitud, double longitud)
     {
         var id = ParsearGuid(sesionId, "la sesión");
         var actor = ObtenerActor();
-        if (actor.UsuarioId is null) return;
+        if (actor.UsuarioId is null)
+        {
+            _logger.LogWarning(
+                "[Ubicacion] coordenada descartada: usuario no identificado. ConnectionId={ConnectionId} SesionId={SesionId}",
+                Context.ConnectionId, id);
+            return;
+        }
 
         Guid? equipoGuid = Guid.TryParse(equipoId, out var eq) ? eq : null;
 
-        _logger.LogInformation(
-            "[Ubicacion] recibido: sesion={SesionId} usuario={UserId} ({Nombre}) equipo={EquipoId} lat={Lat} lng={Lng}",
-            id, actor.UsuarioId, actor.NombreUsuario, equipoGuid, latitud, longitud);
+        // Una ubicación llega cada ~5s por participante: se registra en Debug para
+        // no saturar Information en producción (ver requerimiento de observabilidad).
+        _logger.LogDebug(
+            "[Ubicacion] recibido: sesion={SesionId} usuario={UserId} equipo={EquipoId}",
+            id, actor.UsuarioId, equipoGuid);
 
         _almacen.Actualizar(id, actor.UsuarioId.Value, actor.NombreUsuario ?? string.Empty, equipoGuid, latitud, longitud);
 
@@ -92,7 +171,7 @@ public sealed class SesionesHub : Hub
         };
 
         var grupoOp = GrupoOperadoresSesion(id);
-        _logger.LogInformation("[Ubicacion] enviando a grupo={Grupo}", grupoOp);
+        _logger.LogDebug("[Ubicacion] enviando a grupo={Grupo}", grupoOp);
         var tareas = new List<Task>
         {
             Clients.Group(grupoOp).SendAsync("UbicacionActualizada", dto, Context.ConnectionAborted)
@@ -101,7 +180,7 @@ public sealed class SesionesHub : Hub
         if (equipoGuid.HasValue)
         {
             var grupoEq = GrupoEquipo(equipoGuid.Value);
-            _logger.LogInformation("[Ubicacion] enviando a equipo={Grupo}", grupoEq);
+            _logger.LogDebug("[Ubicacion] enviando a equipo={Grupo}", grupoEq);
             tareas.Add(Clients.Group(grupoEq).SendAsync("UbicacionActualizada", dto, Context.ConnectionAborted));
         }
 
@@ -112,6 +191,14 @@ public sealed class SesionesHub : Hub
         => Guid.TryParse(valor, out var id)
             ? id
             : throw new HubException($"El identificador de {recurso} no es válido.");
+
+    // Cierres de transporte que la reconexión automática del cliente resuelve:
+    // se registran como Warning, no como Error terminal. ConnectionAbortedException
+    // deriva de OperationCanceledException, por lo que queda cubierta.
+    private static bool EsDesconexionTransitoria(Exception exception)
+        => exception is OperationCanceledException
+            or System.IO.IOException
+            or System.Net.WebSockets.WebSocketException;
 
     private ContextoActorTiempoReal ObtenerActor()
     {

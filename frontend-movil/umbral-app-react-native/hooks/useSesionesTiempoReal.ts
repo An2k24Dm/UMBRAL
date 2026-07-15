@@ -9,7 +9,7 @@ import {
   obtenerEstadoEvento,
   obtenerSesionIdEvento,
   registrarEventoConexionSesionesTiempoReal,
-  registrarAccesoGrupoRechazadoDev,
+  registrarErrorConexionTiempoRealDev,
   type EventoSesionTiempoReal,
 } from "../servicios/sesionesTiempoReal";
 
@@ -109,11 +109,13 @@ export function useSesionesTiempoReal({
         logDev("cerrado");
       };
 
-      const manejarErrorConexion = async (error: unknown) => {
+      const manejarErrorConexion = async (error: unknown, contexto?: string) => {
         if (desmontado || invalidandoSesion || !error) return;
 
+        // Solo un 401 real invalida la sesión. Transporte/timeout/rechazo se
+        // registran como diagnóstico (dev) sin cerrar sesión ni caja roja.
         if (!esErrorNoAutenticadoTiempoReal(error)) {
-          registrarAccesoGrupoRechazadoDev(error);
+          registrarErrorConexionTiempoRealDev(error, contexto);
           return;
         }
 
@@ -183,7 +185,7 @@ export function useSesionesTiempoReal({
           await conexion.invoke("UnirseASesion", sesionId);
           logDev("unido a sesion");
         } catch (error: unknown) {
-          await manejarErrorConexion(error);
+          await manejarErrorConexion(error, "UnirseASesion");
         }
       };
 
@@ -193,7 +195,7 @@ export function useSesionesTiempoReal({
           await conexion.invoke("UnirseAEquipo", equipoId);
           logDev("unido a equipo");
         } catch (error: unknown) {
-          await manejarErrorConexion(error);
+          await manejarErrorConexion(error, "UnirseAEquipo");
         }
       };
 
@@ -208,7 +210,7 @@ export function useSesionesTiempoReal({
 
       conexion.onreconnecting((error) => {
         logDev("reconectando");
-        void manejarErrorConexion(error);
+        void manejarErrorConexion(error, "reconectando");
       });
 
       conexion.onreconnected(async () => {
@@ -226,7 +228,7 @@ export function useSesionesTiempoReal({
 
       conexion.onclose((error) => {
         registrarCerrado();
-        void manejarErrorConexion(error);
+        void manejarErrorConexion(error, "onclose");
       });
 
       const cerrarConexion = async () => {
@@ -269,7 +271,7 @@ export function useSesionesTiempoReal({
         })
         .catch((error: unknown) => {
           if (desmontado) return;
-          void manejarErrorConexion(error);
+          void manejarErrorConexion(error, "start");
         });
 
       const limpiar = async () => {

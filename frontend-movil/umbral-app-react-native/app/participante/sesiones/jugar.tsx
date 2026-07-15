@@ -26,7 +26,7 @@ import {
   crearConexionSesionesTiempoReal,
   esErrorNoAutenticadoTiempoReal,
   registrarEventoConexionSesionesTiempoReal,
-  registrarAccesoGrupoRechazadoDev,
+  registrarErrorConexionTiempoRealDev,
 } from "../../../servicios/sesionesTiempoReal";
 import { obtenerDetalleSesionDisponibleApi } from "../../../servicios/sesionesApi";
 import { obtenerProgresoSecuencialSesionApi } from "../../../servicios/sesionesApi";
@@ -612,13 +612,13 @@ function ContenidoJuego() {
       cierreRegistrado = true;
       logDev("cerrado");
     };
-    const manejarErrorConexion = async (error: unknown) => {
+    const manejarErrorConexion = async (error: unknown, contexto?: string) => {
       if (desmontado || !error) return;
       if (esErrorNoAutenticadoTiempoReal(error)) {
         await cerrarSesion();
         return;
       }
-      registrarAccesoGrupoRechazadoDev(error);
+      registrarErrorConexionTiempoRealDev(error, contexto);
     };
 
     const manejarEtapaCompletada = (evento: { sesionId?: string; SesionId?: string; etapaId?: string; EtapaId?: string }) => {
@@ -680,13 +680,21 @@ function ContenidoJuego() {
         return;
       }
 
-      if (estado === "Cancelada" || estado === "Finalizada") {
+      if (estado === "Cancelada") {
         setEstadoSesion(nuevo);
         Alert.alert(
           "Sesión terminada",
-          `La sesión ha sido ${estado.toLowerCase()}.`,
+          "La sesión ha sido cancelada.",
           [{ text: "Aceptar", onPress: () => enrutador.replace("/participante/sesiones") }],
         );
+        return;
+      }
+
+      if (estado === "Finalizada") {
+        // El aviso consistente "La sesión finalizó / Ver resultado" (con el modo
+        // real) lo muestra el hook global useAvisosSesionTiempoReal, evitando
+        // alertas duplicadas. Aquí solo se detiene el juego local.
+        setEstadoSesion(nuevo);
       }
     };
 
@@ -714,16 +722,16 @@ function ContenidoJuego() {
       logDev("reconectado");
       await conexion.invoke("UnirseASesion", sesionId)
         .then(() => logDev("unido a sesion"))
-        .catch((error: unknown) => manejarErrorConexion(error));
+        .catch((error: unknown) => manejarErrorConexion(error, "UnirseASesion"));
       await refrescarEstadoSesion();
     });
     conexion.onreconnecting((error) => {
       logDev("reconectando");
-      void manejarErrorConexion(error);
+      void manejarErrorConexion(error, "reconectando");
     });
     conexion.onclose((error) => {
       registrarCerrado();
-      void manejarErrorConexion(error);
+      void manejarErrorConexion(error, "onclose");
     });
 
     const cerrarConexion = async () => {
@@ -754,11 +762,11 @@ function ContenidoJuego() {
         }
         await conexion.invoke("UnirseASesion", sesionId)
           .then(() => logDev("unido a sesion"))
-          .catch((error: unknown) => manejarErrorConexion(error));
+          .catch((error: unknown) => manejarErrorConexion(error, "UnirseASesion"));
       })
       .catch((e: unknown) => {
         if (desmontado) return;
-        void manejarErrorConexion(e);
+        void manejarErrorConexion(e, "start");
       });
 
     return () => {
