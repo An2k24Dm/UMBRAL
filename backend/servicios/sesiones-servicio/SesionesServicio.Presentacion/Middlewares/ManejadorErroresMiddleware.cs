@@ -1,14 +1,12 @@
 using System.Net;
 using System.Text.Json;
 using SesionesServicio.Presentacion.Configuraciones;
+using SesionesServicio.Aplicacion.Excepciones;
 using SesionesServicio.Aplicacion.Validaciones;
 using SesionesServicio.Dominio.Excepciones;
 
 namespace SesionesServicio.Presentacion.Middlewares;
 
-// Centraliza el mapeo Excepción → respuesta HTTP. Las excepciones
-// "esperadas" del dominio/aplicación se traducen a 4xx con un cuerpo
-// { codigo, mensaje[, errores] } consistente con el resto del proyecto.
 public sealed class ManejadorErroresMiddleware
 {
     private static readonly JsonSerializerOptions OpcionesJson = new()
@@ -34,11 +32,14 @@ public sealed class ManejadorErroresMiddleware
         }
         catch (ExcepcionValidacion ex)
         {
+            _registro.LogWarning(
+                "Solicitud rechazada por validación: {Mensaje}", ex.Message);
             await EscribirJsonAsync(contexto, HttpStatusCode.BadRequest, new
             {
                 codigo = "VALIDACION",
                 mensaje = ex.Message,
-                errores = ex.Errores.Select(e => new { campo = e.Campo, mensaje = e.Mensaje })
+                errores = ex.Errores.Select(e => new { campo = e.Campo, mensaje = e.Mensaje }),
+                correlationId = ObtenerCorrelationId(contexto)
             });
         }
         catch (SesionInvalidaExcepcion ex)
@@ -70,6 +71,16 @@ public sealed class ManejadorErroresMiddleware
             await EscribirCodigoAsync(contexto, HttpStatusCode.Conflict,
                 "PARTICIPACION_INVALIDA", ex.Message);
         }
+        catch (ParticipanteYaEstaEnSesionActivaExcepcion ex)
+        {
+            await EscribirCodigoAsync(contexto, HttpStatusCode.Conflict,
+                "PARTICIPANTE_EN_SESION_ACTIVA", ex.Message);
+        }
+        catch (ParticipanteYaPerteneceASesionExcepcion ex)
+        {
+            await EscribirCodigoAsync(contexto, HttpStatusCode.Conflict,
+                "PARTICIPANTE_YA_INSCRITO", ex.Message);
+        }
         catch (UsuarioNoAutorizadoCrearSesionExcepcion ex)
         {
             await EscribirCodigoAsync(contexto, HttpStatusCode.Forbidden,
@@ -79,6 +90,36 @@ public sealed class ManejadorErroresMiddleware
         {
             await EscribirCodigoAsync(contexto, HttpStatusCode.NotFound,
                 "SESION_NO_ENCONTRADA", ex.Message);
+        }
+        catch (EquipoNoEncontradoExcepcion ex)
+        {
+            await EscribirCodigoAsync(contexto, HttpStatusCode.NotFound,
+                "EQUIPO_NO_ENCONTRADO", ex.Message);
+        }
+        catch (ParticipanteNoEncontradoExcepcion ex)
+        {
+            await EscribirCodigoAsync(contexto, HttpStatusCode.NotFound,
+                "PARTICIPANTE_NO_ENCONTRADO", ex.Message);
+        }
+        catch (ExpulsionNoPermitidaExcepcion ex)
+        {
+            await EscribirCodigoAsync(contexto, HttpStatusCode.Conflict,
+                "EXPULSION_NO_PERMITIDA", ex.Message);
+        }
+        catch (SesionNoGrupalExcepcion ex)
+        {
+            await EscribirCodigoAsync(contexto, HttpStatusCode.Conflict,
+                "SESION_NO_GRUPAL", ex.Message);
+        }
+        catch (SesionNoModificableExcepcion ex)
+        {
+            await EscribirCodigoAsync(contexto, HttpStatusCode.Conflict,
+                "SESION_NO_MODIFICABLE", ex.Message);
+        }
+        catch (SesionNoEliminableExcepcion ex)
+        {
+            await EscribirCodigoAsync(contexto, HttpStatusCode.Conflict,
+                "SESION_NO_ELIMINABLE", ex.Message);
         }
         catch (AccesoSesionNoPermitidoExcepcion ex)
         {
@@ -90,15 +131,44 @@ public sealed class ManejadorErroresMiddleware
             await EscribirCodigoAsync(contexto, HttpStatusCode.Conflict,
                 "TRANSICION_INVALIDA", ex.Message);
         }
+        catch (OperacionSesionInvalidaExcepcion ex)
+        {
+            await EscribirCodigoAsync(contexto, HttpStatusCode.Conflict,
+                "OPERACION_SESION_INVALIDA", ex.Message);
+        }
+        catch (RespuestaTriviaDuplicadaExcepcion ex)
+        {
+            await EscribirCodigoAsync(contexto, HttpStatusCode.Conflict,
+                ex.EsEquipo ? "EQUIPO_YA_RESPONDIO" : "YA_RESPONDIDA", ex.Message);
+        }
+        catch (EvidenciaTesoroDuplicadaExcepcion ex)
+        {
+            // Individual: el participante ya completó la etapa. Grupal: otro
+            // integrante del equipo encontró el tesoro primero. Conflicto de
+            // negocio (409), nunca un 500.
+            await EscribirCodigoAsync(contexto, HttpStatusCode.Conflict,
+                ex.EsEquipo ? "EQUIPO_YA_COMPLETO_ETAPA" : "PARTICIPANTE_YA_COMPLETO_ETAPA",
+                ex.Message);
+        }
         catch (JsonException ex)
         {
+            var correlationId = ObtenerCorrelationId(contexto);
+            _registro.LogWarning(
+                ex,
+                "Solicitud rechazada por JSON inválido. CorrelationId={CorrelationId}",
+                correlationId);
             await EscribirJsonAsync(contexto, HttpStatusCode.BadRequest,
-                RespuestaErrorModelo.ConstruirDesdeJsonException(ex));
+                RespuestaErrorModelo.ConstruirDesdeJsonException(ex, correlationId));
         }
         catch (BadHttpRequestException ex) when (ex.InnerException is JsonException jsonInner)
         {
+            var correlationId = ObtenerCorrelationId(contexto);
+            _registro.LogWarning(
+                ex,
+                "Solicitud rechazada por JSON inválido. CorrelationId={CorrelationId}",
+                correlationId);
             await EscribirJsonAsync(contexto, HttpStatusCode.BadRequest,
-                RespuestaErrorModelo.ConstruirDesdeJsonException(jsonInner));
+                RespuestaErrorModelo.ConstruirDesdeJsonException(jsonInner, correlationId));
         }
         catch (Exception ex)
         {
@@ -108,9 +178,26 @@ public sealed class ManejadorErroresMiddleware
         }
     }
 
-    private static Task EscribirCodigoAsync(
+    private Task EscribirCodigoAsync(
         HttpContext contexto, HttpStatusCode estado, string codigo, string mensaje)
-        => EscribirJsonAsync(contexto, estado, new { codigo, mensaje });
+    {
+        // Los rechazos por reglas de negocio quedan como warning; los errores
+        // no controlados ya se registran como LogError.
+        if ((int)estado < 500)
+            _registro.LogWarning(
+                "Solicitud rechazada con {CodigoError} ({CodigoEstado}): {Mensaje}",
+                codigo, (int)estado, mensaje);
+
+        return EscribirJsonAsync(contexto, estado, new
+        {
+            codigo,
+            mensaje,
+            correlationId = ObtenerCorrelationId(contexto)
+        });
+    }
+
+    private static string? ObtenerCorrelationId(HttpContext contexto)
+        => contexto.Items.TryGetValue("CorrelationId", out var valor) ? valor as string : null;
 
     private static Task EscribirJsonAsync(HttpContext contexto, HttpStatusCode estado, object cuerpo)
     {

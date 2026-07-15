@@ -1,4 +1,5 @@
 using SesionesServicio.Dominio.Excepciones;
+using SesionesServicio.Dominio.ObjetosValor;
 
 namespace SesionesServicio.Dominio.Entidades;
 
@@ -8,13 +9,13 @@ public sealed class Participante
     public Guid SesionId { get; private set; }
     public Guid ParticipanteIdentidadId { get; private set; }
     public Guid? EquipoId { get; private set; }
-    public int Puntaje { get; private set; }
+    public PuntajeSesion Puntaje { get; private set; } = null!;
+    public DateTime? SnapshotRankingUtc { get; private set; }
     public DateTime FechaUnionSesion { get; private set; }
     public DateTime? FechaUnionEquipo { get; private set; }
 
     private Participante() { }
 
-    // Participante de una sesión individual: sin equipo asociado.
     public static Participante CrearParaSesionIndividual(
         Guid sesionId, Guid participanteIdentidadId, DateTime fechaUnionSesionUtc)
     {
@@ -25,14 +26,13 @@ public sealed class Participante
             SesionId = sesionId,
             ParticipanteIdentidadId = participanteIdentidadId,
             EquipoId = null,
-            Puntaje = 0,
+            Puntaje = PuntajeSesion.Cero(),
+            SnapshotRankingUtc = null,
             FechaUnionSesion = fechaUnionSesionUtc,
             FechaUnionEquipo = null
         };
     }
 
-    // Participante que ingresa a un equipo: se conoce SesionId y EquipoId
-    // desde el momento de su creación.
     public static Participante CrearParaEquipo(
         Guid sesionId, Guid equipoId,
         Guid participanteIdentidadId,
@@ -49,34 +49,47 @@ public sealed class Participante
             SesionId = sesionId,
             ParticipanteIdentidadId = participanteIdentidadId,
             EquipoId = equipoId,
-            Puntaje = 0,
+            Puntaje = PuntajeSesion.Cero(),
+            SnapshotRankingUtc = null,
             FechaUnionSesion = fechaUnionSesionUtc,
             FechaUnionEquipo = fechaUnionEquipoUtc
         };
     }
 
+    // Rehidratar recibe el entero tal como está persistido y lo reconstruye
+    // con DesdePersistencia para no invalidar registros existentes.
     public static Participante Rehidratar(
         Guid id, Guid sesionId, Guid participanteIdentidadId,
         Guid? equipoId, int puntaje,
-        DateTime fechaUnionSesion, DateTime? fechaUnionEquipo)
+        DateTime fechaUnionSesion, DateTime? fechaUnionEquipo,
+        DateTime? snapshotRankingUtc = null)
         => new()
         {
             Id = id,
             SesionId = sesionId,
             ParticipanteIdentidadId = participanteIdentidadId,
             EquipoId = equipoId,
-            Puntaje = puntaje,
+            Puntaje = PuntajeSesion.DesdePersistencia(puntaje),
+            SnapshotRankingUtc = snapshotRankingUtc,
             FechaUnionSesion = fechaUnionSesion,
             FechaUnionEquipo = fechaUnionEquipo
         };
 
-    // Reservado para una fase posterior cuando se implemente puntaje.
-    public void SumarPuntaje(int puntos)
+    public void SumarPuntaje(int puntos) => Puntaje = Puntaje.Sumar(puntos);
+
+    public void SumarPuntaje(PuntajeSesion puntos) => Puntaje = Puntaje.Sumar(puntos);
+
+    public void EstablecerPuntajeSnapshot(int puntaje)
+        => Puntaje = PuntajeSesion.DesdePersistencia(puntaje);
+
+    public bool EstablecerPuntajeSnapshot(int puntaje, DateTime calculadoEnUtc)
     {
-        if (puntos < 0)
-            throw new ParticipacionInvalidaExcepcion(
-                "El puntaje a sumar no puede ser negativo.");
-        Puntaje += puntos;
+        if (SnapshotRankingUtc.HasValue && calculadoEnUtc <= SnapshotRankingUtc.Value)
+            return false;
+
+        Puntaje = PuntajeSesion.DesdePersistencia(puntaje);
+        SnapshotRankingUtc = calculadoEnUtc;
+        return true;
     }
 
     private static void ValidarObligatorios(Guid sesionId, Guid participanteIdentidadId)

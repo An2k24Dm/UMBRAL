@@ -3,6 +3,7 @@ using JuegosServicio.Commons.Dtos;
 using JuegosServicio.Dominio.Entidades;
 using JuegosServicio.Dominio.Enums;
 using Microsoft.EntityFrameworkCore;
+using JuegosServicio.Infraestructura.Persistencia.Mapeadores;
 using JuegosServicio.Infraestructura.Persistencia.Modelos;
 
 namespace JuegosServicio.Infraestructura.Persistencia;
@@ -100,10 +101,14 @@ public sealed class RepositorioBusquedas : IRepositorioBusquedas
             FechaCreacion = modelo.FechaCreacion,
             Tiempo = modelo.Tiempo,
             Puntaje = modelo.Puntaje,
+            CodigoQr = modelo.CodigoQr,
             Pistas = modelo.Pistas.Select(p => new PistaDetalleDto
             {
                 Id = p.Id,
-                Contenido = p.Contenido
+                Contenido = p.Contenido,
+                Tipo = ((JuegosServicio.Dominio.Enums.TipoPista)p.Tipo).ToString(),
+                Latitud = p.Latitud,
+                Longitud = p.Longitud
             }).ToList()
         };
     }
@@ -116,8 +121,8 @@ public sealed class RepositorioBusquedas : IRepositorioBusquedas
 
         modelo.Nombre = busqueda.Nombre;
         modelo.Descripcion = busqueda.Descripcion;
-        modelo.Tiempo = busqueda.Tiempo;
-        modelo.Puntaje = busqueda.Puntaje;
+        modelo.Tiempo = busqueda.Tiempo.Valor;
+        modelo.Puntaje = busqueda.Puntaje.Valor;
         await _contexto.SaveChangesAsync(cancelacion);
     }
 
@@ -135,6 +140,9 @@ public sealed class RepositorioBusquedas : IRepositorioBusquedas
         if (modelo is null) return;
 
         modelo.Contenido = pista.Contenido;
+        modelo.Tipo = (int)pista.Tipo;
+        modelo.Latitud = pista.Latitud;
+        modelo.Longitud = pista.Longitud;
         await _contexto.SaveChangesAsync(cancelacion);
     }
 
@@ -196,5 +204,43 @@ public sealed class RepositorioBusquedas : IRepositorioBusquedas
 
         _contexto.BusquedasTesoro.Remove(modelo);
         await _contexto.SaveChangesAsync(cancelacion);
+    }
+
+    public async Task<BusquedaTesoroParticipanteDto?> ObtenerBusquedaParaParticipanteAsync(
+        Guid busquedaId, CancellationToken cancelacion)
+    {
+        var estadoActiva = (int)EstadoBusqueda.Activa;
+
+        var modelo = await _contexto.BusquedasTesoro
+            .Include(b => b.Pistas)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(b => b.Id == busquedaId && b.Estado == estadoActiva, cancelacion);
+
+        if (modelo is null) return null;
+
+        return new BusquedaTesoroParticipanteDto
+        {
+            Id = modelo.Id,
+            Nombre = modelo.Nombre,
+            Descripcion = modelo.Descripcion,
+            Tiempo = modelo.Tiempo,
+            Puntaje = modelo.Puntaje,
+            Pistas = modelo.Pistas.Select(p => new PistaDetalleDto
+            {
+                Id = p.Id,
+                Contenido = p.Contenido,
+                Tipo = ((JuegosServicio.Dominio.Enums.TipoPista)p.Tipo).ToString(),
+                Latitud = p.Latitud,
+                Longitud = p.Longitud
+            }).ToList()
+        };
+    }
+
+    public async Task<string?> ObtenerCodigoQrAsync(Guid busquedaId, CancellationToken cancelacion)
+    {
+        var modelo = await _contexto.BusquedasTesoro
+            .AsNoTracking()
+            .FirstOrDefaultAsync(b => b.Id == busquedaId, cancelacion);
+        return modelo?.CodigoQr;
     }
 }

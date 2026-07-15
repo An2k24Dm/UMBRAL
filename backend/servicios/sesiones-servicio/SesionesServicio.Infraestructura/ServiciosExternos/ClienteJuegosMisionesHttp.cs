@@ -47,7 +47,8 @@ public sealed class ClienteJuegosMisionesHttp : IClienteJuegosMisiones
             Descripcion = bruto.Descripcion ?? string.Empty,
             Estado = bruto.Estado ?? string.Empty,
             Dificultad = bruto.Dificultad ?? string.Empty,
-            TotalEtapas = bruto.Etapas?.Count ?? 0
+            TotalEtapas = bruto.Etapas?.Count ?? 0,
+            TiempoTotalSegundos = bruto.TiempoTotal
         };
     }
 
@@ -55,7 +56,14 @@ public sealed class ClienteJuegosMisionesHttp : IClienteJuegosMisiones
         Guid misionId, CancellationToken cancelacion)
     {
         var bruto = await EnviarAsync<MisionDetalleRespuesta>(
-            $"api/juegos/misiones/participante/{misionId}", cancelacion);
+            $"api/juegos/misiones/{misionId}", cancelacion);
+
+        if (bruto is null)
+        {
+            bruto = await EnviarAsync<MisionDetalleRespuesta>(
+                $"api/juegos/misiones/participante/{misionId}", cancelacion);
+        }
+
         if (bruto is null) return null;
 
         return new MisionConEtapasJuegosDto
@@ -107,6 +115,7 @@ public sealed class ClienteJuegosMisionesHttp : IClienteJuegosMisiones
         public string? Descripcion { get; set; }
         public string? Estado { get; set; }
         public string? Dificultad { get; set; }
+        public int TiempoTotal { get; set; }
         public List<EtapaRespuesta>? Etapas { get; set; }
     }
 

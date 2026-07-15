@@ -1,5 +1,4 @@
-using JuegosServicio.Aplicacion.CasosDeUso.Comandos;
-using JuegosServicio.Aplicacion.CasosDeUso.Manejadores;
+using JuegosServicio.Aplicacion.Comandos.EliminarBusquedaTesoro;
 using JuegosServicio.Aplicacion.Puertos;
 using JuegosServicio.Dominio.Entidades;
 using JuegosServicio.Dominio.Enums;
@@ -16,7 +15,7 @@ public class EliminarBusquedaTesoroManejadorPruebas
         new(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc);
 
     private EliminarBusquedaTesoroManejador CrearManejador() =>
-        new(_repositorio.Object, _repositorioMisiones.Object);
+        new(_repositorio.Object, _repositorioMisiones.Object, Mock.Of<IRegistroLogsAplicacion>());
 
     private static BusquedaTesoro BusquedaInactiva() =>
         BusquedaTesoro.Crear("Búsqueda Test", "Descripción", Guid.NewGuid(), FechaFija);
@@ -70,7 +69,7 @@ public class EliminarBusquedaTesoroManejadorPruebas
     {
         var busqueda = BusquedaInactiva();
         // La regla nueva exige una pista para activar.
-        busqueda.AgregarPista("Pista única");
+        busqueda.AgregarPista(null, TipoPista.CoordenadaGps, -34.6037, -58.3816);
         busqueda.Activar();
         _repositorio
             .Setup(r => r.ObtenerBusquedaPorIdAsync(busqueda.Id, It.IsAny<CancellationToken>()))

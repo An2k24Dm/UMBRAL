@@ -7,16 +7,21 @@ using Microsoft.EntityFrameworkCore;
 
 var constructor = WebApplication.CreateBuilder(args);
 
+constructor.Logging.ClearProviders();
+constructor.Logging.AddSimpleConsole(opciones =>
+{
+    opciones.SingleLine = true;
+    opciones.TimestampFormat = "HH:mm:ss ";
+    opciones.IncludeScopes = true;
+});
+constructor.Logging.AddDebug();
+
 constructor.Services.AddControllers().AddJsonOptions(opciones =>
 {
     opciones.JsonSerializerOptions.Converters
         .Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
 });
 
-// Traducir errores de model binding (p. ej. "fechaNacimiento": "2000-12-56")
-// al formato estándar del proyecto { codigo, mensaje, errores }. Evita que
-// [ApiController] genere ValidationProblemDetails con texto en inglés y
-// mantiene la coherencia con ExcepcionValidacion.
 constructor.Services.Configure<Microsoft.AspNetCore.Mvc.ApiBehaviorOptions>(opciones =>
 {
     opciones.InvalidModelStateResponseFactory = contexto =>
@@ -26,11 +31,6 @@ constructor.Services.Configure<Microsoft.AspNetCore.Mvc.ApiBehaviorOptions>(opci
 
 constructor.Services.AddEndpointsApiExplorer();
 constructor.Services.AddSwaggerGen();
-
-// HU12 — necesario para que el adaptador IUsuarioActual lea el sub del JWT
-// vigente. AddHttpContextAccessor es seguro de añadir aquí: no afecta
-// flujos previos y permite a la capa Aplicación recibir la identidad sin
-// conocer HttpContext.
 constructor.Services.AddHttpContextAccessor();
 constructor.Services.AddScoped<
     IdentidadServicio.Aplicacion.Puertos.IUsuarioActual,
@@ -43,8 +43,6 @@ constructor.Services.AgregarCorsUmbral(constructor.Configuration);
 
 var aplicacion = constructor.Build();
 
-aplicacion.UseMiddleware<ManejadorErroresMiddleware>();
-
 if (aplicacion.Environment.IsDevelopment())
 {
     aplicacion.UseSwagger();
@@ -53,9 +51,13 @@ if (aplicacion.Environment.IsDevelopment())
 
 aplicacion.UseCors(RegistroCors.PoliticaUmbral);
 aplicacion.UseAuthentication();
-// HU12 — bloquea peticiones autenticadas cuyo usuario en UMBRAL esté
-// Inactivo. Va entre Authentication y Authorization para que la
-// autorización vea sólo usuarios activos.
+
+// El logging va después de la autenticación para poder registrar el usuario y
+// el rol del token, y envuelve al manejador de errores: mide el tiempo total
+// del request y registra el código final, incluso cuando hubo una excepción
+// que el manejador de errores tradujo a respuesta JSON.
+aplicacion.UseMiddleware<LoggingSolicitudesMiddleware>();
+aplicacion.UseMiddleware<ManejadorErroresMiddleware>();
 aplicacion.UseMiddleware<BloqueoUsuarioInactivoMiddleware>();
 aplicacion.UseAuthorization();
 

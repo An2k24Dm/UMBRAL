@@ -1,10 +1,21 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using SesionesServicio.Aplicacion.CasosDeUso.Comandos;
-using SesionesServicio.Aplicacion.CasosDeUso.Consultas;
+using SesionesServicio.Aplicacion.Comandos.AbandonarSesion;
+using SesionesServicio.Aplicacion.Comandos.CancelarSesion;
+using SesionesServicio.Aplicacion.Comandos.CrearSesion;
+using SesionesServicio.Aplicacion.Comandos.EliminarSesion;
+using SesionesServicio.Aplicacion.Comandos.IniciarSesion;
+using SesionesServicio.Aplicacion.Comandos.ModificarSesion;
+using SesionesServicio.Aplicacion.Comandos.PausarSesion;
+using SesionesServicio.Aplicacion.Comandos.ReanudarSesion;
+using SesionesServicio.Aplicacion.Consultas.ListarSesiones;
+using SesionesServicio.Aplicacion.Consultas.ObtenerProgresoSesion;
+using SesionesServicio.Aplicacion.Consultas.ObtenerProgresoTrivia;
+using SesionesServicio.Aplicacion.Consultas.ObtenerSesionPorId;
 using SesionesServicio.Aplicacion.Puertos;
 using SesionesServicio.Commons.Dtos;
+using SesionesServicio.Dominio.Abstract;
 using SesionesServicio.Dominio.Enums;
 
 namespace SesionesServicio.Presentacion.Controladores;
@@ -39,7 +50,115 @@ public sealed class SesionesControlador : ControllerBase
         return Created($"/api/sesiones/{resultado.Id}", resultado);
     }
 
-    // Listado de sesiones. Administrador ve todas, Operador sólo las propias.
+    // HU48 — Abandonar la sesión (individual) o el equipo (grupal). Solo el
+    // propio Participante; el backend decide según el tipo de sesión. No se
+    // recibe equipoId: el participante solo puede estar en un equipo.
+    [HttpDelete("{sesionId:guid}/abandonar")]
+    [Authorize(Policy = "PoliticaSoloParticipante")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> AbandonarSesion(
+        Guid sesionId,
+        CancellationToken cancelacion)
+    {
+        await _mediador.Send(new AbandonarSesionComando(sesionId), cancelacion);
+        return NoContent();
+    }
+
+    // Modificar sesión. Solo Operador. El Operador solo puede modificar sus
+    // propias sesiones y únicamente si están en estado Programada. El
+    // Administrador no realiza acciones de escritura sobre sesiones.
+    [HttpPut("{id:guid}")]
+    [Authorize(Policy = "PoliticaSoloOperador")]
+    [ProducesResponseType(typeof(SesionDetalleDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> ModificarSesion(
+        Guid id, [FromBody] ModificarSesionDto dto, CancellationToken cancelacion)
+    {
+        var resultado = await _mediador.Send(new ModificarSesionComando(id, dto), cancelacion);
+        return Ok(resultado);
+    }
+
+    // Eliminar sesión. Solo Operador, solo sus propias sesiones y únicamente
+    // si están en estado Programada (HU39). El Administrador no puede eliminar.
+    [HttpDelete("{id:guid}")]
+    [Authorize(Policy = "PoliticaSoloOperador")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> EliminarSesion(Guid id, CancellationToken cancelacion)
+    {
+        await _mediador.Send(new EliminarSesionComando(id), cancelacion);
+        return NoContent();
+    }
+
+    [HttpPatch("{id:guid}/iniciar")]
+    [Authorize(Policy = "PoliticaSoloOperador")]
+    [ProducesResponseType(typeof(OperacionSesionRespuestaDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> IniciarSesion(Guid id, CancellationToken cancelacion)
+    {
+        var resultado = await _mediador.Send(new IniciarSesionComando(id), cancelacion);
+        return Ok(resultado);
+    }
+
+    [HttpPatch("{id:guid}/pausar")]
+    [Authorize(Policy = "PoliticaSoloOperador")]
+    [ProducesResponseType(typeof(OperacionSesionRespuestaDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> PausarSesion(Guid id, CancellationToken cancelacion)
+    {
+        var resultado = await _mediador.Send(new PausarSesionComando(id), cancelacion);
+        return Ok(resultado);
+    }
+
+    [HttpPatch("{id:guid}/reanudar")]
+    [Authorize(Policy = "PoliticaSoloOperador")]
+    [ProducesResponseType(typeof(OperacionSesionRespuestaDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> ReanudarSesion(Guid id, CancellationToken cancelacion)
+    {
+        var resultado = await _mediador.Send(new ReanudarSesionComando(id), cancelacion);
+        return Ok(resultado);
+    }
+
+    [HttpPatch("{id:guid}/cancelar")]
+    [Authorize(Policy = "PoliticaSoloOperador")]
+    [ProducesResponseType(typeof(OperacionSesionRespuestaDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> CancelarSesion(Guid id, CancellationToken cancelacion)
+    {
+        var resultado = await _mediador.Send(new CancelarSesionComando(id), cancelacion);
+        return Ok(resultado);
+    }
+
     [HttpGet]
     [Authorize(Policy = "PoliticaAdministradorUOperador")]
     [ProducesResponseType(typeof(List<SesionListadoDto>), StatusCodes.Status200OK)]
@@ -68,8 +187,6 @@ public sealed class SesionesControlador : ControllerBase
         return Ok(resultado);
     }
 
-    // Detalle de una sesión. Administrador puede ver cualquiera; Operador,
-    // sólo las que él creó.
     [HttpGet("{id:guid}")]
     [Authorize(Policy = "PoliticaAdministradorUOperador")]
     [ProducesResponseType(typeof(SesionDetalleDto), StatusCodes.Status200OK)]
@@ -85,6 +202,34 @@ public sealed class SesionesControlador : ControllerBase
                 codigo = "SESION_NO_ENCONTRADA",
                 mensaje = "La sesión solicitada no existe."
             });
+        return Ok(resultado);
+    }
+
+    // Progreso de trivia por participante en una sesión (para el panel del operador).
+    [HttpGet("{sesionId:guid}/progreso-trivia")]
+    [Authorize(Policy = "PoliticaAdministradorUOperador")]
+    [ProducesResponseType(typeof(List<object>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> ObtenerProgresoTrivia(
+        Guid sesionId, CancellationToken cancelacion)
+    {
+        var resultado = await _mediador.Send(
+            new ObtenerProgresoTriviaConsulta(sesionId), cancelacion);
+        return Ok(resultado);
+    }
+
+    // Progreso completo (trivia + búsqueda del tesoro) por participante.
+    [HttpGet("{sesionId:guid}/progreso")]
+    [Authorize(Policy = "PoliticaAdministradorUOperador")]
+    [ProducesResponseType(typeof(ProgresoSesionDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> ObtenerProgresoSesion(
+        Guid sesionId, CancellationToken cancelacion)
+    {
+        var resultado = await _mediador.Send(
+            new ObtenerProgresoSesionConsulta(sesionId), cancelacion);
         return Ok(resultado);
     }
 

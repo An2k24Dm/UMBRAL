@@ -1,5 +1,4 @@
-using JuegosServicio.Aplicacion.CasosDeUso.Comandos;
-using JuegosServicio.Aplicacion.CasosDeUso.Manejadores;
+using JuegosServicio.Aplicacion.Comandos.ModificarBusquedaTesoro;
 using JuegosServicio.Aplicacion.Puertos;
 using JuegosServicio.Aplicacion.Validaciones;
 using JuegosServicio.Commons.Dtos;
@@ -19,13 +18,14 @@ public class ModificarBusquedaTesoroManejadorPruebas
         new(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc);
 
     private ModificarBusquedaTesoroManejador CrearManejador() =>
-        new(_repositorio.Object, _repositorioMisiones.Object, _validador.Object);
+        new(_repositorio.Object, _repositorioMisiones.Object, _validador.Object,
+            Mock.Of<IRegistroLogsAplicacion>());
 
     private static BusquedaTesoro BusquedaInactiva() =>
         BusquedaTesoro.Crear("Búsqueda Original", "Descripción original", Guid.NewGuid(), FechaFija);
 
     private static ModificarBusquedaTesoroDto DtoValido() =>
-        new() { Nombre = "Búsqueda Modificada", Descripcion = "Nueva descripción", Tiempo = 120, Puntaje = 50 };
+        new() { Nombre = "Búsqueda Modificada", Descripcion = "Nueva descripción", Tiempo = 30, Puntaje = 50 };
 
     public ModificarBusquedaTesoroManejadorPruebas()
     {
@@ -68,8 +68,8 @@ public class ModificarBusquedaTesoroManejadorPruebas
 
         busqueda.Nombre.Should().Be("Búsqueda Modificada");
         busqueda.Descripcion.Should().Be("Nueva descripción");
-        busqueda.Tiempo.Should().Be(120);
-        busqueda.Puntaje.Should().Be(50);
+        busqueda.Tiempo.Valor.Should().Be(30);
+        busqueda.Puntaje.Valor.Should().Be(50);
     }
 
     [Fact]
@@ -93,7 +93,7 @@ public class ModificarBusquedaTesoroManejadorPruebas
     public async Task Handle_BusquedaActiva_LanzaExcepcionDominio()
     {
         var busqueda = BusquedaInactiva();
-        busqueda.AgregarPista("Pista única"); // requerida para activar
+        busqueda.AgregarPista(null, TipoPista.CoordenadaGps, -34.6037, -58.3816); // requerida para activar
         busqueda.Activar();
         _repositorio
             .Setup(r => r.ObtenerBusquedaPorIdAsync(busqueda.Id, It.IsAny<CancellationToken>()))

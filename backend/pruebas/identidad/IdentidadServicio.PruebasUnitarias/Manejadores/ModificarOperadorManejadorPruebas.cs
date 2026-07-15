@@ -1,5 +1,4 @@
-using IdentidadServicio.Aplicacion.CasosDeUso.Comandos;
-using IdentidadServicio.Aplicacion.CasosDeUso.Manejadores;
+using IdentidadServicio.Aplicacion.Comandos.ModificarOperador;
 using IdentidadServicio.Aplicacion.Fabricas;
 using IdentidadServicio.Aplicacion.Mapeadores.Perfil;
 using IdentidadServicio.Aplicacion.Puertos;
@@ -10,8 +9,6 @@ using IdentidadServicio.Dominio.Entidades;
 using IdentidadServicio.Dominio.Enums;
 using IdentidadServicio.Dominio.Excepciones;
 using IdentidadServicio.Dominio.ObjetosDeValor;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace IdentidadServicio.PruebasUnitarias.Manejadores;
 
@@ -59,8 +56,7 @@ public class ModificarOperadorManejadorPruebas
         new DateTime(1990, 1, 1, 0, 0, 0, DateTimeKind.Utc),
         "OP-001");
 
-    private ModificarOperadorManejador CrearManejador(
-        ILogger<ModificarOperadorManejador>? logger = null)
+    private ModificarOperadorManejador CrearManejador()
     {
         var fabrica = new FabricaEstrategiaMapeoPerfilUsuario(new IEstrategiaMapeoPerfilUsuario[]
         {
@@ -77,7 +73,7 @@ public class ModificarOperadorManejadorPruebas
             _validadorUnicidad.Object,
             new AplicadorCambiosUsuario(),
             fabrica,
-            logger ?? NullLogger<ModificarOperadorManejador>.Instance);
+            Mock.Of<IRegistroLogsAplicacion>());
     }
 
     private void EncolarOperador(Operador op) =>

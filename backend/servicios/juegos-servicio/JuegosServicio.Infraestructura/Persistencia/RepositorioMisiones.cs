@@ -2,6 +2,7 @@ using JuegosServicio.Aplicacion.Puertos;
 using JuegosServicio.Commons.Dtos;
 using JuegosServicio.Dominio.Entidades;
 using JuegosServicio.Dominio.Enums;
+using JuegosServicio.Infraestructura.Persistencia.Mapeadores;
 using Microsoft.EntityFrameworkCore;
 
 namespace JuegosServicio.Infraestructura.Persistencia;
@@ -139,9 +140,10 @@ public sealed class RepositorioMisiones : IRepositorioMisiones
             var nombre = esBusqueda
                 ? datosBusquedas.GetValueOrDefault(e.ModoDeJuegoId)?.Nombre ?? "?"
                 : datosTrivias.GetValueOrDefault(e.ModoDeJuegoId)?.Nombre ?? "?";
-            var tiempo = esBusqueda
-                ? datosBusquedas.GetValueOrDefault(e.ModoDeJuegoId)?.Tiempo ?? 0
-                : tiemposPorTrivia.GetValueOrDefault(e.ModoDeJuegoId, 0);
+            var tiempo = CalcularTiempoEstimadoEtapaSegundos(
+                esBusqueda,
+                datosBusquedas.GetValueOrDefault(e.ModoDeJuegoId)?.Tiempo ?? 0,
+                tiemposPorTrivia.GetValueOrDefault(e.ModoDeJuegoId, 0));
             return new EtapaDetalleDto
             {
                 Id = e.Id,
@@ -172,6 +174,12 @@ public sealed class RepositorioMisiones : IRepositorioMisiones
         _contexto.Etapas.Add(modelo);
         await _contexto.SaveChangesAsync(cancelacion);
     }
+
+    internal static int CalcularTiempoEstimadoEtapaSegundos(
+        bool esBusquedaTesoro,
+        int tiempoBusquedaMinutos,
+        int tiempoTriviaSegundos)
+        => esBusquedaTesoro ? tiempoBusquedaMinutos * 60 : tiempoTriviaSegundos;
 
     public async Task EliminarEtapaAsync(Guid etapaId, CancellationToken cancelacion)
     {

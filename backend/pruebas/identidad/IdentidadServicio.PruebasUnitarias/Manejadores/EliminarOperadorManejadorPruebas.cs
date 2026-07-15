@@ -1,10 +1,8 @@
-using IdentidadServicio.Aplicacion.CasosDeUso.Comandos;
-using IdentidadServicio.Aplicacion.CasosDeUso.Manejadores;
+using IdentidadServicio.Aplicacion.Comandos.EliminarOperador;
 using IdentidadServicio.Aplicacion.Puertos;
 using IdentidadServicio.Dominio.Entidades;
 using IdentidadServicio.Dominio.Excepciones;
 using IdentidadServicio.PruebasUnitarias.Mapeadores.Perfil;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace IdentidadServicio.PruebasUnitarias.Manejadores;
 
@@ -41,7 +39,7 @@ public class EliminarOperadorManejadorPruebas
             _repositorio.Object,
             _unidad.Object,
             _proveedor.Object,
-            NullLogger<EliminarOperadorManejador>.Instance);
+            Mock.Of<IRegistroLogsAplicacion>());
 
     private void EncolarOperador(Guid id, Operador op, string idKeycloak = "kc-operador")
     {

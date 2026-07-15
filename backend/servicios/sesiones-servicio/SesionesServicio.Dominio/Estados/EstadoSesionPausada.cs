@@ -5,10 +5,6 @@ using SesionesServicio.Dominio.Excepciones;
 
 namespace SesionesServicio.Dominio.Estados;
 
-// Transiciones permitidas desde Pausada:
-//   Reanudar   → Activa
-//   Finalizar  → Finalizada
-//   Cancelar   → Cancelada
 internal sealed class EstadoSesionPausada : IEstadoSesion
 {
     public EstadoSesion Estado => EstadoSesion.Pausada;
@@ -23,14 +19,11 @@ internal sealed class EstadoSesionPausada : IEstadoSesion
         => sesion.CambiarEstado(new EstadoSesionCancelada());
 
     public void Preparar(Sesion sesion) => throw new TransicionEstadoSesionInvalidaExcepcion(
-        Estado, nameof(Preparar),
-        "Una sesión Pausada no puede volver a EnPreparacion.");
+        Estado, nameof(Preparar));
 
     public void Iniciar(Sesion sesion) => throw new TransicionEstadoSesionInvalidaExcepcion(
-        Estado, nameof(Iniciar),
-        "Una sesión Pausada debe reanudarse, no iniciarse.");
+        Estado, nameof(Iniciar));
 
     public void Pausar(Sesion sesion) => throw new TransicionEstadoSesionInvalidaExcepcion(
-        Estado, nameof(Pausar),
-        "La sesión ya se encuentra Pausada.");
+        Estado, nameof(Pausar));
 }

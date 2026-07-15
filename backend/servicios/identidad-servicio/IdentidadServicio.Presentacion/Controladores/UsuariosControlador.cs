@@ -1,5 +1,20 @@
-using IdentidadServicio.Aplicacion.CasosDeUso.Comandos;
-using IdentidadServicio.Aplicacion.CasosDeUso.Consultas;
+using IdentidadServicio.Aplicacion.Comandos.ActivarOperador;
+using IdentidadServicio.Aplicacion.Comandos.ActivarParticipante;
+using IdentidadServicio.Aplicacion.Comandos.CrearUsuario;
+using IdentidadServicio.Aplicacion.Comandos.DesactivarOperador;
+using IdentidadServicio.Aplicacion.Comandos.DesactivarParticipante;
+using IdentidadServicio.Aplicacion.Comandos.EliminarCuentaParticipante;
+using IdentidadServicio.Aplicacion.Comandos.EliminarOperador;
+using IdentidadServicio.Aplicacion.Comandos.ModificarOperador;
+using IdentidadServicio.Aplicacion.Comandos.ModificarParticipante;
+using IdentidadServicio.Aplicacion.Comandos.RegistrarParticipante;
+using IdentidadServicio.Aplicacion.Comandos.ResetearContrasenaUsuario;
+using IdentidadServicio.Aplicacion.Consultas.ConsultarParticipantes;
+using IdentidadServicio.Aplicacion.Consultas.ConsultarParticipantesPorIds;
+using IdentidadServicio.Aplicacion.Consultas.ConsultarUsuariosInternos;
+using IdentidadServicio.Aplicacion.Consultas.FiltrarAdministradoresPorIds;
+using IdentidadServicio.Aplicacion.Consultas.ObtenerParticipanteDetalle;
+using IdentidadServicio.Aplicacion.Consultas.ObtenerUsuarioInternoDetalle;
 using IdentidadServicio.Commons.Dtos;
 using IdentidadServicio.Dominio.Excepciones;
 using MediatR;
@@ -127,11 +142,6 @@ public sealed class UsuariosControlador : ControllerBase
         return Ok((object)perfil);
     }
 
-    // Consulta utilitaria que sesiones-servicio invoca para
-    // resolver la regla de visibilidad por rol del creador de una
-    // sesión. Sólo se devuelven identificadores de Administrador; no
-    // se expone nombre, correo ni cualquier otro dato personal.
-    // Visibilidad limitada a roles internos (Administrador u Operador).
     [HttpPost("internos/administradores-por-ids")]
     [Authorize(Policy = "PoliticaAdministradorUOperador")]
     [ProducesResponseType(typeof(AdministradoresPorIdsRespuestaDto), StatusCodes.Status200OK)]
@@ -143,6 +153,22 @@ public sealed class UsuariosControlador : ControllerBase
         var ids = dto?.UsuariosIds ?? Array.Empty<Guid>();
         var resultado = await _mediador.Send(
             new FiltrarAdministradoresPorIdsConsulta(ids), cancelacion);
+        return Ok(resultado);
+    }
+
+    // HU43 — Datos básicos (nombre/apellido/alias) de participantes por ids.
+    // Solo lectura, sin datos sensibles. Lo consume sesiones-servicio.
+    [HttpPost("participantes/por-ids")]
+    [Authorize(Policy = "PoliticaConsultaParticipantesBasicos")]
+    [ProducesResponseType(typeof(List<ParticipanteBasicoDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> ConsultarParticipantesPorIds(
+        [FromBody] ParticipantesPorIdsSolicitudDto dto, CancellationToken cancelacion)
+    {
+        var ids = dto?.ParticipantesIds ?? Array.Empty<Guid>();
+        var resultado = await _mediador.Send(
+            new ConsultarParticipantesPorIdsConsulta(ids), cancelacion);
         return Ok(resultado);
     }
 

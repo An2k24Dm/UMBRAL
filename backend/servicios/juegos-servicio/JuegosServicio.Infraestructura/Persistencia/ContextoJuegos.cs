@@ -91,6 +91,7 @@ public sealed class ContextoJuegos : DbContext
             e.Property(x => x.FechaCreacion).HasColumnName("fecha_creacion").IsRequired();
             e.Property(x => x.Tiempo).HasColumnName("tiempo").IsRequired().HasDefaultValue(0);
             e.Property(x => x.Puntaje).HasColumnName("puntaje").IsRequired().HasDefaultValue(0);
+            e.Property(x => x.CodigoQr).HasColumnName("codigo_qr").HasMaxLength(32).IsRequired().HasDefaultValue("");
             e.HasIndex(x => x.Nombre).IsUnique();
             e.HasMany(x => x.Pistas)
                 .WithOne(p => p.BusquedaTesoro)
@@ -106,6 +107,9 @@ public sealed class ContextoJuegos : DbContext
             e.Property(x => x.Id).HasColumnName("id");
             e.Property(x => x.BusquedaId).HasColumnName("busqueda_id").IsRequired();
             e.Property(x => x.Contenido).HasColumnName("contenido").HasMaxLength(1000).IsRequired();
+            e.Property(x => x.Tipo).HasColumnName("tipo").IsRequired().HasDefaultValue(0);
+            e.Property(x => x.Latitud).HasColumnName("latitud");
+            e.Property(x => x.Longitud).HasColumnName("longitud");
         });
 
         // ---------- Mision ----------

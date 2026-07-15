@@ -1,8 +1,5 @@
 namespace SesionesServicio.Dominio.Entidades;
 
-// Relación intermedia Sesion ↔ Mision. La Mision vive en juegos-servicio,
-// por eso aquí sólo guardamos el identificador y el orden con el que
-// debe ejecutarse dentro de la sesión.
 public sealed class SesionMision
 {
     public Guid Id { get; private set; }

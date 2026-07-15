@@ -1,5 +1,4 @@
-using JuegosServicio.Aplicacion.CasosDeUso.Comandos;
-using JuegosServicio.Aplicacion.CasosDeUso.Manejadores;
+using JuegosServicio.Aplicacion.Comandos.AgregarPista;
 using JuegosServicio.Aplicacion.Puertos;
 using JuegosServicio.Aplicacion.Validaciones;
 using JuegosServicio.Commons.Dtos;
@@ -19,7 +18,8 @@ public class AgregarPistaManejadorPruebas
         new(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc);
 
     private AgregarPistaManejador CrearManejador() =>
-        new(_repositorio.Object, _repositorioMisiones.Object, _validador.Object);
+        new(_repositorio.Object, _repositorioMisiones.Object, _validador.Object,
+            Mock.Of<IRegistroLogsAplicacion>());
 
     private static BusquedaTesoro BusquedaInactiva() =>
         BusquedaTesoro.Crear("Búsqueda Test", "Descripción", Guid.NewGuid(), FechaFija);

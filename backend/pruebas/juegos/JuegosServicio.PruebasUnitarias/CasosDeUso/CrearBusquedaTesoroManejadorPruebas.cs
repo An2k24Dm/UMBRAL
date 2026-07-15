@@ -1,11 +1,9 @@
-using JuegosServicio.Aplicacion.CasosDeUso.Comandos;
-using JuegosServicio.Aplicacion.CasosDeUso.Manejadores;
+using JuegosServicio.Aplicacion.Comandos.CrearBusquedaTesoro;
 using JuegosServicio.Aplicacion.Puertos;
 using JuegosServicio.Aplicacion.Validaciones;
 using JuegosServicio.Commons.Dtos;
 using JuegosServicio.Dominio.Entidades;
 using JuegosServicio.Dominio.Excepciones;
-using Microsoft.Extensions.Logging;
 
 namespace JuegosServicio.PruebasUnitarias.CasosDeUso;
 
@@ -14,7 +12,7 @@ public class CrearBusquedaTesoroManejadorPruebas
 {
     private readonly Mock<IRepositorioBusquedas> _repositorio = new();
     private readonly Mock<IProveedorFechaHora> _reloj = new();
-    private readonly Mock<ILogger<CrearBusquedaTesoroManejador>> _registro = new();
+    private readonly Mock<IRegistroLogsAplicacion> _registro = new();
     private readonly Mock<IValidador<CrearBusquedaTesoroComando>> _validador = new();
 
     private static readonly DateTime FechaFija =
@@ -27,7 +25,9 @@ public class CrearBusquedaTesoroManejadorPruebas
         new(new CrearBusquedaTesoroDto
         {
             Nombre = nombre,
-            Descripcion = "Recorre el parque resolviendo acertijos"
+            Descripcion = "Recorre el parque resolviendo acertijos",
+            Tiempo = 15,
+            Puntaje = 50
         }, Guid.NewGuid());
 
     public CrearBusquedaTesoroManejadorPruebas()
@@ -71,7 +71,9 @@ public class CrearBusquedaTesoroManejadorPruebas
             new CrearBusquedaTesoroDto
             {
                 Nombre = "Búsqueda válida",
-                Descripcion = "Descripción"
+                Descripcion = "Descripción",
+                Tiempo = 15,
+                Puntaje = 50
             }, creadorId);
 
         BusquedaTesoro? busquedaGuardada = null;

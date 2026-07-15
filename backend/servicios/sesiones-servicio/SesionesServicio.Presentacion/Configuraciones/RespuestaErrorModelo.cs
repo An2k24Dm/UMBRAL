@@ -34,4 +34,14 @@ public static class RespuestaErrorModelo
             mensaje = "El cuerpo de la solicitud tiene un formato inválido.",
             errores = new[] { new { campo = ex.Path ?? "solicitud", mensaje = ex.Message } }
         };
+
+    public static object ConstruirDesdeJsonException(
+        JsonException ex, string? correlationId)
+        => new
+        {
+            codigo = "VALIDACION",
+            mensaje = "El cuerpo de la solicitud tiene un formato inválido.",
+            errores = new[] { new { campo = ex.Path ?? "solicitud", mensaje = ex.Message } },
+            correlationId
+        };
 }

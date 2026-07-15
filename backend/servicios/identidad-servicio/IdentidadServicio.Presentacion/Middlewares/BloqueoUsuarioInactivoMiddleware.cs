@@ -2,7 +2,6 @@ using System.Net;
 using System.Security.Claims;
 using System.Text.Json;
 using IdentidadServicio.Aplicacion.Puertos;
-using IdentidadServicio.Dominio.Enums;
 
 namespace IdentidadServicio.Presentacion.Middlewares;
 
@@ -26,7 +25,7 @@ public sealed class BloqueoUsuarioInactivoMiddleware
 
     public async Task Invoke(
         HttpContext contexto,
-        IRepositorioUsuariosLectura repositorioLectura)
+        IValidadorAccesoUsuarioActivo validadorAcceso)
     {
         var principal = contexto.User;
         if (principal?.Identity?.IsAuthenticated == true)
@@ -35,17 +34,17 @@ public sealed class BloqueoUsuarioInactivoMiddleware
                              ?? principal.FindFirstValue("sub");
             if (!string.IsNullOrWhiteSpace(idKeycloak))
             {
-                var usuario = await repositorioLectura.ObtenerPorIdKeycloakAsync(
+                var resultado = await validadorAcceso.ValidarAsync(
                     idKeycloak, contexto.RequestAborted);
-                if (usuario is not null && usuario.Estado != EstadoUsuario.Activo)
+                if (!resultado.PuedeAcceder)
                 {
                     _registro.LogWarning(
-                        "Petición bloqueada: usuario {Id} ({Rol}) está Inactivo (HU12).",
-                        usuario.Id, usuario.Rol);
+                        "Petición bloqueada: usuario {IdKeycloak} sin acceso ({Codigo}).",
+                        idKeycloak, resultado.Codigo);
                     await EscribirJsonAsync(contexto, HttpStatusCode.Forbidden, new
                     {
-                        codigo = "CUENTA_DESACTIVADA",
-                        mensaje = "La cuenta se encuentra desactivada."
+                        codigo = resultado.Codigo,
+                        mensaje = resultado.Mensaje
                     });
                     return;
                 }

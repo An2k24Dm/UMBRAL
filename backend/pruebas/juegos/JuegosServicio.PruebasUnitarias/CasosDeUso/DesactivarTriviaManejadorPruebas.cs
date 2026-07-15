@@ -1,9 +1,9 @@
-using JuegosServicio.Aplicacion.CasosDeUso.Comandos;
-using JuegosServicio.Aplicacion.CasosDeUso.Manejadores;
+using JuegosServicio.Aplicacion.Comandos.DesactivarTrivia;
 using JuegosServicio.Aplicacion.Puertos;
 using JuegosServicio.Dominio.Entidades;
 using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Dominio.Excepciones;
+using JuegosServicio.Dominio.ObjetosValor;
 
 namespace JuegosServicio.PruebasUnitarias.CasosDeUso;
 
@@ -17,12 +17,15 @@ public class DesactivarTriviaManejadorPruebas
         new(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc);
 
     private DesactivarTriviaManejador CrearManejador() =>
-        new(_repositorio.Object);
+        new(_repositorio.Object, Mock.Of<IRegistroLogsAplicacion>());
 
     private static Trivia TriviaActiva()
     {
-        var trivia = Trivia.Crear("Trivia Test", "Descripción", Guid.NewGuid(), 30, FechaFija);
-        trivia.AgregarPregunta("¿Pregunta?", 10, 10, [("Sí", true), ("No", false)]);
+        var trivia = Trivia.Crear(
+            "Trivia Test", "Descripción", Guid.NewGuid(), Tiempo.CrearPositivo(30), FechaFija);
+        trivia.AgregarPregunta(
+            "¿Pregunta?", Puntaje.CrearParaPregunta(10), Tiempo.CrearParaPregunta(10),
+            [("Sí", true), ("No", false)]);
         trivia.Activar();
         return trivia;
     }

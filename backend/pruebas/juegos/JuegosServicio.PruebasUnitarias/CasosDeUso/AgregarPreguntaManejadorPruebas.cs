@@ -1,12 +1,11 @@
-using JuegosServicio.Aplicacion.CasosDeUso.Comandos;
-using JuegosServicio.Aplicacion.CasosDeUso.Manejadores;
+using JuegosServicio.Aplicacion.Comandos.AgregarPregunta;
 using JuegosServicio.Aplicacion.Puertos;
 using JuegosServicio.Aplicacion.Validaciones;
 using JuegosServicio.Commons.Dtos;
 using JuegosServicio.Dominio.Entidades;
 using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Dominio.Excepciones;
-using Microsoft.Extensions.Logging;
+using JuegosServicio.Dominio.ObjetosValor;
 
 namespace JuegosServicio.PruebasUnitarias.CasosDeUso;
 
@@ -15,7 +14,7 @@ public class AgregarPreguntaManejadorPruebas
 {
     private readonly Mock<IRepositorioJuegos> _repositorio = new();
     private readonly Mock<IRepositorioMisiones> _repositorioMisiones = new();
-    private readonly Mock<ILogger<AgregarPreguntaManejador>> _registro = new();
+    private readonly Mock<IRegistroLogsAplicacion> _registro = new();
     private readonly Mock<IValidador<AgregarPreguntaComando>> _validador = new();
 
     private static readonly DateTime FechaFija =
@@ -25,7 +24,7 @@ public class AgregarPreguntaManejadorPruebas
         new(_repositorio.Object, _repositorioMisiones.Object, _validador.Object, _registro.Object);
 
     private static Trivia TriviaEnBorrador() => Trivia.Crear(
-        "Trivia de Geografía", "Descripción", Guid.NewGuid(), 30, FechaFija);
+        "Trivia de Geografía", "Descripción", Guid.NewGuid(), Tiempo.CrearPositivo(30), FechaFija);
 
     private static AgregarPreguntaComando ComandoValido(Guid triviaId) =>
         new(triviaId, new AgregarPreguntaDto

@@ -8,6 +8,15 @@ using Microsoft.EntityFrameworkCore;
 
 var constructor = WebApplication.CreateBuilder(args);
 
+constructor.Logging.ClearProviders();
+constructor.Logging.AddSimpleConsole(opciones =>
+{
+    opciones.SingleLine = true;
+    opciones.TimestampFormat = "HH:mm:ss ";
+    opciones.IncludeScopes = true;
+});
+constructor.Logging.AddDebug();
+
 constructor.Services.AddControllers().AddJsonOptions(opciones =>
 {
     opciones.JsonSerializerOptions.Converters
@@ -16,20 +25,14 @@ constructor.Services.AddControllers().AddJsonOptions(opciones =>
 
 constructor.Services.AddEndpointsApiExplorer();
 constructor.Services.AddSwaggerGen();
-
-// Necesario para que PropagadorTokenActualHttp pueda leer el header
-// Authorization del request entrante y reenviarlo a sesiones-servicio.
 constructor.Services.AddHttpContextAccessor();
 constructor.Services.AddScoped<IPropagadorTokenActual, PropagadorTokenActualHttp>();
-
 constructor.Services.AgregarAplicacion();
 constructor.Services.AgregarInfraestructura(constructor.Configuration);
 constructor.Services.AgregarSeguridadJuegos(constructor.Configuration);
 constructor.Services.AgregarCorsUmbral(constructor.Configuration);
 
 var aplicacion = constructor.Build();
-
-aplicacion.UseMiddleware<ManejadorErroresMiddleware>();
 
 if (aplicacion.Environment.IsDevelopment())
 {
@@ -39,6 +42,8 @@ if (aplicacion.Environment.IsDevelopment())
 
 aplicacion.UseCors(RegistroCors.PoliticaUmbral);
 aplicacion.UseAuthentication();
+aplicacion.UseMiddleware<LoggingSolicitudesMiddleware>();
+aplicacion.UseMiddleware<ManejadorErroresMiddleware>();
 aplicacion.UseAuthorization();
 
 aplicacion.MapControllers();

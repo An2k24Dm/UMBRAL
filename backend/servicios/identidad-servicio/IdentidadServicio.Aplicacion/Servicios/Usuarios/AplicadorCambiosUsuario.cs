@@ -26,7 +26,6 @@ public sealed class AplicadorCambiosUsuario
         string? nombreKeycloak = null;
         string? apellidoKeycloak = null;
 
-        // ---------- Nombre de usuario ----------
         if (dto.NombreUsuario is not null)
         {
             var nuevo = NombreUsuario.Crear(dto.NombreUsuario);
@@ -38,7 +37,6 @@ public sealed class AplicadorCambiosUsuario
             }
         }
 
-        // ---------- Correo ----------
         if (dto.Correo is not null)
         {
             var nuevo = Correo.Crear(dto.Correo);
@@ -50,7 +48,6 @@ public sealed class AplicadorCambiosUsuario
             }
         }
 
-        // ---------- Nombre / Apellido (VO compuesto) ----------
         var nombreNuevo = dto.Nombre?.Trim();
         var apellidoNuevo = dto.Apellido?.Trim();
         var cambioNombre = nombreNuevo is not null && nombreNuevo != nombreOriginal;
@@ -72,7 +69,6 @@ public sealed class AplicadorCambiosUsuario
             }
         }
 
-        // ---------- DatosContacto (Dirección / Teléfono) ----------
         var direccionNueva = dto.DatosContacto?.Direccion?.Trim();
         var telefonoNuevo = dto.DatosContacto?.Telefono;
         var cambioDireccion = direccionNueva is not null && direccionNueva != direccionOriginal;
@@ -86,7 +82,6 @@ public sealed class AplicadorCambiosUsuario
             if (cambioTelefono) camposActualizados.Add("datosContacto.telefono");
         }
 
-        // ---------- Sexo ----------
         if (dto.Sexo is not null)
         {
             var nuevoSexo = DtoMapeador.ParsearSexo(dto.Sexo);
@@ -97,7 +92,6 @@ public sealed class AplicadorCambiosUsuario
             }
         }
 
-        // ---------- FechaNacimiento ----------
         if (dto.FechaNacimiento is not null)
         {
             var nuevaFecha = DateTime.SpecifyKind(dto.FechaNacimiento.Value.Date, DateTimeKind.Utc);
@@ -120,9 +114,6 @@ public sealed class AplicadorCambiosUsuario
             }
         }
 
-        // El cambio de contraseña SOLO aplica al flujo del Participante
-        // editando su propio perfil (HU10). Para Operador/Administrador
-        // (HU09) se usa el endpoint dedicado de reseteo administrativo.
         var cambiaContrasena = false;
         string? nuevaContrasena = null;
         if (dto is Commons.Dtos.ModificarParticipanteSolicitudDto dtoParticipanteContrasena &&

@@ -5,13 +5,10 @@ using JuegosServicio.Dominio.Excepciones;
 
 namespace JuegosServicio.Dominio.Entidades;
 
-// Aggregate root: secuencia ordenada de etapas (modos de juego) que
-// se asigna a una sesión para guiar a los participantes.
 public sealed class Mision
 {
     private readonly List<Etapa> _etapas = new();
     private IDificultadMision _dificultad = default!;
-
     public Guid Id { get; private set; }
     public string Nombre { get; private set; } = default!;
     public string Descripcion { get; private set; } = default!;
@@ -19,9 +16,7 @@ public sealed class Mision
     public EstadoMision Estado { get; private set; }
     public NivelDificultad Dificultad { get; private set; }
     public DateTime FechaCreacion { get; private set; }
-
     public IDificultadMision ObtenerDificultad() => _dificultad;
-
     public IReadOnlyList<Etapa> Etapas => _etapas.AsReadOnly();
 
     private Mision() { }

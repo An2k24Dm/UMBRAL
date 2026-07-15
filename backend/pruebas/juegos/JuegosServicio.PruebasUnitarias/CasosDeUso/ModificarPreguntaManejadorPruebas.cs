@@ -1,11 +1,10 @@
-using JuegosServicio.Aplicacion.CasosDeUso.Comandos;
-using JuegosServicio.Aplicacion.CasosDeUso.Manejadores;
+using JuegosServicio.Aplicacion.Comandos.ModificarPregunta;
 using JuegosServicio.Aplicacion.Puertos;
 using JuegosServicio.Commons.Dtos;
 using JuegosServicio.Dominio.Entidades;
 using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Dominio.Excepciones;
-using Microsoft.Extensions.Logging;
+using JuegosServicio.Dominio.ObjetosValor;
 
 namespace JuegosServicio.PruebasUnitarias.CasosDeUso;
 
@@ -14,7 +13,7 @@ public class ModificarPreguntaManejadorPruebas
 {
     private readonly Mock<IRepositorioJuegos> _repositorio = new();
     private readonly Mock<IRepositorioMisiones> _repositorioMisiones = new();
-    private readonly Mock<ILogger<ModificarPreguntaManejador>> _registro = new();
+    private readonly Mock<IRegistroLogsAplicacion> _registro = new();
 
     private static readonly DateTime FechaFija =
         new(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc);
@@ -24,9 +23,10 @@ public class ModificarPreguntaManejadorPruebas
 
     private static Trivia TriviaConPregunta(out Guid preguntaId)
     {
-        var trivia = Trivia.Crear("Trivia Test", "Descripción", Guid.NewGuid(), 30, FechaFija);
+        var trivia = Trivia.Crear(
+            "Trivia Test", "Descripción", Guid.NewGuid(), Tiempo.CrearPositivo(30), FechaFija);
         var pregunta = trivia.AgregarPregunta(
-            "Pregunta original", 10, 10,
+            "Pregunta original", Puntaje.CrearParaPregunta(10), Tiempo.CrearParaPregunta(10),
             [("Opción A", true), ("Opción B", false)]);
         preguntaId = pregunta.Id;
         return trivia;

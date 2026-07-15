@@ -1,11 +1,9 @@
-using JuegosServicio.Aplicacion.CasosDeUso.Comandos;
-using JuegosServicio.Aplicacion.CasosDeUso.Manejadores;
+using JuegosServicio.Aplicacion.Comandos.CrearTrivia;
 using JuegosServicio.Aplicacion.Puertos;
 using JuegosServicio.Aplicacion.Validaciones;
 using JuegosServicio.Commons.Dtos;
 using JuegosServicio.Dominio.Entidades;
 using JuegosServicio.Dominio.Excepciones;
-using Microsoft.Extensions.Logging;
 
 namespace JuegosServicio.PruebasUnitarias.CasosDeUso;
 
@@ -14,7 +12,7 @@ public class CrearTriviaManejadorPruebas
 {
     private readonly Mock<IRepositorioJuegos> _repositorio = new();
     private readonly Mock<IProveedorFechaHora> _reloj = new();
-    private readonly Mock<ILogger<CrearTriviaManejador>> _registro = new();
+    private readonly Mock<IRegistroLogsAplicacion> _registro = new();
     private readonly Mock<IValidador<CrearTriviaComando>> _validador = new();
 
     private static readonly DateTime FechaFija =

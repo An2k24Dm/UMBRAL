@@ -1,12 +1,10 @@
-using IdentidadServicio.Aplicacion.CasosDeUso.Comandos;
-using IdentidadServicio.Aplicacion.CasosDeUso.Manejadores;
+using IdentidadServicio.Aplicacion.Comandos.ActivarOperador;
 using IdentidadServicio.Aplicacion.Puertos;
 using IdentidadServicio.Aplicacion.Servicios.Usuarios;
 using IdentidadServicio.Dominio.Entidades;
 using IdentidadServicio.Dominio.Enums;
 using IdentidadServicio.Dominio.Excepciones;
 using IdentidadServicio.PruebasUnitarias.Mapeadores.Perfil;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace IdentidadServicio.PruebasUnitarias.Manejadores;
 
@@ -39,7 +37,7 @@ public class ActivarOperadorManejadorPruebas
             _autorizador.Object,
             _repositorio.Object,
             _unidad.Object,
-            NullLogger<ActivarOperadorManejador>.Instance);
+            Mock.Of<IRegistroLogsAplicacion>());
 
     private static Operador OperadorInactivo()
     {

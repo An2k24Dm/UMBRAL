@@ -1,7 +1,7 @@
-using JuegosServicio.Aplicacion.CasosDeUso.Comandos;
-using JuegosServicio.Aplicacion.CasosDeUso.Manejadores;
+using JuegosServicio.Aplicacion.Comandos.ActivarBusquedaTesoro;
 using JuegosServicio.Aplicacion.Puertos;
 using JuegosServicio.Dominio.Entidades;
+using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Dominio.Excepciones;
 
 namespace JuegosServicio.PruebasUnitarias.CasosDeUso;
@@ -13,14 +13,15 @@ public class ActivarBusquedaTesoroManejadorPruebas
     private static readonly DateTime FechaFija =
         new(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc);
 
-    private ActivarBusquedaTesoroManejador CrearManejador() => new(_repositorio.Object);
+    private ActivarBusquedaTesoroManejador CrearManejador() =>
+        new(_repositorio.Object, Mock.Of<IRegistroLogsAplicacion>());
 
     // Búsqueda Inactiva con al menos una pista: la nueva regla del
     // ERS exige una pista antes de activar.
     private static BusquedaTesoro BusquedaInactiva()
     {
         var busqueda = BusquedaTesoro.Crear("Búsqueda Test", "Descripción", Guid.NewGuid(), FechaFija);
-        busqueda.AgregarPista("Pista única");
+        busqueda.AgregarPista(null, TipoPista.CoordenadaGps, -34.6037, -58.3816);
         return busqueda;
     }
 
@@ -37,7 +38,7 @@ public class ActivarBusquedaTesoroManejadorPruebas
 
         await accion.Should()
             .ThrowAsync<ExcepcionDominio>()
-            .WithMessage("La búsqueda del tesoro debe tener al menos una pista para poder activarse.");
+            .WithMessage("La búsqueda del tesoro debe tener una coordenada GPS del tesoro para poder activarse.");
         _repositorio.Verify(
             r => r.ActivarBusquedaTesoroAsync(It.IsAny<BusquedaTesoro>(), It.IsAny<CancellationToken>()),
             Times.Never);

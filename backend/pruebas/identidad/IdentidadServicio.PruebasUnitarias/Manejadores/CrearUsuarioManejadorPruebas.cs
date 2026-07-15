@@ -1,6 +1,5 @@
 using FluentAssertions;
-using IdentidadServicio.Aplicacion.CasosDeUso.Comandos;
-using IdentidadServicio.Aplicacion.CasosDeUso.Manejadores;
+using IdentidadServicio.Aplicacion.Comandos.CrearUsuario;
 using IdentidadServicio.Aplicacion.Estrategias;
 using IdentidadServicio.Aplicacion.Fabricas;
 using IdentidadServicio.Aplicacion.Generadores;
@@ -9,7 +8,6 @@ using IdentidadServicio.Aplicacion.Validaciones;
 using IdentidadServicio.Commons.Dtos;
 using IdentidadServicio.Dominio.Entidades;
 using IdentidadServicio.Dominio.Enums;
-using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
 namespace IdentidadServicio.PruebasUnitarias.Manejadores;
@@ -33,6 +31,8 @@ public class CrearUsuarioManejadorPruebas
     private readonly Mock<IGeneradorContrasenaTemporal> _generadorContrasena = new();
     private readonly Mock<IServicioCorreo> _correo = new();
     private readonly Mock<IRepositorioControlContrasenaTemporal> _controlContrasena = new();
+    private readonly Mock<IUsuarioActual> _usuarioActual = new();
+    private readonly Mock<IRegistroLogsAplicacion> _registroLogs = new();
     private static readonly DateTime Ahora = new(2026, 5, 17, 0, 0, 0, DateTimeKind.Utc);
     private const string ContrasenaTemporalFake = "Temp0r4l*Xyz9";
 
@@ -64,7 +64,7 @@ public class CrearUsuarioManejadorPruebas
         });
 
         return new CrearUsuarioManejador(
-            _unicidad.Object,
+            new ValidadorUnicidadUsuario(_unicidad.Object),
             _repoOperadores.Object,
             _repoAdministradores.Object,
             _controlContrasena.Object,
@@ -75,7 +75,8 @@ public class CrearUsuarioManejadorPruebas
             _validador.Object,
             _generadorContrasena.Object,
             _correo.Object,
-            NullLogger<CrearUsuarioManejador>.Instance);
+            _usuarioActual.Object,
+            _registroLogs.Object);
     }
 
     private static CrearUsuarioDto Dto(RolUsuario tipo) => new()
@@ -296,5 +297,32 @@ public class CrearUsuarioManejadorPruebas
             new CrearUsuarioComando(Dto(RolUsuario.Operador)), CancellationToken.None);
 
         resultado.Codigo.Should().Be("OP-001");
+    }
+
+    [Fact]
+    public async Task FlujoOperador_RegistraEventoUsuarioCreado_SinContrasenaTemporal()
+    {
+        ConfigurarKeycloak("kc-op-log");
+        IReadOnlyDictionary<string, object?>? propiedades = null;
+        _registroLogs
+            .Setup(r => r.Informacion(
+                "UsuarioCreado",
+                It.IsAny<string>(),
+                It.IsAny<IReadOnlyDictionary<string, object?>?>()))
+            .Callback<string, string, IReadOnlyDictionary<string, object?>?>(
+                (_, _, props) => propiedades = props);
+
+        await CrearManejador().Handle(
+            new CrearUsuarioComando(Dto(RolUsuario.Operador)), CancellationToken.None);
+
+        // Se registra el evento de caso de uso con el nombre esperado.
+        _registroLogs.Verify(r => r.Informacion(
+            "UsuarioCreado",
+            It.IsAny<string>(),
+            It.IsAny<IReadOnlyDictionary<string, object?>?>()), Times.Once);
+
+        // Seguridad: la contraseña temporal nunca viaja en las propiedades del log.
+        propiedades.Should().NotBeNull();
+        propiedades!.Values.Should().NotContain(ContrasenaTemporalFake);
     }
 }

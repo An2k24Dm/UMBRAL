@@ -12,4 +12,5 @@ public sealed class MisionResumenJuegosDto
     public string Estado { get; set; } = string.Empty;
     public string Dificultad { get; set; } = string.Empty;
     public int TotalEtapas { get; set; }
+    public int TiempoTotalSegundos { get; set; }
 }

@@ -1,6 +1,7 @@
-using IdentidadServicio.Aplicacion.Puertos;
+﻿using IdentidadServicio.Aplicacion.Puertos;
 using IdentidadServicio.Dominio.Entidades;
 using IdentidadServicio.Dominio.Enums;
+using IdentidadServicio.Infraestructura.Persistencia.Mapeadores;
 using Microsoft.EntityFrameworkCore;
 
 namespace IdentidadServicio.Infraestructura.Persistencia.Repositorios;
@@ -151,6 +152,31 @@ public sealed class RepositorioUsuariosLectura : IRepositorioUsuariosLectura
             .Select(s => Guid.TryParse(s, out var g) ? g : (Guid?)null)
             .Where(g => g.HasValue)
             .Select(g => g!.Value)
+            .ToList();
+    }
+
+    public async Task<IReadOnlyList<ParticipanteBasicoLectura>> ObtenerParticipantesBasicosPorIdsKeycloakAsync(
+        IReadOnlyCollection<Guid> idsKeycloak, CancellationToken cancelacion)
+    {
+        if (idsKeycloak is null || idsKeycloak.Count == 0)
+            return Array.Empty<ParticipanteBasicoLectura>();
+
+        var rolParticipante = (int)RolUsuario.Participante;
+        var idsBuscados = idsKeycloak.Select(g => g.ToString()).ToList();
+
+        var filas = await (
+            from u in _contexto.Usuarios.AsNoTracking()
+            where u.Rol == rolParticipante && idsBuscados.Contains(u.IdKeycloak)
+            join p in _contexto.Personas.AsNoTracking() on u.Id equals p.UsuarioId
+            join part in _contexto.Participantes.AsNoTracking() on p.Id equals part.PersonaId
+            select new { u.IdKeycloak, p.Nombre, p.Apellido, part.Alias }
+        ).ToListAsync(cancelacion);
+
+        return filas
+            .Select(f => new ParticipanteBasicoLectura(
+                Guid.TryParse(f.IdKeycloak, out var g) ? g : Guid.Empty,
+                f.Nombre, f.Apellido, f.Alias))
+            .Where(x => x.Id != Guid.Empty)
             .ToList();
     }
 

@@ -1,6 +1,5 @@
 using FluentAssertions;
-using IdentidadServicio.Aplicacion.CasosDeUso.Comandos;
-using IdentidadServicio.Aplicacion.CasosDeUso.Manejadores;
+using IdentidadServicio.Aplicacion.Comandos.RegistrarParticipante;
 using IdentidadServicio.Aplicacion.Estrategias;
 using IdentidadServicio.Aplicacion.Fabricas;
 using IdentidadServicio.Aplicacion.Generadores;
@@ -9,7 +8,6 @@ using IdentidadServicio.Aplicacion.Validaciones;
 using IdentidadServicio.Commons.Dtos;
 using IdentidadServicio.Dominio.Entidades;
 using IdentidadServicio.Dominio.Enums;
-using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
 namespace IdentidadServicio.PruebasUnitarias.Manejadores;
@@ -49,14 +47,14 @@ public class RegistrarParticipanteManejadorPruebas
         });
 
         return new RegistrarParticipanteManejador(
-            _unicidad.Object,
+            new ValidadorUnicidadUsuario(_unicidad.Object),
             _repositorio.Object,
             _unidad.Object,
             _proveedor.Object,
             _reloj.Object,
             fabrica,
             _validador.Object,
-            NullLogger<RegistrarParticipanteManejador>.Instance);
+            Mock.Of<IRegistroLogsAplicacion>());
     }
 
     private static RegistrarParticipanteDto Dto() => new()

@@ -80,6 +80,40 @@
         }
       ],
       "realmRoles": ["Administrador"]
+    },
+    {
+      "id": "22222222-2222-2222-2222-222222222222",
+      "username": "user",
+      "email": "user@umbral.com",
+      "firstName": "User",
+      "lastName": "Participante",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Temporal*1",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["Participante"]
+    },
+    {
+      "id": "33333333-3333-3333-3333-333333333333",
+      "username": "giancarlo",
+      "email": "giancarlo@umbral.com",
+      "firstName": "Giancarlo",
+      "lastName": "Operador",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Temporal*1",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["Operador"]
     }
   ]
 }

@@ -1,5 +1,4 @@
-using JuegosServicio.Aplicacion.CasosDeUso.Comandos;
-using JuegosServicio.Aplicacion.CasosDeUso.Manejadores;
+using JuegosServicio.Aplicacion.Comandos.ModificarPista;
 using JuegosServicio.Aplicacion.Puertos;
 using JuegosServicio.Commons.Dtos;
 using JuegosServicio.Dominio.Entidades;
@@ -16,12 +15,13 @@ public class ModificarPistaManejadorPruebas
     private static readonly DateTime FechaFija =
         new(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc);
 
-    private ModificarPistaManejador CrearManejador() => new(_repositorio.Object, _repositorioMisiones.Object);
+    private ModificarPistaManejador CrearManejador() =>
+        new(_repositorio.Object, _repositorioMisiones.Object, Mock.Of<IRegistroLogsAplicacion>());
 
     private static BusquedaTesoro BusquedaConPista(out Guid pistaId)
     {
         var busqueda = BusquedaTesoro.Crear("Búsqueda Test", "Descripción", Guid.NewGuid(), FechaFija);
-        var pista = busqueda.AgregarPista("Pista original.");
+        var pista = busqueda.AgregarPista("Pista original.", TipoPista.Texto, null, null);
         pistaId = pista.Id;
         return busqueda;
     }

@@ -1,0 +1,37 @@
+using JuegosServicio.Aplicacion.Puertos;
+using JuegosServicio.Dominio.Excepciones;
+using MediatR;
+
+namespace JuegosServicio.Aplicacion.Comandos.ActivarMision;
+
+public sealed class ActivarMisionManejador : IRequestHandler<ActivarMisionComando>
+{
+    private readonly IRepositorioMisiones _repositorio;
+    private readonly IRegistroLogsAplicacion _registroLogs;
+
+    public ActivarMisionManejador(
+        IRepositorioMisiones repositorio,
+        IRegistroLogsAplicacion registroLogs)
+    {
+        _repositorio = repositorio;
+        _registroLogs = registroLogs;
+    }
+
+    public async Task Handle(ActivarMisionComando comando, CancellationToken cancelacion)
+    {
+        var mision = await _repositorio.ObtenerMisionPorIdAsync(comando.MisionId, cancelacion)
+            ?? throw new ExcepcionNoEncontrado(
+                $"No se encontró la misión con ID '{comando.MisionId}'.");
+
+        mision.Activar();
+        await _repositorio.ActivarMisionAsync(mision, cancelacion);
+
+        _registroLogs.Informacion(
+            evento: "MisionActivada",
+            descripcion: "Usuario activó una misión correctamente",
+            propiedades: new Dictionary<string, object?>
+            {
+                ["MisionId"] = comando.MisionId
+            });
+    }
+}

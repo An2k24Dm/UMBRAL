@@ -1,6 +1,5 @@
 using FluentAssertions;
-using IdentidadServicio.Aplicacion.CasosDeUso.Comandos;
-using IdentidadServicio.Aplicacion.CasosDeUso.Manejadores;
+using IdentidadServicio.Aplicacion.Comandos.IniciarSesion;
 using IdentidadServicio.Aplicacion.Enums;
 using IdentidadServicio.Aplicacion.Puertos;
 using IdentidadServicio.Commons.Dtos;
@@ -8,7 +7,6 @@ using IdentidadServicio.Dominio.Entidades;
 using IdentidadServicio.Dominio.Enums;
 using IdentidadServicio.Dominio.Excepciones;
 using IdentidadServicio.Dominio.ObjetosDeValor;
-using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
 namespace IdentidadServicio.PruebasUnitarias.Manejadores;
@@ -21,7 +19,7 @@ public class IniciarSesionManejadorPruebas
 
     private IniciarSesionManejador CrearManejador() => new(
         _proveedor.Object, _repositorio.Object, _controlContrasena.Object,
-        NullLogger<IniciarSesionManejador>.Instance);
+        Mock.Of<IRegistroLogsAplicacion>());
 
     private static DateTime Ahora => new(2026, 5, 17, 0, 0, 0, DateTimeKind.Utc);
     private static DateTime Nac => new(1990, 1, 1, 0, 0, 0, DateTimeKind.Utc);

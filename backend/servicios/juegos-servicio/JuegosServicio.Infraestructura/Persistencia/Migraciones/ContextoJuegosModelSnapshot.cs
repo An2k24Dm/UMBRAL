@@ -30,6 +30,14 @@ namespace JuegosServicio.Infraestructura.Persistencia.Migraciones
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<string>("CodigoQr")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasDefaultValue("")
+                        .HasColumnName("codigo_qr");
+
                     b.Property<Guid>("CreadorId")
                         .HasColumnType("uuid")
                         .HasColumnName("creador_id");
@@ -224,6 +232,19 @@ namespace JuegosServicio.Infraestructura.Persistencia.Migraciones
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)")
                         .HasColumnName("contenido");
+
+                    b.Property<double?>("Latitud")
+                        .HasColumnType("double precision")
+                        .HasColumnName("latitud");
+
+                    b.Property<double?>("Longitud")
+                        .HasColumnType("double precision")
+                        .HasColumnName("longitud");
+
+                    b.Property<int>("Tipo")
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("tipo");
 
                     b.HasKey("Id");
 

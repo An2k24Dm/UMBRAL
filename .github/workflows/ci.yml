@@ -1,0 +1,121 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - develop
+      - "feature/**"
+  pull_request:
+    branches:
+      - develop
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend (.NET 9)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Obtener código
+        uses: actions/checkout@v4
+
+      - name: Configurar .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+
+      - name: Restaurar
+        run: dotnet restore UMBRAL.sln
+
+      - name: Compilar
+        run: dotnet build UMBRAL.sln --no-restore --configuration Release
+
+      # Ejecuta TODAS las suites de prueba backend disponibles (sesiones,
+      # identidad, juegos y ranking) con cobertura y logger trx. No usa `set -e`:
+      # corre todas las suites aunque alguna falle (para publicar todos los
+      # resultados) y falla el paso al final si hubo algún error. Este listado
+      # debe mantenerse en paridad con el de verificar-backend.ps1.
+      - name: Probar backend (todas las suites con cobertura)
+        run: |
+          fallo=0
+          suites=(
+            "sesiones-unitarias|backend/pruebas/sesiones/SesionesServicio.PruebasUnitarias/SesionesServicio.PruebasUnitarias.csproj"
+            "sesiones-integracion|backend/pruebas/sesiones/SesionesServicio.PruebasIntegracion/SesionesServicio.PruebasIntegracion.csproj"
+            "identidad-unitarias|backend/pruebas/identidad/IdentidadServicio.PruebasUnitarias/IdentidadServicio.PruebasUnitarias.csproj"
+            "identidad-integracion|backend/pruebas/identidad/IdentidadServicio.PruebasIntegracion/IdentidadServicio.PruebasIntegracion.csproj"
+            "juegos-unitarias|backend/pruebas/juegos/JuegosServicio.PruebasUnitarias/JuegosServicio.PruebasUnitarias.csproj"
+            "ranking-unitarias|backend/pruebas/ranking/RankingServicio.PruebasUnitarias/RankingServicio.PruebasUnitarias.csproj"
+          )
+          for entrada in "${suites[@]}"; do
+            nombre="${entrada%%|*}"
+            proyecto="${entrada#*|}"
+            echo "::group::$nombre"
+            dotnet test "$proyecto" \
+              --no-build \
+              --configuration Release \
+              --collect:"XPlat Code Coverage" \
+              --logger "trx;LogFileName=$nombre.trx" \
+              --results-directory "artifacts/test-results/$nombre" || fallo=1
+            echo "::endgroup::"
+          done
+          exit $fallo
+
+      # Publica los .trx y los coverage.cobertura.xml (XPlat Code Coverage)
+      # como evidencia técnica de pruebas y cobertura.
+      - name: Publicar pruebas y cobertura
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-results-and-coverage
+          path: artifacts/test-results
+          if-no-files-found: warn
+
+  frontend-web:
+    name: Frontend web
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend-web/umbral-web-react
+    steps:
+      - name: Obtener código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend-web/umbral-web-react/package-lock.json
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Compilar
+        run: npm run build
+
+  frontend-movil:
+    name: Frontend móvil
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend-movil/umbral-app-react-native
+    steps:
+      - name: Obtener código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend-movil/umbral-app-react-native/package-lock.json
+
+      - name: Instalar dependencias
+        # Expo 54 y React 19 mantienen peers opcionales incompatibles con la
+        # resolución estricta de npm; el lockfile se generó con esta opción.
+        run: npm ci --legacy-peer-deps
+
+      - name: Verificar TypeScript
+        run: npm run typecheck

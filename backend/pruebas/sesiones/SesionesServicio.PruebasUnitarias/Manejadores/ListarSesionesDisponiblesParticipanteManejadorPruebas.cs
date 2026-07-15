@@ -3,8 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using SesionesServicio.Aplicacion.CasosDeUso.Consultas;
-using SesionesServicio.Aplicacion.CasosDeUso.Manejadores;
+using SesionesServicio.Aplicacion.Consultas.ListarSesionesDisponiblesParticipante;
+using SesionesServicio.Aplicacion.Mapeadores;
 using SesionesServicio.Aplicacion.Puertos;
 using SesionesServicio.Dominio.Entidades;
 using SesionesServicio.Dominio.Enums;
@@ -26,6 +26,15 @@ public class ListarSesionesDisponiblesParticipanteManejadorPruebas
     private static readonly DateTime AhoraUtc = new(2026, 6, 3, 12, 0, 0, DateTimeKind.Utc);
     private static readonly Guid Operador = Guid.Parse("44444444-4444-4444-4444-444444444444");
 
+    // Fábrica real con las estrategias de dominio: piezas puras sin
+    // dependencias externas.
+    private static readonly FabricaMapeadorSesionDisponibleMovil FabricaMapeador =
+        new(new IMapeadorSesionDisponibleMovil[]
+        {
+            new MapeadorSesionDisponibleMovilIndividual(),
+            new MapeadorSesionDisponibleMovilGrupal()
+        });
+
     private static SesionIndividual CrearIndividual(string nombre, EstadoSesion estado)
     {
         return SesionIndividual.Rehidratar(
@@ -39,6 +48,7 @@ public class ListarSesionesDisponiblesParticipanteManejadorPruebas
             fechaCreacion: AhoraUtc,
             fechaInicioUtc: null,
             fechaFinalizacionUtc: null,
+            maximoParticipantes: 12,
             misiones: new[] { SesionMision.Rehidratar(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), 1) });
     }
 
@@ -55,19 +65,21 @@ public class ListarSesionesDisponiblesParticipanteManejadorPruebas
             fechaCreacion: AhoraUtc,
             fechaInicioUtc: null,
             fechaFinalizacionUtc: null,
+            maximoEquipos: 6,
+            maximoParticipantesPorEquipo: 2,
             misiones: new[] { SesionMision.Rehidratar(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), 1) });
     }
 
     [Fact]
     public async Task Handle_FiltroTodas_SeNormalizaANullEnElRepositorio()
     {
-        var repo = new Mock<IRepositorioSesiones>();
+        var repo = new Mock<IConsultasSesiones>();
         repo.Setup(r => r.ListarDisponiblesParaParticipanteAsync(
                 "piloto", null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<Sesion>())
             .Verifiable();
 
-        var manejador = new ListarSesionesDisponiblesParticipanteManejador(repo.Object);
+        var manejador = new ListarSesionesDisponiblesParticipanteManejador(repo.Object, FabricaMapeador);
 
         await manejador.Handle(
             new ListarSesionesDisponiblesParticipanteConsulta("piloto", "Todas"),
@@ -79,13 +91,13 @@ public class ListarSesionesDisponiblesParticipanteManejadorPruebas
     [Fact]
     public async Task Handle_FiltroIndividual_LoPropagaTalCual()
     {
-        var repo = new Mock<IRepositorioSesiones>();
+        var repo = new Mock<IConsultasSesiones>();
         repo.Setup(r => r.ListarDisponiblesParaParticipanteAsync(
                 null, "Individual", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<Sesion>())
             .Verifiable();
 
-        var manejador = new ListarSesionesDisponiblesParticipanteManejador(repo.Object);
+        var manejador = new ListarSesionesDisponiblesParticipanteManejador(repo.Object, FabricaMapeador);
 
         await manejador.Handle(
             new ListarSesionesDisponiblesParticipanteConsulta(null, "Individual"),
@@ -98,12 +110,12 @@ public class ListarSesionesDisponiblesParticipanteManejadorPruebas
     public async Task Handle_SesionIndividual_ExponeCapacidadDeParticipantes()
     {
         var individual = CrearIndividual("Piloto", EstadoSesion.Programada);
-        var repo = new Mock<IRepositorioSesiones>();
+        var repo = new Mock<IConsultasSesiones>();
         repo.Setup(r => r.ListarDisponiblesParaParticipanteAsync(
                 It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<Sesion> { individual });
 
-        var manejador = new ListarSesionesDisponiblesParticipanteManejador(repo.Object);
+        var manejador = new ListarSesionesDisponiblesParticipanteManejador(repo.Object, FabricaMapeador);
 
         var resultado = await manejador.Handle(
             new ListarSesionesDisponiblesParticipanteConsulta(null, null),
@@ -111,8 +123,8 @@ public class ListarSesionesDisponiblesParticipanteManejadorPruebas
 
         var dto = resultado.Single();
         dto.Modo.Should().Be("Individual");
-        dto.CapacidadMaximaParticipantes.Should().Be(
-            PoliticaCapacidadSesion.MaximoParticipantesIndividual);
+        // La capacidad expuesta es la propia de la sesión, no una constante global.
+        dto.CapacidadMaximaParticipantes.Should().Be(12);
         dto.CapacidadMaximaEquipos.Should().BeNull();
     }
 
@@ -120,12 +132,12 @@ public class ListarSesionesDisponiblesParticipanteManejadorPruebas
     public async Task Handle_SesionGrupal_ExponeCapacidadDeEquipos()
     {
         var grupal = CrearGrupal("Piloto grupal", EstadoSesion.Activa);
-        var repo = new Mock<IRepositorioSesiones>();
+        var repo = new Mock<IConsultasSesiones>();
         repo.Setup(r => r.ListarDisponiblesParaParticipanteAsync(
                 It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<Sesion> { grupal });
 
-        var manejador = new ListarSesionesDisponiblesParticipanteManejador(repo.Object);
+        var manejador = new ListarSesionesDisponiblesParticipanteManejador(repo.Object, FabricaMapeador);
 
         var resultado = await manejador.Handle(
             new ListarSesionesDisponiblesParticipanteConsulta(null, null),
@@ -133,8 +145,7 @@ public class ListarSesionesDisponiblesParticipanteManejadorPruebas
 
         var dto = resultado.Single();
         dto.Modo.Should().Be("Grupal");
-        dto.CapacidadMaximaEquipos.Should().Be(
-            PoliticaCapacidadSesion.MaximoEquiposPorSesion);
+        dto.CapacidadMaximaEquipos.Should().Be(6);
         dto.CapacidadMaximaParticipantes.Should().BeNull();
     }
 
@@ -142,12 +153,12 @@ public class ListarSesionesDisponiblesParticipanteManejadorPruebas
     public async Task Handle_DtoNoExponeOperadorCreadorIdNiDatosAdministrativos()
     {
         var sesion = CrearIndividual("Piloto", EstadoSesion.Programada);
-        var repo = new Mock<IRepositorioSesiones>();
+        var repo = new Mock<IConsultasSesiones>();
         repo.Setup(r => r.ListarDisponiblesParaParticipanteAsync(
                 It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<Sesion> { sesion });
 
-        var manejador = new ListarSesionesDisponiblesParticipanteManejador(repo.Object);
+        var manejador = new ListarSesionesDisponiblesParticipanteManejador(repo.Object, FabricaMapeador);
 
         var resultado = await manejador.Handle(
             new ListarSesionesDisponiblesParticipanteConsulta(null, null),

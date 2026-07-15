@@ -3,19 +3,20 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using SesionesServicio.Aplicacion.CasosDeUso.Comandos;
-using SesionesServicio.Aplicacion.CasosDeUso.Manejadores;
+using SesionesServicio.Aplicacion.Comandos.CrearSesion;
 using SesionesServicio.Aplicacion.Puertos;
 using SesionesServicio.Aplicacion.Validaciones;
 using SesionesServicio.Commons.Dtos;
+using SesionesServicio.Dominio.Abstract;
 using SesionesServicio.Dominio.Entidades;
 using SesionesServicio.Dominio.Excepciones;
+using SesionesServicio.Dominio.Fabricas;
 
 namespace SesionesServicio.PruebasUnitarias.Manejadores;
 
 // Cubre la orquestación de CrearSesionManejador: rol Operador, fecha
-// futura, validación de misiones contra juegos-servicio, FabricaSesiones
-// instanciando la subclase correcta y la sesión naciendo vacía.
+// futura, validación de misiones contra juegos-servicio, la fábrica
+// (IFabricaSesion) instanciando la subclase correcta y la sesión naciendo vacía.
 public class CrearSesionManejadorPruebas
 {
     private static readonly DateTime AhoraUtc = new(2026, 6, 3, 12, 0, 0, DateTimeKind.Utc);
@@ -40,8 +41,8 @@ public class CrearSesionManejadorPruebas
         {
             Reloj.Setup(r => r.ObtenerFechaHoraUtc()).Returns(AhoraUtc);
             Generador.Setup(g => g.Generar()).Returns("CODE99");
-            Usuario.SetupGet(u => u.EstaAutenticado).Returns(true);
-            Usuario.SetupGet(u => u.Id).Returns(Operador);
+            Usuario.Setup(u => u.EstaAutenticado()).Returns(true);
+            Usuario.Setup(u => u.ObtenerId()).Returns(Operador);
             Usuario.Setup(u => u.TieneAlgunRol(It.IsAny<string[]>()))
                 .Returns<string[]>(roles => Array.IndexOf(roles, "Operador") >= 0);
 
@@ -51,23 +52,35 @@ public class CrearSesionManejadorPruebas
 
             Misiones.Setup(c => c.ObtenerMisionAsync(MisionA, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new MisionResumenJuegosDto
-                { Id = MisionA, Nombre = "A", Estado = "Activa", TotalEtapas = 2 });
+                { Id = MisionA, Nombre = "A", Estado = "Activa", TotalEtapas = 2, TiempoTotalSegundos = 125 });
             Misiones.Setup(c => c.ObtenerMisionAsync(MisionB, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new MisionResumenJuegosDto
-                { Id = MisionB, Nombre = "B", Estado = "Activa", TotalEtapas = 1 });
+                { Id = MisionB, Nombre = "B", Estado = "Activa", TotalEtapas = 1, TiempoTotalSegundos = 60 });
             Misiones.Setup(c => c.ObtenerMisionAsync(MisionInactiva, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new MisionResumenJuegosDto
-                { Id = MisionInactiva, Nombre = "Inactiva", Estado = "Inactiva", TotalEtapas = 2 });
+                { Id = MisionInactiva, Nombre = "Inactiva", Estado = "Inactiva", TotalEtapas = 2, TiempoTotalSegundos = 60 });
             Misiones.Setup(c => c.ObtenerMisionAsync(MisionInexistente, It.IsAny<CancellationToken>()))
                 .ReturnsAsync((MisionResumenJuegosDto?)null);
             Misiones.Setup(c => c.ObtenerMisionAsync(MisionSinEtapas, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new MisionResumenJuegosDto
-                { Id = MisionSinEtapas, Nombre = "Vacía", Estado = "Activa", TotalEtapas = 0 });
+                { Id = MisionSinEtapas, Nombre = "Vacía", Estado = "Activa", TotalEtapas = 0, TiempoTotalSegundos = 60 });
         }
+
+        // Se usa la fábrica real con sus creadores de dominio: son piezas
+        // puras sin dependencias externas, así la prueba ejercita el camino
+        // real de selección por modo.
+        private static readonly IFabricaSesion FabricaSesionReal =
+            new FabricaSesion(new ICreadorSesion[]
+            {
+                new CreadorSesionIndividual(),
+                new CreadorSesionGrupal()
+            });
 
         public CrearSesionManejador Construir()
             => new(new ValidadorCrearSesion(), Repo.Object, Unidad.Object,
-                Usuario.Object, Misiones.Object, Generador.Object, Reloj.Object);
+                Usuario.Object, new ValidadorMisionesSesion(Misiones.Object),
+                Generador.Object, Reloj.Object, FabricaSesionReal,
+                Mock.Of<IRegistroLogsAplicacion>());
     }
 
     private static CrearSesionSolicitudDto DtoValido(
@@ -77,7 +90,11 @@ public class CrearSesionManejadorPruebas
             Descripcion = "Demo",
             Modo = modo,
             FechaProgramada = AhoraUtc.AddHours(1),
-            MisionesIds = misiones ?? new List<Guid> { MisionA }
+            MisionesIds = misiones ?? new List<Guid> { MisionA },
+            // Capacidad para ambos modos; el creador toma la que aplica.
+            MaximoParticipantes = 10,
+            MaximoEquipos = 5,
+            MaximoParticipantesPorEquipo = 2
         };
 
     [Fact]
@@ -114,12 +131,63 @@ public class CrearSesionManejadorPruebas
     }
 
     [Fact]
+    public async Task Operador_CreaSesionIndividual_GuardaCapacidadConfigurada()
+    {
+        var ctx = new Contexto();
+        var dto = DtoValido("Individual");
+        dto.MaximoParticipantes = 25;
+
+        await ctx.Construir().Handle(new CrearSesionComando(dto), CancellationToken.None);
+
+        ((SesionIndividual)ctx.Persistida!).MaximoParticipantes.Should().Be(25);
+    }
+
+    [Fact]
+    public async Task Operador_CreaSesionGrupal_GuardaCapacidadesConfiguradas()
+    {
+        var ctx = new Contexto();
+        var dto = DtoValido("Grupal");
+        dto.MaximoEquipos = 8;
+        dto.MaximoParticipantesPorEquipo = 4;
+
+        await ctx.Construir().Handle(new CrearSesionComando(dto), CancellationToken.None);
+
+        var grupal = (SesionGrupal)ctx.Persistida!;
+        grupal.MaximoEquipos.Should().Be(8);
+        grupal.MaximoParticipantesPorEquipo.Should().Be(4);
+    }
+
+    [Fact]
+    public async Task SesionIndividual_SinCapacidad_LanzaValidacion()
+    {
+        var ctx = new Contexto();
+        var dto = DtoValido("Individual");
+        dto.MaximoParticipantes = null;
+
+        Func<Task> accion = () => ctx.Construir().Handle(
+            new CrearSesionComando(dto), CancellationToken.None);
+        await accion.Should().ThrowAsync<ExcepcionValidacion>();
+    }
+
+    [Fact]
+    public async Task SesionGrupal_SinCapacidadDeEquipos_LanzaValidacion()
+    {
+        var ctx = new Contexto();
+        var dto = DtoValido("Grupal");
+        dto.MaximoEquipos = null;
+
+        Func<Task> accion = () => ctx.Construir().Handle(
+            new CrearSesionComando(dto), CancellationToken.None);
+        await accion.Should().ThrowAsync<ExcepcionValidacion>();
+    }
+
+    [Fact]
     public async Task Operador_ConCincoMisionesActivas_CreaSesion()
     {
         var ctx = new Contexto();
         ctx.Misiones.Setup(c => c.ObtenerMisionAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((Guid id, CancellationToken _) => new MisionResumenJuegosDto
-            { Id = id, Nombre = id.ToString(), Estado = "Activa", TotalEtapas = 1 });
+            { Id = id, Nombre = id.ToString(), Estado = "Activa", TotalEtapas = 1, TiempoTotalSegundos = 30 });
         var manejador = ctx.Construir();
         var cinco = Enumerable.Range(0, 5).Select(_ => Guid.NewGuid()).ToList();
 
@@ -127,6 +195,19 @@ public class CrearSesionManejadorPruebas
             new CrearSesionComando(DtoValido("Individual", cinco)), CancellationToken.None);
 
         respuesta.MisionesIds.Should().Equal(cinco);
+    }
+
+    [Fact]
+    public async Task Operador_CreaSesion_CalculaDuracionDesdeMisiones()
+    {
+        var ctx = new Contexto();
+        var dto = DtoValido("Individual", new List<Guid> { MisionA, MisionB });
+
+        await ctx.Construir().Handle(new CrearSesionComando(dto), CancellationToken.None);
+
+        ctx.Persistida!.DuracionSegundosLimite.Should().Be(185);
+        ctx.Misiones.Verify(c => c.ObtenerMisionAsync(
+            It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
     }
 
     [Fact]

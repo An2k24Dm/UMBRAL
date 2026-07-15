@@ -8,6 +8,8 @@ import type {
 
 interface Props {
   mision: MisionSesionMovilDto;
+  // Etapas completadas GLOBALMENTE (por todos). Autoridad del backend.
+  etapasCompletadasGlobalmenteIds?: ReadonlySet<string>;
 }
 
 // Tarjeta de una misión dentro del detalle. Lista las etapas con su
@@ -28,8 +30,18 @@ function describirModoJuego(etapa: EtapaSesionMovilDto): string {
   return etapa.tipoModoDeJuego;
 }
 
-export function TarjetaMisionSesionMovil({ mision }: Props) {
+export function TarjetaMisionSesionMovil({
+  mision,
+  etapasCompletadasGlobalmenteIds,
+}: Props) {
   const sinDatos = !mision.nombre?.trim();
+  const completadas = etapasCompletadasGlobalmenteIds ?? new Set<string>();
+
+  const etapaCompletada = (etapaId: string) => completadas.has(etapaId);
+  // Una misión está COMPLETADA solo cuando TODAS sus etapas lo están.
+  const misionCompletada =
+    mision.etapas.length > 0 &&
+    mision.etapas.every((etapa) => completadas.has(etapa.id));
 
   return (
     <View style={estilos.tarjeta}>
@@ -38,9 +50,12 @@ export function TarjetaMisionSesionMovil({ mision }: Props) {
           <Text style={estilos.indiceTexto}>{mision.orden}</Text>
         </View>
         <View style={estilos.encabezadoTexto}>
-          <Text style={estilos.titulo} numberOfLines={2}>
-            {sinDatos ? "Misión sin información disponible" : mision.nombre}
-          </Text>
+          <View style={estilos.tituloFila}>
+            <Text style={estilos.titulo} numberOfLines={2}>
+              {sinDatos ? "Misión sin información disponible" : mision.nombre}
+            </Text>
+            {misionCompletada && <PastillaCompletada />}
+          </View>
           {!sinDatos && mision.descripcion?.trim().length > 0 && (
             <Text style={estilos.descripcion} numberOfLines={3}>
               {mision.descripcion}
@@ -62,7 +77,10 @@ export function TarjetaMisionSesionMovil({ mision }: Props) {
             <View key={etapa.id} style={estilos.filaEtapa}>
               <Text style={estilos.etapaIndice}>{etapa.orden}.</Text>
               <View style={estilos.etapaCuerpo}>
-                <Text style={estilos.etapaModo}>{describirModoJuego(etapa)}</Text>
+                <View style={estilos.etapaFilaTitulo}>
+                  <Text style={estilos.etapaModo}>{describirModoJuego(etapa)}</Text>
+                  {etapaCompletada(etapa.id) && <PastillaCompletada />}
+                </View>
                 <Text style={estilos.etapaTiempo}>
                   Tiempo estimado: {formatearSegundos(etapa.tiempoEstimadoSegundos)}
                 </Text>
@@ -81,6 +99,15 @@ function MetaPill({ etiqueta }: { etiqueta: string }) {
   return (
     <View style={estilos.metaPill}>
       <Text style={estilos.metaPillTexto}>{etiqueta}</Text>
+    </View>
+  );
+}
+
+// Pastilla pequeña y no invasiva de estado COMPLETADA (verde suave).
+function PastillaCompletada() {
+  return (
+    <View style={estilos.pastillaCompletada}>
+      <Text style={estilos.pastillaCompletadaTexto}>COMPLETADA</Text>
     </View>
   );
 }
@@ -115,10 +142,31 @@ const estilos = StyleSheet.create({
     fontSize: tema.tipografia.tamanos.md,
   },
   encabezadoTexto: { flex: 1 },
+  tituloFila: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: tema.espacios.sm,
+  },
   titulo: {
+    flex: 1,
     color: tema.colores.texto,
     fontSize: tema.tipografia.tamanos.lg,
     fontWeight: tema.tipografia.pesos.bold,
+  },
+  pastillaCompletada: {
+    paddingHorizontal: tema.espacios.sm,
+    paddingVertical: 2,
+    borderRadius: tema.radios.pastilla,
+    borderWidth: 1,
+    borderColor: "#34d399",
+    backgroundColor: "#d1fae5",
+  },
+  pastillaCompletadaTexto: {
+    color: "#065f46",
+    fontSize: tema.tipografia.tamanos.xs,
+    fontWeight: tema.tipografia.pesos.bold,
+    letterSpacing: tema.tipografia.espaciadoLetra.xs,
   },
   descripcion: {
     color: tema.colores.textoTenue,
@@ -164,7 +212,14 @@ const estilos = StyleSheet.create({
     minWidth: 18,
   },
   etapaCuerpo: { flex: 1 },
+  etapaFilaTitulo: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: tema.espacios.sm,
+  },
   etapaModo: {
+    flex: 1,
     color: tema.colores.texto,
     fontSize: tema.tipografia.tamanos.md,
     fontWeight: tema.tipografia.pesos.semibold,

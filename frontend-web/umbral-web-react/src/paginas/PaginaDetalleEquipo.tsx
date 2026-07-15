@@ -1,22 +1,29 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { LayoutPanel } from '../componentes/LayoutPanel'
 import { Alerta } from '../componentes/Alerta'
 import { Boton } from '../componentes/Boton'
+import { ModalConfirmacion } from '../componentes/ModalConfirmacion'
 import {
+  obtenerDetalleEquipoSesion,
   obtenerSesion,
-  type EquipoSesionDto,
-  type SesionDetalleDto
+  expulsarParticipanteEquipo,
+  type EquipoSesionDetalleDto,
+  type IntegranteEquipoDto
 } from '../autenticacion/clienteApiSesiones'
+import {
+  obtenerRankingEquipos,
+  type EntradaRankingEquipoDto
+} from '../autenticacion/clienteApiRanking'
 import { usarAutenticacion } from '../autenticacion/ProveedorAutenticacion'
+import { useSesionesTiempoReal } from '../hooks/useSesionesTiempoReal'
 import { formatearFechaSesion } from '../utilidades/formatoSesiones'
 
 // Detalle de un equipo dentro de una sesión grupal.
 //
-// El backend devuelve el equipo embebido en SesionDetalleDto, por eso
-// esta vista carga el detalle de la sesión y filtra el equipo pedido.
-// Cuando el backend exponga un endpoint dedicado para equipo, se cambia
-// la fuente de datos sin tocar la UI.
+// Operador y Administrador consumen el MISMO DTO dedicado de HU43, ya
+// enriquecido por el backend con los datos básicos no sensibles de identidad
+// (incluidos los integrantes). El Administrador es de solo lectura.
 
 export function PaginaDetalleEquipo() {
   const { id, equipoId } = useParams<{ id: string; equipoId: string }>()
@@ -28,8 +35,33 @@ export function PaginaDetalleEquipo() {
 
   const [estado, setEstado] = useState<'cargando' | 'error' | 'listo'>('cargando')
   const [mensajeError, setMensajeError] = useState<string | null>(null)
-  const [sesion, setSesion] = useState<SesionDetalleDto | null>(null)
-  const [equipo, setEquipo] = useState<EquipoSesionDto | null>(null)
+  const [equipo, setEquipo] = useState<EquipoSesionDetalleDto | null>(null)
+  const [rankingEquipo, setRankingEquipo] = useState<EntradaRankingEquipoDto | null>(null)
+  const [estadoSesion, setEstadoSesion] = useState<string | null>(null)
+  const [versionTiempoReal, setVersionTiempoReal] = useState(0)
+
+  // HU45 — Expulsión de un integrante por el Operador dueño.
+  const [integranteAExpulsar, setIntegranteAExpulsar] =
+    useState<IntegranteEquipoDto | null>(null)
+  const [expulsando, setExpulsando] = useState(false)
+  const [errorExpulsar, setErrorExpulsar] = useState<string | null>(null)
+  const [mensajeExito, setMensajeExito] = useState<string | null>(null)
+
+  // Event-driven: SignalR solo marca "datos sucios"; el detalle se vuelve a
+  // pedir por HTTP. EquipoActualizado se emite al grupo de la sesión.
+  const refrescarPorTiempoReal = useCallback(() => {
+    setVersionTiempoReal(v => v + 1)
+  }, [])
+  useSesionesTiempoReal({
+    token,
+    sesionId: id,
+    equipoId,
+    onEquiposSesionActualizados: refrescarPorTiempoReal,
+    onEquipoActualizado: refrescarPorTiempoReal,
+    onSesionActualizada: refrescarPorTiempoReal,
+    onParticipanteExpulsado: refrescarPorTiempoReal,
+    onEquipoExpulsado: refrescarPorTiempoReal
+  })
 
   useEffect(() => {
     const ref = { cancelado: false }
@@ -40,16 +72,18 @@ export function PaginaDetalleEquipo() {
         return
       }
       try {
-        const detalle = await obtenerSesion(id, token)
+        // Operador y Administrador usan el mismo endpoint real, que devuelve
+        // los integrantes. La sesión se carga en paralelo para conocer su
+        // estado (HU45: expulsar solo En Preparación o Pausada).
+        const [equipoDetalle, sesionDetalle, rankingEquipos] = await Promise.all([
+          obtenerDetalleEquipoSesion(id, equipoId, token),
+          obtenerSesion(id, token),
+          obtenerRankingEquipos(id, token).catch(() => [])
+        ])
         if (ref.cancelado) return
-        setSesion(detalle)
-        const encontrado = detalle.equipos.find(e => e.id === equipoId) ?? null
-        if (!encontrado) {
-          setEstado('error')
-          setMensajeError('El equipo solicitado no pertenece a esta sesión.')
-          return
-        }
-        setEquipo(encontrado)
+        setEquipo(equipoDetalle)
+        setRankingEquipo(rankingEquipos.find(r => r.equipoId === equipoId) ?? null)
+        setEstadoSesion(sesionDetalle.estado)
         setEstado('listo')
       } catch (e) {
         if (ref.cancelado) return
@@ -59,7 +93,34 @@ export function PaginaDetalleEquipo() {
     }
     cargar()
     return () => { ref.cancelado = true }
-  }, [token, id, equipoId])
+  }, [token, id, equipoId, usuario?.rol, versionTiempoReal])
+
+  function cerrarModalExpulsar() {
+    if (expulsando) return
+    setIntegranteAExpulsar(null)
+    setErrorExpulsar(null)
+  }
+
+  async function confirmarExpulsar() {
+    if (!token || !id || !equipoId || !integranteAExpulsar) return
+    setExpulsando(true)
+    setErrorExpulsar(null)
+    setMensajeExito(null)
+    try {
+      await expulsarParticipanteEquipo(
+        id, equipoId, integranteAExpulsar.participanteSesionId, token)
+      setIntegranteAExpulsar(null)
+      setMensajeExito('Participante expulsado del equipo correctamente.')
+      // Refetch inmediato; SignalR también refresca a los demás clientes.
+      refrescarPorTiempoReal()
+    } catch (e) {
+      // 403/404/409 se muestran dentro del modal sin romper la pantalla.
+      setErrorExpulsar(
+        e instanceof Error ? e.message : 'No se pudo expulsar al participante.')
+    } finally {
+      setExpulsando(false)
+    }
+  }
 
   if (estado === 'cargando') {
     return (
@@ -71,7 +132,7 @@ export function PaginaDetalleEquipo() {
     )
   }
 
-  if (estado === 'error' || !equipo || !sesion) {
+  if (estado === 'error' || !equipo) {
     return (
       <LayoutPanel titulo="Detalle de equipo" descripcion="">
         <div style={{ marginBottom: 'var(--espacio-4)' }}>
@@ -88,6 +149,14 @@ export function PaginaDetalleEquipo() {
     )
   }
 
+  // HU45 — Solo el Operador (dueño) puede expulsar, y solo con la sesión
+  // En Preparación o Pausada. El Administrador nunca ve la acción.
+  const puedeExpulsar = usuario?.rol === 'Operador' &&
+    (estadoSesion === 'EnPreparacion' || estadoSesion === 'Pausada')
+  const puntajesPorParticipante = new Map(
+    (rankingEquipo?.participantes ?? []).map(p => [p.participanteSesionId, p])
+  )
+
   return (
     <LayoutPanel
       titulo="Detalle de equipo"
@@ -99,29 +168,31 @@ export function PaginaDetalleEquipo() {
         </Boton>
       </div>
 
-      <section className="seccion">
-        <div className="detalle-sesion-cabecera">
-          <div>
-            <h2>{equipo.nombre}</h2>
-            <p>Sesión: {sesion.nombre}</p>
-          </div>
-          <span className="badge badge-md badge-sesion-activa">
-            {equipo.participantes.length} / 2 integrantes
-          </span>
-        </div>
+      {mensajeExito && <Alerta tono="exito">{mensajeExito}</Alerta>}
 
+      <section className="seccion">
         <div className="detalle-grilla">
           <div className="detalle-campo">
             <span className="detalle-campo-etiqueta">Nombre del equipo</span>
-            <span className="detalle-campo-valor">{equipo.nombre}</span>
+            <strong className="detalle-equipo-nombre">{equipo.nombre}</strong>
           </div>
           <div className="detalle-campo">
-            <span className="detalle-campo-etiqueta">Sesión</span>
-            <span className="detalle-campo-valor">{sesion.nombre}</span>
+            <span className="detalle-campo-etiqueta">Tipo de equipo</span>
+            <span>
+              <span className={`badge ${equipo.tipo === 'Publico' ? 'badge-equipo-publico' : 'badge-equipo-privado'}`}>
+                {equipo.tipo === 'Publico' ? 'Público' : 'Privado'}
+              </span>
+            </span>
           </div>
           <div className="detalle-campo">
-            <span className="detalle-campo-etiqueta">Puntaje actual</span>
-            <span className="detalle-campo-valor">{equipo.puntajeActual}</span>
+            <span className="detalle-campo-etiqueta">Integrantes</span>
+            <span className="detalle-campo-valor">
+              {equipo.cantidadParticipantes} / {equipo.capacidadMaxima}
+            </span>
+          </div>
+          <div className="detalle-campo">
+            <span className="detalle-campo-etiqueta">Puntaje total</span>
+            <span className="detalle-campo-valor">{rankingEquipo?.puntaje ?? 0} pts</span>
           </div>
           <div className="detalle-campo">
             <span className="detalle-campo-etiqueta">Fecha de creación</span>
@@ -134,7 +205,7 @@ export function PaginaDetalleEquipo() {
         <div className="detalle-subtitulo">
           <div>
             <h3>Integrantes</h3>
-            <p>{equipo.participantes.length} de 2 integrantes.</p>
+            <p>{equipo.cantidadParticipantes} de {equipo.capacidadMaxima} integrantes.</p>
           </div>
         </div>
 
@@ -145,24 +216,75 @@ export function PaginaDetalleEquipo() {
             <thead>
               <tr>
                 <th>#</th>
-                <th>Participante</th>
+                <th>Alias</th>
+                <th>Nombre</th>
+                <th>Apellido</th>
+                <th>Puntaje</th>
                 <th>Fecha de unión</th>
+                <th>Rol</th>
+                {puedeExpulsar && <th>Acciones</th>}
               </tr>
             </thead>
             <tbody>
               {equipo.participantes.map((p, idx) => (
-                <tr key={p.id}>
+                <tr key={p.participanteSesionId}>
                   <td>{idx + 1}</td>
-                  {/* TODO: enriquecer con alias/nombre cuando identidad-servicio
-                      sirva esa consulta. Hoy mostramos el id como fallback. */}
-                  <td>{p.participanteId}</td>
+                  <td><strong>{p.alias}</strong></td>
+                  <td>{p.nombre || '—'}</td>
+                  <td>{p.apellido || '—'}</td>
+                  <td>{puntajesPorParticipante.get(p.participanteSesionId)?.puntaje ?? 0} pts</td>
                   <td>{formatearFechaSesion(p.fechaUnion)}</td>
+                  <td>
+                    <span className={`badge ${p.esLider ? 'badge-equipo-lider' : 'badge-neutro'}`}>
+                      {p.esLider ? 'Líder' : 'Integrante'}
+                    </span>
+                  </td>
+                  {puedeExpulsar && (
+                    <td>
+                      <Boton
+                        variante="peligro"
+                        tamaño="sm"
+                        onClick={() => {
+                          setErrorExpulsar(null)
+                          setIntegranteAExpulsar(p)
+                        }}
+                      >
+                        Expulsar
+                      </Boton>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
           </table>
         )}
       </section>
+
+      {/* HU45 — Confirmar expulsión del integrante. Si es el líder, el
+          backend reasigna el liderazgo y aquí solo se refresca. */}
+      <ModalConfirmacion
+        abierto={integranteAExpulsar !== null}
+        titulo="Expulsar participante"
+        textoConfirmar="Expulsar"
+        textoCancelar="Cancelar"
+        procesando={expulsando}
+        mensajeError={errorExpulsar}
+        onConfirmar={confirmarExpulsar}
+        onCancelar={cerrarModalExpulsar}
+      >
+        <p>
+          ¿Seguro que deseas expulsar a este participante del equipo? Quedará
+          fuera de la sesión grupal.
+        </p>
+        {integranteAExpulsar && (
+          <p style={{ fontSize: '0.85rem', opacity: 0.8 }}>
+            {integranteAExpulsar.alias}
+            {integranteAExpulsar.esLider
+              ? ' (líder: el liderazgo pasará al siguiente integrante)'
+              : ''}
+          </p>
+        )}
+      </ModalConfirmacion>
     </LayoutPanel>
   )
 }

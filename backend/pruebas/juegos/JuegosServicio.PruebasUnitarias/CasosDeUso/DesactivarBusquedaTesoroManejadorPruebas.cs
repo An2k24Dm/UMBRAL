@@ -1,5 +1,4 @@
-using JuegosServicio.Aplicacion.CasosDeUso.Comandos;
-using JuegosServicio.Aplicacion.CasosDeUso.Manejadores;
+using JuegosServicio.Aplicacion.Comandos.DesactivarBusquedaTesoro;
 using JuegosServicio.Aplicacion.Puertos;
 using JuegosServicio.Dominio.Entidades;
 using JuegosServicio.Dominio.Enums;
@@ -22,14 +21,14 @@ public class DesactivarBusquedaTesoroManejadorPruebas
         new(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc);
 
     private DesactivarBusquedaTesoroManejador CrearManejador() =>
-        new(_repositorio.Object);
+        new(_repositorio.Object, Mock.Of<IRegistroLogsAplicacion>());
 
     private static BusquedaTesoro BusquedaActivaConUnaPista()
     {
         var busqueda = BusquedaTesoro.Crear("Búsqueda Test", "Descripción", Guid.NewGuid(), FechaFija);
         // La regla nueva exige al menos una pista antes de activar; de
         // lo contrario `Activar` lanza ExcepcionDominio.
-        busqueda.AgregarPista("Pista única");
+        busqueda.AgregarPista(null, TipoPista.CoordenadaGps, -34.6037, -58.3816);
         busqueda.Activar();
         return busqueda;
     }

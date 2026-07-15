@@ -1,4 +1,5 @@
 using JuegosServicio.Dominio.Entidades;
+using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Dominio.Excepciones;
 
 namespace JuegosServicio.PruebasUnitarias.Dominio;
@@ -11,7 +12,7 @@ public class PistaModificarPruebas
     private static BusquedaTesoro BusquedaConPista(out Guid pistaId)
     {
         var busqueda = BusquedaTesoro.Crear("Búsqueda Test", "Descripción", Guid.NewGuid(), FechaFija);
-        var pista = busqueda.AgregarPista("Pista original.");
+        var pista = busqueda.AgregarPista(null, TipoPista.CoordenadaGps, -34.6037, -58.3816);
         pistaId = pista.Id;
         return busqueda;
     }
@@ -21,7 +22,7 @@ public class PistaModificarPruebas
     {
         var busqueda = BusquedaConPista(out var pistaId);
 
-        busqueda.ModificarPista(pistaId, "Nuevo contenido de pista.");
+        busqueda.ModificarPista(pistaId, "Nuevo contenido de pista.", TipoPista.Texto, null, null);
 
         busqueda.Pistas.First(p => p.Id == pistaId).Contenido
             .Should().Be("Nuevo contenido de pista.");
@@ -32,7 +33,7 @@ public class PistaModificarPruebas
     {
         var busqueda = BusquedaConPista(out var pistaId);
 
-        busqueda.ModificarPista(pistaId, "  Contenido con espacios  ");
+        busqueda.ModificarPista(pistaId, "  Contenido con espacios  ", TipoPista.Texto, null, null);
 
         busqueda.Pistas.First(p => p.Id == pistaId).Contenido
             .Should().Be("Contenido con espacios");
@@ -45,7 +46,7 @@ public class PistaModificarPruebas
     {
         var busqueda = BusquedaConPista(out var pistaId);
 
-        Action accion = () => busqueda.ModificarPista(pistaId, contenido);
+        Action accion = () => busqueda.ModificarPista(pistaId, contenido, TipoPista.Texto, null, null);
 
         accion.Should().Throw<ExcepcionDominio>();
     }
@@ -55,7 +56,7 @@ public class PistaModificarPruebas
     {
         var busqueda = BusquedaConPista(out _);
 
-        Action accion = () => busqueda.ModificarPista(Guid.NewGuid(), "Nuevo contenido.");
+        Action accion = () => busqueda.ModificarPista(Guid.NewGuid(), "Nuevo contenido.", TipoPista.Texto, null, null);
 
         accion.Should().Throw<ExcepcionNoEncontrado>();
     }
@@ -66,7 +67,7 @@ public class PistaModificarPruebas
         var busqueda = BusquedaConPista(out var pistaId);
         busqueda.Activar();
 
-        Action accion = () => busqueda.ModificarPista(pistaId, "Nuevo contenido.");
+        Action accion = () => busqueda.ModificarPista(pistaId, "Nuevo contenido.", TipoPista.Texto, null, null);
 
         accion.Should().Throw<ExcepcionDominio>();
     }

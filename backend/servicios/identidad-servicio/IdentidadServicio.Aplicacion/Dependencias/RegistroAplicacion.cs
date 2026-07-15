@@ -1,9 +1,14 @@
 using System.Reflection;
-using IdentidadServicio.Aplicacion.CasosDeUso.Comandos;
+using IdentidadServicio.Aplicacion.Comandos.CambiarContrasenaObligatoria;
+using IdentidadServicio.Aplicacion.Comandos.CrearUsuario;
+using IdentidadServicio.Aplicacion.Comandos.ModificarOperador;
+using IdentidadServicio.Aplicacion.Comandos.ModificarParticipante;
+using IdentidadServicio.Aplicacion.Comandos.RegistrarParticipante;
 using IdentidadServicio.Aplicacion.Estrategias;
 using IdentidadServicio.Aplicacion.Fabricas;
 using IdentidadServicio.Aplicacion.Generadores;
 using IdentidadServicio.Aplicacion.Mapeadores.Perfil;
+using IdentidadServicio.Aplicacion.Puertos;
 using IdentidadServicio.Aplicacion.Servicios.Usuarios;
 using IdentidadServicio.Aplicacion.Validaciones;
 using Microsoft.Extensions.DependencyInjection;
@@ -30,6 +35,7 @@ public static class RegistroAplicacion
             IValidador<CambiarContrasenaObligatoriaComando>,
             ValidadorCambiarContrasenaObligatoria>();
         servicios.AddScoped<IValidador<RegistrarParticipanteComando>, ValidadorRegistrarParticipante>();
+        servicios.AddScoped<ValidadorUnicidadUsuario>();
         servicios.AddScoped<IValidador<ModificarOperadorComando>, ValidadorModificarOperador>();
         servicios.AddScoped<
             IValidadorAsincrono<ModificarOperadorComando>,
@@ -44,6 +50,7 @@ public static class RegistroAplicacion
         servicios.AddScoped<IGeneradorCodigoUsuario, GeneradorCodigoUsuario>();
         servicios.AddSingleton<IGeneradorContrasenaTemporal, GeneradorContrasenaTemporal>();
         servicios.AddScoped<IAutorizadorUsuarioActivo, AutorizadorUsuarioActivo>();
+        servicios.AddScoped<IValidadorAccesoUsuarioActivo, ValidadorAccesoUsuarioActivo>();
 
         return servicios;
     }

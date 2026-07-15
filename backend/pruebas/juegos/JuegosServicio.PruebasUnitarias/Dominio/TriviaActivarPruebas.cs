@@ -2,6 +2,7 @@ using JuegosServicio.Dominio.Entidades;
 using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Dominio.Eventos;
 using JuegosServicio.Dominio.Excepciones;
+using JuegosServicio.Dominio.ObjetosValor;
 
 namespace JuegosServicio.PruebasUnitarias.Dominio;
 
@@ -16,8 +17,11 @@ public class TriviaActivarPruebas
 
     private static Trivia TriviaConPregunta()
     {
-        var trivia = Trivia.Crear("Trivia Test", "Descripción", Guid.NewGuid(), 30, FechaFija);
-        trivia.AgregarPregunta("¿Capital de Francia?", 10, 10, OpcionesValidas);
+        var trivia = Trivia.Crear(
+            "Trivia Test", "Descripción", Guid.NewGuid(), Tiempo.CrearPositivo(30), FechaFija);
+        trivia.AgregarPregunta(
+            "¿Capital de Francia?",
+            Puntaje.CrearParaPregunta(10), Tiempo.CrearParaPregunta(10), OpcionesValidas);
         return trivia;
     }
 
@@ -45,7 +49,8 @@ public class TriviaActivarPruebas
     [Fact]
     public void Activar_TriviaSinPreguntas_LanzaExcepcionDominio()
     {
-        var trivia = Trivia.Crear("Trivia vacía", "Descripción", Guid.NewGuid(), 30, FechaFija);
+        var trivia = Trivia.Crear(
+            "Trivia vacía", "Descripción", Guid.NewGuid(), Tiempo.CrearPositivo(30), FechaFija);
 
         Action accion = () => trivia.Activar();
 

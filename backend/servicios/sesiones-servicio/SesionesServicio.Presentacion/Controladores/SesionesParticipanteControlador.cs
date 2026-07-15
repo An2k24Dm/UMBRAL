@@ -1,7 +1,12 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using SesionesServicio.Aplicacion.CasosDeUso.Consultas;
+using SesionesServicio.Aplicacion.Consultas.ListarSesionesDisponiblesParticipante;
+using SesionesServicio.Aplicacion.Consultas.ObtenerDetalleSesionDisponibleParticipante;
+using SesionesServicio.Aplicacion.Consultas.ObtenerMiDesgloseSesion;
+using SesionesServicio.Aplicacion.Consultas.ObtenerMisParticipaciones;
+using SesionesServicio.Aplicacion.Consultas.ObtenerProgresoSecuencialSesion;
+using SesionesServicio.Aplicacion.Consultas.ObtenerProgresoSesion;
 using SesionesServicio.Commons.Dtos;
 
 namespace SesionesServicio.Presentacion.Controladores;
@@ -46,6 +51,61 @@ public sealed class SesionesParticipanteControlador : ControllerBase
     {
         var resultado = await _mediador.Send(
             new ObtenerDetalleSesionDisponibleParticipanteConsulta(sesionId),
+            cancelacion);
+        return Ok(resultado);
+    }
+
+    // GET /api/sesiones/participante/disponibles/{sesionId}/mi-desglose
+    // Desglose del puntaje del participante autenticado por misión y etapa.
+    [HttpGet("{sesionId:guid}/mi-desglose")]
+    [ProducesResponseType(typeof(MiDesgloseSesionDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> ObtenerMiDesglose(
+        Guid sesionId, CancellationToken cancelacion)
+    {
+        var resultado = await _mediador.Send(
+            new ObtenerMiDesgloseSesionConsulta(sesionId), cancelacion);
+        return Ok(resultado);
+    }
+
+    // GET /api/sesiones/participante/disponibles/{sesionId}/progreso
+    [HttpGet("{sesionId:guid}/progreso")]
+    [ProducesResponseType(typeof(List<ProgresoSesionParticipanteDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> ObtenerProgresoSesion(
+        Guid sesionId, CancellationToken cancelacion)
+    {
+        var resultado = await _mediador.Send(
+            new ObtenerProgresoSesionConsulta(sesionId), cancelacion);
+        return Ok(resultado.Filas);
+    }
+
+    // GET /api/sesiones/participante/disponibles/{sesionId}/progreso-secuencial
+    [HttpGet("{sesionId:guid}/progreso-secuencial")]
+    [ProducesResponseType(typeof(ProgresoSecuencialSesionDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> ObtenerProgresoSecuencialSesion(
+        Guid sesionId, CancellationToken cancelacion)
+    {
+        var resultado = await _mediador.Send(
+            new ObtenerProgresoSecuencialSesionConsulta(sesionId), cancelacion);
+        return Ok(resultado);
+    }
+
+    // GET /api/sesiones/participante/disponibles/finalizadas?limite=20
+    [HttpGet("finalizadas")]
+    [ProducesResponseType(typeof(List<MiParticipacionDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> ObtenerMisParticipaciones(
+        [FromQuery] int limite = 20,
+        CancellationToken cancelacion = default)
+    {
+        var resultado = await _mediador.Send(
+            new ObtenerMisParticipacionesConsulta(limite),
             cancelacion);
         return Ok(resultado);
     }

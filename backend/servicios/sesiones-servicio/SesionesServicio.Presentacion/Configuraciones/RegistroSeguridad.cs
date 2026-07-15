@@ -16,7 +16,10 @@ public static class RegistroSeguridad
             {
                 parametros.Authority = opciones.Authority;
                 parametros.RequireHttpsMetadata = false;
-                parametros.MetadataAddress = opciones.MetadataAddress;
+                if (!string.IsNullOrWhiteSpace(opciones.MetadataAddress))
+                {
+                    parametros.MetadataAddress = opciones.MetadataAddress;
+                }
                 parametros.TokenValidationParameters = new TokenValidationParameters
                 {
                     ValidateIssuer = true,
@@ -30,6 +33,19 @@ public static class RegistroSeguridad
                 };
                 parametros.Events = new JwtBearerEvents
                 {
+                    OnMessageReceived = ctx =>
+                    {
+                        var accessToken = ctx.Request.Query["access_token"];
+                        var path = ctx.HttpContext.Request.Path;
+
+                        if (!string.IsNullOrEmpty(accessToken) &&
+                            path.StartsWithSegments("/hubs/sesiones"))
+                        {
+                            ctx.Token = accessToken;
+                        }
+
+                        return Task.CompletedTask;
+                    },
                     OnTokenValidated = ctx =>
                     {
                         if (ctx.Principal?.Identity is System.Security.Claims.ClaimsIdentity identidad)
@@ -92,6 +108,15 @@ public static class RegistroSeguridad
             opcAuth.AddPolicy("PoliticaSoloParticipante",
                 p => p.RequireAuthenticatedUser()
                       .RequireRole("Participante"));
+            // HU43 — Consultar equipos de una sesión: Participante u Operador.
+            opcAuth.AddPolicy("PoliticaOperadorOParticipante",
+                p => p.RequireAuthenticatedUser()
+                      .RequireRole("Operador", "Participante"));
+            // HU44 — Lectura de equipos abierta también al Administrador
+            // (solo consulta; la escritura sigue restringida por rol).
+            opcAuth.AddPolicy("PoliticaAdministradorOperadorOParticipante",
+                p => p.RequireAuthenticatedUser()
+                      .RequireRole("Administrador", "Operador", "Participante"));
         });
 
         return servicios;

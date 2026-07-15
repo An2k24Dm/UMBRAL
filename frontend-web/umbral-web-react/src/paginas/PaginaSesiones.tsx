@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { LayoutPanel } from '../componentes/LayoutPanel'
 import { Alerta } from '../componentes/Alerta'
 import { Boton } from '../componentes/Boton'
@@ -7,6 +7,7 @@ import { Paginacion } from '../componentes/Paginacion'
 import { TablaSesiones } from '../componentes/sesiones/TablaSesiones'
 import { usarAutenticacion } from '../autenticacion/ProveedorAutenticacion'
 import { useSesiones } from '../hooks/useSesiones'
+import { useListadoSesionesTiempoReal } from '../hooks/useListadoSesionesTiempoReal'
 import type { EstadoSesion } from '../tipos/sesiones'
 
 // Listado de sesiones con filtros (Estado, Modo, Buscar por nombre).
@@ -27,6 +28,8 @@ const ESTADOS: Array<{ valor: EstadoSesion; etiqueta: string }> = [
 export function PaginaSesiones() {
   const { token, usuario } = usarAutenticacion()
   const navegar = useNavigate()
+  const ubicacion = useLocation()
+  const mensajeExito = (ubicacion.state as { mensajeExito?: string } | null)?.mensajeExito
   const esOperador = usuario?.rol === 'Operador'
   const rutaBase =
     usuario?.rol === 'Administrador' ? '/administrador/sesiones' : '/operador/sesiones'
@@ -36,7 +39,11 @@ export function PaginaSesiones() {
   const [filtroNombre, setFiltroNombre] = useState('')
   const [pagina, setPagina] = useState(1)
 
-  const { sesiones, cargando, error } = useSesiones({ token, estado: filtroEstado })
+  const { sesiones, cargando, error, refrescar } = useSesiones({ token, estado: filtroEstado })
+
+  // El listado se refresca en vivo cuando cambia el estado de una sesión o su
+  // conteo de participantes/equipos (SignalR); si falla, sigue por HTTP.
+  useListadoSesionesTiempoReal({ token, onListadoActualizado: refrescar })
 
   useEffect(() => { setPagina(1) }, [filtroEstado, filtroModo, filtroNombre])
 
@@ -89,6 +96,8 @@ export function PaginaSesiones() {
             </div>
           )}
         </div>
+
+        {mensajeExito && <Alerta tono="exito">{mensajeExito}</Alerta>}
 
         <div className="barra-filtros">
           <div className="campo">

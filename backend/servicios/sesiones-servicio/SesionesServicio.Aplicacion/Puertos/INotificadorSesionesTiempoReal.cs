@@ -1,0 +1,92 @@
+namespace SesionesServicio.Aplicacion.Puertos;
+
+public interface INotificadorSesionesTiempoReal
+{
+    Task NotificarParticipantesSesionActualizadosAsync(
+        Guid sesionId,
+        CancellationToken cancelacion);
+
+    Task NotificarEquiposSesionActualizadosAsync(
+        Guid sesionId,
+        Guid? equipoId,
+        CancellationToken cancelacion);
+
+    Task NotificarEquipoActualizadoAsync(
+        Guid sesionId,
+        Guid equipoId,
+        CancellationToken cancelacion);
+
+    Task NotificarSesionActualizadaAsync(
+        Guid sesionId,
+        string estado,
+        CancellationToken cancelacion);
+
+    Task NotificarParticipanteExpulsadoAsync(
+        Guid participanteIdentidadId,
+        Guid sesionId,
+        Guid participanteSesionId,
+        CancellationToken cancelacion);
+
+    Task NotificarEquipoExpulsadoAsync(
+        IReadOnlyCollection<Guid> participantesIdentidadIds,
+        Guid sesionId,
+        Guid equipoId,
+        string equipoNombre,
+        CancellationToken cancelacion);
+
+    Task NotificarRespuestaRegistradaAsync(
+        Guid sesionId,
+        Guid etapaId,
+        Guid preguntaId,
+        Guid participanteIdentidadId,
+        Guid? equipoId,
+        bool esCorrecta,
+        CancellationToken cancelacion);
+
+    Task NotificarEtapaCompletadaAsync(
+        Guid sesionId,
+        Guid misionId,
+        Guid etapaId,
+        CancellationToken cancelacion);
+
+    Task NotificarEtapaIniciadaAsync(
+        Guid sesionId,
+        Guid misionId,
+        Guid etapaId,
+        string tipoEtapa,
+        Guid modoDeJuegoId,
+        int ordenGlobal,
+        DateTime fechaInicioEtapaUtc,
+        int duracionSegundos,
+        CancellationToken cancelacion);
+
+    Task NotificarEtapaPorComenzarAsync(
+        Guid sesionId,
+        Guid misionId,
+        Guid etapaId,
+        string tipoEtapa,
+        Guid modoDeJuegoId,
+        int numeroMision,
+        int numeroEtapa,
+        int ordenGlobal,
+        bool esNuevaMision,
+        DateTime fechaInicioProgramadaUtc,
+        int duracionPreparacionSegundos,
+        CancellationToken cancelacion);
+
+    Task NotificarProgresoSecuencialActualizadoAsync(
+        Guid sesionId,
+        Guid participanteIdentidadId,
+        Guid? equipoId,
+        CancellationToken cancelacion);
+
+    Task NotificarPistaLiberadaAsync(
+        Guid sesionId,
+        Guid etapaId,
+        Guid? pistaId,
+        string contenido,
+        string tipo,
+        double? latitud,
+        double? longitud,
+        CancellationToken cancelacion);
+}

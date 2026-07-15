@@ -1,11 +1,11 @@
-using JuegosServicio.Aplicacion.CasosDeUso.Comandos;
-using JuegosServicio.Aplicacion.CasosDeUso.Manejadores;
+using JuegosServicio.Aplicacion.Comandos.ModificarTrivia;
 using JuegosServicio.Aplicacion.Puertos;
 using JuegosServicio.Aplicacion.Validaciones;
 using JuegosServicio.Commons.Dtos;
 using JuegosServicio.Dominio.Entidades;
 using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Dominio.Excepciones;
+using JuegosServicio.Dominio.ObjetosValor;
 
 namespace JuegosServicio.PruebasUnitarias.CasosDeUso;
 
@@ -20,10 +20,13 @@ public class ModificarTriviaManejadorPruebas
         new(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc);
 
     private ModificarTriviaManejador CrearManejador() =>
-        new(_repositorio.Object, _repositorioMisiones.Object, _validador.Object);
+        new(_repositorio.Object, _repositorioMisiones.Object, _validador.Object,
+            Mock.Of<IRegistroLogsAplicacion>());
 
     private static Trivia TriviaEnBorrador() =>
-        Trivia.Crear("Trivia Original", "Descripción original", Guid.NewGuid(), 30, FechaFija);
+        Trivia.Crear(
+            "Trivia Original", "Descripción original", Guid.NewGuid(),
+            Tiempo.CrearPositivo(30), FechaFija);
 
     private static ModificarTriviaComando ComandoValido(Guid triviaId) =>
         new(triviaId, new ModificarTriviaDto

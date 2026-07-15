@@ -18,7 +18,7 @@ public class BusquedaActivarPruebas
     private static BusquedaTesoro BusquedaInactivaConUnaPista()
     {
         var busqueda = BusquedaInactiva();
-        busqueda.AgregarPista("Pista única");
+        busqueda.AgregarPista(null, TipoPista.CoordenadaGps, -34.6037, -58.3816);
         return busqueda;
     }
 
@@ -41,7 +41,7 @@ public class BusquedaActivarPruebas
 
         accion.Should()
             .Throw<ExcepcionDominio>()
-            .WithMessage("La búsqueda del tesoro debe tener al menos una pista para poder activarse.");
+            .WithMessage("La búsqueda del tesoro debe tener una coordenada GPS del tesoro para poder activarse.");
     }
 
     [Fact]
@@ -70,11 +70,11 @@ public class BusquedaActivarPruebas
     public void Activar_BusquedaActiva_NoPermiteModificarPistas()
     {
         var busqueda = BusquedaInactiva();
-        busqueda.AgregarPista("pista de ayuda");
+        busqueda.AgregarPista(null, TipoPista.CoordenadaGps, -34.6037, -58.3816);
         busqueda.Activar();
         var pistaId = busqueda.Pistas[0].Id;
 
-        Action accion = () => busqueda.ModificarPista(pistaId, "nuevo contenido");
+        Action accion = () => busqueda.ModificarPista(pistaId, "nuevo contenido", TipoPista.Texto, null, null);
 
         accion.Should().Throw<ExcepcionDominio>();
     }

@@ -19,38 +19,26 @@ export function PaginaOperador() {
         </div>
         <div className="rejilla-tarjetas">
           <TarjetaResumen
-            titulo="Trivias"
-            descripcion="Crear y gestionar trivias: agregar, modificar o eliminar preguntas."
-            destino="/operador/trivias"
-            textoAccion="Gestionar trivias"
-          />
-          <TarjetaResumen
-            titulo="Búsquedas del tesoro"
-            descripcion="Crear y gestionar búsquedas del tesoro con pistas de ayuda."
-            destino="/operador/busquedas"
-            textoAccion="Gestionar búsquedas"
-          />
-          <TarjetaResumen
-            titulo="Misiones"
-            descripcion="Consultar las misiones activas: secuencias de trivias y búsquedas del tesoro."
-            destino="/operador/misiones"
-            textoAccion="Ver misiones"
-          />
-          <TarjetaResumen
             titulo="Sesiones"
-            descripcion="Crear sesiones en vivo a partir de Trivias o Búsquedas activas."
+            descripcion="Crear y gestionar tus sesiones programadas o en ejecución."
             destino="/operador/sesiones"
             textoAccion="Gestionar sesiones"
           />
           <TarjetaResumen
+            titulo="Crear sesión"
+            descripcion="Programa una nueva sesión a partir de contenido activo disponible."
+            destino="/operador/sesiones/crear"
+            textoAccion="Crear sesión"
+          />
+          <TarjetaResumen
             titulo="Participantes"
-            descripcion="Consultar las cuentas de Participantes registrados."
+            descripcion="Consultar participantes vinculados a tus sesiones."
             destino="/operador/usuarios/participantes"
             textoAccion="Ver participantes"
           />
           <TarjetaResumen
             titulo="Mi perfil"
-            descripcion="Revisar los datos personales asociados a su cuenta."
+            descripcion="Revisar tus datos personales asociados a la cuenta."
             destino="/operador/perfil"
             textoAccion="Ver perfil"
           />

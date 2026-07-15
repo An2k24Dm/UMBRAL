@@ -66,6 +66,10 @@ public static class RegistroSeguridad
             // Administrador y Operador. Participante no puede acceder al panel.
             opcAuth.AddPolicy("PoliticaAdministradorUOperador",
                 p => p.RequireRole("Administrador", "Operador"));
+            // HU43 — Datos básicos de participantes por ids. Lo consume
+            // sesiones-servicio reenviando el token del Operador o Participante.
+            opcAuth.AddPolicy("PoliticaConsultaParticipantesBasicos",
+                p => p.RequireRole("Administrador", "Operador", "Participante"));
         });
 
         return servicios;

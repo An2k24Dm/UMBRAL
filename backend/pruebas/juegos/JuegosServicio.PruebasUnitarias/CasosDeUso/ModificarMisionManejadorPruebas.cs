@@ -1,5 +1,4 @@
-using JuegosServicio.Aplicacion.CasosDeUso.Comandos;
-using JuegosServicio.Aplicacion.CasosDeUso.Manejadores;
+using JuegosServicio.Aplicacion.Comandos.ModificarMision;
 using JuegosServicio.Aplicacion.Puertos;
 using JuegosServicio.Aplicacion.Validaciones;
 using JuegosServicio.Commons.Dtos;
@@ -19,7 +18,8 @@ public class ModificarMisionManejadorPruebas
         new(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc);
 
     private ModificarMisionManejador CrearManejador() =>
-        new(_repositorio.Object, _clienteSesiones.Object, _validador.Object);
+        new(_repositorio.Object, _clienteSesiones.Object, _validador.Object,
+            Mock.Of<IRegistroLogsAplicacion>());
 
     private static Mision MisionInactiva() =>
         Mision.Crear("Misión Original", "Descripción original", Guid.NewGuid(), FechaFija);

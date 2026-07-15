@@ -1,9 +1,9 @@
 using JuegosServicio.Aplicacion.Puertos;
+using JuegosServicio.Infraestructura.Logging;
 using JuegosServicio.Infraestructura.Persistencia;
 using JuegosServicio.Infraestructura.ServiciosExternos;
 using JuegosServicio.Infraestructura.Tiempo;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -23,8 +23,7 @@ public static class RegistroInfraestructura
                 {
                     p.MigrationsHistoryTable("__historial_migraciones", "juegos");
                     p.EnableRetryOnFailure(5, TimeSpan.FromSeconds(10), null);
-                })
-                .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning)));
+                }));
 
         servicios.AddScoped<IRepositorioJuegos, RepositorioJuegos>();
         servicios.AddScoped<IRepositorioBusquedas, RepositorioBusquedas>();
@@ -34,6 +33,8 @@ public static class RegistroInfraestructura
         servicios.Configure<OpcionesSesionesServicio>(
             configuracion.GetSection(OpcionesSesionesServicio.Seccion));
         servicios.AddHttpClient<IClienteSesiones, ClienteSesionesHttp>();
+
+        servicios.AddScoped<IRegistroLogsAplicacion, RegistroLogsAplicacionDotNet>();
 
         return servicios;
     }

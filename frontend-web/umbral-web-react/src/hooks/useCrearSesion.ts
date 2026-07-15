@@ -9,12 +9,22 @@ import type {
 export const MIN_MISIONES = 1
 export const MAX_MISIONES = 5
 
+// Mínimos de capacidad reflejados del backend (PoliticaCapacidadSesion).
+export const MIN_PARTICIPANTES_INDIVIDUAL = 1
+export const MIN_EQUIPOS = 1
+export const MIN_PARTICIPANTES_POR_EQUIPO = 2
+
 export interface FormularioCrearSesion {
   nombre: string
   descripcion: string
   modo: ModoSesion
   fechaProgramada: string
   misionesIds: string[]
+  // Capacidad como texto porque proviene de inputs; se convierte al enviar.
+  maximoParticipantes: string
+  maximoEquipos: string
+  maximoParticipantesPorEquipo: string
+  // Duración opcional en minutos para auto-finalización. Vacío = sin límite.
 }
 
 export type ErroresFormularioCrearSesion = Partial<
@@ -26,7 +36,16 @@ const ESTADO_INICIAL: FormularioCrearSesion = {
   descripcion: '',
   modo: 'Individual',
   fechaProgramada: '',
-  misionesIds: []
+  misionesIds: [],
+  maximoParticipantes: '',
+  maximoEquipos: '',
+  maximoParticipantesPorEquipo: '',
+}
+
+function validarEntero(valor: string): number | null {
+  const n = Number(valor)
+  if (valor.trim() === '' || !Number.isInteger(n)) return null
+  return n
 }
 
 // Validador puro: la página le pasa el "ahora" para que el test pueda
@@ -69,6 +88,29 @@ export function validarFormularioCrearSesion(
     errores.misionesIds = `No puede seleccionar más de ${MAX_MISIONES} misiones.`
   }
 
+  if (datos.modo === 'Individual') {
+    const maximo = validarEntero(datos.maximoParticipantes)
+    if (maximo === null)
+      errores.maximoParticipantes = 'El máximo de participantes es obligatorio.'
+    else if (maximo < MIN_PARTICIPANTES_INDIVIDUAL)
+      errores.maximoParticipantes =
+        `El máximo de participantes debe ser al menos ${MIN_PARTICIPANTES_INDIVIDUAL}.`
+  } else if (datos.modo === 'Grupal') {
+    const equipos = validarEntero(datos.maximoEquipos)
+    if (equipos === null)
+      errores.maximoEquipos = 'El máximo de equipos es obligatorio.'
+    else if (equipos < MIN_EQUIPOS)
+      errores.maximoEquipos = `El máximo de equipos debe ser al menos ${MIN_EQUIPOS}.`
+
+    const porEquipo = validarEntero(datos.maximoParticipantesPorEquipo)
+    if (porEquipo === null)
+      errores.maximoParticipantesPorEquipo =
+        'Los participantes por equipo son obligatorios.'
+    else if (porEquipo < MIN_PARTICIPANTES_POR_EQUIPO)
+      errores.maximoParticipantesPorEquipo =
+        `Los participantes por equipo deben ser al menos ${MIN_PARTICIPANTES_POR_EQUIPO}.`
+  }
+
   return errores
 }
 
@@ -106,7 +148,28 @@ export function useCrearSesion({ token }: OpcionesUseCrearSesion): EstadoUseCrea
     campo: K,
     valor: FormularioCrearSesion[K],
   ) {
-    setDatos(prev => ({ ...prev, [campo]: valor }))
+    setDatos(prev => {
+      const siguiente = { ...prev, [campo]: valor }
+      // Al cambiar de modo, se limpia la capacidad del modo que ya no aplica
+      // para no enviar datos incompatibles en el payload.
+      if (campo === 'modo') {
+        if (valor === 'Individual') {
+          siguiente.maximoEquipos = ''
+          siguiente.maximoParticipantesPorEquipo = ''
+        } else {
+          siguiente.maximoParticipantes = ''
+        }
+      }
+      return siguiente
+    })
+    if (campo === 'modo') {
+      setErrores(prev => ({
+        ...prev,
+        maximoParticipantes: undefined,
+        maximoEquipos: undefined,
+        maximoParticipantesPorEquipo: undefined,
+      }))
+    }
     if (errores[campo]) setErrores(prev => ({ ...prev, [campo]: undefined }))
   }
 
@@ -149,6 +212,7 @@ export function useCrearSesion({ token }: OpcionesUseCrearSesion): EstadoUseCrea
     setEnviando(true)
     setErrorGeneral(null)
     try {
+      const esIndividual = datos.modo === 'Individual'
       const respuesta = await crearSesion(
         {
           nombre: datos.nombre.trim(),
@@ -156,6 +220,11 @@ export function useCrearSesion({ token }: OpcionesUseCrearSesion): EstadoUseCrea
           modo: datos.modo,
           fechaProgramada: new Date(datos.fechaProgramada).toISOString(),
           misionesIds: datos.misionesIds,
+          maximoParticipantes: esIndividual ? Number(datos.maximoParticipantes) : null,
+          maximoEquipos: esIndividual ? null : Number(datos.maximoEquipos),
+          maximoParticipantesPorEquipo: esIndividual
+            ? null
+            : Number(datos.maximoParticipantesPorEquipo),
         },
         token,
       )

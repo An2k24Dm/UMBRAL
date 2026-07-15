@@ -25,4 +25,13 @@ public interface IRepositorioUsuariosLectura
 
     Task<IReadOnlyList<Guid>> FiltrarAdministradoresPorIdsAsync(
         IReadOnlyCollection<Guid> usuariosIds, CancellationToken cancelacion);
+
+    // HU43 — Datos básicos (no sensibles) de Participantes a partir de sus
+    // identificadores de Keycloak (los que guarda sesiones-servicio).
+    Task<IReadOnlyList<ParticipanteBasicoLectura>> ObtenerParticipantesBasicosPorIdsKeycloakAsync(
+        IReadOnlyCollection<Guid> idsKeycloak, CancellationToken cancelacion);
 }
+
+// Proyección de lectura mínima para resolver nombre/apellido/alias por id.
+public sealed record ParticipanteBasicoLectura(
+    Guid Id, string Nombre, string Apellido, string Alias);

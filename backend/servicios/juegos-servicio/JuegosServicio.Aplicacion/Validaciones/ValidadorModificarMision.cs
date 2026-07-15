@@ -1,4 +1,4 @@
-using JuegosServicio.Aplicacion.CasosDeUso.Comandos;
+using JuegosServicio.Aplicacion.Comandos.ModificarMision;
 
 namespace JuegosServicio.Aplicacion.Validaciones;
 

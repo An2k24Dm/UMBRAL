@@ -4,9 +4,21 @@ using SesionesServicio.Presentacion.Middlewares;
 using SesionesServicio.Aplicacion.Dependencias;
 using SesionesServicio.Aplicacion.Puertos;
 using SesionesServicio.Infraestructura.Dependencias;
+using Microsoft.AspNetCore.SignalR;
 using SesionesServicio.Infraestructura.Persistencia;
+using SesionesServicio.Infraestructura.TiempoReal;
+using SesionesServicio.Infraestructura.TiempoReal.Hubs;
 
 var constructor = WebApplication.CreateBuilder(args);
+
+constructor.Logging.ClearProviders();
+constructor.Logging.AddSimpleConsole(opciones =>
+{
+    opciones.SingleLine = true;
+    opciones.TimestampFormat = "HH:mm:ss ";
+    opciones.IncludeScopes = true;
+});
+constructor.Logging.AddDebug();
 
 constructor.Services.AddControllers().AddJsonOptions(opciones =>
 {
@@ -27,6 +39,15 @@ constructor.Services.AddSwaggerGen();
 constructor.Services.AddHttpContextAccessor();
 constructor.Services.AddScoped<IUsuarioActual, UsuarioActualHttp>();
 constructor.Services.AddScoped<IPropagadorTokenActual, PropagadorTokenActualHttp>();
+// HU44 — Mapea cada conexión SignalR al id de usuario del JWT para poder
+// dirigir avisos de expulsión con Clients.User(...).
+constructor.Services.AddSingleton<IUserIdProvider, ProveedorIdUsuarioSignalR>();
+constructor.Services.AddSingleton<IAlmacenUbicaciones, AlmacenUbicaciones>();
+constructor.Services.AddSignalR(opciones =>
+{
+    opciones.KeepAliveInterval = TimeSpan.FromSeconds(15);
+    opciones.ClientTimeoutInterval = TimeSpan.FromSeconds(60);
+});
 
 constructor.Services.AgregarAplicacion();
 constructor.Services.AgregarInfraestructura(constructor.Configuration);
@@ -34,8 +55,6 @@ constructor.Services.AgregarSeguridad(constructor.Configuration);
 constructor.Services.AgregarCorsUmbral(constructor.Configuration);
 
 var aplicacion = constructor.Build();
-
-aplicacion.UseMiddleware<ManejadorErroresMiddleware>();
 
 if (aplicacion.Environment.IsDevelopment())
 {
@@ -45,9 +64,17 @@ if (aplicacion.Environment.IsDevelopment())
 
 aplicacion.UseCors(RegistroCors.PoliticaUmbral);
 aplicacion.UseAuthentication();
+
+// El logging va después de la autenticación para poder registrar el usuario y
+// el rol del token, y envuelve al manejador de errores: mide el tiempo total
+// del request y registra el código final, incluso cuando hubo una excepción
+// que el manejador de errores tradujo a respuesta JSON.
+aplicacion.UseMiddleware<LoggingSolicitudesMiddleware>();
+aplicacion.UseMiddleware<ManejadorErroresMiddleware>();
 aplicacion.UseAuthorization();
 
 aplicacion.MapControllers();
+aplicacion.MapHub<SesionesHub>("/hubs/sesiones");
 
 aplicacion.MapGet("/salud", () => Results.Ok(new { estado = "ok", servicio = "sesiones-servicio" }));
 

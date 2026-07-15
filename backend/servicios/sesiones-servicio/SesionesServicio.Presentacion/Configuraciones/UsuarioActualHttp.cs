@@ -17,57 +17,45 @@ public sealed class UsuarioActualHttp : IUsuarioActual
         _accesor = accesor;
     }
 
-    public bool EstaAutenticado
+    public bool EstaAutenticado()
         => _accesor.HttpContext?.User?.Identity?.IsAuthenticated == true;
 
-    public Guid? Id
+    public Guid? ObtenerId()
     {
-        get
-        {
-            var sub = IdKeycloak;
-            return Guid.TryParse(sub, out var id) ? id : null;
-        }
+        var sub = ObtenerIdKeycloak();
+        return Guid.TryParse(sub, out var id) ? id : null;
     }
 
-    public string? IdKeycloak
+    public string? ObtenerIdKeycloak()
     {
-        get
-        {
-            var usuario = _accesor.HttpContext?.User;
-            if (usuario?.Identity?.IsAuthenticated != true) return null;
-            return usuario.FindFirstValue(ClaimTypes.NameIdentifier)
-                   ?? usuario.FindFirstValue("sub");
-        }
+        var usuario = _accesor.HttpContext?.User;
+        if (usuario?.Identity?.IsAuthenticated != true) return null;
+        return usuario.FindFirstValue(ClaimTypes.NameIdentifier)
+               ?? usuario.FindFirstValue("sub");
     }
 
-    public string? NombreUsuario
+    public string? ObtenerNombreUsuario()
     {
-        get
-        {
-            var usuario = _accesor.HttpContext?.User;
-            if (usuario?.Identity?.IsAuthenticated != true) return null;
-            return usuario.Identity.Name
-                   ?? usuario.FindFirstValue("preferred_username");
-        }
+        var usuario = _accesor.HttpContext?.User;
+        if (usuario?.Identity?.IsAuthenticated != true) return null;
+        return usuario.Identity.Name
+               ?? usuario.FindFirstValue("preferred_username");
     }
 
-    public IReadOnlyCollection<string> Roles
+    public IReadOnlyCollection<string> ObtenerRoles()
     {
-        get
-        {
-            var usuario = _accesor.HttpContext?.User;
-            if (usuario?.Identity?.IsAuthenticated != true) return Array.Empty<string>();
-            return usuario.FindAll("roles")
-                .Select(c => c.Value)
-                .Where(v => !string.IsNullOrWhiteSpace(v))
-                .ToList();
-        }
+        var usuario = _accesor.HttpContext?.User;
+        if (usuario?.Identity?.IsAuthenticated != true) return Array.Empty<string>();
+        return usuario.FindAll("roles")
+            .Select(c => c.Value)
+            .Where(v => !string.IsNullOrWhiteSpace(v))
+            .ToList();
     }
 
     public bool TieneAlgunRol(params string[] roles)
     {
         if (roles is null || roles.Length == 0) return false;
-        var actuales = Roles;
+        var actuales = ObtenerRoles();
         return roles.Any(r => actuales.Contains(r));
     }
 }

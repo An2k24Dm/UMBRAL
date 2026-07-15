@@ -85,7 +85,7 @@ public class BusquedaTesoroPruebas
     public void AgregarPista_EnEstadoInactiva_AgregaLaPista()
     {
         var busqueda = BusquedaValida();
-        busqueda.AgregarPista("Busca cerca del lago.");
+        busqueda.AgregarPista("Busca cerca del lago.", TipoPista.Texto, null, null);
         busqueda.Pistas.Should().ContainSingle(p => p.Contenido == "Busca cerca del lago.");
     }
 
@@ -95,10 +95,10 @@ public class BusquedaTesoroPruebas
         // Regla nueva del ERS: no se pueden agregar pistas a una
         // búsqueda activa. La invariante vive en el estado.
         var busqueda = BusquedaValida();
-        busqueda.AgregarPista("Pista inicial."); // requerida para activar
+        busqueda.AgregarPista(null, TipoPista.CoordenadaGps, -34.6037, -58.3816); // requerida para activar
         busqueda.Activar();
 
-        Action accion = () => busqueda.AgregarPista("Otra pista que no debería entrar.");
+        Action accion = () => busqueda.AgregarPista("Otra pista que no debería entrar.", TipoPista.Texto, null, null);
 
         accion.Should().Throw<ExcepcionDominio>();
     }
@@ -107,9 +107,9 @@ public class BusquedaTesoroPruebas
     public void ModificarPista_EnEstadoInactiva_ActualizaContenido()
     {
         var busqueda = BusquedaValida();
-        var pista = busqueda.AgregarPista("Pista original.");
+        var pista = busqueda.AgregarPista("Pista original.", TipoPista.Texto, null, null);
 
-        busqueda.ModificarPista(pista.Id, "Pista actualizada.");
+        busqueda.ModificarPista(pista.Id, "Pista actualizada.", TipoPista.Texto, null, null);
 
         busqueda.Pistas[0].Contenido.Should().Be("Pista actualizada.");
     }
@@ -118,10 +118,10 @@ public class BusquedaTesoroPruebas
     public void ModificarPista_EnEstadoActiva_LanzaExcepcionDominio()
     {
         var busqueda = BusquedaValida();
-        var pista = busqueda.AgregarPista("Pista de ayuda."); // habilita activar
+        var pista = busqueda.AgregarPista(null, TipoPista.CoordenadaGps, -34.6037, -58.3816); // habilita activar
         busqueda.Activar();
 
-        Action accion = () => busqueda.ModificarPista(pista.Id, "Cambio no permitido.");
+        Action accion = () => busqueda.ModificarPista(pista.Id, "Cambio no permitido.", TipoPista.Texto, null, null);
 
         accion.Should().Throw<ExcepcionDominio>();
     }
@@ -130,7 +130,7 @@ public class BusquedaTesoroPruebas
     public void EliminarPista_EnEstadoInactiva_QuitaLaPista()
     {
         var busqueda = BusquedaValida();
-        var pista = busqueda.AgregarPista("Pista a eliminar.");
+        var pista = busqueda.AgregarPista("Pista a eliminar.", TipoPista.Texto, null, null);
 
         busqueda.EliminarPista(pista.Id);
 

@@ -1,4 +1,5 @@
-using IdentidadServicio.Aplicacion.CasosDeUso.Comandos;
+using IdentidadServicio.Aplicacion.Comandos.CrearUsuario;
+using IdentidadServicio.Aplicacion.Puertos;
 using IdentidadServicio.Commons.Dtos;
 using IdentidadServicio.Dominio.Enums;
 
