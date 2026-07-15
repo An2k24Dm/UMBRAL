@@ -9,6 +9,16 @@ import {
   type EventoSesionTiempoReal
 } from '../servicios/sesionesTiempoReal'
 
+export interface UbicacionActualizadaTR {
+  SesionId: string
+  ParticipanteIdentidadId: string
+  Nombre: string
+  EquipoId?: string | null
+  Latitud: number
+  Longitud: number
+  FechaEventoUtc: string
+}
+
 interface OpcionesUseSesionesTiempoReal {
   token: string | null
   sesionId?: string | null
@@ -25,6 +35,7 @@ interface OpcionesUseSesionesTiempoReal {
   onEtapaIniciada?: () => void | Promise<void>
   onProgresoSecuencialActualizado?: () => void | Promise<void>
   onReconectado?: () => void | Promise<void>
+  onUbicacionActualizada?: (dto: UbicacionActualizadaTR) => void | Promise<void>
 }
 
 type CallbacksTiempoReal = Omit<OpcionesUseSesionesTiempoReal, 'token' | 'sesionId' | 'equipoId'>
@@ -50,7 +61,8 @@ export function useSesionesTiempoReal({
   onEtapaPorComenzar,
   onEtapaIniciada,
   onProgresoSecuencialActualizado,
-  onReconectado
+  onReconectado,
+  onUbicacionActualizada
 }: OpcionesUseSesionesTiempoReal) {
   const callbacksRef = useRef<CallbacksTiempoReal>({})
   callbacksRef.current = {
@@ -65,7 +77,8 @@ export function useSesionesTiempoReal({
     onEtapaPorComenzar,
     onEtapaIniciada,
     onProgresoSecuencialActualizado,
-    onReconectado
+    onReconectado,
+    onUbicacionActualizada
   }
 
   const tokenLimpio = token?.trim() ?? ''
@@ -175,6 +188,13 @@ export function useSesionesTiempoReal({
       }
     }
 
+    const manejarUbicacion = (dto: UbicacionActualizadaTR) => {
+      logDetalle('evento recibido', 'UbicacionActualizada', dto)
+      if (!sesionActual || dto.SesionId?.toLowerCase() === sesionActual) {
+        void callbacksRef.current.onUbicacionActualizada?.(dto)
+      }
+    }
+
     const unirseAGrupos = async () => {
       if (sesionId) {
         await conexion.invoke('UnirseASesion', sesionId)
@@ -197,6 +217,7 @@ export function useSesionesTiempoReal({
     conexion.on('EtapaPorComenzar', manejarEtapaPorComenzar)
     conexion.on('EtapaIniciada', manejarEtapaIniciada)
     conexion.on('ProgresoSecuencialActualizado', manejarProgresoSecuencial)
+    conexion.on('UbicacionActualizada', manejarUbicacion)
 
     conexion.onreconnected(() => {
       if (desmontado) return
@@ -241,6 +262,7 @@ export function useSesionesTiempoReal({
       conexion.off('EtapaPorComenzar', manejarEtapaPorComenzar)
       conexion.off('EtapaIniciada', manejarEtapaIniciada)
       conexion.off('ProgresoSecuencialActualizado', manejarProgresoSecuencial)
+      conexion.off('UbicacionActualizada', manejarUbicacion)
 
       if (conexion.state === signalR.HubConnectionState.Connected) {
         Promise.all([

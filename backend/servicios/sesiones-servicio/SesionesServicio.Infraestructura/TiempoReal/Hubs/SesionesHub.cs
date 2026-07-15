@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using SesionesServicio.Aplicacion.Puertos;
+using SesionesServicio.Commons.Dtos.TiempoReal;
 using SesionesServicio.Infraestructura.TiempoReal.Grupos;
 
 namespace SesionesServicio.Infraestructura.TiempoReal.Hubs;
@@ -12,14 +13,16 @@ public sealed class SesionesHub : Hub
     public const string GrupoListadoSesiones = "sesiones:listado";
 
     public static string GrupoSesion(Guid sesionId) => $"sesion:{sesionId}";
-
     public static string GrupoEquipo(Guid equipoId) => $"equipo:{equipoId}";
+    public static string GrupoOperadoresSesion(Guid sesionId) => $"operadores:sesion:{sesionId}";
 
     private readonly IServicioGruposSesionesTiempoReal _grupos;
+    private readonly IAlmacenUbicaciones _almacen;
 
-    public SesionesHub(IServicioGruposSesionesTiempoReal grupos)
+    public SesionesHub(IServicioGruposSesionesTiempoReal grupos, IAlmacenUbicaciones almacen)
     {
         _grupos = grupos;
+        _almacen = almacen;
     }
 
     public Task UnirseAListadoSesiones()
@@ -58,6 +61,40 @@ public sealed class SesionesHub : Hub
     {
         if (!Guid.TryParse(equipoId, out var id)) return Task.CompletedTask;
         return _grupos.SalirDeEquipoAsync(Context.ConnectionId, id, Context.ConnectionAborted);
+    }
+
+    public async Task EnviarUbicacion(string sesionId, string? equipoId, double latitud, double longitud)
+    {
+        var id = ParsearGuid(sesionId, "la sesión");
+        var actor = ObtenerActor();
+        if (actor.UsuarioId is null) return;
+
+        Guid? equipoGuid = Guid.TryParse(equipoId, out var eq) ? eq : null;
+
+        _almacen.Actualizar(id, actor.UsuarioId.Value, actor.NombreUsuario ?? string.Empty, equipoGuid, latitud, longitud);
+
+        var dto = new UbicacionActualizadaDto
+        {
+            SesionId = id,
+            ParticipanteIdentidadId = actor.UsuarioId.Value,
+            Nombre = actor.NombreUsuario ?? string.Empty,
+            EquipoId = equipoGuid,
+            Latitud = latitud,
+            Longitud = longitud,
+            FechaEventoUtc = DateTime.UtcNow
+        };
+
+        var tareas = new List<Task>
+        {
+            // Operadores ven todas las ubicaciones
+            Clients.Group(GrupoOperadoresSesion(id)).SendAsync("UbicacionActualizada", dto, Context.ConnectionAborted)
+        };
+
+        // Compañeros de equipo ven entre sí
+        if (equipoGuid.HasValue)
+            tareas.Add(Clients.Group(GrupoEquipo(equipoGuid.Value)).SendAsync("UbicacionActualizada", dto, Context.ConnectionAborted));
+
+        await Task.WhenAll(tareas);
     }
 
     private static Guid ParsearGuid(string valor, string recurso)

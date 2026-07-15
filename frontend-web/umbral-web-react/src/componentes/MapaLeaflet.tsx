@@ -13,11 +13,20 @@ void (() => {
   })
 })()
 
+export interface MarcadorMapa {
+  id: string
+  latitud: number
+  longitud: number
+  etiqueta?: string
+  color?: string
+}
+
 interface Props {
   latitud?: number
   longitud?: number
   onChange?: (lat: number, lng: number) => void
   alto?: number
+  marcadores?: MarcadorMapa[]
 }
 
 // Centro por defecto: Lima, Perú
@@ -25,10 +34,11 @@ const CENTRO_DEFAULT: [number, number] = [-12.0464, -77.0428]
 const ZOOM_MUNDO = 3
 const ZOOM_DETALLE = 14
 
-export function MapaLeaflet({ latitud, longitud, onChange, alto = 320 }: Props) {
+export function MapaLeaflet({ latitud, longitud, onChange, alto = 320, marcadores = [] }: Props) {
   const refContenedor = useRef<HTMLDivElement>(null)
   const refMapa = useRef<L.Map | null>(null)
   const refMarcador = useRef<L.Marker | null>(null)
+  const refMarcadoresDinamicos = useRef<Map<string, L.Marker>>(new Map())
 
   const hayCoords = latitud != null && longitud != null
 
@@ -80,6 +90,37 @@ export function MapaLeaflet({ latitud, longitud, onChange, alto = 320 }: Props) 
       refMapa.current.setView([latitud, longitud], ZOOM_DETALLE)
     }
   }, [latitud, longitud])
+
+  // Actualizar marcadores dinámicos (participantes en tiempo real)
+  useEffect(() => {
+    if (!refMapa.current) return
+    const mapa = refMapa.current
+    const actuales = refMarcadoresDinamicos.current
+    const idsNuevos = new Set(marcadores.map(m => m.id))
+
+    // Eliminar los que ya no están
+    for (const [id, marker] of actuales) {
+      if (!idsNuevos.has(id)) { marker.remove(); actuales.delete(id) }
+    }
+
+    // Añadir o mover
+    for (const m of marcadores) {
+      const icono = L.divIcon({
+        className: '',
+        html: `<div style="background:${m.color ?? '#3b82f6'};width:12px;height:12px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.4)"></div>`,
+        iconSize: [12, 12],
+        iconAnchor: [6, 6]
+      })
+      if (actuales.has(m.id)) {
+        actuales.get(m.id)!.setLatLng([m.latitud, m.longitud])
+      } else {
+        const marker = L.marker([m.latitud, m.longitud], { icon: icono })
+          .bindTooltip(m.etiqueta ?? '', { permanent: false, direction: 'top' })
+          .addTo(mapa)
+        actuales.set(m.id, marker)
+      }
+    }
+  }, [marcadores])
 
   return (
     <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid var(--color-borde-tarjeta)' }}>

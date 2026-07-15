@@ -32,7 +32,7 @@ import {
   type BusquedaTesoroDetalleDto
 } from '../autenticacion/clienteApiJuegos'
 import { liberarPista } from '../autenticacion/clienteApiSesiones'
-import { MapaLeaflet } from '../componentes/MapaLeaflet'
+import { MapaLeaflet, type MarcadorMapa } from '../componentes/MapaLeaflet'
 import {
   obtenerRankingParticipantes,
   obtenerRankingEquipos,
@@ -40,7 +40,7 @@ import {
   type EntradaRankingEquipoDto
 } from '../autenticacion/clienteApiRanking'
 import { usarAutenticacion } from '../autenticacion/ProveedorAutenticacion'
-import { useSesionesTiempoReal } from '../hooks/useSesionesTiempoReal'
+import { useSesionesTiempoReal, type UbicacionActualizadaTR } from '../hooks/useSesionesTiempoReal'
 import { useRankingTiempoReal } from '../hooks/useRankingTiempoReal'
 import {
   formatearFechaSesion,
@@ -182,6 +182,7 @@ export function PaginaDetalleSesion() {
   const [errorRanking, setErrorRanking] = useState<string | null>(null)
   const [versionRanking, setVersionRanking] = useState(0)
   const [equiposExpandidos, setEquiposExpandidos] = useState<Set<string>>(new Set())
+  const [ubicacionesParticipantes, setUbicacionesParticipantes] = useState<Map<string, { nombre: string, latitud: number, longitud: number }>>(new Map())
 
   const alternarEquipoExpandido = (equipoId: string) => {
     setEquiposExpandidos(previo => {
@@ -239,6 +240,18 @@ export function PaginaDetalleSesion() {
     refrescarDetalleTiempoReal()
   }, [refrescarDetalleTiempoReal, refrescarTodoTiempoReal])
 
+  const manejarUbicacionActualizada = useCallback((dto: UbicacionActualizadaTR) => {
+    setUbicacionesParticipantes(prev => {
+      const siguiente = new Map(prev)
+      siguiente.set(dto.ParticipanteIdentidadId, {
+        nombre: dto.Nombre,
+        latitud: dto.Latitud,
+        longitud: dto.Longitud
+      })
+      return siguiente
+    })
+  }, [])
+
   useSesionesTiempoReal({
     token,
     sesionId: id,
@@ -253,7 +266,8 @@ export function PaginaDetalleSesion() {
     onEtapaPorComenzar: refrescarDetalleYProgresoTiempoReal,
     onEtapaIniciada: refrescarDetalleYProgresoTiempoReal,
     onProgresoSecuencialActualizado: refrescarProgresoTiempoReal,
-    onReconectado: refrescarDetalleYProgresoTiempoReal
+    onReconectado: refrescarDetalleYProgresoTiempoReal,
+    onUbicacionActualizada: manejarUbicacionActualizada
   })
 
   useRankingTiempoReal({
@@ -838,6 +852,7 @@ export function PaginaDetalleSesion() {
                             etapaId={etapa.id}
                             sesionActiva={sesion.estado === 'Activa'}
                             esOperador={esOperador}
+                            ubicacionesParticipantes={ubicacionesParticipantes}
                           />
                         )}
                         {!etapa.trivia && !etapa.busqueda && !etapa.errorContenido && (
@@ -1292,13 +1307,15 @@ function BloqueBusqueda({
   sesionId,
   etapaId,
   sesionActiva,
-  esOperador
+  esOperador,
+  ubicacionesParticipantes
 }: {
   busqueda: BusquedaTesoroDetalleDto
   sesionId: string
   etapaId: string
   sesionActiva: boolean
   esOperador: boolean
+  ubicacionesParticipantes?: Map<string, { nombre: string, latitud: number, longitud: number }>
 }) {
   const { token } = usarAutenticacion()
   const [liberando, setLiberando] = useState<string | null>(null)
@@ -1311,6 +1328,20 @@ function BloqueBusqueda({
   const urlQr = busqueda.codigoQr
     ? `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(busqueda.codigoQr)}`
     : null
+
+  const pistaGps = esOperador && sesionActiva
+    ? busqueda.pistas.find(p => p.tipo === 'CoordenadaGps' && p.latitud != null && p.longitud != null)
+    : undefined
+
+  const marcadoresParticipantes: MarcadorMapa[] = pistaGps
+    ? [...(ubicacionesParticipantes?.entries() ?? [])].map(([id, u]) => ({
+        id,
+        latitud: u.latitud,
+        longitud: u.longitud,
+        etiqueta: u.nombre,
+        color: '#f97316'
+      }))
+    : []
 
   async function handleLiberarPista(
     pistaId: string,
@@ -1398,6 +1429,26 @@ function BloqueBusqueda({
           }}>
             {busqueda.codigoQr}
           </code>
+        </div>
+      )}
+
+      {/* Mapa de ubicaciones en tiempo real — solo operadores con sesión activa */}
+      {pistaGps && pistaGps.latitud != null && pistaGps.longitud != null && (
+        <div style={{ marginTop: 16 }}>
+          <p style={{ fontSize: '0.85rem', fontWeight: 600, margin: '0 0 8px' }}>
+            Ubicaciones en tiempo real
+            {marcadoresParticipantes.length > 0 && (
+              <span style={{ fontWeight: 400, color: 'var(--color-texto-tenue)', marginLeft: 8 }}>
+                ({marcadoresParticipantes.length} participante{marcadoresParticipantes.length !== 1 ? 's' : ''} activo{marcadoresParticipantes.length !== 1 ? 's' : ''})
+              </span>
+            )}
+          </p>
+          <MapaLeaflet
+            latitud={pistaGps.latitud}
+            longitud={pistaGps.longitud}
+            marcadores={marcadoresParticipantes}
+            alto={320}
+          />
         </div>
       )}
 
