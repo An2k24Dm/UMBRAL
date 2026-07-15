@@ -20,6 +20,12 @@ public sealed class ManejadorErroresMiddleware
         _registro = registro;
     }
 
+    private static string? ObtenerCorrelationId(HttpContext contexto)
+        => contexto.Items.TryGetValue(
+            LoggingSolicitudesMiddleware.ItemCorrelacion, out var valor)
+            ? valor as string
+            : null;
+
     public async Task Invoke(HttpContext contexto)
     {
         try
@@ -28,12 +34,21 @@ public sealed class ManejadorErroresMiddleware
         }
         catch (Exception ex)
         {
-            _registro.LogError(ex, "Error no controlado en ranking-servicio.");
+            var correlationId = ObtenerCorrelationId(contexto);
+            _registro.LogError(
+                ex,
+                "Error no controlado en ranking-servicio. CorrelationId={CorrelationId}",
+                correlationId);
             contexto.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
             contexto.Response.ContentType = "application/json";
             await contexto.Response.WriteAsync(
                 JsonSerializer.Serialize(
-                    new { codigo = "ERROR_INTERNO", mensaje = "Ocurrió un error inesperado." },
+                    new
+                    {
+                        codigo = "ERROR_INTERNO",
+                        mensaje = "Ocurrió un error inesperado.",
+                        correlationId
+                    },
                     OpcionesJson));
         }
     }

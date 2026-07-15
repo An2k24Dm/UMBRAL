@@ -7,10 +7,12 @@ import {
   crearConexionSesionesTiempoReal,
   esErrorNoAutenticadoTiempoReal,
   mapearEtapaPorComenzar,
+  obtenerEstadoEvento,
   obtenerSesionIdEvento,
   type EstadoBannerEtapaPorComenzar,
   type EventoEtapaPorComenzar,
   type EventoSesionTiempoReal,
+  registrarErrorConexionTiempoRealDev,
   registrarEventoConexionSesionesTiempoReal,
 } from "../servicios/sesionesTiempoReal";
 import {
@@ -18,13 +20,12 @@ import {
   obtenerDetalleSesionDisponibleApi,
   obtenerProgresoSecuencialSesionApi,
 } from "../servicios/sesionesApi";
+import { intentarMarcarFinalizacionNotificada } from "../servicios/notificacionesFinalizacionSesion";
 import { suscribirMembresiaTiempoReal } from "../servicios/membresiaTiempoReal";
 import type { ProgresoSecuencialSesionDto } from "../tipos/sesiones";
 
 const FASE_PREPARACION = "Preparacion";
 
-// Reconstruye el estado del banner desde el progreso autoritativo (reconexión,
-// volver del background, recarga): la fecha programada la calcula el backend.
 function bannerDesdeProgreso(
   sesionId: string,
   progreso: ProgresoSecuencialSesionDto,
@@ -113,12 +114,14 @@ export function useAvisosSesionTiempoReal() {
       logDev("cerrado");
     };
 
-    const manejarErrorConexion = async (error: unknown) => {
-      if (
-        desmontado ||
-        invalidandoSesion ||
-        !esErrorNoAutenticadoTiempoReal(error)
-      ) {
+    const manejarErrorConexion = async (error: unknown, contexto?: string) => {
+      if (desmontado || invalidandoSesion) return;
+
+      // Solo un 401 real invalida la sesión y redirige. Un timeout/transporte
+      // transitorio se registra como diagnóstico (dev) sin modal ni logout: la
+      // reconexión automática lo resuelve y el usuario no ve nada brusco.
+      if (!esErrorNoAutenticadoTiempoReal(error)) {
+        registrarErrorConexionTiempoRealDev(error, contexto);
         return;
       }
 
@@ -276,8 +279,73 @@ export function useAvisosSesionTiempoReal() {
       void navegarAEjecucionActual(sesionId).catch(() => undefined);
     };
 
+    // Abre el resultado/historial final de la sesión conservando el modo REAL
+    // (Grupal/Individual): el error ocurría precisamente en grupal, así que no se
+    // asume Individual si el detalle estaba disponible.
+    const irAlResultadoFinalizacion = (
+      sesionId: string,
+      nombre: string,
+      modo: string,
+    ) => {
+      enrutador.push({
+        pathname: "/participante/historial/[id]",
+        params: { id: sesionId, nombre, modo },
+      });
+    };
+
+    // Aviso global de finalización: garantiza que TODO participante inscrito
+    // (incluidos los grupales que terminaron antes y están esperando en otra
+    // pantalla) reciba el aviso, sin refrescar manualmente. NO navega a una nueva
+    // etapa (la sesión ya terminó).
+    const manejarSesionFinalizada = async (sesionId: string) => {
+      limpiarBanner(sesionId);
+
+      // Modo/nombre reales para abrir el resultado correcto (NO asumir Individual).
+      let nombre = "";
+      let modo = "Individual";
+      try {
+        const detalle = await obtenerDetalleSesionDisponibleApi(token, sesionId);
+        nombre = detalle.nombre ?? "";
+        modo = detalle.modo ?? "Individual";
+      } catch {
+        // Detalle no disponible: se muestra el aviso igualmente (no se pierde la
+        // notificación), con el fallback mínimo de modo.
+      }
+      if (desmontado) return;
+
+      // Dedup compartida con Detalle/Trivia/Tesoro: una sola alerta por sesión.
+      // Se marca DESPUÉS de resolver el detalle para ceder ante una pantalla que
+      // ya mostró el aviso de forma síncrona con el modo real (p. ej. el Detalle).
+      if (!intentarMarcarFinalizacionNotificada(sesionId)) {
+        logDev(`SesionActualizada Estado=Finalizada SesionId=${sesionId}: aviso omitido por duplicado`);
+        return;
+      }
+
+      logDev(`SesionActualizada Estado=Finalizada SesionId=${sesionId}: aviso de finalización mostrado (modo ${modo})`);
+      Alert.alert(
+        "La sesión finalizó",
+        "Puedes revisar tus resultados y el ranking final.",
+        [
+          {
+            text: "Ver resultado",
+            onPress: () => irAlResultadoFinalizacion(sesionId, nombre, modo),
+          },
+        ],
+      );
+    };
+
     const manejarSesionActualizada = (evento: EventoSesionTiempoReal) => {
       const sesionId = obtenerSesionIdEvento(evento);
+      if (!sesionId) return;
+      const estado = obtenerEstadoEvento(evento);
+
+      // Solo Finalizada dispara el aviso final; nunca se infiere por otro evento.
+      if (estado === "Finalizada") {
+        void manejarSesionFinalizada(sesionId);
+        return;
+      }
+
+      // Activa/Pausada/EnPreparacion (y demás): comportamiento actual intacto.
       void cargarSesionesInscritas()
         .then(() => navegarAEjecucionActual(sesionId))
         .catch(() => undefined);
@@ -343,7 +411,7 @@ export function useAvisosSesionTiempoReal() {
 
     conexion.onreconnecting((error) => {
       logDev("reconectando");
-      void manejarErrorConexion(error);
+      void manejarErrorConexion(error, "reconectando");
     });
 
     conexion.onreconnected(() => {
@@ -358,7 +426,7 @@ export function useAvisosSesionTiempoReal() {
 
     conexion.onclose((error) => {
       registrarCerrado();
-      void manejarErrorConexion(error);
+      void manejarErrorConexion(error, "onclose");
     });
 
     inicioPromise = conexion.start();
@@ -370,7 +438,7 @@ export function useAvisosSesionTiempoReal() {
       })
       .catch((error: unknown) => {
         if (desmontado) return;
-        void manejarErrorConexion(error);
+        void manejarErrorConexion(error, "start");
       });
 
     return () => {

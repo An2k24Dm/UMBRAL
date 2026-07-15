@@ -6,7 +6,7 @@ import {
   crearConexionSesionesTiempoReal,
   esErrorNoAutenticadoTiempoReal,
   registrarEventoConexionSesionesTiempoReal,
-  registrarAccesoGrupoRechazadoDev,
+  registrarErrorConexionTiempoRealDev,
 } from "../servicios/sesionesTiempoReal";
 
 interface OpcionesUseListadoSesionesTiempoReal {
@@ -52,11 +52,12 @@ export function useListadoSesionesTiempoReal({
         logDev("cerrado");
       };
 
-      const manejarErrorConexion = async (error: unknown) => {
+      const manejarErrorConexion = async (error: unknown, contexto?: string) => {
         if (desmontado || invalidandoSesion || !error) return;
 
+        // Solo un 401 real invalida la sesión; el resto es diagnóstico (dev).
         if (!esErrorNoAutenticadoTiempoReal(error)) {
-          registrarAccesoGrupoRechazadoDev(error);
+          registrarErrorConexionTiempoRealDev(error, contexto);
           return;
         }
 
@@ -70,7 +71,7 @@ export function useListadoSesionesTiempoReal({
           await conexion.invoke("UnirseAListadoSesiones");
           logDev("unido a listado");
         } catch (error: unknown) {
-          await manejarErrorConexion(error);
+          await manejarErrorConexion(error, "UnirseAListadoSesiones");
         }
       };
 
@@ -82,7 +83,7 @@ export function useListadoSesionesTiempoReal({
 
       conexion.onreconnecting((error) => {
         logDev("reconectando");
-        void manejarErrorConexion(error);
+        void manejarErrorConexion(error, "reconectando");
       });
 
       conexion.onreconnected(async () => {
@@ -99,7 +100,7 @@ export function useListadoSesionesTiempoReal({
 
       conexion.onclose((error) => {
         registrarCerrado();
-        void manejarErrorConexion(error);
+        void manejarErrorConexion(error, "onclose");
       });
 
       const cerrarConexion = async () => {
@@ -136,7 +137,7 @@ export function useListadoSesionesTiempoReal({
         })
         .catch((error: unknown) => {
           if (desmontado) return;
-          void manejarErrorConexion(error);
+          void manejarErrorConexion(error, "start");
         });
 
       const limpiar = async () => {
