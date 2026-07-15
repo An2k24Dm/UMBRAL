@@ -38,7 +38,7 @@ public class ActivarBusquedaTesoroManejadorPruebas
 
         await accion.Should()
             .ThrowAsync<ExcepcionDominio>()
-            .WithMessage("La búsqueda del tesoro debe tener al menos una pista para poder activarse.");
+            .WithMessage("La búsqueda del tesoro debe tener una coordenada GPS del tesoro para poder activarse.");
         _repositorio.Verify(
             r => r.ActivarBusquedaTesoroAsync(It.IsAny<BusquedaTesoro>(), It.IsAny<CancellationToken>()),
             Times.Never);
