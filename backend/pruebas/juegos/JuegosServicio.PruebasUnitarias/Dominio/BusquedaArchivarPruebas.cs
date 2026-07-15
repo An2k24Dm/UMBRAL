@@ -16,7 +16,7 @@ public class BusquedaArchivarPruebas
         // Regla nueva: una búsqueda solo puede activarse si tiene al
         // menos una pista. Las pruebas que necesitan una búsqueda
         // activa parten de ese fixture.
-        busqueda.AgregarPista("Pista única");
+        busqueda.AgregarPista(null, TipoPista.CoordenadaGps, -34.6037, -58.3816);
         busqueda.Activar();
         return busqueda;
     }

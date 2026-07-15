@@ -1,6 +1,7 @@
 using JuegosServicio.Aplicacion.Comandos.ActivarBusquedaTesoro;
 using JuegosServicio.Aplicacion.Puertos;
 using JuegosServicio.Dominio.Entidades;
+using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Dominio.Excepciones;
 
 namespace JuegosServicio.PruebasUnitarias.CasosDeUso;
@@ -20,7 +21,7 @@ public class ActivarBusquedaTesoroManejadorPruebas
     private static BusquedaTesoro BusquedaInactiva()
     {
         var busqueda = BusquedaTesoro.Crear("Búsqueda Test", "Descripción", Guid.NewGuid(), FechaFija);
-        busqueda.AgregarPista("Pista única");
+        busqueda.AgregarPista(null, TipoPista.CoordenadaGps, -34.6037, -58.3816);
         return busqueda;
     }
 

@@ -1,4 +1,5 @@
 using JuegosServicio.Dominio.Entidades;
+using JuegosServicio.Dominio.Enums;
 using JuegosServicio.Dominio.Excepciones;
 
 namespace JuegosServicio.PruebasUnitarias.Dominio;
@@ -11,7 +12,7 @@ public class PistaEliminarPruebas
     private static BusquedaTesoro BusquedaConPista(out Guid pistaId)
     {
         var busqueda = BusquedaTesoro.Crear("Búsqueda Test", "Descripción", Guid.NewGuid(), FechaFija);
-        var pista = busqueda.AgregarPista("Pista de prueba.");
+        var pista = busqueda.AgregarPista(null, TipoPista.CoordenadaGps, -34.6037, -58.3816);
         pistaId = pista.Id;
         return busqueda;
     }
@@ -30,7 +31,7 @@ public class PistaEliminarPruebas
     public void EliminarPista_VariasPistas_SoloEliminaLaIndicada()
     {
         var busqueda = BusquedaConPista(out var pistaId);
-        busqueda.AgregarPista("Segunda pista.");
+        busqueda.AgregarPista("Segunda pista.", TipoPista.Texto, null, null);
 
         busqueda.EliminarPista(pistaId);
 

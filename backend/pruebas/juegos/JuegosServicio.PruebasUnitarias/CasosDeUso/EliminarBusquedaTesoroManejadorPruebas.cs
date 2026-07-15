@@ -69,7 +69,7 @@ public class EliminarBusquedaTesoroManejadorPruebas
     {
         var busqueda = BusquedaInactiva();
         // La regla nueva exige una pista para activar.
-        busqueda.AgregarPista("Pista única");
+        busqueda.AgregarPista(null, TipoPista.CoordenadaGps, -34.6037, -58.3816);
         busqueda.Activar();
         _repositorio
             .Setup(r => r.ObtenerBusquedaPorIdAsync(busqueda.Id, It.IsAny<CancellationToken>()))
