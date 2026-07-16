@@ -5,7 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
-    <RootNamespace>RankingServicio.PruebasUnitarias</RootNamespace>
+    <RootNamespace>JuegosServicio.PruebasIntegracion</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
@@ -17,15 +17,17 @@
     <PackageReference Include="xunit" Version="2.9.2" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
     <PackageReference Include="FluentAssertions" Version="6.12.1" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="9.0.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="9.0.0" />
     <PackageReference Include="Moq" Version="4.20.72" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\servicios\ranking-servicio\RankingServicio.Dominio\RankingServicio.Dominio.csproj" />
-    <ProjectReference Include="..\..\..\servicios\ranking-servicio\RankingServicio.Aplicacion\RankingServicio.Aplicacion.csproj" />
-    <ProjectReference Include="..\..\..\servicios\ranking-servicio\RankingServicio.Infraestructura\RankingServicio.Infraestructura.csproj" />
-    <ProjectReference Include="..\..\..\servicios\ranking-servicio\RankingServicio.Presentacion\RankingServicio.Presentacion.csproj" />
+    <ProjectReference Include="..\..\..\servicios\juegos-servicio\JuegosServicio.Presentacion\JuegosServicio.Presentacion.csproj" />
+    <ProjectReference Include="..\..\..\servicios\juegos-servicio\JuegosServicio.Aplicacion\JuegosServicio.Aplicacion.csproj" />
+    <ProjectReference Include="..\..\..\servicios\juegos-servicio\JuegosServicio.Dominio\JuegosServicio.Dominio.csproj" />
+    <ProjectReference Include="..\..\..\servicios\juegos-servicio\JuegosServicio.Commons\JuegosServicio.Commons.csproj" />
+    <ProjectReference Include="..\..\..\servicios\juegos-servicio\JuegosServicio.Infraestructura\JuegosServicio.Infraestructura.csproj" />
   </ItemGroup>
 
 </Project>
