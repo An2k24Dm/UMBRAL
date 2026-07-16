@@ -109,6 +109,73 @@ public sealed class RegistroLogsAplicacionDotNetPruebas
         Assert.Contains("ActorRol=Operador", mensaje);
     }
 
+    [Fact]
+    public void ConHeaderCorrelationId_SiNoExisteItem_UsaHeader()
+    {
+        var contexto = new DefaultHttpContext();
+        contexto.Request.Headers["X-Correlation-Id"] = "corr-header";
+        contexto.User = new ClaimsPrincipal(new ClaimsIdentity(
+            new[] { new Claim("sub", "sub-1") },
+            "Pruebas"));
+        var logger = new LoggerCaptura();
+        var adaptador = new RegistroLogsAplicacionDotNet(logger, ConContexto(contexto));
+
+        adaptador.Advertencia("Evento", "desc");
+
+        Assert.Contains("CorrelationId=corr-header", Assert.Single(logger.Mensajes));
+    }
+
+    [Fact]
+    public void Roles_DeDiferentesClaimsSeNormalizanYDeduplican()
+    {
+        var contexto = new DefaultHttpContext();
+        contexto.User = new ClaimsPrincipal(new ClaimsIdentity(
+            new[]
+            {
+                new Claim(ClaimTypes.Role, "operador, participante"),
+                new Claim("roles", "[\"Administrador\"]"),
+                new Claim("https://umbral.local/role", "Operador"),
+                new Claim("realm_access", "{\"roles\":[\"Participante\",\"ignorado\"]}")
+            },
+            "Pruebas"));
+        var logger = new LoggerCaptura();
+        var adaptador = new RegistroLogsAplicacionDotNet(logger, ConContexto(contexto));
+
+        adaptador.Informacion("Evento", "desc");
+
+        var mensaje = Assert.Single(logger.Mensajes);
+        Assert.Contains("ActorRol=Operador,Participante,Administrador", mensaje);
+    }
+
+    [Fact]
+    public void RealmAccessMalFormado_NoInterrumpeLogging()
+    {
+        var contexto = new DefaultHttpContext();
+        contexto.User = new ClaimsPrincipal(new ClaimsIdentity(
+            new[] { new Claim("realm_access", "{mal-json") },
+            "Pruebas"));
+        var logger = new LoggerCaptura();
+        var adaptador = new RegistroLogsAplicacionDotNet(logger, ConContexto(contexto));
+
+        adaptador.Informacion("Evento", "desc");
+
+        Assert.Contains("ActorRol=NoDisponible", Assert.Single(logger.Mensajes));
+    }
+
+    [Fact]
+    public void Error_RegistraExcepcionYNivelError()
+    {
+        var logger = new LoggerCaptura();
+        var adaptador = new RegistroLogsAplicacionDotNet(logger, SinContexto());
+        var excepcion = new InvalidOperationException("boom");
+
+        adaptador.Error(excepcion, "EventoError", "falló");
+
+        logger.UltimoNivel.Should().Be(LogLevel.Error);
+        logger.UltimaExcepcion.Should().BeSameAs(excepcion);
+        Assert.Contains("EventoAplicacion=EventoError", Assert.Single(logger.Mensajes));
+    }
+
     private static IHttpContextAccessor SinContexto() =>
         Mock.Of<IHttpContextAccessor>(a => a.HttpContext == null);
 
@@ -119,6 +186,8 @@ public sealed class RegistroLogsAplicacionDotNetPruebas
     {
         public List<string> Mensajes { get; } = new();
         public object? UltimoScope { get; private set; }
+        public LogLevel UltimoNivel { get; private set; }
+        public Exception? UltimaExcepcion { get; private set; }
 
         public IDisposable BeginScope<TState>(TState state) where TState : notnull
         {
@@ -134,7 +203,11 @@ public sealed class RegistroLogsAplicacionDotNetPruebas
             TState state,
             Exception? exception,
             Func<TState, Exception?, string> formatter)
-            => Mensajes.Add(formatter(state, exception));
+        {
+            UltimoNivel = logLevel;
+            UltimaExcepcion = exception;
+            Mensajes.Add(formatter(state, exception));
+        }
 
         private sealed class AlcanceNulo : IDisposable
         {
