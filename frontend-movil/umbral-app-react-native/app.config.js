@@ -22,6 +22,12 @@ module.exports = {
             "UMBRAL necesita tu ubicación para mostrarla a tus compañeros de equipo durante la búsqueda del tesoro.",
         },
       ],
+      [
+        "expo-location",
+        {
+          locationWhenInUsePermission: "UMBRAL necesita tu ubicación para mostrarla a tus compañeros de equipo durante la búsqueda del tesoro.",
+        },
+      ],
     ],
     android: {
       package: "com.an2k26dm.umbral",

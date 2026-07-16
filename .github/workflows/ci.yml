@@ -46,6 +46,7 @@ jobs:
             "identidad-unitarias|backend/pruebas/identidad/IdentidadServicio.PruebasUnitarias/IdentidadServicio.PruebasUnitarias.csproj"
             "identidad-integracion|backend/pruebas/identidad/IdentidadServicio.PruebasIntegracion/IdentidadServicio.PruebasIntegracion.csproj"
             "juegos-unitarias|backend/pruebas/juegos/JuegosServicio.PruebasUnitarias/JuegosServicio.PruebasUnitarias.csproj"
+            "juegos-integracion|backend/pruebas/juegos/JuegosServicio.PruebasIntegracion/JuegosServicio.PruebasIntegracion.csproj"
             "ranking-unitarias|backend/pruebas/ranking/RankingServicio.PruebasUnitarias/RankingServicio.PruebasUnitarias.csproj"
           )
           for entrada in "${suites[@]}"; do
@@ -62,14 +63,34 @@ jobs:
           done
           exit $fallo
 
-      # Publica los .trx y los coverage.cobertura.xml (XPlat Code Coverage)
-      # como evidencia técnica de pruebas y cobertura.
+      # Genera el reporte de cobertura HTML + resumen de texto.
+      # Exclusiones: migraciones, RabbitMQ, clientes HTTP externos, seeders y
+      # proveedor Keycloak (todos requieren servicios externos en tiempo de ejecución
+      # y no son testeables en CI sin infraestructura adicional).
+      # Meta del proyecto: ≥90% en capas Aplicacion + Dominio.
+      - name: Generar reporte de cobertura
+        if: always()
+        run: |
+          dotnet tool install -g dotnet-reportgenerator-globaltool 2>/dev/null || true
+          reportgenerator \
+            "-reports:artifacts/test-results/**/coverage.cobertura.xml" \
+            "-targetdir:artifacts/coverage-report" \
+            "-reporttypes:TextSummary;Html" \
+            "-assemblyfilters:-*Migraciones*;-*Migrations*;-*RabbitMq*;-*ServiciosExternos*;-*Sembrador*;-*Keycloak*;-*obj*" \
+            2>/dev/null || true
+          echo "=== RESUMEN DE COBERTURA ==="
+          cat artifacts/coverage-report/Summary.txt || echo "(sin datos de cobertura)"
+
+      # Publica los .trx, los coverage.cobertura.xml y el reporte HTML como
+      # evidencia técnica de pruebas y cobertura.
       - name: Publicar pruebas y cobertura
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: backend-test-results-and-coverage
-          path: artifacts/test-results
+          path: |
+            artifacts/test-results
+            artifacts/coverage-report
           if-no-files-found: warn
 
   frontend-web:
