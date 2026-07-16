@@ -47,6 +47,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IdentidadServicio.PruebasIn
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "JuegosServicio.PruebasUnitarias", "backend\pruebas\juegos\JuegosServicio.PruebasUnitarias\JuegosServicio.PruebasUnitarias.csproj", "{C767119C-C47F-42AB-B4F4-67310DE9D664}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "JuegosServicio.PruebasIntegracion", "backend\pruebas\juegos\JuegosServicio.PruebasIntegracion\JuegosServicio.PruebasIntegracion.csproj", "{A1B2C3D4-E5F6-7890-ABCD-000000000006}"
+EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "sesiones-servicio", "sesiones-servicio", "{9FAFF5CF-E582-9F49-9CAE-648C87FAF763}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SesionesServicio.Presentacion", "backend\servicios\sesiones-servicio\SesionesServicio.Presentacion\SesionesServicio.Presentacion.csproj", "{032D6384-87B9-4BB0-9147-137EE70B66EC}"
@@ -233,6 +235,18 @@ Global
 		{A1B2C3D4-E5F6-7890-ABCD-000000000005}.Release|x64.Build.0 = Release|Any CPU
 		{A1B2C3D4-E5F6-7890-ABCD-000000000005}.Release|x86.ActiveCfg = Release|Any CPU
 		{A1B2C3D4-E5F6-7890-ABCD-000000000005}.Release|x86.Build.0 = Release|Any CPU
+		{A1B2C3D4-E5F6-7890-ABCD-000000000006}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A1B2C3D4-E5F6-7890-ABCD-000000000006}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A1B2C3D4-E5F6-7890-ABCD-000000000006}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{A1B2C3D4-E5F6-7890-ABCD-000000000006}.Debug|x64.Build.0 = Debug|Any CPU
+		{A1B2C3D4-E5F6-7890-ABCD-000000000006}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{A1B2C3D4-E5F6-7890-ABCD-000000000006}.Debug|x86.Build.0 = Debug|Any CPU
+		{A1B2C3D4-E5F6-7890-ABCD-000000000006}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A1B2C3D4-E5F6-7890-ABCD-000000000006}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A1B2C3D4-E5F6-7890-ABCD-000000000006}.Release|x64.ActiveCfg = Release|Any CPU
+		{A1B2C3D4-E5F6-7890-ABCD-000000000006}.Release|x64.Build.0 = Release|Any CPU
+		{A1B2C3D4-E5F6-7890-ABCD-000000000006}.Release|x86.ActiveCfg = Release|Any CPU
+		{A1B2C3D4-E5F6-7890-ABCD-000000000006}.Release|x86.Build.0 = Release|Any CPU
 		{C767119C-C47F-42AB-B4F4-67310DE9D664}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{C767119C-C47F-42AB-B4F4-67310DE9D664}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C767119C-C47F-42AB-B4F4-67310DE9D664}.Debug|x64.ActiveCfg = Debug|Any CPU
