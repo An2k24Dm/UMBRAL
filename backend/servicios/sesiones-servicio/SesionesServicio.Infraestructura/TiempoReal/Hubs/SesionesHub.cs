@@ -187,48 +187,6 @@ public sealed class SesionesHub : Hub
         await Task.WhenAll(tareas);
     }
 
-    public async Task EnviarUbicacion(string sesionId, string? equipoId, double latitud, double longitud)
-    {
-        var id = ParsearGuid(sesionId, "la sesión");
-        var actor = ObtenerActor();
-        if (actor.UsuarioId is null) return;
-
-        Guid? equipoGuid = Guid.TryParse(equipoId, out var eq) ? eq : null;
-
-        _logger.LogInformation(
-            "[Ubicacion] recibido: sesion={SesionId} usuario={UserId} ({Nombre}) equipo={EquipoId} lat={Lat} lng={Lng}",
-            id, actor.UsuarioId, actor.NombreUsuario, equipoGuid, latitud, longitud);
-
-        _almacen.Actualizar(id, actor.UsuarioId.Value, actor.NombreUsuario ?? string.Empty, equipoGuid, latitud, longitud);
-
-        var dto = new UbicacionActualizadaDto
-        {
-            SesionId = id,
-            ParticipanteIdentidadId = actor.UsuarioId.Value,
-            Nombre = actor.NombreUsuario ?? string.Empty,
-            EquipoId = equipoGuid,
-            Latitud = latitud,
-            Longitud = longitud,
-            FechaEventoUtc = DateTime.UtcNow
-        };
-
-        var grupoOp = GrupoOperadoresSesion(id);
-        _logger.LogInformation("[Ubicacion] enviando a grupo={Grupo}", grupoOp);
-        var tareas = new List<Task>
-        {
-            Clients.Group(grupoOp).SendAsync("UbicacionActualizada", dto, Context.ConnectionAborted)
-        };
-
-        if (equipoGuid.HasValue)
-        {
-            var grupoEq = GrupoEquipo(equipoGuid.Value);
-            _logger.LogInformation("[Ubicacion] enviando a equipo={Grupo}", grupoEq);
-            tareas.Add(Clients.Group(grupoEq).SendAsync("UbicacionActualizada", dto, Context.ConnectionAborted));
-        }
-
-        await Task.WhenAll(tareas);
-    }
-
     private static Guid ParsearGuid(string valor, string recurso)
         => Guid.TryParse(valor, out var id)
             ? id
