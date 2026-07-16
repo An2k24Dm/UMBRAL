@@ -33,9 +33,7 @@ module.exports = {
     },
     extra: {
       urlApi: process.env.EXPO_PUBLIC_API_URL || "http://localhost:5000",
-      eas: {
-        projectId: "ac1a851e-f32b-4af4-997d-8546fa3bc626",
-      },
+      // eas: { projectId: "ac1a851e-f32b-4af4-997d-8546fa3bc626" },  // solo para EAS Build
     },
   },
 };
