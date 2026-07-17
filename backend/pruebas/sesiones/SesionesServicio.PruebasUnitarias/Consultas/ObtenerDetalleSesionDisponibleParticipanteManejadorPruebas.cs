@@ -136,16 +136,21 @@ public class ObtenerDetalleSesionDisponibleParticipanteManejadorPruebas
         public Mock<IClienteJuegosMisiones> ClienteMisiones { get; } = new();
         public Mock<IUsuarioActual> Usuario { get; } = new();
         public Mock<IConsultasSesiones> Consultas { get; } = new();
+        public Mock<IServicioFinalizacionSesion> Finalizacion { get; } = new();
         public ObtenerDetalleSesionDisponibleParticipanteManejador Manejador { get; }
 
         public Escenario(Guid? participanteId = null)
         {
             Usuario.Setup(u => u.ObtenerId()).Returns(participanteId);
+            Finalizacion.Setup(f => f.FinalizarSesionSiDuracionVencidaAsync(
+                    It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(false);
             Manejador = new ObtenerDetalleSesionDisponibleParticipanteManejador(
                 Repositorio.Object,
                 ClienteMisiones.Object,
                 Usuario.Object,
-                Consultas.Object);
+                Consultas.Object,
+                Finalizacion.Object);
         }
     }
 }

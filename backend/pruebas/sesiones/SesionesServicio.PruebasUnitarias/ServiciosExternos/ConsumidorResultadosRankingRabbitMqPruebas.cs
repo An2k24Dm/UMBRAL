@@ -68,7 +68,6 @@ public class ConsumidorResultadosRankingRabbitMqPruebas
             Body = Encoding.UTF8.GetBytes($$"""
             {
               "EventoIdOrigen":"{{eventoOrigen}}",
-              "PenalizacionId":"{{Guid.NewGuid()}}",
               "SesionId":"{{Guid.NewGuid()}}",
               "TipoObjetivo":"Equipo",
               "ParticipanteSesionId":null,

@@ -2,7 +2,6 @@ using MediatR;
 using SesionesServicio.Aplicacion.Puertos;
 using SesionesServicio.Dominio.Abstract;
 using SesionesServicio.Dominio.Entidades;
-using SesionesServicio.Dominio.Enums;
 
 namespace SesionesServicio.Aplicacion.Comandos.AplicarResultadoPenalizacionRanking;
 
@@ -10,9 +9,10 @@ public sealed class AplicarResultadoPenalizacionRankingManejador
     : IRequestHandler<AplicarResultadoPenalizacionRankingComando>
 {
     private const string TipoObjetivoEquipo = "Equipo";
+    private const string TipoResultado = "ranking.penalizacion_procesada";
 
     private readonly IRepositorioSesiones _repositorio;
-    private readonly IRepositorioPenalizacionesSesion _repositorioPenalizaciones;
+    private readonly IRepositorioResultadosRankingProcesados _repositorioResultadosProcesados;
     private readonly IUnidadTrabajoSesiones _unidadTrabajo;
     private readonly INotificadorSesionesTiempoReal _notificador;
     private readonly IProveedorFechaHora _reloj;
@@ -20,14 +20,14 @@ public sealed class AplicarResultadoPenalizacionRankingManejador
 
     public AplicarResultadoPenalizacionRankingManejador(
         IRepositorioSesiones repositorio,
-        IRepositorioPenalizacionesSesion repositorioPenalizaciones,
+        IRepositorioResultadosRankingProcesados repositorioResultadosProcesados,
         IUnidadTrabajoSesiones unidadTrabajo,
         INotificadorSesionesTiempoReal notificador,
         IProveedorFechaHora reloj,
         IRegistroLogsAplicacion registroLogs)
     {
         _repositorio = repositorio;
-        _repositorioPenalizaciones = repositorioPenalizaciones;
+        _repositorioResultadosProcesados = repositorioResultadosProcesados;
         _unidadTrabajo = unidadTrabajo;
         _notificador = notificador;
         _reloj = reloj;
@@ -41,10 +41,8 @@ public sealed class AplicarResultadoPenalizacionRankingManejador
 
         await _unidadTrabajo.EjecutarEnTransaccionAsync(async ct =>
         {
-            var penalizacion = await _repositorioPenalizaciones.ObtenerPorEventoIdAsync(
-                comando.EventoIdOrigen, ct);
-
-            if (penalizacion is { EstadoProcesamiento: EstadoProcesamientoPenalizacion.Procesada })
+            if (await _repositorioResultadosProcesados.ExisteAsync(
+                comando.EventoIdOrigen, TipoResultado, ct))
                 return;
 
             var sesion = await _repositorio.ObtenerPorIdAsync(comando.SesionId, ct);
@@ -55,14 +53,11 @@ public sealed class AplicarResultadoPenalizacionRankingManejador
             if (snapshotActualizado)
                 await _repositorio.ActualizarAsync(sesion, ct);
 
-            if (penalizacion is not null)
-            {
-                var puntajeResultante = comando.TipoObjetivo == TipoObjetivoEquipo
-                    ? comando.PuntajeTotalEquipo ?? 0L
-                    : comando.PuntajeTotalParticipante ?? 0L;
-                penalizacion.MarcarProcesada(puntajeResultante, _reloj.ObtenerFechaHoraUtc());
-                await _repositorioPenalizaciones.ActualizarAsync(penalizacion, ct);
-            }
+            await _repositorioResultadosProcesados.RegistrarAsync(
+                comando.EventoIdOrigen,
+                TipoResultado,
+                _reloj.ObtenerFechaHoraUtc(),
+                ct);
 
             await _unidadTrabajo.GuardarCambiosAsync(ct);
             aplicado = true;
@@ -83,7 +78,6 @@ public sealed class AplicarResultadoPenalizacionRankingManejador
             propiedades: new Dictionary<string, object?>
             {
                 ["EventoId"] = comando.EventoIdOrigen,
-                ["PenalizacionId"] = comando.PenalizacionId,
                 ["SesionId"] = comando.SesionId,
                 ["TipoObjetivo"] = comando.TipoObjetivo,
                 ["PuntosPenalizadosAcumulados"] = comando.PuntosPenalizadosAcumulados

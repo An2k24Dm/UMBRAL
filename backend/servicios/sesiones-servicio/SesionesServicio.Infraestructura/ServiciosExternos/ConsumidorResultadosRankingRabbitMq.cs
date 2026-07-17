@@ -180,17 +180,15 @@ public sealed class ConsumidorResultadosRankingRabbitMq : BackgroundService
                 var ev = JsonSerializer.Deserialize<EventoPenalizacionProcesadaRanking>(
                     cuerpo, OpcionesJson)!;
                 _log.LogInformation(
-                    "Resultado de penalización recibido. RoutingKey={RoutingKey} EventoIdOrigen={EventoIdOrigen} PenalizacionId={PenalizacionId} SesionId={SesionId} TipoObjetivo={TipoObjetivo} ParticipanteSesionId={ParticipanteSesionId} EquipoId={EquipoId}",
+                    "Resultado de penalización recibido. RoutingKey={RoutingKey} EventoIdOrigen={EventoIdOrigen} SesionId={SesionId} TipoObjetivo={TipoObjetivo} ParticipanteSesionId={ParticipanteSesionId} EquipoId={EquipoId}",
                     routingKey,
                     ev.EventoIdOrigen,
-                    ev.PenalizacionId,
                     ev.SesionId,
                     ev.TipoObjetivo,
                     ev.ParticipanteSesionId,
                     ev.EquipoId);
                 await mediator.Send(new AplicarResultadoPenalizacionRankingComando(
                     ev.EventoIdOrigen,
-                    ev.PenalizacionId,
                     ev.SesionId,
                     ev.TipoObjetivo,
                     ev.ParticipanteSesionId,
@@ -258,7 +256,6 @@ public sealed class ConsumidorResultadosRankingRabbitMq : BackgroundService
 
     private sealed record EventoPenalizacionProcesadaRanking(
         Guid EventoIdOrigen,
-        Guid PenalizacionId,
         Guid SesionId,
         string TipoObjetivo,
         Guid? ParticipanteSesionId,

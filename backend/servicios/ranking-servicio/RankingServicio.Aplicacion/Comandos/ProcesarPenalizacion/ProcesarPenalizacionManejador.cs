@@ -1,6 +1,8 @@
 using MediatR;
 using Microsoft.Extensions.Logging;
 using RankingServicio.Aplicacion.Puertos;
+using RankingServicio.Commons.Dtos.Eventos.Salida;
+using RankingServicio.Commons.Dtos.TiempoReal;
 using RankingServicio.Dominio.Entidades;
 using RankingServicio.Dominio.Excepciones;
 using RankingServicio.Dominio.ObjetosValor;
@@ -111,7 +113,6 @@ public sealed class ProcesarPenalizacionManejador
 
         var resultado = new PenalizacionProcesadaDto(
             comando.EventoId,
-            comando.PenalizacionId,
             comando.SesionId,
             ObjetivoParticipante,
             participanteSesionId,
@@ -149,7 +150,6 @@ public sealed class ProcesarPenalizacionManejador
 
         var resultado = new PenalizacionProcesadaDto(
             comando.EventoId,
-            comando.PenalizacionId,
             comando.SesionId,
             ObjetivoEquipo,
             null,

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using RankingServicio.Aplicacion.Puertos;
+using RankingServicio.Commons.Dtos.Eventos.Salida;
 using RankingServicio.Infraestructura.Persistencia;
 
 namespace RankingServicio.Infraestructura.RabbitMq;

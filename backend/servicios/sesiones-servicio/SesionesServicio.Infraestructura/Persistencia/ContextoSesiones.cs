@@ -16,7 +16,8 @@ public sealed class ContextoSesiones : DbContext
     public DbSet<PistaLiberadaModelo> PistasLiberadas => Set<PistaLiberadaModelo>();
     public DbSet<EtapaCompletadaModelo> EtapasCompletadas => Set<EtapaCompletadaModelo>();
     public DbSet<OutboxMensajeRankingModelo> OutboxRanking => Set<OutboxMensajeRankingModelo>();
-    public DbSet<PenalizacionSesionModelo> Penalizaciones => Set<PenalizacionSesionModelo>();
+    public DbSet<PenalizacionAplicadaModelo> PenalizacionesAplicadas => Set<PenalizacionAplicadaModelo>();
+    public DbSet<ResultadoRankingProcesadoModelo> ResultadosRankingProcesados => Set<ResultadoRankingProcesadoModelo>();
 
     protected override void OnModelCreating(ModelBuilder constructor)
     {
@@ -239,14 +240,14 @@ public sealed class ContextoSesiones : DbContext
             e.HasIndex(x => new { x.Estado, x.ProximoIntentoUtc, x.CreadoEnUtc });
         });
 
-        constructor.Entity<PenalizacionSesionModelo>(e =>
+        constructor.Entity<PenalizacionAplicadaModelo>(e =>
         {
-            e.ToTable("PenalizacionSesion", tabla =>
+            e.ToTable("penalizaciones_aplicadas", tabla =>
             {
                 // Puntos siempre 1..100 (la cantidad recibida es positiva).
                 tabla.HasCheckConstraint(
                     "ck_penalizacion_puntos_rango",
-                    "puntos BETWEEN 1 AND 100");
+                    "puntos_descontados BETWEEN 1 AND 100");
                 // Motivo obligatorio (no vacío tras Trim en el dominio).
                 tabla.HasCheckConstraint(
                     "ck_penalizacion_motivo_no_vacio",
@@ -261,26 +262,32 @@ public sealed class ContextoSesiones : DbContext
                     "OR (tipo_objetivo = 1 AND equipo_id IS NOT NULL " +
                     "AND participante_sesion_id IS NULL AND participante_identidad_id IS NULL)");
             });
-            e.HasKey(x => x.Id);
-            e.Property(x => x.Id).HasColumnName("id");
+            e.HasKey(x => x.EventoId);
             e.Property(x => x.EventoId).HasColumnName("evento_id").IsRequired();
             e.Property(x => x.SesionId).HasColumnName("sesion_id").IsRequired();
             e.Property(x => x.TipoObjetivo).HasColumnName("tipo_objetivo").IsRequired();
             e.Property(x => x.ParticipanteSesionId).HasColumnName("participante_sesion_id");
             e.Property(x => x.ParticipanteIdentidadId).HasColumnName("participante_identidad_id");
             e.Property(x => x.EquipoId).HasColumnName("equipo_id");
-            e.Property(x => x.Puntos).HasColumnName("puntos").IsRequired();
+            e.Property(x => x.Puntos).HasColumnName("puntos_descontados").IsRequired();
             e.Property(x => x.Motivo).HasColumnName("motivo").HasMaxLength(500).IsRequired();
             e.Property(x => x.OperadorIdentidadId).HasColumnName("operador_identidad_id").IsRequired();
             e.Property(x => x.AplicadaEnUtc).HasColumnName("aplicada_en_utc").IsRequired();
-            e.Property(x => x.ProcesadaEnUtc).HasColumnName("procesada_en_utc");
-            e.Property(x => x.PuntajeResultante).HasColumnName("puntaje_resultante");
-            e.Property(x => x.EstadoProcesamiento).HasColumnName("estado_procesamiento").IsRequired();
 
-            e.HasIndex(x => x.EventoId).IsUnique();
             e.HasIndex(x => x.SesionId);
-            e.HasIndex(x => new { x.SesionId, x.EquipoId });
-            e.HasIndex(x => new { x.SesionId, x.ParticipanteSesionId });
+            e.HasIndex(x => x.ParticipanteIdentidadId);
+            e.HasIndex(x => x.EquipoId);
+            e.HasIndex(x => x.OperadorIdentidadId);
+            e.HasIndex(x => x.AplicadaEnUtc);
+        });
+
+        constructor.Entity<ResultadoRankingProcesadoModelo>(e =>
+        {
+            e.ToTable("resultados_ranking_procesados");
+            e.HasKey(x => new { x.EventoIdOrigen, x.TipoResultado });
+            e.Property(x => x.EventoIdOrigen).HasColumnName("evento_id_origen").IsRequired();
+            e.Property(x => x.TipoResultado).HasColumnName("tipo_resultado").HasMaxLength(80).IsRequired();
+            e.Property(x => x.ProcesadoEnUtc).HasColumnName("procesado_en_utc").IsRequired();
         });
     }
 }

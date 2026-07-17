@@ -23,7 +23,6 @@ public sealed class AplicarPenalizacionParticipanteManejadorPruebas
     private sealed class EventoPublicado
     {
         public Guid EventoId;
-        public Guid PenalizacionId;
         public Guid SesionId;
         public string TipoObjetivo = string.Empty;
         public Guid? ParticipanteSesionId;
@@ -37,12 +36,12 @@ public sealed class AplicarPenalizacionParticipanteManejadorPruebas
     private sealed class Contexto
     {
         public Mock<IRepositorioSesiones> Repo { get; } = new();
-        public Mock<IRepositorioPenalizacionesSesion> RepoPen { get; } = new();
+        public Mock<IRepositorioPenalizacionesAplicadas> RepoPen { get; } = new();
         public Mock<IUnidadTrabajoSesiones> Unidad { get; } = new();
         public Mock<IPublicadorEventosRanking> Publicador { get; } = new();
         public Mock<IUsuarioActual> Usuario { get; } = new();
         public Mock<IProveedorFechaHora> Reloj { get; } = new();
-        public PenalizacionSesion? Registrada;
+        public PenalizacionAplicada? Registrada;
         public EventoPublicado? Publicado;
         public int OrdenAgregar = -1;
         public int OrdenPublicar = -1;
@@ -61,8 +60,8 @@ public sealed class AplicarPenalizacionParticipanteManejadorPruebas
             Reloj.Setup(r => r.ObtenerFechaHoraUtc()).Returns(AhoraUtc);
 
             RepoPen.Setup(r => r.AgregarAsync(
-                    It.IsAny<PenalizacionSesion>(), It.IsAny<CancellationToken>()))
-                .Callback<PenalizacionSesion, CancellationToken>((p, _) =>
+                    It.IsAny<PenalizacionAplicada>(), It.IsAny<CancellationToken>()))
+                .Callback<PenalizacionAplicada, CancellationToken>((p, _) =>
                 {
                     Registrada = p;
                     OrdenAgregar = _contador++;
@@ -70,16 +69,16 @@ public sealed class AplicarPenalizacionParticipanteManejadorPruebas
                 .Returns(Task.CompletedTask);
 
             Publicador.Setup(p => p.PublicarPenalizacionAplicadaAsync(
-                    It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<string>(),
+                    It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<string>(),
                     It.IsAny<Guid?>(), It.IsAny<Guid?>(), It.IsAny<Guid?>(),
                     It.IsAny<int>(), It.IsAny<string>(), It.IsAny<Guid>(),
                     It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
-                .Callback(new Action<Guid, Guid, Guid, string, Guid?, Guid?, Guid?, int, string, Guid, DateTime, CancellationToken>(
-                    (evento, penal, ses, tipo, ps, pi, eq, pts, mot, op, _, __) =>
+                .Callback(new Action<Guid, Guid, string, Guid?, Guid?, Guid?, int, string, Guid, DateTime, CancellationToken>(
+                    (evento, ses, tipo, ps, pi, eq, pts, mot, op, _, __) =>
                     {
                         Publicado = new EventoPublicado
                         {
-                            EventoId = evento, PenalizacionId = penal, SesionId = ses,
+                            EventoId = evento, SesionId = ses,
                             TipoObjetivo = tipo, ParticipanteSesionId = ps,
                             ParticipanteIdentidadId = pi, EquipoId = eq,
                             Puntos = pts, Motivo = mot, OperadorIdentidadId = op
@@ -100,7 +99,7 @@ public sealed class AplicarPenalizacionParticipanteManejadorPruebas
                 new ValidadorAplicarPenalizacionParticipante(),
                 Mock.Of<IRegistroLogsAplicacion>());
 
-        public Task<Aplicacion.Comandos.Penalizaciones.PenalizacionEncoladaDto> Ejecutar(
+        public Task<PenalizacionEncoladaDto> Ejecutar(
             Guid sesionId, Guid participanteSesionId, int puntos = 5, string? motivo = "Incumplió una regla")
             => Construir().Handle(
                 new AplicarPenalizacionParticipanteComando(sesionId, participanteSesionId, puntos, motivo),
@@ -133,7 +132,6 @@ public sealed class AplicarPenalizacionParticipanteManejadorPruebas
         var resultado = await ctx.Ejecutar(sesion.Id, pid);
 
         resultado.Estado.Should().Be("Pendiente");
-        resultado.PenalizacionId.Should().NotBe(Guid.Empty);
         resultado.EventoId.Should().NotBe(Guid.Empty);
         ctx.Registrada.Should().NotBeNull();
         ctx.Registrada!.TipoObjetivo.Should().Be(TipoObjetivoPenalizacion.Participante);
@@ -141,7 +139,7 @@ public sealed class AplicarPenalizacionParticipanteManejadorPruebas
         ctx.Registrada.AplicadaEnUtc.Should().Be(AhoraUtc);
         ctx.Registrada.OperadorIdentidadId.Should().Be(Operador);
         ctx.Publicador.Verify(p => p.PublicarPenalizacionAplicadaAsync(
-            It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<string>(),
+            It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<string>(),
             It.IsAny<Guid?>(), It.IsAny<Guid?>(), It.IsAny<Guid?>(),
             It.IsAny<int>(), It.IsAny<string>(), It.IsAny<Guid>(),
             It.IsAny<DateTime>(), It.IsAny<CancellationToken>()), Times.Once);
@@ -179,7 +177,6 @@ public sealed class AplicarPenalizacionParticipanteManejadorPruebas
         ctx.Publicado.Motivo.Should().Be("Regla rota");
         ctx.Publicado.OperadorIdentidadId.Should().Be(Operador);
         ctx.Publicado.EventoId.Should().Be(resultado.EventoId);
-        ctx.Publicado.PenalizacionId.Should().Be(resultado.PenalizacionId);
     }
 
     [Theory]
@@ -193,7 +190,7 @@ public sealed class AplicarPenalizacionParticipanteManejadorPruebas
         var resultado = await ctx.Ejecutar(sesion.Id, pid, puntos);
 
         resultado.Estado.Should().Be("Pendiente");
-        ctx.Registrada!.Puntos.Should().Be(puntos);
+        ctx.Registrada!.PuntosDescontados.Should().Be(puntos);
     }
 
     [Theory]
@@ -332,6 +329,5 @@ public sealed class AplicarPenalizacionParticipanteManejadorPruebas
         var r2 = await ctx.Ejecutar(sesion.Id, pid);
 
         r1.EventoId.Should().NotBe(r2.EventoId);
-        r1.PenalizacionId.Should().NotBe(r2.PenalizacionId);
     }
 }

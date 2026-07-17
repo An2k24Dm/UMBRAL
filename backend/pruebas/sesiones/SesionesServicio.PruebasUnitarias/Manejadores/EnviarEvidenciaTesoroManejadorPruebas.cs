@@ -270,6 +270,22 @@ public class EnviarEvidenciaTesoroManejadorPruebas
             It.IsAny<CancellationToken>()), Times.Once);
     }
 
+    [Fact]
+    public async Task Individual_EtapaVencida_RechazaEvidencia()
+    {
+        var sesion = IndividualActiva();
+        var arr = new Arranque(sesion, ParticipanteId);
+        arr.Reloj.Setup(r => r.ObtenerFechaHoraUtc())
+            .Returns(AhoraUtc.AddSeconds(DuracionEtapaSegundos + 1));
+
+        Func<Task> accion = () => arr.EjecutarAsync(sesion.Id);
+
+        await accion.Should().ThrowAsync<OperacionSesionInvalidaExcepcion>()
+            .WithMessage("*tiempo de la etapa*");
+        arr.RepoEvidencias.Verify(r => r.AgregarAsync(
+            It.IsAny<EvidenciaTesoroRegistro>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
     // ======================================================================
     // SESIÓN GRUPAL
     // ======================================================================

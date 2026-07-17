@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SesionesServicio.Aplicacion.Comandos.AplicarPenalizacionEquipo;
 using SesionesServicio.Aplicacion.Comandos.AplicarPenalizacionParticipante;
+using SesionesServicio.Commons.Dtos.Penalizaciones;
 
 namespace SesionesServicio.Presentacion.Controladores;
 
@@ -58,5 +59,3 @@ public sealed class PenalizacionesSesionOperadorControlador : ControllerBase
         return Accepted(resultado);
     }
 }
-
-public sealed record SolicitudPenalizacion(int Puntos, string? Motivo);

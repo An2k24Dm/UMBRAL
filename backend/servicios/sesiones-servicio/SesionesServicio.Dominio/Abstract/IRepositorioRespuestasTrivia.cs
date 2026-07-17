@@ -29,20 +29,15 @@ public interface IRepositorioRespuestasTrivia
     Task<IReadOnlyList<ProgresoTriviaEtapaItem>> ObtenerProgresoTriviaPorEtapaAsync(
         Guid sesionId, CancellationToken cancelacion);
 
-    // Fija el puntaje real (calculado por ranking) en la respuesta cuyo
-    // EventoPuntuacionId coincide. Idempotente: repetir con el mismo valor no
-    // altera el resultado. Devuelve las filas afectadas.
     Task<int> ActualizarPuntosGanadosPorEventoAsync(
         Guid eventoPuntuacionId, int puntosGanados, CancellationToken cancelacion);
 
-    // Desglose del puntaje por etapa de un participante en una sesión
-    // (SUM de PuntosGanados agrupado por misión y etapa).
+    Task<int?> ObtenerPuntajeGanadoPorEventoAsync(
+        Guid eventoPuntuacionId, CancellationToken cancelacion);
+
     Task<IReadOnlyList<PuntajeEtapaItem>> ObtenerPuntajePorEtapaParticipanteAsync(
         Guid sesionId, Guid participanteIdentidadId, CancellationToken cancelacion);
 
-    // HU52 — Puntaje bruto ganado por un equipo completo (SUM de PuntosGanados
-    // de todos sus integrantes). Usado por el desglose grupal para calcular el
-    // puntaje total del equipo sin depender del snapshot.
     Task<long> ObtenerPuntajeGanadoEquipoAsync(
         Guid sesionId, Guid equipoId, CancellationToken cancelacion);
 }

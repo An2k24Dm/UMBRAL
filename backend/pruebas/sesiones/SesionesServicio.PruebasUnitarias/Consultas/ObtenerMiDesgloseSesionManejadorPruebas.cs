@@ -22,6 +22,7 @@ public sealed class ObtenerMiDesgloseSesionManejadorPruebas
         public Mock<IRepositorioSesiones> Repo { get; } = new();
         public Mock<IRepositorioRespuestasTrivia> Trivia { get; } = new();
         public Mock<IRepositorioEvidenciasTesoro> Tesoro { get; } = new();
+        public Mock<IRepositorioPenalizacionesAplicadas> Penalizaciones { get; } = new();
         public Mock<IClienteJuegosMisiones> Misiones { get; } = new();
         public Mock<IUsuarioActual> Usuario { get; } = new();
 
@@ -42,13 +43,19 @@ public sealed class ObtenerMiDesgloseSesionManejadorPruebas
             Tesoro.Setup(t => t.ObtenerPuntajeGanadoEquipoAsync(
                     It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(0L);
+            Penalizaciones.Setup(p => p.SumarPuntosPorParticipanteAsync(
+                    It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(0);
+            Penalizaciones.Setup(p => p.SumarPuntosPorEquipoAsync(
+                    It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(0);
             Misiones.Setup(m => m.ObtenerMisionConEtapasAsync(
                     It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync((SesionesServicio.Commons.Dtos.MisionConEtapasJuegosDto?)null);
         }
 
         public ObtenerMiDesgloseSesionManejador Construir()
-            => new(Repo.Object, Trivia.Object, Tesoro.Object, Misiones.Object, Usuario.Object);
+            => new(Repo.Object, Penalizaciones.Object, Trivia.Object, Tesoro.Object, Misiones.Object, Usuario.Object);
     }
 
     [Fact]
@@ -65,6 +72,9 @@ public sealed class ObtenerMiDesgloseSesionManejadorPruebas
         participante.EstablecerPenalizacionSnapshot(52, 6, AhoraUtc);
 
         var ctx = new Contexto(sesion, identidadId);
+        ctx.Penalizaciones.Setup(p => p.SumarPuntosPorParticipanteAsync(
+                sesion.Id, identidadId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(52);
         var etapaId = Guid.NewGuid();
         ctx.Trivia.Setup(t => t.ObtenerPuntajePorEtapaParticipanteAsync(
                 sesion.Id, identidadId, It.IsAny<CancellationToken>()))
@@ -92,6 +102,9 @@ public sealed class ObtenerMiDesgloseSesionManejadorPruebas
         equipo.EstablecerPenalizacionSnapshot(20, 60, AhoraUtc);
 
         var ctx = new Contexto(sesion, identidadId);
+        ctx.Penalizaciones.Setup(p => p.SumarPuntosPorEquipoAsync(
+                sesion.Id, equipo.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(20);
         // Puntaje bruto propio del participante (misiones/etapas).
         ctx.Trivia.Setup(t => t.ObtenerPuntajePorEtapaParticipanteAsync(
                 sesion.Id, identidadId, It.IsAny<CancellationToken>()))

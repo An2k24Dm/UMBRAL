@@ -36,9 +36,13 @@ public class ObtenerSesionPorIdManejadorPruebas
         var repositorio = new Mock<IRepositorioSesiones>();
         var usuario = new Mock<IUsuarioActual>();
         var identidad = new Mock<IClienteIdentidadParticipantes>();
+        var finalizacion = new Mock<IServicioFinalizacionSesion>();
 
         repositorio.Setup(r => r.ObtenerPorIdAsync(SesionId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(sesion);
+        finalizacion.Setup(f => f.FinalizarSesionSiDuracionVencidaAsync(
+                SesionId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
         usuario.Setup(u => u.EstaAutenticado()).Returns(true);
         usuario.Setup(u => u.ObtenerId()).Returns(OperadorId);
         usuario.Setup(u => u.TieneAlgunRol(It.IsAny<string[]>()))
@@ -63,7 +67,8 @@ public class ObtenerSesionPorIdManejadorPruebas
                 new MapeadorDetalleSesionGrupal()
             });
         var manejador = new ObtenerSesionPorIdManejador(
-            repositorio.Object, usuario.Object, fabrica, identidad.Object);
+            repositorio.Object, usuario.Object, fabrica, identidad.Object,
+            finalizacion.Object);
 
         var dto = await manejador.Handle(
             new ObtenerSesionPorIdConsulta(SesionId), CancellationToken.None);

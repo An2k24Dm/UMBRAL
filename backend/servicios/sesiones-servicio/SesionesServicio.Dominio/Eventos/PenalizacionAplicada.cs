@@ -2,35 +2,31 @@ using SesionesServicio.Dominio.Enums;
 using SesionesServicio.Dominio.Excepciones;
 using SesionesServicio.Dominio.ObjetosValor;
 
-namespace SesionesServicio.Dominio.Entidades;
+namespace SesionesServicio.Dominio.Eventos;
 
-public sealed class PenalizacionSesion
+public sealed class PenalizacionAplicada
 {
     public const int MotivoMaximoCaracteres = 500;
 
-    public Guid Id { get; private set; }
     public Guid EventoId { get; private set; }
     public Guid SesionId { get; private set; }
     public TipoObjetivoPenalizacion TipoObjetivo { get; private set; }
     public Guid? ParticipanteSesionId { get; private set; }
     public Guid? ParticipanteIdentidadId { get; private set; }
     public Guid? EquipoId { get; private set; }
-    public int Puntos { get; private set; }
+    public int PuntosDescontados { get; private set; }
     public string Motivo { get; private set; } = string.Empty;
     public Guid OperadorIdentidadId { get; private set; }
     public DateTime AplicadaEnUtc { get; private set; }
-    public DateTime? ProcesadaEnUtc { get; private set; }
-    public long? PuntajeResultante { get; private set; }
-    public EstadoProcesamientoPenalizacion EstadoProcesamiento { get; private set; }
 
-    private PenalizacionSesion() { }
+    private PenalizacionAplicada() { }
 
-    public static PenalizacionSesion CrearParaParticipante(
+    public static PenalizacionAplicada CrearParaParticipante(
         Guid eventoId,
         Guid sesionId,
         Guid participanteSesionId,
         Guid participanteIdentidadId,
-        int puntos,
+        int puntosDescontados,
         string motivo,
         Guid operadorIdentidadId,
         DateTime aplicadaEnUtc)
@@ -45,14 +41,14 @@ public sealed class PenalizacionSesion
         return Crear(
             eventoId, sesionId, TipoObjetivoPenalizacion.Participante,
             participanteSesionId, participanteIdentidadId, equipoId: null,
-            puntos, motivo, operadorIdentidadId, aplicadaEnUtc);
+            puntosDescontados, motivo, operadorIdentidadId, aplicadaEnUtc);
     }
 
-    public static PenalizacionSesion CrearParaEquipo(
+    public static PenalizacionAplicada CrearParaEquipo(
         Guid eventoId,
         Guid sesionId,
         Guid equipoId,
-        int puntos,
+        int puntosDescontados,
         string motivo,
         Guid operadorIdentidadId,
         DateTime aplicadaEnUtc)
@@ -64,17 +60,17 @@ public sealed class PenalizacionSesion
         return Crear(
             eventoId, sesionId, TipoObjetivoPenalizacion.Equipo,
             participanteSesionId: null, participanteIdentidadId: null, equipoId,
-            puntos, motivo, operadorIdentidadId, aplicadaEnUtc);
+            puntosDescontados, motivo, operadorIdentidadId, aplicadaEnUtc);
     }
 
-    private static PenalizacionSesion Crear(
+    private static PenalizacionAplicada Crear(
         Guid eventoId,
         Guid sesionId,
         TipoObjetivoPenalizacion tipoObjetivo,
         Guid? participanteSesionId,
         Guid? participanteIdentidadId,
         Guid? equipoId,
-        int puntos,
+        int puntosDescontados,
         string motivo,
         Guid operadorIdentidadId,
         DateTime aplicadaEnUtc)
@@ -86,32 +82,24 @@ public sealed class PenalizacionSesion
         if (operadorIdentidadId == Guid.Empty)
             throw new PenalizacionInvalidaExcepcion("El identificador del Operador es obligatorio.");
 
-        // La cantidad valida 1..100 (entero). Se persiste la magnitud positiva.
-        var cantidad = CantidadPenalizacion.Crear(puntos);
+        var cantidad = CantidadPenalizacion.Crear(puntosDescontados);
         var motivoNormalizado = NormalizarMotivo(motivo);
 
-        return new PenalizacionSesion
+        return new PenalizacionAplicada
         {
-            Id = Guid.NewGuid(),
             EventoId = eventoId,
             SesionId = sesionId,
             TipoObjetivo = tipoObjetivo,
             ParticipanteSesionId = participanteSesionId,
             ParticipanteIdentidadId = participanteIdentidadId,
             EquipoId = equipoId,
-            Puntos = cantidad.Valor,
+            PuntosDescontados = cantidad.Valor,
             Motivo = motivoNormalizado,
             OperadorIdentidadId = operadorIdentidadId,
-            AplicadaEnUtc = aplicadaEnUtc,
-            ProcesadaEnUtc = null,
-            PuntajeResultante = null,
-            EstadoProcesamiento = EstadoProcesamientoPenalizacion.Pendiente
+            AplicadaEnUtc = aplicadaEnUtc
         };
     }
 
-    // HU52 — El motivo es obligatorio, no puede ser null/ vacío/ solo espacios,
-    // se normaliza con Trim y no puede superar 500 caracteres (se rechaza, no se
-    // trunca silenciosamente). La longitud se mide sobre el texto ya normalizado.
     public static string NormalizarMotivo(string? motivo)
     {
         if (string.IsNullOrWhiteSpace(motivo))
@@ -125,49 +113,28 @@ public sealed class PenalizacionSesion
         return normalizado;
     }
 
-    // HU52 — Idempotente: solo marca Procesada la primera vez. Devuelve true si
-    // aplicó el cambio; false si ya estaba procesada (resultado duplicado).
-    public bool MarcarProcesada(long puntajeResultante, DateTime procesadaEnUtc)
-    {
-        if (EstadoProcesamiento == EstadoProcesamientoPenalizacion.Procesada)
-            return false;
-
-        EstadoProcesamiento = EstadoProcesamientoPenalizacion.Procesada;
-        PuntajeResultante = puntajeResultante;
-        ProcesadaEnUtc = procesadaEnUtc;
-        return true;
-    }
-
-    public static PenalizacionSesion Rehidratar(
-        Guid id,
+    public static PenalizacionAplicada Rehidratar(
         Guid eventoId,
         Guid sesionId,
         TipoObjetivoPenalizacion tipoObjetivo,
         Guid? participanteSesionId,
         Guid? participanteIdentidadId,
         Guid? equipoId,
-        int puntos,
+        int puntosDescontados,
         string motivo,
         Guid operadorIdentidadId,
-        DateTime aplicadaEnUtc,
-        DateTime? procesadaEnUtc,
-        long? puntajeResultante,
-        EstadoProcesamientoPenalizacion estadoProcesamiento)
+        DateTime aplicadaEnUtc)
         => new()
         {
-            Id = id,
             EventoId = eventoId,
             SesionId = sesionId,
             TipoObjetivo = tipoObjetivo,
             ParticipanteSesionId = participanteSesionId,
             ParticipanteIdentidadId = participanteIdentidadId,
             EquipoId = equipoId,
-            Puntos = puntos,
+            PuntosDescontados = puntosDescontados,
             Motivo = motivo,
             OperadorIdentidadId = operadorIdentidadId,
-            AplicadaEnUtc = aplicadaEnUtc,
-            ProcesadaEnUtc = procesadaEnUtc,
-            PuntajeResultante = puntajeResultante,
-            EstadoProcesamiento = estadoProcesamiento
+            AplicadaEnUtc = aplicadaEnUtc
         };
 }

@@ -21,12 +21,12 @@ public sealed class AplicarPenalizacionEquipoManejadorPruebas
     private sealed class Contexto
     {
         public Mock<IRepositorioSesiones> Repo { get; } = new();
-        public Mock<IRepositorioPenalizacionesSesion> RepoPen { get; } = new();
+        public Mock<IRepositorioPenalizacionesAplicadas> RepoPen { get; } = new();
         public Mock<IUnidadTrabajoSesiones> Unidad { get; } = new();
         public Mock<IPublicadorEventosRanking> Publicador { get; } = new();
         public Mock<IUsuarioActual> Usuario { get; } = new();
         public Mock<IProveedorFechaHora> Reloj { get; } = new();
-        public PenalizacionSesion? Registrada;
+        public PenalizacionAplicada? Registrada;
         public string? TipoPublicado;
         public Guid? EquipoPublicado;
         public Guid? ParticipantePublicado;
@@ -40,16 +40,16 @@ public sealed class AplicarPenalizacionEquipoManejadorPruebas
             Repo.Setup(r => r.ObtenerPorIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(sesion);
             Reloj.Setup(r => r.ObtenerFechaHoraUtc()).Returns(AhoraUtc);
-            RepoPen.Setup(r => r.AgregarAsync(It.IsAny<PenalizacionSesion>(), It.IsAny<CancellationToken>()))
-                .Callback<PenalizacionSesion, CancellationToken>((p, _) => Registrada = p)
+            RepoPen.Setup(r => r.AgregarAsync(It.IsAny<PenalizacionAplicada>(), It.IsAny<CancellationToken>()))
+                .Callback<PenalizacionAplicada, CancellationToken>((p, _) => Registrada = p)
                 .Returns(Task.CompletedTask);
             Publicador.Setup(p => p.PublicarPenalizacionAplicadaAsync(
-                    It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<string>(),
+                    It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<string>(),
                     It.IsAny<Guid?>(), It.IsAny<Guid?>(), It.IsAny<Guid?>(),
                     It.IsAny<int>(), It.IsAny<string>(), It.IsAny<Guid>(),
                     It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
-                .Callback(new Action<Guid, Guid, Guid, string, Guid?, Guid?, Guid?, int, string, Guid, DateTime, CancellationToken>(
-                    (_, __, ___, tipo, ps, ____, eq, _____, ______, _______, ________, _________) =>
+                .Callback(new Action<Guid, Guid, string, Guid?, Guid?, Guid?, int, string, Guid, DateTime, CancellationToken>(
+                    (_, __, tipo, ps, ___, eq, ____, _____, ______, _______, ________) =>
                     {
                         TipoPublicado = tipo;
                         EquipoPublicado = eq;
@@ -68,7 +68,7 @@ public sealed class AplicarPenalizacionEquipoManejadorPruebas
                 new ValidadorAplicarPenalizacionEquipo(),
                 Mock.Of<IRegistroLogsAplicacion>());
 
-        public Task<Aplicacion.Comandos.Penalizaciones.PenalizacionEncoladaDto> Ejecutar(
+        public Task<PenalizacionEncoladaDto> Ejecutar(
             Guid sesionId, Guid equipoId, int puntos = 10, string? motivo = "Regla del equipo")
             => Construir().Handle(
                 new AplicarPenalizacionEquipoComando(sesionId, equipoId, puntos, motivo),
@@ -120,7 +120,7 @@ public sealed class AplicarPenalizacionEquipoManejadorPruebas
         var resultado = await ctx.Ejecutar(sesion.Id, equipoId, puntos);
 
         resultado.Estado.Should().Be("Pendiente");
-        ctx.Registrada!.Puntos.Should().Be(puntos);
+        ctx.Registrada!.PuntosDescontados.Should().Be(puntos);
     }
 
     [Theory]

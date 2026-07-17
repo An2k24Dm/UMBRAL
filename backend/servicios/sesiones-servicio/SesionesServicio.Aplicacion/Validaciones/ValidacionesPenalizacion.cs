@@ -1,4 +1,4 @@
-using SesionesServicio.Dominio.Entidades;
+using SesionesServicio.Dominio.Eventos;
 using SesionesServicio.Dominio.ObjetosValor;
 
 namespace SesionesServicio.Aplicacion.Validaciones;
@@ -22,9 +22,9 @@ internal static class ValidacionesPenalizacion
             return;
         }
 
-        if (motivo.Trim().Length > PenalizacionSesion.MotivoMaximoCaracteres)
+        if (motivo.Trim().Length > PenalizacionAplicada.MotivoMaximoCaracteres)
             resultado.Agregar(
                 "motivo",
-                $"El motivo no puede superar {PenalizacionSesion.MotivoMaximoCaracteres} caracteres.");
+                $"El motivo no puede superar {PenalizacionAplicada.MotivoMaximoCaracteres} caracteres.");
     }
 }

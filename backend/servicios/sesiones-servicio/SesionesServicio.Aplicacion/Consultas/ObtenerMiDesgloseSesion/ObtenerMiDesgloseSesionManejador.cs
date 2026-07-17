@@ -1,6 +1,7 @@
 using MediatR;
 using SesionesServicio.Aplicacion.Puertos;
 using SesionesServicio.Commons.Dtos;
+using SesionesServicio.Commons.Dtos.DesgloseSesion;
 using SesionesServicio.Dominio.Abstract;
 using SesionesServicio.Dominio.Entidades;
 
@@ -10,6 +11,7 @@ public sealed class ObtenerMiDesgloseSesionManejador
     : IRequestHandler<ObtenerMiDesgloseSesionConsulta, MiDesgloseSesionDto>
 {
     private readonly IRepositorioSesiones _repositorio;
+    private readonly IRepositorioPenalizacionesAplicadas _penalizaciones;
     private readonly IRepositorioRespuestasTrivia _respuestasTrivia;
     private readonly IRepositorioEvidenciasTesoro _evidenciasTesoro;
     private readonly IClienteJuegosMisiones _clienteMisiones;
@@ -17,12 +19,14 @@ public sealed class ObtenerMiDesgloseSesionManejador
 
     public ObtenerMiDesgloseSesionManejador(
         IRepositorioSesiones repositorio,
+        IRepositorioPenalizacionesAplicadas penalizaciones,
         IRepositorioRespuestasTrivia respuestasTrivia,
         IRepositorioEvidenciasTesoro evidenciasTesoro,
         IClienteJuegosMisiones clienteMisiones,
         IUsuarioActual usuarioActual)
     {
         _repositorio = repositorio;
+        _penalizaciones = penalizaciones;
         _respuestasTrivia = respuestasTrivia;
         _evidenciasTesoro = evidenciasTesoro;
         _clienteMisiones = clienteMisiones;
@@ -100,7 +104,10 @@ public sealed class ObtenerMiDesgloseSesionManejador
         {
             var participante = individual.Participantes
                 .FirstOrDefault(p => p.ParticipanteIdentidadId == identidadId);
-            long penalizados = participante?.PuntosPenalizados ?? 0;
+            long penalizados = participante is null
+                ? 0
+                : await _penalizaciones.SumarPuntosPorParticipanteAsync(
+                    sesionBase.Id, identidadId, cancelacion);
             return (penalizados, puntajeBruto - penalizados);
         }
 
@@ -111,7 +118,8 @@ public sealed class ObtenerMiDesgloseSesionManejador
             if (equipo is null)
                 return (0, puntajeBruto);
 
-            long penalizados = equipo.PuntosPenalizados;
+            long penalizados = await _penalizaciones.SumarPuntosPorEquipoAsync(
+                sesionBase.Id, equipo.Id, cancelacion);
             var brutoEquipoTrivia = await _respuestasTrivia.ObtenerPuntajeGanadoEquipoAsync(
                 sesionBase.Id, equipo.Id, cancelacion);
             var brutoEquipoTesoro = await _evidenciasTesoro.ObtenerPuntajeGanadoEquipoAsync(

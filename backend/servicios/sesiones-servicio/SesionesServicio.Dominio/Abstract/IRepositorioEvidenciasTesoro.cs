@@ -49,6 +49,12 @@ public interface IRepositorioEvidenciasTesoro
     Task<bool> ExisteEvidenciaValidaEquipoAsync(
         Guid sesionId, Guid etapaId, Guid equipoId, CancellationToken cancelacion);
 
+    Task<bool> ExisteEvidenciaIndividualAsync(
+        Guid sesionId, Guid etapaId, Guid participanteIdentidadId, CancellationToken cancelacion);
+
+    Task<bool> ExisteEvidenciaEquipoAsync(
+        Guid sesionId, Guid etapaId, Guid equipoId, CancellationToken cancelacion);
+
     Task<int> ContarParticipantesConEvidenciaValidaAsync(
         Guid sesionId, Guid etapaId, CancellationToken cancelacion);
 

@@ -32,8 +32,6 @@ public sealed class SesionModelo
     public int? EjecucionActualDuracionSegundos { get; set; }
     public long? EjecucionActualDuracionPausasAcumuladaMs { get; set; }
     public DateTime? EjecucionActualFechaInicioPausaUtc { get; set; }
-    // Plan global de etapas de la sesión serializado como JSON (ver
-    // EtapaPlanificadaSesion). Null hasta que la sesión inicia.
     public string? SecuenciaEtapasJson { get; set; }
     public List<SesionMisionModelo> Misiones { get; set; } = new();
     public List<EquipoModelo> Equipos { get; set; } = new();
@@ -79,11 +77,8 @@ public sealed class ParticipanteModelo
     public DateTime? FechaUnionEquipo { get; set; }
 }
 
-// HU52 — Modelo de persistencia de la penalización (tabla propia, no forma
-// parte del agregado Sesion). Espeja la entidad de dominio PenalizacionSesion.
-public sealed class PenalizacionSesionModelo
+public sealed class PenalizacionAplicadaModelo
 {
-    public Guid Id { get; set; }
     public Guid EventoId { get; set; }
     public Guid SesionId { get; set; }
     public int TipoObjetivo { get; set; }
@@ -94,9 +89,13 @@ public sealed class PenalizacionSesionModelo
     public string Motivo { get; set; } = string.Empty;
     public Guid OperadorIdentidadId { get; set; }
     public DateTime AplicadaEnUtc { get; set; }
-    public DateTime? ProcesadaEnUtc { get; set; }
-    public long? PuntajeResultante { get; set; }
-    public int EstadoProcesamiento { get; set; }
+}
+
+public sealed class ResultadoRankingProcesadoModelo
+{
+    public Guid EventoIdOrigen { get; set; }
+    public string TipoResultado { get; set; } = string.Empty;
+    public DateTime ProcesadoEnUtc { get; set; }
 }
 
 public sealed class EtapaCompletadaModelo

@@ -23,6 +23,7 @@ node_modules/
 dist/
 .expo/
 .expo-shared/
+*.tsbuildinfo
 
 # Entorno
 .env.local

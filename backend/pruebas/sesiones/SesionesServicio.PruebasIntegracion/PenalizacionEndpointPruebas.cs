@@ -27,7 +27,7 @@ public class PenalizacionEndpointPruebas : IClassFixture<FabricaApiPruebas>
         _fabrica = fabrica;
     }
 
-    private sealed record PenalizacionEncoladaResp(Guid PenalizacionId, Guid EventoId, string Estado);
+    private sealed record PenalizacionEncoladaResp(Guid EventoId, string Estado);
     private static object Cuerpo(int puntos, string? motivo) => new { puntos, motivo };
 
     private HttpClient ClienteConRol(string rol, Guid? idKeycloak = null)
@@ -135,12 +135,11 @@ public class PenalizacionEndpointPruebas : IClassFixture<FabricaApiPruebas>
         respuesta.StatusCode.Should().Be(HttpStatusCode.Accepted);
         var cuerpo = await respuesta.Content.ReadFromJsonAsync<PenalizacionEncoladaResp>(OpcionesJson);
         cuerpo!.Estado.Should().Be("Pendiente");
-        cuerpo.PenalizacionId.Should().NotBe(Guid.Empty);
         cuerpo.EventoId.Should().NotBe(Guid.Empty);
 
         using var alcance = _fabrica.Services.CreateScope();
         var ctx = alcance.ServiceProvider.GetRequiredService<ContextoSesiones>();
-        var fila = await ctx.Penalizaciones.FirstAsync(p => p.Id == cuerpo.PenalizacionId);
+        var fila = await ctx.PenalizacionesAplicadas.FirstAsync(p => p.EventoId == cuerpo.EventoId);
         fila.SesionId.Should().Be(sesionId);
         fila.ParticipanteSesionId.Should().Be(pid);
         fila.EquipoId.Should().BeNull();
@@ -148,7 +147,6 @@ public class PenalizacionEndpointPruebas : IClassFixture<FabricaApiPruebas>
         fila.Motivo.Should().Be("Incumplió una regla"); // Trim
         fila.OperadorIdentidadId.Should().Be(FabricaApiPruebas.IdOperadorPrueba);
         fila.TipoObjetivo.Should().Be((int)TipoObjetivoPenalizacion.Participante);
-        fila.EstadoProcesamiento.Should().Be((int)EstadoProcesamientoPenalizacion.Pendiente);
 
         (await ctx.OutboxRanking.AnyAsync(m =>
             m.Id == cuerpo.EventoId
@@ -312,7 +310,7 @@ public class PenalizacionEndpointPruebas : IClassFixture<FabricaApiPruebas>
 
         using var alcance = _fabrica.Services.CreateScope();
         var ctx = alcance.ServiceProvider.GetRequiredService<ContextoSesiones>();
-        var fila = await ctx.Penalizaciones.FirstAsync(p => p.Id == cuerpo!.PenalizacionId);
+        var fila = await ctx.PenalizacionesAplicadas.FirstAsync(p => p.EventoId == cuerpo!.EventoId);
         fila.EquipoId.Should().Be(equipoId);
         fila.ParticipanteSesionId.Should().BeNull();
         fila.Puntos.Should().Be(puntos);

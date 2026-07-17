@@ -32,6 +32,8 @@ public class PublicadorEventosRankingOutboxPruebas
             tiempoLimiteMs: 10000,
             CancellationToken.None);
 
+        await contexto.SaveChangesAsync();
+
         var mensaje = await contexto.OutboxRanking.SingleAsync();
         mensaje.Id.Should().Be(eventoId);
         mensaje.RoutingKey.Should().Be("sesion.respuesta_trivia");
@@ -70,6 +72,8 @@ public class PublicadorEventosRankingOutboxPruebas
             tiempoLimiteMs: 60000,
             CancellationToken.None);
 
+        await contexto.SaveChangesAsync();
+
         var mensaje = await contexto.OutboxRanking.SingleAsync();
         mensaje.Id.Should().Be(eventoId);
         mensaje.RoutingKey.Should().Be("sesion.evidencia_tesoro");
@@ -92,6 +96,8 @@ public class PublicadorEventosRankingOutboxPruebas
         await publicador.PublicarParticipanteUnidoSesionAsync(
             sesionId, participanteSesionId, participanteIdentidadId, null, CancellationToken.None);
 
+        await contexto.SaveChangesAsync();
+
         var mensaje = await contexto.OutboxRanking.SingleAsync();
         mensaje.Id.Should().NotBe(Guid.Empty);
         mensaje.RoutingKey.Should().Be("sesion.participante_unido");
@@ -113,6 +119,8 @@ public class PublicadorEventosRankingOutboxPruebas
         await publicador.PublicarEquipoCreadoSesionAsync(
             sesionId, equipoId, CancellationToken.None);
 
+        await contexto.SaveChangesAsync();
+
         var mensaje = await contexto.OutboxRanking.SingleAsync();
         mensaje.Id.Should().NotBe(Guid.Empty);
         mensaje.RoutingKey.Should().Be("sesion.equipo_creado");
@@ -128,25 +136,26 @@ public class PublicadorEventosRankingOutboxPruebas
         await using var contexto = NuevoContexto();
         var publicador = new PublicadorEventosRankingOutbox(contexto);
         var eventoId = Guid.NewGuid();
-        var penalizacionId = Guid.NewGuid();
         var sesionId = Guid.NewGuid();
         var participanteSesionId = Guid.NewGuid();
         var participanteIdentidadId = Guid.NewGuid();
         var operadorId = Guid.NewGuid();
 
         await publicador.PublicarPenalizacionAplicadaAsync(
-            eventoId, penalizacionId, sesionId, "Participante",
+            eventoId, sesionId, "Participante",
             participanteSesionId, participanteIdentidadId, null,
             5, "Incumplió una regla", operadorId,
             new DateTime(2026, 7, 17, 12, 0, 0, DateTimeKind.Utc),
             CancellationToken.None);
+
+        await contexto.SaveChangesAsync();
 
         var mensaje = await contexto.OutboxRanking.SingleAsync();
         mensaje.Id.Should().Be(eventoId);
         mensaje.RoutingKey.Should().Be("sesion.penalizacion_aplicada");
         mensaje.Estado.Should().Be("Pendiente");
         var payload = JsonDocument.Parse(mensaje.PayloadJson).RootElement;
-        payload.GetProperty("PenalizacionId").GetGuid().Should().Be(penalizacionId);
+        payload.TryGetProperty("PenalizacionId", out _).Should().BeFalse();
         payload.GetProperty("SesionId").GetGuid().Should().Be(sesionId);
         payload.GetProperty("TipoObjetivo").GetString().Should().Be("Participante");
         payload.GetProperty("ParticipanteSesionId").GetGuid().Should().Be(participanteSesionId);

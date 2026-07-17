@@ -1,22 +1,15 @@
-using System;
-using FluentAssertions;
+using System.Reflection;
 using SesionesServicio.Dominio.Entidades;
 using SesionesServicio.Dominio.Enums;
 using SesionesServicio.Dominio.Excepciones;
 using SesionesServicio.Dominio.ObjetosValor;
-using Xunit;
 
 namespace SesionesServicio.PruebasUnitarias.Dominio;
 
-// HU52 — Reglas de dominio de penalización en Sesiones: CantidadPenalizacion,
-// PuntajeSesion negativo, entidad PenalizacionSesion, validación de estado y
-// objetivo, y snapshots de penalización.
-public sealed class PenalizacionSesionDominioPruebas
+public sealed class PenalizacionAplicadaDominioPruebas
 {
     private static readonly DateTime AhoraUtc = new(2026, 7, 17, 12, 0, 0, DateTimeKind.Utc);
     private static readonly Guid Operador = Guid.Parse("22222222-2222-2222-2222-222222222222");
-
-    // -------------------- CantidadPenalizacion --------------------
 
     [Theory]
     [InlineData(1)]
@@ -29,12 +22,8 @@ public sealed class PenalizacionSesionDominioPruebas
     [InlineData(-1)]
     [InlineData(101)]
     public void CantidadPenalizacion_rechazaFueraDeRango(int valor)
-    {
-        var accion = () => CantidadPenalizacion.Crear(valor);
-        accion.Should().Throw<PenalizacionInvalidaExcepcion>();
-    }
-
-    // -------------------- PuntajeSesion negativo --------------------
+        => FluentActions.Invoking(() => CantidadPenalizacion.Crear(valor))
+            .Should().Throw<PenalizacionInvalidaExcepcion>();
 
     [Fact]
     public void PuntajeSesion_desdePersistencia_admiteNegativo()
@@ -43,23 +32,21 @@ public sealed class PenalizacionSesionDominioPruebas
     [Fact]
     public void PuntajeSesion_ganado_sigueSinNegativos()
     {
-        var accionCrear = () => PuntajeSesion.Crear(-1);
-        var accionSumar = () => PuntajeSesion.Cero().Sumar(-1);
-        accionCrear.Should().Throw<ParticipacionInvalidaExcepcion>();
-        accionSumar.Should().Throw<ParticipacionInvalidaExcepcion>();
+        FluentActions.Invoking(() => PuntajeSesion.Crear(-1))
+            .Should().Throw<ParticipacionInvalidaExcepcion>();
+        FluentActions.Invoking(() => PuntajeSesion.Cero().Sumar(-1))
+            .Should().Throw<ParticipacionInvalidaExcepcion>();
     }
 
-    // -------------------- Entidad PenalizacionSesion --------------------
-
     [Fact]
-    public void CrearParaParticipante_registraOrigenMotivoMomentoOperadorYObjetivo()
+    public void CrearParaParticipante_registraHechoCompletoEInmutable()
     {
         var eventoId = Guid.NewGuid();
         var sesionId = Guid.NewGuid();
         var participanteSesionId = Guid.NewGuid();
         var identidadId = Guid.NewGuid();
 
-        var penalizacion = PenalizacionSesion.CrearParaParticipante(
+        var penalizacion = PenalizacionAplicada.CrearParaParticipante(
             eventoId, sesionId, participanteSesionId, identidadId,
             5, "  Incumplió una regla  ", Operador, AhoraUtc);
 
@@ -69,13 +56,10 @@ public sealed class PenalizacionSesionDominioPruebas
         penalizacion.ParticipanteSesionId.Should().Be(participanteSesionId);
         penalizacion.ParticipanteIdentidadId.Should().Be(identidadId);
         penalizacion.EquipoId.Should().BeNull();
-        penalizacion.Puntos.Should().Be(5);
-        penalizacion.Motivo.Should().Be("Incumplió una regla"); // Trim aplicado
+        penalizacion.PuntosDescontados.Should().Be(5);
+        penalizacion.Motivo.Should().Be("Incumplió una regla");
         penalizacion.OperadorIdentidadId.Should().Be(Operador);
         penalizacion.AplicadaEnUtc.Should().Be(AhoraUtc);
-        penalizacion.EstadoProcesamiento.Should().Be(EstadoProcesamientoPenalizacion.Pendiente);
-        penalizacion.ProcesadaEnUtc.Should().BeNull();
-        penalizacion.PuntajeResultante.Should().BeNull();
     }
 
     [Fact]
@@ -83,7 +67,7 @@ public sealed class PenalizacionSesionDominioPruebas
     {
         var equipoId = Guid.NewGuid();
 
-        var penalizacion = PenalizacionSesion.CrearParaEquipo(
+        var penalizacion = PenalizacionAplicada.CrearParaEquipo(
             Guid.NewGuid(), Guid.NewGuid(), equipoId, 10, "Motivo", Operador, AhoraUtc);
 
         penalizacion.TipoObjetivo.Should().Be(TipoObjetivoPenalizacion.Equipo);
@@ -96,84 +80,67 @@ public sealed class PenalizacionSesionDominioPruebas
     [InlineData(1)]
     [InlineData(100)]
     public void CrearParaParticipante_aceptaLimitesDePuntos(int puntos)
-    {
-        var penalizacion = PenalizacionSesion.CrearParaParticipante(
-            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
-            puntos, "Motivo", Operador, AhoraUtc);
-        penalizacion.Puntos.Should().Be(puntos);
-    }
+        => PenalizacionAplicada.CrearParaParticipante(
+                Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
+                puntos, "Motivo", Operador, AhoraUtc)
+            .PuntosDescontados.Should().Be(puntos);
 
     [Theory]
     [InlineData(0)]
     [InlineData(-3)]
     [InlineData(101)]
     public void CrearParaParticipante_rechazaPuntosFueraDeRango(int puntos)
-    {
-        var accion = () => PenalizacionSesion.CrearParaParticipante(
-            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
-            puntos, "Motivo", Operador, AhoraUtc);
-        accion.Should().Throw<PenalizacionInvalidaExcepcion>();
-    }
+        => FluentActions.Invoking(() => PenalizacionAplicada.CrearParaParticipante(
+                Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
+                puntos, "Motivo", Operador, AhoraUtc))
+            .Should().Throw<PenalizacionInvalidaExcepcion>();
 
     [Theory]
     [InlineData(null)]
     [InlineData("")]
     [InlineData("   ")]
     public void CrearParaParticipante_rechazaMotivoInvalido(string? motivo)
-    {
-        var accion = () => PenalizacionSesion.CrearParaParticipante(
-            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
-            5, motivo!, Operador, AhoraUtc);
-        accion.Should().Throw<PenalizacionInvalidaExcepcion>();
-    }
+        => FluentActions.Invoking(() => PenalizacionAplicada.CrearParaParticipante(
+                Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
+                5, motivo!, Operador, AhoraUtc))
+            .Should().Throw<PenalizacionInvalidaExcepcion>();
 
     [Fact]
     public void CrearParaParticipante_rechazaMotivoMayorA500()
-    {
-        var motivo = new string('a', 501);
-        var accion = () => PenalizacionSesion.CrearParaParticipante(
-            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
-            5, motivo, Operador, AhoraUtc);
-        accion.Should().Throw<PenalizacionInvalidaExcepcion>();
-    }
+        => FluentActions.Invoking(() => PenalizacionAplicada.CrearParaParticipante(
+                Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
+                5, new string('a', 501), Operador, AhoraUtc))
+            .Should().Throw<PenalizacionInvalidaExcepcion>();
 
     [Fact]
     public void CrearParaParticipante_aceptaMotivoDe500()
-    {
-        var motivo = new string('a', 500);
-        var penalizacion = PenalizacionSesion.CrearParaParticipante(
-            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
-            5, motivo, Operador, AhoraUtc);
-        penalizacion.Motivo.Length.Should().Be(500);
-    }
+        => PenalizacionAplicada.CrearParaParticipante(
+                Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
+                5, new string('a', 500), Operador, AhoraUtc)
+            .Motivo.Length.Should().Be(500);
 
-    [Fact]
-    public void MarcarProcesada_esIdempotente()
-    {
-        var penalizacion = PenalizacionSesion.CrearParaEquipo(
-            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), 10, "Motivo", Operador, AhoraUtc);
+    [Theory]
+    [InlineData("MarcarProcesada")]
+    [InlineData("MarcarFallida")]
+    public void Evento_noExponeOperacionesDeActualizacion(string metodo)
+        => typeof(PenalizacionAplicada).GetMethod(
+            metodo,
+            BindingFlags.Public | BindingFlags.Instance)
+        .Should().BeNull();
 
-        penalizacion.MarcarProcesada(-3, AhoraUtc).Should().BeTrue();
-        penalizacion.EstadoProcesamiento.Should().Be(EstadoProcesamientoPenalizacion.Procesada);
-        penalizacion.PuntajeResultante.Should().Be(-3);
-        penalizacion.ProcesadaEnUtc.Should().Be(AhoraUtc);
-
-        // Segundo intento no cambia nada (idempotente).
-        penalizacion.MarcarProcesada(99, AhoraUtc.AddMinutes(1)).Should().BeFalse();
-        penalizacion.PuntajeResultante.Should().Be(-3);
-    }
-
-    // -------------------- Estado de la sesión --------------------
+    [Theory]
+    [InlineData("EstadoProcesamiento")]
+    [InlineData("ProcesadaEnUtc")]
+    [InlineData("PuntajeResultante")]
+    public void Evento_noExponePropiedadesTecnicasMutables(string propiedad)
+        => typeof(PenalizacionAplicada).GetProperty(propiedad).Should().BeNull();
 
     [Theory]
     [InlineData(EstadoSesion.Activa)]
     [InlineData(EstadoSesion.Pausada)]
     public void ValidarPuedePenalizar_permiteActivaYPausada(EstadoSesion estado)
-    {
-        var sesion = SesionIndividualEnEstado(estado, out _);
-        var accion = () => sesion.ValidarPuedePenalizar();
-        accion.Should().NotThrow();
-    }
+        => FluentActions.Invoking(() => SesionIndividualEnEstado(estado, out _).ValidarPuedePenalizar())
+            .Should().NotThrow();
 
     [Theory]
     [InlineData(EstadoSesion.Programada)]
@@ -181,37 +148,27 @@ public sealed class PenalizacionSesionDominioPruebas
     [InlineData(EstadoSesion.Finalizada)]
     [InlineData(EstadoSesion.Cancelada)]
     public void ValidarPuedePenalizar_rechazaOtrosEstados(EstadoSesion estado)
-    {
-        var sesion = SesionIndividualEnEstado(estado, out _);
-        var accion = () => sesion.ValidarPuedePenalizar();
-        accion.Should().Throw<PenalizacionNoPermitidaExcepcion>();
-    }
+        => FluentActions.Invoking(() => SesionIndividualEnEstado(estado, out _).ValidarPuedePenalizar())
+            .Should().Throw<PenalizacionNoPermitidaExcepcion>();
 
     [Fact]
     public void ObtenerParticipanteParaPenalizar_objetivoInexistente_lanza404()
-    {
-        var sesion = SesionIndividualEnEstado(EstadoSesion.Activa, out _);
-        var accion = () => sesion.ObtenerParticipanteParaPenalizar(Guid.NewGuid());
-        accion.Should().Throw<ParticipanteNoEncontradoExcepcion>();
-    }
+        => FluentActions.Invoking(() => SesionIndividualEnEstado(EstadoSesion.Activa, out _)
+                .ObtenerParticipanteParaPenalizar(Guid.NewGuid()))
+            .Should().Throw<ParticipanteNoEncontradoExcepcion>();
 
     [Fact]
     public void ObtenerEquipoParaPenalizar_devuelveEquipoEnEstadoValido()
     {
         var sesion = SesionGrupalEnEstado(EstadoSesion.Pausada, out var equipoId);
-        var equipo = sesion.ObtenerEquipoParaPenalizar(equipoId);
-        equipo.Id.Should().Be(equipoId);
+        sesion.ObtenerEquipoParaPenalizar(equipoId).Id.Should().Be(equipoId);
     }
 
     [Fact]
     public void ObtenerEquipoParaPenalizar_equipoInexistente_lanza404()
-    {
-        var sesion = SesionGrupalEnEstado(EstadoSesion.Activa, out _);
-        var accion = () => sesion.ObtenerEquipoParaPenalizar(Guid.NewGuid());
-        accion.Should().Throw<EquipoNoEncontradoExcepcion>();
-    }
-
-    // -------------------- Snapshots --------------------
+        => FluentActions.Invoking(() => SesionGrupalEnEstado(EstadoSesion.Activa, out _)
+                .ObtenerEquipoParaPenalizar(Guid.NewGuid()))
+            .Should().Throw<EquipoNoEncontradoExcepcion>();
 
     [Fact]
     public void Participante_establecerPenalizacionSnapshot_fijaNegativoYMagnitud()
@@ -219,9 +176,8 @@ public sealed class PenalizacionSesionDominioPruebas
         var sesion = SesionIndividualEnEstado(EstadoSesion.Activa, out var participanteSesionId);
         var participante = sesion.Participantes.Single(p => p.Id == participanteSesionId);
 
-        var aplicado = participante.EstablecerPenalizacionSnapshot(13, -3, AhoraUtc);
+        participante.EstablecerPenalizacionSnapshot(13, -3, AhoraUtc).Should().BeTrue();
 
-        aplicado.Should().BeTrue();
         participante.PuntosPenalizados.Should().Be(13);
         participante.Puntaje.Valor.Should().Be(-3);
         participante.SnapshotRankingUtc.Should().Be(AhoraUtc);
@@ -234,9 +190,9 @@ public sealed class PenalizacionSesionDominioPruebas
         var participante = sesion.Participantes.Single(p => p.Id == participanteSesionId);
         participante.EstablecerPenalizacionSnapshot(10, -1, AhoraUtc);
 
-        var aplicado = participante.EstablecerPenalizacionSnapshot(99, 50, AhoraUtc.AddSeconds(-5));
+        participante.EstablecerPenalizacionSnapshot(99, 50, AhoraUtc.AddSeconds(-5))
+            .Should().BeFalse();
 
-        aplicado.Should().BeFalse();
         participante.PuntosPenalizados.Should().Be(10);
         participante.Puntaje.Valor.Should().Be(-1);
     }
@@ -255,13 +211,11 @@ public sealed class PenalizacionSesionDominioPruebas
         equipo.Participantes[0].Puntaje.Valor.Should().Be(puntajeParticipanteAntes);
     }
 
-    // -------------------- Helpers --------------------
-
     private static SesionIndividual SesionIndividualEnEstado(
         EstadoSesion estado, out Guid participanteSesionId)
     {
         var sesion = SesionIndividual.Crear(
-            "Sesión", "Demo", AhoraUtc.AddHours(1), "IND123", Operador, AhoraUtc, 5);
+            "Sesion", "Demo", AhoraUtc.AddHours(1), "IND123", Operador, AhoraUtc, 5);
         sesion.AsignarMisiones(new[] { Guid.NewGuid() });
 
         if (estado == EstadoSesion.Programada)
@@ -271,7 +225,6 @@ public sealed class PenalizacionSesionDominioPruebas
         }
         if (estado == EstadoSesion.Cancelada)
         {
-            // Cancelar solo es válido desde EnPreparacion/Activa/Pausada.
             sesion.Preparar();
             sesion.Cancelar();
             participanteSesionId = Guid.Empty;
@@ -292,7 +245,7 @@ public sealed class PenalizacionSesionDominioPruebas
     private static SesionGrupal SesionGrupalEnEstado(EstadoSesion estado, out Guid equipoId)
     {
         var sesion = SesionGrupal.Crear(
-            "Sesión", "Demo", AhoraUtc.AddHours(1), "GRP123", Operador, AhoraUtc, 3, 3);
+            "Sesion", "Demo", AhoraUtc.AddHours(1), "GRP123", Operador, AhoraUtc, 3, 3);
         sesion.AsignarMisiones(new[] { Guid.NewGuid() });
         sesion.Preparar();
         var equipo = sesion.CrearEquipo("Rojo", Guid.NewGuid(), AhoraUtc, AhoraUtc);

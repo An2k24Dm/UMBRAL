@@ -12,6 +12,7 @@ using RankingServicio.Aplicacion.Comandos.ProcesarEquipoCreado;
 using RankingServicio.Aplicacion.Comandos.ProcesarParticipanteUnido;
 using RankingServicio.Aplicacion.Comandos.ProcesarPenalizacion;
 using RankingServicio.Aplicacion.Comandos.ProcesarRespuestaTrivia;
+using RankingServicio.Commons.Dtos.Eventos.Entrada;
 
 namespace RankingServicio.Infraestructura.RabbitMq;
 
@@ -243,17 +244,16 @@ public sealed class ConsumidorEventosRanking : BackgroundService
                 var ev = JsonSerializer.Deserialize<EventoPenalizacionAplicada>(cuerpo,
                     OpcionesJson)!;
                 _log.LogInformation(
-                    "Penalización recibida en Ranking. RoutingKey={RoutingKey} EventoId={EventoId} PenalizacionId={PenalizacionId} SesionId={SesionId} TipoObjetivo={TipoObjetivo} ParticipanteSesionId={ParticipanteSesionId} EquipoId={EquipoId} Puntos={Puntos}",
+                    "Penalización recibida en Ranking. RoutingKey={RoutingKey} EventoId={EventoId} SesionId={SesionId} TipoObjetivo={TipoObjetivo} ParticipanteSesionId={ParticipanteSesionId} EquipoId={EquipoId} Puntos={Puntos}",
                     routingKey,
                     ev.EventoId,
-                    ev.PenalizacionId,
                     ev.SesionId,
                     ev.TipoObjetivo,
                     ev.ParticipanteSesionId,
                     ev.EquipoId,
                     ev.Puntos);
                 await mediator.Send(new ProcesarPenalizacionComando(
-                    ev.EventoId, ev.PenalizacionId, ev.SesionId, ev.TipoObjetivo,
+                    ev.EventoId, ev.SesionId, ev.TipoObjetivo,
                     ev.ParticipanteSesionId, ev.ParticipanteIdentidadId, ev.EquipoId,
                     ev.Puntos, ev.Motivo, ev.OperadorIdentidadId, ev.AplicadaEnUtc));
                 break;

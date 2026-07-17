@@ -9,6 +9,7 @@ using SesionesServicio.Dominio.Abstract;
 using SesionesServicio.Dominio.Entidades;
 using SesionesServicio.Dominio.Enums;
 using SesionesServicio.Dominio.ObjetosValor;
+using SesionesServicio.PruebasUnitarias.Dominio;
 
 namespace SesionesServicio.PruebasUnitarias.Servicios;
 
@@ -18,6 +19,9 @@ public class ServicioFinalizacionSesionPruebas
     private static readonly Guid Operador = Guid.Parse("11111111-1111-1111-1111-111111111111");
     private static readonly Guid MisionId = Guid.Parse("44444444-4444-4444-4444-444444444444");
     private static readonly Guid EtapaId = Guid.Parse("55555555-5555-5555-5555-555555555555");
+    private static readonly Guid BusquedaId = Guid.Parse("66666666-6666-6666-6666-666666666666");
+    private static readonly Guid ParticipanteId = Guid.Parse("77777777-7777-7777-7777-777777777777");
+    private static readonly Guid ParticipanteDosId = Guid.Parse("88888888-8888-8888-8888-888888888888");
 
     private static SesionIndividual SesionActiva()
     {
@@ -29,12 +33,50 @@ public class ServicioFinalizacionSesionPruebas
         return s;
     }
 
+    private static SesionIndividual SesionActivaConDuracionLimite(int duracionSegundos)
+    {
+        var s = SesionIndividual.Crear(
+            "Finalizacion", "Demo", AhoraUtc.AddHours(1), "FIN002", Operador, AhoraUtc, 5);
+        s.AplicarDuracion(duracionSegundos);
+        s.AsignarMisiones(new List<Guid> { MisionId });
+        s.Preparar();
+        s.IniciarPrimeraEtapa(MisionId, EtapaId, Guid.NewGuid(), "Trivia", 1, AhoraUtc, 60);
+        return s;
+    }
+
+    private static SesionIndividual SesionTesoroIndividualActiva()
+    {
+        var s = SesionIndividual.Crear(
+            "Tesoro", "Demo", AhoraUtc.AddHours(1), "TES001", Operador, AhoraUtc, 5);
+        s.AsignarMisiones(new List<Guid> { MisionId });
+        s.Preparar();
+        s.AgregarParticipante(ParticipanteId, AhoraUtc);
+        s.IniciarPrimeraEtapa(MisionId, EtapaId, BusquedaId, "BusquedaTesoro", 1, AhoraUtc, 60);
+        return s;
+    }
+
+    private static (SesionGrupal sesion, Guid equipoRojoId, Guid equipoAzulId) SesionTesoroGrupalActiva()
+    {
+        var s = SesionGrupal.Crear(
+            "Tesoro", "Demo", AhoraUtc.AddHours(1), "TES002", Operador, AhoraUtc,
+            maximoEquipos: 5, maximoParticipantesPorEquipo: 2);
+        s.AsignarMisiones(new List<Guid> { MisionId });
+        s.Preparar();
+        var rojo = s.CrearEquipo("Rojo", ParticipanteId, AhoraUtc, AhoraUtc);
+        var azul = s.CrearEquipo("Azul", ParticipanteDosId, AhoraUtc, AhoraUtc);
+        s.IniciarPrimeraEtapa(MisionId, EtapaId, BusquedaId, "BusquedaTesoro", 1, AhoraUtc, 60);
+        return (s, rojo.Id, azul.Id);
+    }
+
     private sealed class Contexto
     {
         public Mock<IRepositorioSesiones> RepoSesiones { get; } = new();
         public Mock<IRepositorioEtapasCompletadas> RepoEtapas { get; } = new();
+        public Mock<IRepositorioEvidenciasTesoro> RepoEvidencias { get; } = new();
         public Mock<IClienteJuegosMisiones> ClienteMisiones { get; } = new();
+        public Mock<IClienteBusquedaTesoro> ClienteTesoro { get; } = new();
         public Mock<INotificadorSesionesTiempoReal> Notificador { get; } = new();
+        public Mock<IPublicadorEventosRanking> PublicadorRanking { get; } = new();
         public Mock<IUnidadTrabajoSesiones> UnidadTrabajo { get; } = new();
         public Sesion? SesionActualizada;
         private readonly DateTime _ahora;
@@ -71,6 +113,32 @@ public class ServicioFinalizacionSesionPruebas
                     Etapas = BuildEtapas(totalEtapasPorMision)
                 });
 
+            ClienteTesoro.Setup(c => c.ObtenerBusquedaParticipanteAsync(
+                    BusquedaId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new BusquedaTesoroJuegosDto
+                {
+                    Id = BusquedaId,
+                    Puntaje = 100,
+                    Tiempo = 60
+                });
+
+            RepoEvidencias.Setup(r => r.AgregarAsync(
+                    It.IsAny<EvidenciaTesoroRegistro>(), It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
+            RepoEvidencias.Setup(r => r.ExisteEvidenciaIndividualAsync(
+                    It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(false);
+            RepoEvidencias.Setup(r => r.ExisteEvidenciaEquipoAsync(
+                    It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(false);
+
+            PublicadorRanking.Setup(p => p.PublicarEvidenciaTesoroRegistradaAsync(
+                    It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(),
+                    It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid?>(), It.IsAny<Guid>(),
+                    It.IsAny<bool>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>(),
+                    It.IsAny<int>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
+
             Notificador.Setup(n => n.NotificarSesionActualizadaAsync(
                     It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .Returns(Task.CompletedTask);
@@ -92,8 +160,11 @@ public class ServicioFinalizacionSesionPruebas
             => new(
                 RepoSesiones.Object,
                 RepoEtapas.Object,
+                RepoEvidencias.Object,
                 ClienteMisiones.Object,
+                ClienteTesoro.Object,
                 Notificador.Object,
+                PublicadorRanking.Object,
                 UnidadTrabajo.Object,
                 BuildReloj());
 
@@ -187,6 +258,61 @@ public class ServicioFinalizacionSesionPruebas
     }
 
     [Fact]
+    public async Task DuracionSesionVencida_FinalizaSesionYNotifica()
+    {
+        var sesion = SesionActivaConDuracionLimite(60);
+        var ctx = new Contexto(sesion, totalEtapasPorMision: 1, etapasCompletadas: 0,
+            ahora: AhoraUtc.AddSeconds(61));
+
+        await ctx.Construir().FinalizarSesionPorVencimientoAsync(
+            sesion.Id, CancellationToken.None);
+
+        ctx.SesionActualizada.Should().NotBeNull();
+        ctx.SesionActualizada!.Estado.Should().Be(EstadoSesion.Finalizada);
+        ctx.SesionActualizada.FechaFinalizacionUtc.Should().Be(AhoraUtc.AddSeconds(61));
+        ctx.Notificador.Verify(n => n.NotificarSesionActualizadaAsync(
+            sesion.Id,
+            EstadoSesion.Finalizada.ToString(),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task DuracionSesionVencida_ConsultaFinalizaSesionYNotifica()
+    {
+        var sesion = SesionActivaConDuracionLimite(60);
+        var ctx = new Contexto(sesion, totalEtapasPorMision: 1, etapasCompletadas: 0,
+            ahora: AhoraUtc.AddSeconds(61));
+
+        var finalizada = await ctx.Construir().FinalizarSesionSiDuracionVencidaAsync(
+            sesion.Id, CancellationToken.None);
+
+        finalizada.Should().BeTrue();
+        ctx.SesionActualizada.Should().NotBeNull();
+        ctx.SesionActualizada!.Estado.Should().Be(EstadoSesion.Finalizada);
+        ctx.Notificador.Verify(n => n.NotificarSesionActualizadaAsync(
+            sesion.Id,
+            EstadoSesion.Finalizada.ToString(),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task DuracionSesionNoVencida_ConsultaNoFinaliza()
+    {
+        var sesion = SesionActivaConDuracionLimite(60);
+        var ctx = new Contexto(sesion, totalEtapasPorMision: 1, etapasCompletadas: 0,
+            ahora: AhoraUtc.AddSeconds(30));
+
+        var finalizada = await ctx.Construir().FinalizarSesionSiDuracionVencidaAsync(
+            sesion.Id, CancellationToken.None);
+
+        finalizada.Should().BeFalse();
+        ctx.RepoSesiones.Verify(r => r.ActualizarAsync(
+            It.IsAny<Sesion>(), It.IsAny<CancellationToken>()), Times.Never);
+        ctx.Notificador.Verify(n => n.NotificarSesionActualizadaAsync(
+            It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
     public async Task NoTodasEtapasCompletadas_NoFinaliza()
     {
         var sesion = SesionActiva();
@@ -253,8 +379,13 @@ public class ServicioFinalizacionSesionPruebas
                 It.IsAny<CancellationToken>()))
             .Returns<Func<CancellationToken, Task>, CancellationToken>((op, ct) => op(ct));
         var servicio = new ServicioFinalizacionSesion(
-            repoSesiones.Object, repoEtapas.Object, clienteMisiones.Object,
+            repoSesiones.Object,
+            repoEtapas.Object,
+            Mock.Of<IRepositorioEvidenciasTesoro>(),
+            clienteMisiones.Object,
+            Mock.Of<IClienteBusquedaTesoro>(),
             Mock.Of<INotificadorSesionesTiempoReal>(),
+            Mock.Of<IPublicadorEventosRanking>(),
             unidadTrabajo.Object, reloj.Object);
 
         await servicio.FinalizarSiTodasEtapasCompletadasAsync(
@@ -360,6 +491,105 @@ public class ServicioFinalizacionSesionPruebas
 
         ctx.RepoSesiones.Verify(r => r.ActualizarAsync(
             It.IsAny<Sesion>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Vencimiento_TesoroIndividualSinEvidencia_RegistraCeroYPublicaRanking()
+    {
+        var sesion = SesionTesoroIndividualActiva();
+        var ctx = new Contexto(sesion, totalEtapasPorMision: 1, etapasCompletadas: 1,
+            ahora: AhoraUtc.AddSeconds(61));
+
+        await ctx.Construir().AvanzarEtapaPorVencimientoAsync(
+            sesion.Id, EtapaId, CancellationToken.None);
+
+        ctx.RepoEvidencias.Verify(r => r.AgregarAsync(
+            It.Is<EvidenciaTesoroRegistro>(e =>
+                e.SesionId == sesion.Id &&
+                e.EtapaId == EtapaId &&
+                e.BusquedaId == BusquedaId &&
+                e.ParticipanteIdentidadId == ParticipanteId &&
+                e.EquipoId == null &&
+                !e.EsValida &&
+                e.PuntosGanados == 0 &&
+                e.EventoPuntuacionId != Guid.Empty),
+            It.IsAny<CancellationToken>()), Times.Once);
+
+        ctx.PublicadorRanking.Verify(p => p.PublicarEvidenciaTesoroRegistradaAsync(
+            It.IsAny<Guid>(),
+            sesion.Id,
+            MisionId,
+            EtapaId,
+            It.IsAny<Guid>(),
+            ParticipanteId,
+            null,
+            BusquedaId,
+            false,
+            100,
+            0,
+            1,
+            It.IsAny<int>(),
+            60_000,
+            It.IsAny<CancellationToken>()), Times.Once);
+        ctx.Notificador.Verify(n => n.NotificarProgresoSecuencialActualizadoAsync(
+            sesion.Id,
+            ParticipanteId,
+            null,
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Vencimiento_TesoroGrupal_RespetaEquipoConEvidenciaYRegistraSoloFaltante()
+    {
+        var (sesion, rojoId, azulId) = SesionTesoroGrupalActiva();
+        var ctx = new Contexto(sesion, totalEtapasPorMision: 1, etapasCompletadas: 1,
+            ahora: AhoraUtc.AddSeconds(61));
+        ctx.RepoEvidencias.Setup(r => r.ExisteEvidenciaEquipoAsync(
+                sesion.Id, EtapaId, rojoId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        ctx.RepoEvidencias.Setup(r => r.ExisteEvidenciaEquipoAsync(
+                sesion.Id, EtapaId, azulId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+
+        await ctx.Construir().AvanzarEtapaPorVencimientoAsync(
+            sesion.Id, EtapaId, CancellationToken.None);
+
+        ctx.RepoEvidencias.Verify(r => r.AgregarAsync(
+            It.Is<EvidenciaTesoroRegistro>(e =>
+                e.EquipoId == azulId &&
+                e.ParticipanteIdentidadId == ParticipanteDosId &&
+                !e.EsValida &&
+                e.PuntosGanados == 0),
+            It.IsAny<CancellationToken>()), Times.Once);
+        ctx.RepoEvidencias.Verify(r => r.AgregarAsync(
+            It.Is<EvidenciaTesoroRegistro>(e => e.EquipoId == rojoId),
+            It.IsAny<CancellationToken>()), Times.Never);
+        ctx.PublicadorRanking.Verify(p => p.PublicarEvidenciaTesoroRegistradaAsync(
+            It.IsAny<Guid>(),
+            sesion.Id,
+            MisionId,
+            EtapaId,
+            It.IsAny<Guid>(),
+            ParticipanteDosId,
+            azulId,
+            BusquedaId,
+            false,
+            100,
+            0,
+            2,
+            It.IsAny<int>(),
+            60_000,
+            It.IsAny<CancellationToken>()), Times.Once);
+        ctx.Notificador.Verify(n => n.NotificarProgresoSecuencialActualizadoAsync(
+            sesion.Id,
+            ParticipanteDosId,
+            azulId,
+            It.IsAny<CancellationToken>()), Times.Once);
+        ctx.Notificador.Verify(n => n.NotificarProgresoSecuencialActualizadoAsync(
+            sesion.Id,
+            ParticipanteId,
+            rojoId,
+            It.IsAny<CancellationToken>()), Times.Never);
     }
 
     // ======================================================================

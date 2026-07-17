@@ -141,13 +141,11 @@ public class ConsumidorEventosRankingPruebas
         var mediator = new Mock<IMediator>();
         var consumidor = CrearConsumidor(mediator);
         var eventoId = Guid.NewGuid();
-        var penalizacionId = Guid.NewGuid();
         var participanteSesionId = Guid.NewGuid();
 
         await InvocarProcesarAsync(consumidor, "sesion.penalizacion_aplicada", $$"""
         {
           "EventoId":"{{eventoId}}",
-          "PenalizacionId":"{{penalizacionId}}",
           "SesionId":"{{Guid.NewGuid()}}",
           "TipoObjetivo":"Participante",
           "ParticipanteSesionId":"{{participanteSesionId}}",
@@ -163,7 +161,6 @@ public class ConsumidorEventosRankingPruebas
         mediator.Verify(m => m.Send(
             It.Is<ProcesarPenalizacionComando>(c =>
                 c.EventoId == eventoId
-                && c.PenalizacionId == penalizacionId
                 && c.TipoObjetivo == "Participante"
                 && c.ParticipanteSesionId == participanteSesionId
                 && c.EquipoId == null
@@ -181,7 +178,6 @@ public class ConsumidorEventosRankingPruebas
         await InvocarProcesarAsync(consumidor, "sesion.penalizacion_aplicada", $$"""
         {
           "EventoId":"{{Guid.NewGuid()}}",
-          "PenalizacionId":"{{Guid.NewGuid()}}",
           "SesionId":"{{Guid.NewGuid()}}",
           "TipoObjetivo":"Equipo",
           "ParticipanteSesionId":null,

@@ -1,5 +1,5 @@
 using MediatR;
-using SesionesServicio.Aplicacion.Comandos.Penalizaciones;
+using SesionesServicio.Commons.Dtos.Penalizaciones;
 
 namespace SesionesServicio.Aplicacion.Comandos.AplicarPenalizacionEquipo;
 

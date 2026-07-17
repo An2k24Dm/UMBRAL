@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
+import { usePathname } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAvisosSesionTiempoReal } from "../hooks/useAvisosSesionTiempoReal";
 import { tema } from "../estilos/tema";
@@ -9,6 +10,7 @@ import { tema } from "../estilos/tema";
 export default function AvisosTiempoRealParticipante() {
   const { bannerEtapaPorComenzar } = useAvisosSesionTiempoReal();
   const insets = useSafeAreaInsets();
+  const rutaActual = usePathname();
 
   // Reloj visual: se recalcula contra fechaInicioProgramadaUtc (fuente de verdad
   // del backend), no un contador local. Tick cada 250 ms para una barra fluida.
@@ -20,7 +22,9 @@ export default function AvisosTiempoRealParticipante() {
     return () => clearInterval(id);
   }, [bannerEtapaPorComenzar]);
 
-  if (!bannerEtapaPorComenzar) return null;
+  if (!bannerEtapaPorComenzar || rutaActual === "/participante/sesiones/jugar") {
+    return null;
+  }
 
   const objetivoMs = Date.parse(bannerEtapaPorComenzar.fechaInicioProgramadaUtc);
   const totalMs = Math.max(1, bannerEtapaPorComenzar.duracionPreparacionSegundos * 1000);

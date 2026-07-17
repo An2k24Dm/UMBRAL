@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.SignalR;
 using RankingServicio.Aplicacion.Puertos;
+using RankingServicio.Commons.Dtos.Eventos.Salida;
+using RankingServicio.Commons.Dtos.TiempoReal;
 
 namespace RankingServicio.Infraestructura.TiempoReal;
 

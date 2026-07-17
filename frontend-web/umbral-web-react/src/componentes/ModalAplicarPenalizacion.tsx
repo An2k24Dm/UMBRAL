@@ -1,20 +1,13 @@
 import { useState } from 'react'
 import { Boton } from './Boton'
 
-// HU52 — Modal reutilizable y accesible para aplicar una penalización a un
-// participante (sesión individual) o a un equipo (sesión grupal). Validación en
-// cliente (1..100 entero, motivo obligatorio ≤ 500); el backend es la fuente
-// autoritativa. Mientras se envía deshabilita los botones y evita el doble
-// envío. Los errores del backend se muestran sin perder los datos ingresados.
 const PUNTOS_MIN = 1
 const PUNTOS_MAX = 100
 const MOTIVO_MAX = 500
 
 interface Props {
   abierto: boolean
-  // Descripción del objetivo (alias del participante o nombre del equipo).
   objetivo: string
-  // Etiqueta del tipo de objetivo (p. ej. "participante" o "equipo").
   tipoObjetivo: string
   procesando: boolean
   mensajeError?: string | null
@@ -88,13 +81,14 @@ export function ModalAplicarPenalizacion({
           Aplicar penalización
         </h3>
         <div className="modal-confirmacion-cuerpo">
-          <p>
+          <p className="modal-penalizacion-objetivo">
             {tipoObjetivo}: <strong>{objetivo}</strong>
           </p>
 
-          <label style={{ display: 'block', marginTop: 'var(--espacio-3, 12px)' }}>
-            <span style={{ display: 'block', marginBottom: 4 }}>Puntos a descontar</span>
+          <div className="campo">
+            <label htmlFor="modal-penalizacion-puntos">Puntos a descontar</label>
             <input
+              id="modal-penalizacion-puntos"
               type="number"
               min={PUNTOS_MIN}
               max={PUNTOS_MAX}
@@ -103,27 +97,27 @@ export function ModalAplicarPenalizacion({
               value={puntos}
               disabled={procesando}
               onChange={(e) => setPuntos(e.target.value)}
-              className="campo-formulario"
-              style={{ width: '100%' }}
-              aria-label="Puntos a descontar"
             />
-          </label>
+            <span className="modal-penalizacion-ayuda">
+              Entre {PUNTOS_MIN} y {PUNTOS_MAX}.
+            </span>
+          </div>
 
-          <label style={{ display: 'block', marginTop: 'var(--espacio-3, 12px)' }}>
-            <span style={{ display: 'block', marginBottom: 4 }}>Motivo</span>
+          <div className="campo">
+            <label htmlFor="modal-penalizacion-motivo">Motivo</label>
             <textarea
+              id="modal-penalizacion-motivo"
               required
               maxLength={MOTIVO_MAX}
               rows={3}
               value={motivo}
               disabled={procesando}
               onChange={(e) => setMotivo(e.target.value)}
-              className="campo-formulario"
-              style={{ width: '100%', resize: 'vertical' }}
-              aria-label="Motivo de la penalización"
             />
-            <small style={{ opacity: 0.7 }}>{motivo.trim().length}/{MOTIVO_MAX}</small>
-          </label>
+            <span className="modal-penalizacion-contador">
+              {motivo.trim().length} / {MOTIVO_MAX}
+            </span>
+          </div>
         </div>
 
         {(errorLocal || mensajeError) && (

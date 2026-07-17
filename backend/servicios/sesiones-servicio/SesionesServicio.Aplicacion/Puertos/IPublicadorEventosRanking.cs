@@ -49,7 +49,6 @@ public interface IPublicadorEventosRanking
 
     Task PublicarPenalizacionAplicadaAsync(
         Guid eventoId,
-        Guid penalizacionId,
         Guid sesionId,
         string tipoObjetivo,
         Guid? participanteSesionId,

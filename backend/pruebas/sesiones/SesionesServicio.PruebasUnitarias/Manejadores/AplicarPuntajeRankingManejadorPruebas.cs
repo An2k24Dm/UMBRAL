@@ -29,6 +29,11 @@ public class AplicarPuntajeRankingManejadorPruebas
             EventoOrigen, 25, It.IsAny<CancellationToken>()), Times.Once);
         arranque.Repositorio.Verify(r => r.ActualizarAsync(
             It.IsAny<Sesion>(), It.IsAny<CancellationToken>()), Times.Never);
+        arranque.ResultadosProcesados.Verify(r => r.RegistrarAsync(
+            EventoOrigen,
+            "ranking.puntaje_actualizado",
+            AhoraUtc,
+            It.IsAny<CancellationToken>()), Times.Once);
         arranque.Notificador.VerifyNoOtherCalls();
     }
 
@@ -50,6 +55,30 @@ public class AplicarPuntajeRankingManejadorPruebas
             sesion.Id, It.IsAny<CancellationToken>()), Times.Once);
         arranque.Notificador.Verify(n => n.NotificarEquipoActualizadoAsync(
             It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ResultadoDuplicado_yaProcesado_noActualizaNiNotifica()
+    {
+        var (sesion, participante) = CrearSesionIndividual();
+        var arranque = new Arranque(sesion);
+        arranque.ResultadosProcesados.Setup(r => r.ExisteAsync(
+                EventoOrigen,
+                "ranking.puntaje_actualizado",
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        var comando = CrearComando(
+            sesion.Id, participante.Id, participante.ParticipanteIdentidadId, null);
+
+        await arranque.Manejador.Handle(comando, CancellationToken.None);
+
+        arranque.Respuestas.Verify(r => r.ActualizarPuntosGanadosPorEventoAsync(
+            It.IsAny<Guid>(), It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);
+        arranque.Evidencias.Verify(r => r.ActualizarPuntosGanadosPorEventoAsync(
+            It.IsAny<Guid>(), It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);
+        arranque.Repositorio.Verify(r => r.ActualizarAsync(
+            It.IsAny<Sesion>(), It.IsAny<CancellationToken>()), Times.Never);
+        arranque.Notificador.VerifyNoOtherCalls();
     }
 
     [Fact]
@@ -190,6 +219,7 @@ public class AplicarPuntajeRankingManejadorPruebas
         public Mock<IRepositorioSesiones> Repositorio { get; } = new();
         public Mock<IRepositorioRespuestasTrivia> Respuestas { get; } = new();
         public Mock<IRepositorioEvidenciasTesoro> Evidencias { get; } = new();
+        public Mock<IRepositorioResultadosRankingProcesados> ResultadosProcesados { get; } = new();
         public Mock<IUnidadTrabajoSesiones> UnidadTrabajo { get; } = new();
         public Mock<INotificadorSesionesTiempoReal> Notificador { get; } = new();
         public AplicarPuntajeRankingManejador Manejador { get; }
@@ -205,6 +235,12 @@ public class AplicarPuntajeRankingManejadorPruebas
             Evidencias.Setup(r => r.ActualizarPuntosGanadosPorEventoAsync(
                     It.IsAny<Guid>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(0);
+            ResultadosProcesados.Setup(r => r.ExisteAsync(
+                    It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(false);
+            ResultadosProcesados.Setup(r => r.RegistrarAsync(
+                    It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
             Repositorio.Setup(r => r.ActualizarAsync(
                     It.IsAny<Sesion>(), It.IsAny<CancellationToken>()))
                 .Returns(Task.CompletedTask);
@@ -223,6 +259,7 @@ public class AplicarPuntajeRankingManejadorPruebas
                 Repositorio.Object,
                 Respuestas.Object,
                 Evidencias.Object,
+                ResultadosProcesados.Object,
                 UnidadTrabajo.Object,
                 Notificador.Object);
         }

@@ -32,6 +32,7 @@ public class ServicioProgresoSecuencialSesionPruebas
         public Mock<IRepositorioEvidenciasTesoro> EvidenciasTesoro { get; } = new();
         public Mock<IRepositorioEtapasCompletadas> EtapasCompletadas { get; } = new();
         public Mock<IProveedorFechaHora> Reloj { get; } = new();
+        public Mock<IServicioFinalizacionSesion> Finalizacion { get; } = new();
         public SesionIndividual Sesion { get; }
 
         public Contexto()
@@ -101,6 +102,10 @@ public class ServicioProgresoSecuencialSesionPruebas
                         new PreguntaParticipanteJuegosDto { Id = Guid.NewGuid() }
                     }
                 });
+
+            Finalizacion.Setup(f => f.FinalizarSesionSiDuracionVencidaAsync(
+                    It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(false);
         }
 
         public ServicioProgresoSecuencialSesion CrearServicio() => new(
@@ -111,7 +116,8 @@ public class ServicioProgresoSecuencialSesionPruebas
             EvidenciasTesoro.Object,
             EtapasCompletadas.Object,
             Reloj.Object,
-            new ServicioTiempoTriviaSesion());
+            new ServicioTiempoTriviaSesion(),
+            Finalizacion.Object);
     }
 
     [Fact]

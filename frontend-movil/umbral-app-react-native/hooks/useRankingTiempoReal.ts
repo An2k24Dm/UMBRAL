@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useFocusEffect } from "expo-router";
 import * as signalR from "@microsoft/signalr";
 import { useAutenticacion } from "../autenticacion/ContextoAutenticacion";
@@ -21,6 +21,13 @@ interface OpcionesUseRankingTiempoReal {
 
 type CallbacksRanking = Omit<OpcionesUseRankingTiempoReal, "sesionId">;
 
+export type EstadoRankingTiempoReal =
+  | "desconectado"
+  | "conectando"
+  | "conectado"
+  | "unido"
+  | "reconectando";
+
 export function useRankingTiempoReal({
   sesionId,
   onPuntajeCalculado,
@@ -32,6 +39,7 @@ export function useRankingTiempoReal({
     useAutenticacion();
   const token = sesion?.tokenAcceso ?? null;
   const callbacksRef = useRef<CallbacksRanking>({});
+  const [estado, setEstado] = useState<EstadoRankingTiempoReal>("desconectado");
 
   useEffect(() => {
     callbacksRef.current = {
@@ -57,6 +65,18 @@ export function useRankingTiempoReal({
       let cerrando = false;
       let inicioPromise: Promise<void> | null = null;
       const conexion = crearConexionRankingTiempoReal(token);
+      setEstado("conectando");
+
+      const logDev = (mensaje: string, datos?: Record<string, unknown>) => {
+        if (typeof __DEV__ !== "undefined" && __DEV__) {
+          console.info("[Ranking SignalR]", mensaje, {
+            sesionId,
+            connectionId: conexion.connectionId,
+            estado: conexion.state,
+            ...datos,
+          });
+        }
+      };
 
       const manejarError = async (error: unknown, contexto?: string) => {
         if (!error || desmontado) return;
@@ -69,10 +89,11 @@ export function useRankingTiempoReal({
         registrarErrorConexionTiempoRealDev(error, contexto ?? "Ranking");
       };
 
-      const unirse = () =>
-        conexion
-          .invoke("UnirseASesion", sesionId)
-          .catch((error: unknown) => manejarError(error, "UnirseASesion"));
+      const unirse = async () => {
+        await conexion.invoke("UnirseASesion", sesionId);
+        setEstado("unido");
+        logDev("unido a sesión");
+      };
 
       conexion.on("PuntajeCalculado", (evento: PuntajeCalculadoEvento) => {
         void callbacksRef.current.onPuntajeCalculado?.(evento);
@@ -86,11 +107,20 @@ export function useRankingTiempoReal({
 
       conexion.onreconnected(() => {
         if (desmontado) return;
-        void unirse();
-        void callbacksRef.current.onReconectado?.();
+        setEstado("conectado");
+        logDev("reconectado");
+        void unirse()
+          .then(() => callbacksRef.current.onReconectado?.())
+          .catch((error: unknown) => manejarError(error, "UnirseASesion"));
       });
-      conexion.onreconnecting(manejarError);
-      conexion.onclose(manejarError);
+      conexion.onreconnecting((error) => {
+        setEstado("reconectando");
+        void manejarError(error, "reconectando");
+      });
+      conexion.onclose((error) => {
+        setEstado("desconectado");
+        void manejarError(error, "onclose");
+      });
 
       const cerrarConexion = async () => {
         if (cerrando) return;
@@ -112,11 +142,13 @@ export function useRankingTiempoReal({
       inicioPromise = conexion.start();
       void inicioPromise
         .then(async () => {
+          setEstado("conectado");
+          logDev("conectado");
           if (desmontado) {
             await cerrarConexion();
             return;
           }
-          await unirse();
+          await unirse().catch((error: unknown) => manejarError(error, "UnirseASesion"));
         })
         .catch((error: unknown) => {
           if (desmontado) return;
@@ -132,4 +164,6 @@ export function useRankingTiempoReal({
       };
     }, [cargandoSesion, token, estaAutenticado, sesionId, cerrarSesion]),
   );
+
+  return { estado, unidoASesion: estado === "unido" };
 }

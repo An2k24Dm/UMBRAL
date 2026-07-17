@@ -1,8 +1,9 @@
 using MediatR;
-using SesionesServicio.Aplicacion.Comandos.Penalizaciones;
 using SesionesServicio.Aplicacion.Puertos;
+using SesionesServicio.Commons.Dtos.Penalizaciones;
 using SesionesServicio.Dominio.Abstract;
 using SesionesServicio.Dominio.Entidades;
+using SesionesServicio.Dominio.Eventos;
 using SesionesServicio.Dominio.Excepciones;
 
 namespace SesionesServicio.Aplicacion.Comandos.AplicarPenalizacionEquipo;
@@ -15,7 +16,7 @@ public sealed class AplicarPenalizacionEquipoManejador
     private const string EstadoPendiente = "Pendiente";
 
     private readonly IRepositorioSesiones _repositorio;
-    private readonly IRepositorioPenalizacionesSesion _repositorioPenalizaciones;
+    private readonly IRepositorioPenalizacionesAplicadas _repositorioPenalizaciones;
     private readonly IUnidadTrabajoSesiones _unidadTrabajo;
     private readonly IPublicadorEventosRanking _publicador;
     private readonly IUsuarioActual _usuarioActual;
@@ -25,7 +26,7 @@ public sealed class AplicarPenalizacionEquipoManejador
 
     public AplicarPenalizacionEquipoManejador(
         IRepositorioSesiones repositorio,
-        IRepositorioPenalizacionesSesion repositorioPenalizaciones,
+        IRepositorioPenalizacionesAplicadas repositorioPenalizaciones,
         IUnidadTrabajoSesiones unidadTrabajo,
         IPublicadorEventosRanking publicador,
         IUsuarioActual usuarioActual,
@@ -76,7 +77,7 @@ public sealed class AplicarPenalizacionEquipoManejador
 
         var eventoId = Guid.NewGuid();
         var aplicadaEnUtc = _reloj.ObtenerFechaHoraUtc();
-        var penalizacion = PenalizacionSesion.CrearParaEquipo(
+        var penalizacion = PenalizacionAplicada.CrearParaEquipo(
             eventoId,
             sesion.Id,
             equipo.Id,
@@ -90,17 +91,17 @@ public sealed class AplicarPenalizacionEquipoManejador
             await _repositorioPenalizaciones.AgregarAsync(penalizacion, ct);
             await _publicador.PublicarPenalizacionAplicadaAsync(
                 eventoId,
-                penalizacion.Id,
                 sesion.Id,
                 TipoObjetivoEquipo,
                 null,
                 null,
                 equipo.Id,
-                penalizacion.Puntos,
+                penalizacion.PuntosDescontados,
                 penalizacion.Motivo,
                 operadorId,
                 aplicadaEnUtc,
                 ct);
+            await _unidadTrabajo.GuardarCambiosAsync(ct);
         }, cancelacion);
 
         _registroLogs.Informacion(
@@ -108,16 +109,15 @@ public sealed class AplicarPenalizacionEquipoManejador
             descripcion: "Operador registró una penalización de equipo y la encoló hacia Ranking",
             propiedades: new Dictionary<string, object?>
             {
-                ["PenalizacionId"] = penalizacion.Id,
                 ["EventoId"] = eventoId,
                 ["SesionId"] = sesion.Id,
                 ["TipoObjetivo"] = TipoObjetivoEquipo,
                 ["ObjetivoId"] = equipo.Id,
-                ["Puntos"] = penalizacion.Puntos,
+                ["Puntos"] = penalizacion.PuntosDescontados,
                 ["OperadorIdentidadId"] = operadorId,
                 ["Estado"] = EstadoPendiente
             });
 
-        return new PenalizacionEncoladaDto(penalizacion.Id, eventoId, EstadoPendiente);
+        return new PenalizacionEncoladaDto(eventoId, EstadoPendiente);
     }
 }

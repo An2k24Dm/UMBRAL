@@ -130,14 +130,14 @@ public sealed class ProcesamientoPenalizacionPruebas
     private static ProcesarPenalizacionComando ComandoParticipante(
         Guid sesionId, Guid participanteSesionId, Guid identidadId, int puntos)
         => new(
-            Guid.NewGuid(), Guid.NewGuid(), sesionId, Participante,
+            Guid.NewGuid(), sesionId, Participante,
             participanteSesionId, identidadId, null,
             puntos, "Incumplimiento", Guid.NewGuid(), DateTime.UtcNow);
 
     private static ProcesarPenalizacionComando ComandoEquipo(
         Guid sesionId, Guid equipoId, int puntos)
         => new(
-            Guid.NewGuid(), Guid.NewGuid(), sesionId, Equipo,
+            Guid.NewGuid(), sesionId, Equipo,
             null, null, equipoId,
             puntos, "Incumplimiento", Guid.NewGuid(), DateTime.UtcNow);
 

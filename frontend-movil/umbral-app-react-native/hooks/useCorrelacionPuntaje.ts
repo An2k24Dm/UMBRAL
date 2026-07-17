@@ -1,46 +1,48 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  normalizarEventoId,
   obtenerEventoIdOrigen,
   obtenerPuntajeGanado,
   type PuntajeCalculadoEvento,
 } from "../servicios/rankingTiempoReal";
 
-const GUID_VACIO = "00000000-0000-0000-0000-000000000000";
+const GUID_VACIO = normalizarEventoId("00000000-0000-0000-0000-000000000000");
 
 export const TEXTO_PUNTAJE_CALCULANDO = "Puntaje calculándose...";
 export const TEXTO_PUNTAJE_FALLBACK = "El puntaje se actualizará en el ranking.";
 
-// El puntaje real se calcula en ranking-servicio y llega por SignalR
-// (PuntajeCalculado). Como el evento puede llegar ANTES de que resuelva el HTTP
-// de la respuesta, se guarda temporalmente por eventoIdOrigen y se consume al
-// conocer el resultado.eventoId. Es memoria local de corta duración (no global).
 const TTL_BUFFER_MS = 15000;
 
 interface OpcionesCorrelacionPuntaje {
-  // Máximo que se espera el evento de puntaje antes de mostrar el texto de
-  // respaldo. No bloquea la ejecución de la sesión: solo afecta el +X visual.
   esperaMaximaMs?: number;
+  recuperarPuntaje?: (eventoId: string) => Promise<number | null>;
 }
 
-// Correlaciona el resultado HTTP de una acción (resultado.eventoId) con el
-// evento PuntajeCalculado (eventoIdOrigen) para mostrar el puntaje REAL ganado
-// (+X pts), resolviendo la carrera "SignalR llega antes que el HTTP" mediante un
-// buffer temporal indexado por eventoIdOrigen.
 export function useCorrelacionPuntaje(
-  { esperaMaximaMs = 6000 }: OpcionesCorrelacionPuntaje = {},
+  { esperaMaximaMs = 6000, recuperarPuntaje }: OpcionesCorrelacionPuntaje = {},
 ) {
   const [feedbackPuntaje, setFeedbackPuntaje] = useState<string>(
     TEXTO_PUNTAJE_CALCULANDO,
   );
-  // true cuando ya se mostró un resultado definitivo (+X pts o el respaldo).
   const resueltoRef = useRef(false);
-  // eventoId que se está esperando por SignalR (null = ninguno).
   const esperadoRef = useRef<string | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Eventos PuntajeCalculado que llegaron antes de conocer el eventoId del HTTP.
+  const [versionResolucion, setVersionResolucion] = useState(0);
   const bufferRef = useRef<Map<string, { puntaje: number; ts: number }>>(
     new Map(),
   );
+
+  const logDev = useCallback((mensaje: string, datos?: Record<string, unknown>) => {
+    if (typeof __DEV__ !== "undefined" && __DEV__) {
+      console.info("[Trivia/Puntaje]", mensaje, datos ?? {});
+    }
+  }, []);
+
+  const marcarResuelto = useCallback((texto: string) => {
+    resueltoRef.current = true;
+    setFeedbackPuntaje(texto);
+    setVersionResolucion((v) => v + 1);
+  }, []);
 
   const limpiarTimeout = useCallback(() => {
     if (timeoutRef.current) {
@@ -56,72 +58,100 @@ export function useCorrelacionPuntaje(
     }
   }, []);
 
-  // Se pasa a useRankingTiempoReal.onPuntajeCalculado.
   const alRecibirPuntajeCalculado = useCallback(
     (evento: PuntajeCalculadoEvento) => {
       const origen = obtenerEventoIdOrigen(evento);
       if (!origen || origen === GUID_VACIO) return;
       const puntaje = obtenerPuntajeGanado(evento);
+      logDev("PuntajeCalculado recibido", { eventoId: origen, puntaje });
 
-      // Coincide con la acción que se está esperando: mostrar +X de inmediato.
       if (esperadoRef.current && origen === esperadoRef.current) {
         esperadoRef.current = null;
         limpiarTimeout();
-        resueltoRef.current = true;
-        setFeedbackPuntaje(`+${puntaje} pts`);
+        marcarResuelto(`+${puntaje} pts`);
+        logDev("Puntaje correlacionado por SignalR", { eventoId: origen, puntaje });
         return;
       }
 
-      // Todavía no se espera este evento (SignalR llegó antes que el HTTP): se
-      // guarda por eventoIdOrigen para consumirlo al resolver el HTTP.
       podarBuffer();
       bufferRef.current.set(origen, { puntaje, ts: Date.now() });
+      logDev("Puntaje guardado en buffer", { eventoId: origen, puntaje });
     },
-    [limpiarTimeout, podarBuffer],
+    [limpiarTimeout, logDev, marcarResuelto, podarBuffer],
   );
 
-  // Se llama tras la respuesta HTTP con resultado.eventoId.
+  const recuperarPendiente = useCallback(async () => {
+    const eventoId = esperadoRef.current;
+    if (!eventoId || !recuperarPuntaje) return false;
+
+    try {
+      logDev("Recuperando puntaje por HTTP", { eventoId });
+      const puntaje = await recuperarPuntaje(eventoId);
+      if (puntaje === null || esperadoRef.current !== eventoId) return false;
+      esperadoRef.current = null;
+      limpiarTimeout();
+      marcarResuelto(`+${puntaje} pts`);
+      logDev("Puntaje recuperado por HTTP", { eventoId, puntaje });
+      return true;
+    } catch (error) {
+      logDev("Recuperación de puntaje falló", {
+        eventoId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return false;
+    }
+  }, [limpiarTimeout, logDev, marcarResuelto, recuperarPuntaje]);
+
   const esperarPuntaje = useCallback(
     (eventoId?: string | null) => {
       limpiarTimeout();
       resueltoRef.current = false;
 
-      if (!eventoId || eventoId === GUID_VACIO) {
+      const eventoNormalizado = normalizarEventoId(eventoId);
+
+      if (!eventoNormalizado || eventoNormalizado === GUID_VACIO) {
         esperadoRef.current = null;
-        resueltoRef.current = true;
-        setFeedbackPuntaje(TEXTO_PUNTAJE_FALLBACK);
+        marcarResuelto(TEXTO_PUNTAJE_FALLBACK);
         return;
       }
 
-      // ¿El evento ya había llegado por SignalR antes que el HTTP? (carrera)
-      const enBuffer = bufferRef.current.get(eventoId);
+      const enBuffer = bufferRef.current.get(eventoNormalizado);
       if (enBuffer) {
-        bufferRef.current.delete(eventoId);
+        bufferRef.current.delete(eventoNormalizado);
         esperadoRef.current = null;
-        resueltoRef.current = true;
-        setFeedbackPuntaje(`+${enBuffer.puntaje} pts`);
+        marcarResuelto(`+${enBuffer.puntaje} pts`);
+        logDev("Puntaje tomado desde buffer", {
+          eventoId: eventoNormalizado,
+          puntaje: enBuffer.puntaje,
+        });
         return;
       }
 
-      esperadoRef.current = eventoId;
+      esperadoRef.current = eventoNormalizado;
       setFeedbackPuntaje(TEXTO_PUNTAJE_CALCULANDO);
+      logDev("Esperando puntaje", { eventoId: eventoNormalizado });
       timeoutRef.current = setTimeout(() => {
-        if (esperadoRef.current === eventoId) {
+        void (async () => {
+          if (esperadoRef.current !== eventoNormalizado) return;
+          const recuperado = await recuperarPendiente();
+          if (recuperado || esperadoRef.current !== eventoNormalizado) return;
           esperadoRef.current = null;
-          resueltoRef.current = true;
-          setFeedbackPuntaje(TEXTO_PUNTAJE_FALLBACK);
-        }
+          marcarResuelto(TEXTO_PUNTAJE_FALLBACK);
+          logDev("Timeout esperando puntaje", { eventoId: eventoNormalizado });
+        })();
       }, esperaMaximaMs);
     },
-    [esperaMaximaMs, limpiarTimeout],
+    [esperaMaximaMs, limpiarTimeout, logDev, marcarResuelto, recuperarPendiente],
   );
 
   useEffect(() => () => limpiarTimeout(), [limpiarTimeout]);
 
   return {
     feedbackPuntaje,
+    versionResolucion,
     resueltoRef,
     alRecibirPuntajeCalculado,
     esperarPuntaje,
+    recuperarPendiente,
   };
 }

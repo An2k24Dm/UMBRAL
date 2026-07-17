@@ -97,14 +97,13 @@ public sealed class PublicadorEventosRankingOutbox : IPublicadorEventosRanking
     }
 
     public Task PublicarPenalizacionAplicadaAsync(
-        Guid eventoId, Guid penalizacionId, Guid sesionId, string tipoObjetivo,
+        Guid eventoId, Guid sesionId, string tipoObjetivo,
         Guid? participanteSesionId, Guid? participanteIdentidadId, Guid? equipoId,
         int puntos, string motivo, Guid operadorIdentidadId, DateTime aplicadaEnUtc,
         CancellationToken cancelacion)
         => EncolarAsync(eventoId, RoutingKeyPenalizacion, new
         {
             EventoId = eventoId,
-            PenalizacionId = penalizacionId,
             SesionId = sesionId,
             TipoObjetivo = tipoObjetivo,
             ParticipanteSesionId = participanteSesionId,
@@ -131,6 +130,6 @@ public sealed class PublicadorEventosRankingOutbox : IPublicadorEventosRanking
             Estado = "Pendiente"
         });
 
-        await _contexto.SaveChangesAsync(cancelacion);
+        await Task.CompletedTask;
     }
 }

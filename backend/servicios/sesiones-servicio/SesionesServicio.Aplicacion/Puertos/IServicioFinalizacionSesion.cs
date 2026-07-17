@@ -8,6 +8,12 @@ public interface IServicioFinalizacionSesion
     Task AvanzarEtapaPorVencimientoAsync(
         Guid sesionId, Guid etapaId, CancellationToken cancelacion);
 
+    Task FinalizarSesionPorVencimientoAsync(
+        Guid sesionId, CancellationToken cancelacion);
+
+    Task<bool> FinalizarSesionSiDuracionVencidaAsync(
+        Guid sesionId, CancellationToken cancelacion);
+
     Task ActivarEtapaProgramadaAsync(
         Guid sesionId, Guid etapaId, CancellationToken cancelacion);
 

@@ -7,7 +7,10 @@ using SesionesServicio.Aplicacion.Consultas.ObtenerMiDesgloseSesion;
 using SesionesServicio.Aplicacion.Consultas.ObtenerMisParticipaciones;
 using SesionesServicio.Aplicacion.Consultas.ObtenerProgresoSecuencialSesion;
 using SesionesServicio.Aplicacion.Consultas.ObtenerProgresoSesion;
+using SesionesServicio.Aplicacion.Consultas.ObtenerResultadoPuntaje;
 using SesionesServicio.Commons.Dtos;
+using SesionesServicio.Commons.Dtos.DesgloseSesion;
+using SesionesServicio.Commons.Dtos.ResultadosPuntaje;
 
 namespace SesionesServicio.Presentacion.Controladores;
 
@@ -92,6 +95,19 @@ public sealed class SesionesParticipanteControlador : ControllerBase
     {
         var resultado = await _mediador.Send(
             new ObtenerProgresoSecuencialSesionConsulta(sesionId), cancelacion);
+        return Ok(resultado);
+    }
+
+    // GET /api/sesiones/participante/disponibles/resultados-puntaje/{eventoId}
+    [HttpGet("resultados-puntaje/{eventoId:guid}")]
+    [ProducesResponseType(typeof(ResultadoPuntajeDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> ObtenerResultadoPuntaje(
+        Guid eventoId, CancellationToken cancelacion)
+    {
+        var resultado = await _mediador.Send(
+            new ObtenerResultadoPuntajeConsulta(eventoId), cancelacion);
         return Ok(resultado);
     }
 
