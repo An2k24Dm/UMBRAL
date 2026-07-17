@@ -24,10 +24,50 @@ public sealed class ProcesadorVencimientoEtapasSesion : IProcesadorVencimientosE
     public async Task<int> EjecutarCicloAsync(CancellationToken cancelacion)
     {
         var procesadas = 0;
+        procesadas += await FinalizarSesionesVencidasAsync(cancelacion);
         procesadas += await CerrarCierresPendientesVencidosAsync(cancelacion);
         procesadas += await ActivarPreparacionesVencidasAsync(cancelacion);
         procesadas += await CerrarEtapasVencidasAsync(cancelacion);
         return procesadas;
+    }
+
+    private async Task<int> FinalizarSesionesVencidasAsync(CancellationToken cancelacion)
+    {
+        var ahoraUtc = _reloj.ObtenerFechaHoraUtc();
+        var vencidas = await _consultas.ListarActivasConDuracionVencidaAsync(ahoraUtc, cancelacion);
+        if (vencidas.Count == 0) return 0;
+
+        _registroLogs.Informacion(
+            evento: "VencimientoSesiones",
+            descripcion: "[VencimientoEtapas] sesiones activas con duración vencida encontradas.",
+            propiedades: new Dictionary<string, object?>
+            {
+                ["Encontradas"] = vencidas.Count
+            });
+
+        var finalizadas = 0;
+        foreach (var sesion in vencidas)
+        {
+            try
+            {
+                await _finalizacion.FinalizarSesionPorVencimientoAsync(
+                    sesion.Id, cancelacion);
+                finalizadas++;
+            }
+            catch (Exception ex)
+            {
+                _registroLogs.Error(
+                    excepcion: ex,
+                    evento: "VencimientoSesionFallido",
+                    descripcion: "No se pudo finalizar la sesión vencida por tiempo.",
+                    propiedades: new Dictionary<string, object?>
+                    {
+                        ["SesionId"] = sesion.Id
+                    });
+            }
+        }
+
+        return finalizadas;
     }
 
     private async Task<int> CerrarCierresPendientesVencidosAsync(CancellationToken cancelacion)

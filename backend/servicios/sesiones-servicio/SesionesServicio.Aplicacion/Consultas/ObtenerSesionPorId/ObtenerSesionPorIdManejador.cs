@@ -17,17 +17,20 @@ public sealed class ObtenerSesionPorIdManejador
     private readonly IUsuarioActual _usuarioActual;
     private readonly FabricaMapeadorDetalleSesion _fabricaMapeador;
     private readonly IClienteIdentidadParticipantes _clienteIdentidadParticipantes;
+    private readonly IServicioFinalizacionSesion _finalizacion;
 
     public ObtenerSesionPorIdManejador(
         IRepositorioSesiones repositorio,
         IUsuarioActual usuarioActual,
         FabricaMapeadorDetalleSesion fabricaMapeador,
-        IClienteIdentidadParticipantes clienteIdentidadParticipantes)
+        IClienteIdentidadParticipantes clienteIdentidadParticipantes,
+        IServicioFinalizacionSesion finalizacion)
     {
         _repositorio = repositorio;
         _usuarioActual = usuarioActual;
         _fabricaMapeador = fabricaMapeador;
         _clienteIdentidadParticipantes = clienteIdentidadParticipantes;
+        _finalizacion = finalizacion;
     }
 
     public async Task<SesionDetalleDto?> Handle(
@@ -50,6 +53,13 @@ public sealed class ObtenerSesionPorIdManejador
             if (sesion.OperadorCreadorId != operadorId)
                 throw new AccesoSesionNoPermitidoExcepcion(
                     "No tiene permiso para ver esta sesión.");
+        }
+
+        if (await _finalizacion.FinalizarSesionSiDuracionVencidaAsync(
+                sesion.Id, cancelacion))
+        {
+            sesion = await _repositorio.ObtenerPorIdAsync(consulta.Id, cancelacion);
+            if (sesion is null) return null;
         }
 
         // El mapeo del detalle (incluida la parte específica del tipo de

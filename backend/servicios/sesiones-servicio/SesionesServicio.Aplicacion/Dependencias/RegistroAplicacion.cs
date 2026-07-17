@@ -4,6 +4,8 @@ using SesionesServicio.Aplicacion.Servicios;
 using SesionesServicio.Aplicacion.Comandos.AbandonarSesion;
 using SesionesServicio.Aplicacion.Comandos.CrearEquipo;
 using SesionesServicio.Aplicacion.Comandos.CrearSesion;
+using SesionesServicio.Aplicacion.Comandos.AplicarPenalizacionEquipo;
+using SesionesServicio.Aplicacion.Comandos.AplicarPenalizacionParticipante;
 using SesionesServicio.Aplicacion.Comandos.ExpulsarParticipanteEquipo;
 using SesionesServicio.Aplicacion.Comandos.IngresarEquipo;
 using SesionesServicio.Aplicacion.Comandos.IngresarSesionPorCodigo;
@@ -37,6 +39,10 @@ public static class RegistroAplicacion
         servicios.AddScoped<IValidador<IngresarSesionPorCodigoComando>,
             ValidadorIngresarSesionPorCodigo>();
         servicios.AddScoped<IValidador<ModificarEquipoComando>, ValidadorModificarEquipo>();
+        servicios.AddScoped<IValidador<AplicarPenalizacionParticipanteComando>,
+            ValidadorAplicarPenalizacionParticipante>();
+        servicios.AddScoped<IValidador<AplicarPenalizacionEquipoComando>,
+            ValidadorAplicarPenalizacionEquipo>();
         servicios.AddScoped<IFachadaOperacionSesion, FachadaOperacionSesion>();
         servicios.AddScoped<ValidadorInicioSesionOperacion>();
         servicios.AddScoped<ValidadorCancelacionSesionOperacion>();

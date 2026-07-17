@@ -4,12 +4,10 @@ using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RankingServicio.Aplicacion.Puertos;
+using RankingServicio.Commons.Dtos.ServiciosExternos;
 
 namespace RankingServicio.Infraestructura.ServiciosExternos;
 
-// Enriquece el alias de los participantes consultando identidad-servicio por
-// ids, reenviando el token del usuario actual. Si el enriquecimiento falla o no
-// está configurado, devuelve vacío y la consulta usa el id como respaldo.
 public sealed class ClienteIdentidadParticipantesRanking : IClienteIdentidadParticipantes
 {
     private const string Ruta = "api/usuarios/participantes/por-ids";

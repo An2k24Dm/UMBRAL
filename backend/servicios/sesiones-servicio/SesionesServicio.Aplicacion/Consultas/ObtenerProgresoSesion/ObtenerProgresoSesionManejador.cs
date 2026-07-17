@@ -17,22 +17,28 @@ public sealed class ObtenerProgresoSesionManejador
     private readonly IRepositorioRespuestasTrivia _repositorioTrivia;
     private readonly IRepositorioEvidenciasTesoro _repositorioTesoro;
     private readonly IClienteJuegosTrivia _clienteTrivia;
+    private readonly IServicioFinalizacionSesion _finalizacion;
 
     public ObtenerProgresoSesionManejador(
         IRepositorioSesiones repositorioSesiones,
         IRepositorioRespuestasTrivia repositorioTrivia,
         IRepositorioEvidenciasTesoro repositorioTesoro,
-        IClienteJuegosTrivia clienteTrivia)
+        IClienteJuegosTrivia clienteTrivia,
+        IServicioFinalizacionSesion finalizacion)
     {
         _repositorioSesiones = repositorioSesiones;
         _repositorioTrivia = repositorioTrivia;
         _repositorioTesoro = repositorioTesoro;
         _clienteTrivia = clienteTrivia;
+        _finalizacion = finalizacion;
     }
 
     public async Task<ProgresoSesionDto> Handle(
         ObtenerProgresoSesionConsulta consulta, CancellationToken cancelacion)
     {
+        await _finalizacion.FinalizarSesionSiDuracionVencidaAsync(
+            consulta.SesionId, cancelacion);
+
         var sesion = await _repositorioSesiones.ObtenerPorIdAsync(consulta.SesionId, cancelacion);
         var triviaItems = await _repositorioTrivia.ObtenerProgresoTriviaAsync(consulta.SesionId, cancelacion);
         var triviaEtapasItems = await _repositorioTrivia.ObtenerProgresoTriviaPorEtapaAsync(

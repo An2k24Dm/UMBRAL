@@ -41,6 +41,12 @@ import {
 } from "../../../servicios/rankingApi";
 import { intentarMarcarFinalizacionNotificada } from "../../../servicios/notificacionesFinalizacionSesion";
 
+function etapaTesoroVencida(progreso: ProgresoSecuencialSesionDto): boolean {
+  return progreso.tipoEtapaActual === "BusquedaTesoro" &&
+    progreso.faseEtapaActual === "Activa" &&
+    (progreso.segundosRestantesEtapa ?? 1) <= 0;
+}
+
 export default function PantallaDetalleSesionParticipante() {
   return (
     <RutaProtegidaMovil>
@@ -165,6 +171,7 @@ function ContenidoDetalle() {
       if (
         progresoActualizado.faseEtapaActual === "Preparacion" ||
         progresoActualizado.faseEtapaActual === "CierrePendiente" ||
+        etapaTesoroVencida(progresoActualizado) ||
         progresoActualizado.jugadorActualCompletoEtapaActual === true ||
         !progresoActualizado.misionActualId ||
         !progresoActualizado.etapaActualId ||
@@ -733,7 +740,12 @@ function PanelRankingSesion({
         <View key={p.participanteSesionId} style={estilos.filaRanking}>
           <Text style={estilos.rankingPosicion}>{medallaRanking(p.posicion)}</Text>
           <Text style={estilos.rankingNombre}>{p.alias}</Text>
-          <Text style={estilos.rankingPuntaje}>{p.puntaje} pts</Text>
+          <View style={estilos.rankingValores}>
+            {p.puntosPenalizados > 0 && (
+              <Text style={estilos.rankingPenalizacion}>-{p.puntosPenalizados} pts</Text>
+            )}
+            <Text style={estilos.rankingPuntaje}>{p.puntaje} pts</Text>
+          </View>
         </View>
       ))}
       {!cargando && esGrupal && equiposOrdenados.length === 0 && (
@@ -750,7 +762,12 @@ function PanelRankingSesion({
             >
               <Text style={estilos.rankingPosicion}>{medallaRanking(equipo.posicion)}</Text>
               <Text style={estilos.rankingNombre}>{equipo.nombreEquipo}</Text>
-              <Text style={estilos.rankingPuntaje}>{equipo.puntaje} pts {expandido ? "▼" : "▶"}</Text>
+              <View style={estilos.rankingValores}>
+                {equipo.puntosPenalizados > 0 && (
+                  <Text style={estilos.rankingPenalizacion}>-{equipo.puntosPenalizados} pts</Text>
+                )}
+                <Text style={estilos.rankingPuntaje}>{equipo.puntaje} pts {expandido ? "▼" : "▶"}</Text>
+              </View>
             </TouchableOpacity>
             {expandido && equipo.participantes.map((p) => (
               <View key={p.participanteSesionId} style={estilos.filaRankingDetalle}>
@@ -970,6 +987,16 @@ const estilos = StyleSheet.create({
   rankingNombre: {
     flex: 1,
     color: tema.colores.texto,
+    fontWeight: tema.tipografia.pesos.bold,
+  },
+  rankingValores: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: tema.espacios.sm,
+    flexShrink: 0,
+  },
+  rankingPenalizacion: {
+    color: tema.colores.error,
     fontWeight: tema.tipografia.pesos.bold,
   },
   rankingPuntaje: {

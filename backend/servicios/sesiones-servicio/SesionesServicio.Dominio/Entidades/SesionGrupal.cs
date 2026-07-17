@@ -109,6 +109,15 @@ public sealed class SesionGrupal : Sesion
         _equipos.Remove(equipo);
     }
 
+    public Equipo ObtenerEquipoParaPenalizar(Guid equipoId)
+    {
+        ValidarPuedePenalizar();
+
+        return _equipos.FirstOrDefault(e => e.Id == equipoId)
+            ?? throw new EquipoNoEncontradoExcepcion(
+                "El equipo indicado no pertenece a esta sesión.");
+    }
+
     public Participante ExpulsarParticipanteDeEquipo(
         Guid equipoId,
         Guid participanteSesionId,

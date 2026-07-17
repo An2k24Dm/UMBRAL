@@ -61,6 +61,7 @@ function construirDestinoJuego(
   progreso: ProgresoSecuencialSesionDto,
 ): string | null {
   if (
+    etapaTesoroVencida(progreso) ||
     progreso.jugadorActualCompletoEtapaActual === true ||
     !progreso.misionActualId ||
     !progreso.etapaActualId ||
@@ -78,6 +79,12 @@ function construirDestinoJuego(
         `&misionId=${progreso.misionActualId}` +
         `&etapaId=${progreso.etapaActualId}` +
         `&busquedaId=${progreso.modoDeJuegoId}`;
+}
+
+function etapaTesoroVencida(progreso: ProgresoSecuencialSesionDto): boolean {
+  return progreso.tipoEtapaActual === "BusquedaTesoro" &&
+    progreso.faseEtapaActual === "Activa" &&
+    (progreso.segundosRestantesEtapa ?? 1) <= 0;
 }
 
 export function useAvisosSesionTiempoReal() {
@@ -204,6 +211,7 @@ export function useAvisosSesionTiempoReal() {
         limpiarBanner(sesionId);
 
         if (
+          etapaTesoroVencida(progreso) ||
           progreso.jugadorActualCompletoEtapaActual === true ||
           !progreso.misionActualId ||
           !progreso.etapaActualId ||

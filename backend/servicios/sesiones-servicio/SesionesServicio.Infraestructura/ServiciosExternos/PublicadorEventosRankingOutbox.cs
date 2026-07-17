@@ -10,6 +10,7 @@ public sealed class PublicadorEventosRankingOutbox : IPublicadorEventosRanking
     private const string RoutingKeyTesoro = "sesion.evidencia_tesoro";
     private const string RoutingKeyParticipante = "sesion.participante_unido";
     private const string RoutingKeyEquipo = "sesion.equipo_creado";
+    private const string RoutingKeyPenalizacion = "sesion.penalizacion_aplicada";
 
     private readonly ContextoSesiones _contexto;
 
@@ -95,6 +96,25 @@ public sealed class PublicadorEventosRankingOutbox : IPublicadorEventosRanking
         }, cancelacion);
     }
 
+    public Task PublicarPenalizacionAplicadaAsync(
+        Guid eventoId, Guid sesionId, string tipoObjetivo,
+        Guid? participanteSesionId, Guid? participanteIdentidadId, Guid? equipoId,
+        int puntos, string motivo, Guid operadorIdentidadId, DateTime aplicadaEnUtc,
+        CancellationToken cancelacion)
+        => EncolarAsync(eventoId, RoutingKeyPenalizacion, new
+        {
+            EventoId = eventoId,
+            SesionId = sesionId,
+            TipoObjetivo = tipoObjetivo,
+            ParticipanteSesionId = participanteSesionId,
+            ParticipanteIdentidadId = participanteIdentidadId,
+            EquipoId = equipoId,
+            Puntos = puntos,
+            Motivo = motivo,
+            OperadorIdentidadId = operadorIdentidadId,
+            AplicadaEnUtc = aplicadaEnUtc
+        }, cancelacion);
+
     private async Task EncolarAsync(
         Guid eventoId,
         string routingKey,
@@ -110,6 +130,6 @@ public sealed class PublicadorEventosRankingOutbox : IPublicadorEventosRanking
             Estado = "Pendiente"
         });
 
-        await _contexto.SaveChangesAsync(cancelacion);
+        await Task.CompletedTask;
     }
 }

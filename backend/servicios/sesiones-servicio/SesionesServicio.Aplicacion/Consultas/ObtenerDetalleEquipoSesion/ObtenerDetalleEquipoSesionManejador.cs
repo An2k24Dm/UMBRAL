@@ -2,6 +2,7 @@ using MediatR;
 using SesionesServicio.Aplicacion.Autorizacion;
 using SesionesServicio.Aplicacion.Puertos;
 using SesionesServicio.Commons.Dtos;
+using SesionesServicio.Commons.Dtos.ServiciosExternos;
 using SesionesServicio.Dominio.Abstract;
 using SesionesServicio.Dominio.Entidades;
 using SesionesServicio.Dominio.Excepciones;

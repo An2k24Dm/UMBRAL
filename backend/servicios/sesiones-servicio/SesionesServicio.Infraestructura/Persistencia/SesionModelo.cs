@@ -32,8 +32,6 @@ public sealed class SesionModelo
     public int? EjecucionActualDuracionSegundos { get; set; }
     public long? EjecucionActualDuracionPausasAcumuladaMs { get; set; }
     public DateTime? EjecucionActualFechaInicioPausaUtc { get; set; }
-    // Plan global de etapas de la sesión serializado como JSON (ver
-    // EtapaPlanificadaSesion). Null hasta que la sesión inicia.
     public string? SecuenciaEtapasJson { get; set; }
     public List<SesionMisionModelo> Misiones { get; set; } = new();
     public List<EquipoModelo> Equipos { get; set; } = new();
@@ -55,6 +53,8 @@ public sealed class EquipoModelo
     public string Nombre { get; set; } = string.Empty;
     public Guid LiderParticipanteId { get; set; }
     public int Puntaje { get; set; }
+    // HU52 — Magnitud positiva acumulada de penalizaciones del equipo.
+    public int PuntosPenalizados { get; set; }
     public DateTime? SnapshotRankingUtc { get; set; }
     public TipoEquipo Tipo { get; set; }
     // Hash de la contraseña (solo equipos privados); null en públicos.
@@ -70,9 +70,32 @@ public sealed class ParticipanteModelo
     public Guid ParticipanteIdentidadId { get; set; }
     public Guid? EquipoId { get; set; }
     public int Puntaje { get; set; }
+    // HU52 — Magnitud positiva acumulada de penalizaciones del participante.
+    public int PuntosPenalizados { get; set; }
     public DateTime? SnapshotRankingUtc { get; set; }
     public DateTime FechaUnionSesion { get; set; }
     public DateTime? FechaUnionEquipo { get; set; }
+}
+
+public sealed class PenalizacionAplicadaModelo
+{
+    public Guid EventoId { get; set; }
+    public Guid SesionId { get; set; }
+    public int TipoObjetivo { get; set; }
+    public Guid? ParticipanteSesionId { get; set; }
+    public Guid? ParticipanteIdentidadId { get; set; }
+    public Guid? EquipoId { get; set; }
+    public int Puntos { get; set; }
+    public string Motivo { get; set; } = string.Empty;
+    public Guid OperadorIdentidadId { get; set; }
+    public DateTime AplicadaEnUtc { get; set; }
+}
+
+public sealed class ResultadoRankingProcesadoModelo
+{
+    public Guid EventoIdOrigen { get; set; }
+    public string TipoResultado { get; set; } = string.Empty;
+    public DateTime ProcesadoEnUtc { get; set; }
 }
 
 public sealed class EtapaCompletadaModelo

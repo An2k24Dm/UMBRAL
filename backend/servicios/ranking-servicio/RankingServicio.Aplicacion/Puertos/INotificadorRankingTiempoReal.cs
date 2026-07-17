@@ -1,3 +1,6 @@
+using RankingServicio.Commons.Dtos.Eventos.Salida;
+using RankingServicio.Commons.Dtos.TiempoReal;
+
 namespace RankingServicio.Aplicacion.Puertos;
 
 public interface INotificadorRankingTiempoReal
@@ -10,15 +13,7 @@ public interface INotificadorRankingTiempoReal
 
     Task NotificarRankingEquiposActualizadoAsync(
         Guid sesionId, CancellationToken cancelacion);
-}
 
-public sealed record PuntajeCalculadoDto(
-    Guid EventoIdOrigen,
-    Guid SesionId,
-    Guid ParticipanteSesionId,
-    Guid ParticipanteIdentidadId,
-    Guid? EquipoId,
-    long PuntajeGanado,
-    long PuntajeTotalParticipante,
-    long? PuntajeTotalEquipo,
-    DateTime CalculadoEnUtc);
+    Task NotificarPenalizacionAplicadaAsync(
+        PenalizacionAplicadaNotificacionDto penalizacion, CancellationToken cancelacion);
+}

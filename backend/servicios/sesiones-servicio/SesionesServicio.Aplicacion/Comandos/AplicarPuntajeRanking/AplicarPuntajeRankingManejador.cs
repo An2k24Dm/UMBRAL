@@ -8,9 +8,11 @@ namespace SesionesServicio.Aplicacion.Comandos.AplicarPuntajeRanking;
 public sealed class AplicarPuntajeRankingManejador
     : IRequestHandler<AplicarPuntajeRankingComando>
 {
+    private const string TipoResultado = "ranking.puntaje_actualizado";
     private readonly IRepositorioSesiones _repositorio;
     private readonly IRepositorioRespuestasTrivia _respuestasTrivia;
     private readonly IRepositorioEvidenciasTesoro _evidenciasTesoro;
+    private readonly IRepositorioResultadosRankingProcesados _resultadosProcesados;
     private readonly IUnidadTrabajoSesiones _unidadTrabajo;
     private readonly INotificadorSesionesTiempoReal _notificador;
 
@@ -18,12 +20,14 @@ public sealed class AplicarPuntajeRankingManejador
         IRepositorioSesiones repositorio,
         IRepositorioRespuestasTrivia respuestasTrivia,
         IRepositorioEvidenciasTesoro evidenciasTesoro,
+        IRepositorioResultadosRankingProcesados resultadosProcesados,
         IUnidadTrabajoSesiones unidadTrabajo,
         INotificadorSesionesTiempoReal notificador)
     {
         _repositorio = repositorio;
         _respuestasTrivia = respuestasTrivia;
         _evidenciasTesoro = evidenciasTesoro;
+        _resultadosProcesados = resultadosProcesados;
         _unidadTrabajo = unidadTrabajo;
         _notificador = notificador;
     }
@@ -35,9 +39,10 @@ public sealed class AplicarPuntajeRankingManejador
 
         await _unidadTrabajo.EjecutarEnTransaccionAsync(async ct =>
         {
-            // Correlación: fija el puntaje REAL (calculado por ranking) en la
-            // respuesta/evidencia original identificada por EventoPuntuacionId.
-            // Solo una de las dos coincide; la otra es no-op. Idempotente.
+            if (await _resultadosProcesados.ExisteAsync(
+                comando.EventoIdOrigen, TipoResultado, ct))
+                return;
+
             await _respuestasTrivia.ActualizarPuntosGanadosPorEventoAsync(
                 comando.EventoIdOrigen, puntos, ct);
             await _evidenciasTesoro.ActualizarPuntosGanadosPorEventoAsync(
@@ -45,11 +50,24 @@ public sealed class AplicarPuntajeRankingManejador
 
             var sesion = await _repositorio.ObtenerPorIdAsync(comando.SesionId, ct);
             if (sesion is null)
+            {
+                await _resultadosProcesados.RegistrarAsync(
+                    comando.EventoIdOrigen,
+                    TipoResultado,
+                    comando.CalculadoEnUtc,
+                    ct);
                 return;
+            }
 
             actualizado = AplicarSnapshot(sesion, comando);
             if (actualizado)
                 await _repositorio.ActualizarAsync(sesion, ct);
+
+            await _resultadosProcesados.RegistrarAsync(
+                comando.EventoIdOrigen,
+                TipoResultado,
+                comando.CalculadoEnUtc,
+                ct);
         }, cancelacion);
 
         if (!actualizado)

@@ -49,6 +49,12 @@ public interface IRepositorioEvidenciasTesoro
     Task<bool> ExisteEvidenciaValidaEquipoAsync(
         Guid sesionId, Guid etapaId, Guid equipoId, CancellationToken cancelacion);
 
+    Task<bool> ExisteEvidenciaIndividualAsync(
+        Guid sesionId, Guid etapaId, Guid participanteIdentidadId, CancellationToken cancelacion);
+
+    Task<bool> ExisteEvidenciaEquipoAsync(
+        Guid sesionId, Guid etapaId, Guid equipoId, CancellationToken cancelacion);
+
     Task<int> ContarParticipantesConEvidenciaValidaAsync(
         Guid sesionId, Guid etapaId, CancellationToken cancelacion);
 
@@ -67,4 +73,9 @@ public interface IRepositorioEvidenciasTesoro
     // agrupado por misión y etapa).
     Task<IReadOnlyList<PuntajeEtapaItem>> ObtenerPuntajePorEtapaParticipanteAsync(
         Guid sesionId, Guid participanteIdentidadId, CancellationToken cancelacion);
+
+    // HU52 — Puntaje bruto ganado por un equipo completo (SUM de PuntosGanados
+    // de todos sus integrantes). Usado por el desglose grupal.
+    Task<long> ObtenerPuntajeGanadoEquipoAsync(
+        Guid sesionId, Guid equipoId, CancellationToken cancelacion);
 }

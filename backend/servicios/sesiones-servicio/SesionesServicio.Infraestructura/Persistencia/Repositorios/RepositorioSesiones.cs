@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using SesionesServicio.Aplicacion.Puertos;
+using SesionesServicio.Commons.Dtos.Sesiones;
 using SesionesServicio.Dominio.Abstract;
 using SesionesServicio.Dominio.Entidades;
 using SesionesServicio.Dominio.Enums;
@@ -208,6 +209,26 @@ public sealed class RepositorioSesiones : IRepositorioSesiones, IConsultasSesion
             .ToList();
     }
 
+    public async Task<IReadOnlyList<Sesion>> ListarActivasConDuracionVencidaAsync(
+        DateTime ahoraUtc, CancellationToken cancelacion)
+    {
+        var candidatas = await _contexto.Sesiones
+            .AsNoTracking()
+            .Include(s => s.Misiones)
+            .Include(s => s.Equipos)
+            .Include(s => s.Participantes)
+            .Where(s => s.Estado == EstadoSesion.Activa
+                        && s.FechaInicioUtc.HasValue
+                        && s.DuracionSegundosLimite.HasValue
+                        && s.DuracionSegundosLimite.Value > 0)
+            .ToListAsync(cancelacion);
+
+        return candidatas
+            .Select(_mapeador.HaciaDominio)
+            .Where(s => SesionVencioPorDuracion(s, ahoraUtc))
+            .ToList();
+    }
+
     public Task<bool> ExisteSesionVigentePorMisionAsync(
         Guid misionId, CancellationToken cancelacion)
     {
@@ -229,6 +250,16 @@ public sealed class RepositorioSesiones : IRepositorioSesiones, IConsultasSesion
         EstadoSesion.Activa,
         EstadoSesion.Pausada
     };
+
+    private static bool SesionVencioPorDuracion(Sesion sesion, DateTime ahoraUtc)
+    {
+        if (!sesion.FechaInicioUtc.HasValue ||
+            !sesion.DuracionSegundosLimite.HasValue ||
+            sesion.DuracionSegundosLimite.Value <= 0)
+            return false;
+
+        return ahoraUtc >= sesion.FechaInicioUtc.Value.AddSeconds(sesion.DuracionSegundosLimite.Value);
+    }
 
     private static readonly EstadoSesion[] EstadosBloqueantes =
     {

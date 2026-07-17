@@ -10,6 +10,7 @@ using RabbitMQ.Client.Events;
 using RankingServicio.Aplicacion.Comandos.ProcesarEquipoCreado;
 using RankingServicio.Aplicacion.Comandos.ProcesarEvidenciaTesoro;
 using RankingServicio.Aplicacion.Comandos.ProcesarParticipanteUnido;
+using RankingServicio.Aplicacion.Comandos.ProcesarPenalizacion;
 using RankingServicio.Aplicacion.Comandos.ProcesarRespuestaTrivia;
 using RankingServicio.Infraestructura.RabbitMq;
 using Xunit;
@@ -131,6 +132,70 @@ public class ConsumidorEventosRankingPruebas
 
         mediator.Verify(m => m.Send(
             It.Is<ProcesarEquipoCreadoComando>(c => c.EquipoId == equipoId),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task ProcesarAsync_PenalizacionParticipante_EnviaComandoMediatR()
+    {
+        var mediator = new Mock<IMediator>();
+        var consumidor = CrearConsumidor(mediator);
+        var eventoId = Guid.NewGuid();
+        var participanteSesionId = Guid.NewGuid();
+
+        await InvocarProcesarAsync(consumidor, "sesion.penalizacion_aplicada", $$"""
+        {
+          "EventoId":"{{eventoId}}",
+          "SesionId":"{{Guid.NewGuid()}}",
+          "TipoObjetivo":"Participante",
+          "ParticipanteSesionId":"{{participanteSesionId}}",
+          "ParticipanteIdentidadId":"{{Guid.NewGuid()}}",
+          "EquipoId":null,
+          "Puntos":5,
+          "Motivo":"Incumplimiento de una regla",
+          "OperadorIdentidadId":"{{Guid.NewGuid()}}",
+          "AplicadaEnUtc":"2026-07-17T12:00:00Z"
+        }
+        """);
+
+        mediator.Verify(m => m.Send(
+            It.Is<ProcesarPenalizacionComando>(c =>
+                c.EventoId == eventoId
+                && c.TipoObjetivo == "Participante"
+                && c.ParticipanteSesionId == participanteSesionId
+                && c.EquipoId == null
+                && c.Puntos == 5),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task ProcesarAsync_PenalizacionEquipo_EnviaComandoMediatR()
+    {
+        var mediator = new Mock<IMediator>();
+        var consumidor = CrearConsumidor(mediator);
+        var equipoId = Guid.NewGuid();
+
+        await InvocarProcesarAsync(consumidor, "sesion.penalizacion_aplicada", $$"""
+        {
+          "EventoId":"{{Guid.NewGuid()}}",
+          "SesionId":"{{Guid.NewGuid()}}",
+          "TipoObjetivo":"Equipo",
+          "ParticipanteSesionId":null,
+          "ParticipanteIdentidadId":null,
+          "EquipoId":"{{equipoId}}",
+          "Puntos":100,
+          "Motivo":"Penalización grupal",
+          "OperadorIdentidadId":"{{Guid.NewGuid()}}",
+          "AplicadaEnUtc":"2026-07-17T12:00:00Z"
+        }
+        """);
+
+        mediator.Verify(m => m.Send(
+            It.Is<ProcesarPenalizacionComando>(c =>
+                c.TipoObjetivo == "Equipo"
+                && c.EquipoId == equipoId
+                && c.ParticipanteSesionId == null
+                && c.Puntos == 100),
             It.IsAny<CancellationToken>()), Times.Once);
     }
 

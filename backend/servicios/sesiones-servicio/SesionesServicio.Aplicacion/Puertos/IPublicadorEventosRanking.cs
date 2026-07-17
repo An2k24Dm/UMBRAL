@@ -46,4 +46,17 @@ public interface IPublicadorEventosRanking
         Guid sesionId,
         Guid equipoId,
         CancellationToken cancelacion);
+
+    Task PublicarPenalizacionAplicadaAsync(
+        Guid eventoId,
+        Guid sesionId,
+        string tipoObjetivo,
+        Guid? participanteSesionId,
+        Guid? participanteIdentidadId,
+        Guid? equipoId,
+        int puntos,
+        string motivo,
+        Guid operadorIdentidadId,
+        DateTime aplicadaEnUtc,
+        CancellationToken cancelacion);
 }

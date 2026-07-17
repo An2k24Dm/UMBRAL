@@ -2,11 +2,6 @@ using SesionesServicio.Dominio.Excepciones;
 
 namespace SesionesServicio.Dominio.ObjetosValor;
 
-// Value Object que encapsula el puntaje obtenido durante la ejecución de una
-// sesión (participantes y equipos). Es un entero nunca negativo; cero es el
-// puntaje inicial válido. Inmutable: Sumar devuelve una nueva instancia.
-// Igualdad por valor. El cálculo de ranking/posiciones corresponde a
-// ranking-servicio; aquí solo se garantiza que el dato persistido sea válido.
 public sealed class PuntajeSesion : IEquatable<PuntajeSesion>
 {
     private static readonly PuntajeSesion CeroCompartido = new(0);
@@ -24,9 +19,7 @@ public sealed class PuntajeSesion : IEquatable<PuntajeSesion>
         return new PuntajeSesion(valor);
     }
 
-    // Rehidratación desde la base de datos: aplica el mismo límite (nunca
-    // negativo); cero es válido como estado inicial persistido.
-    public static PuntajeSesion DesdePersistencia(int valor) => Crear(valor);
+    public static PuntajeSesion DesdePersistencia(int valor) => new(valor);
 
     public PuntajeSesion Sumar(PuntajeSesion otro)
     {

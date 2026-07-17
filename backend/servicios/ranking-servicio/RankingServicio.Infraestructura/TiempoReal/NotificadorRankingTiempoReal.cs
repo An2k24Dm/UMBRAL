@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.SignalR;
 using RankingServicio.Aplicacion.Puertos;
+using RankingServicio.Commons.Dtos.Eventos.Salida;
+using RankingServicio.Commons.Dtos.TiempoReal;
 
 namespace RankingServicio.Infraestructura.TiempoReal;
 
@@ -29,4 +31,10 @@ public sealed class NotificadorRankingTiempoReal : INotificadorRankingTiempoReal
         => _hub.Clients
             .Group($"sesion:{sesionId}")
             .SendAsync("RankingEquiposActualizado", sesionId, cancelacion);
+
+    public Task NotificarPenalizacionAplicadaAsync(
+        PenalizacionAplicadaNotificacionDto penalizacion, CancellationToken cancelacion)
+        => _hub.Clients
+            .Group($"sesion:{penalizacion.SesionId}")
+            .SendAsync("PenalizacionAplicada", penalizacion, cancelacion);
 }

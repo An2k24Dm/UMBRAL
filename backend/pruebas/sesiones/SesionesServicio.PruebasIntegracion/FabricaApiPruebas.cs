@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
@@ -74,6 +75,10 @@ public sealed class FabricaApiPruebas : WebApplicationFactory<Program>
             {
                 opciones.UseInMemoryDatabase(_nombreBaseDatos);
                 opciones.UseInternalServiceProvider(providerInMemory);
+                // El proveedor InMemory no soporta transacciones reales; los
+                // manejadores que usan EjecutarEnTransaccionAsync (p. ej. HU52)
+                // requieren que BeginTransaction sea un no-op en lugar de lanzar.
+                opciones.ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning));
             });
 
             ConfigurarMockClienteMisiones();

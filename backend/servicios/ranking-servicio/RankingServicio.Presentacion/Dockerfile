@@ -2,6 +2,7 @@ FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /src
 
 COPY RankingServicio.Dominio/RankingServicio.Dominio.csproj          RankingServicio.Dominio/
+COPY RankingServicio.Commons/RankingServicio.Commons.csproj          RankingServicio.Commons/
 COPY RankingServicio.Aplicacion/RankingServicio.Aplicacion.csproj    RankingServicio.Aplicacion/
 COPY RankingServicio.Infraestructura/RankingServicio.Infraestructura.csproj  RankingServicio.Infraestructura/
 COPY RankingServicio.Presentacion/RankingServicio.Presentacion.csproj        RankingServicio.Presentacion/
@@ -9,6 +10,7 @@ COPY RankingServicio.Presentacion/RankingServicio.Presentacion.csproj        Ran
 RUN dotnet restore RankingServicio.Presentacion/RankingServicio.Presentacion.csproj
 
 COPY RankingServicio.Dominio/          RankingServicio.Dominio/
+COPY RankingServicio.Commons/          RankingServicio.Commons/
 COPY RankingServicio.Aplicacion/       RankingServicio.Aplicacion/
 COPY RankingServicio.Infraestructura/  RankingServicio.Infraestructura/
 COPY RankingServicio.Presentacion/     RankingServicio.Presentacion/

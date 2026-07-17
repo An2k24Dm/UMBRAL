@@ -63,9 +63,15 @@ public sealed class SesionIndividual : Sesion
         _participantes.Remove(participante);
     }
 
-    // HU48 — Abandono voluntario de la sesión individual (solo En
-    // Preparación). Elimina la participación local y libera el cupo; el
-    // participante puede ingresar a otra sesión.
+    public Participante ObtenerParticipanteParaPenalizar(Guid participanteSesionId)
+    {
+        ValidarPuedePenalizar();
+
+        return _participantes.FirstOrDefault(p => p.Id == participanteSesionId)
+            ?? throw new ParticipanteNoEncontradoExcepcion(
+                "El participante indicado no pertenece a esta sesión.");
+    }
+
     public Participante AbandonarSesion(Guid participanteIdentidadId)
     {
         if (Estado != EstadoSesion.EnPreparacion)

@@ -1,16 +1,19 @@
-import { Fragment, useCallback, useEffect, useState } from 'react'
+import { Fragment, useCallback, useEffect, useState, type CSSProperties } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { LayoutPanel } from '../componentes/LayoutPanel'
 import { Alerta } from '../componentes/Alerta'
 import { Boton } from '../componentes/Boton'
 import { BadgeEstadoSesion } from '../componentes/BadgeEstadoSesion'
 import { ModalConfirmacion } from '../componentes/ModalConfirmacion'
+import { ModalAplicarPenalizacion } from '../componentes/ModalAplicarPenalizacion'
 import {
   obtenerSesion,
   eliminarSesion,
   listarEquiposSesion,
   expulsarParticipanteSesion,
   expulsarEquipoSesion,
+  penalizarParticipanteSesion,
+  penalizarEquipoSesion,
   iniciarSesionOperacion,
   pausarSesionOperacion,
   reanudarSesionOperacion,
@@ -88,8 +91,21 @@ function formatearDuracionSegundos(segundos: number | null | undefined): string 
   return `${minutos} min ${segundosRestantes} s`
 }
 
-// HU52 — Operaciones del ciclo de vida de la sesión (patrón Facade en backend).
+// Operaciones del ciclo de vida de la sesión (patrón Facade en backend). No es
+// HU52 (HU52 es Aplicar penalización); solo iniciar/pausar/reanudar/cancelar.
 type AccionOperacionSesion = 'iniciar' | 'pausar' | 'reanudar' | 'cancelar'
+
+// HU52 — Visualización de la penalización acumulada. El valor viene del backend
+// (magnitud positiva); "0 pts" si no hay penalizaciones, "-N pts" si las hay.
+function formatearPenalizacion(puntosPenalizados: number): string {
+  return puntosPenalizados > 0 ? `-${puntosPenalizados} pts` : '0 pts'
+}
+
+function estiloPenalizacion(puntosPenalizados: number): CSSProperties {
+  return puntosPenalizados > 0
+    ? { color: 'var(--color-error, #ef4444)', fontWeight: 600 }
+    : { opacity: 0.7 }
+}
 
 // Configuración declarativa de cada operación: qué función de API ejecutar y
 // los textos del modal de confirmación y del mensaje de éxito.
@@ -171,6 +187,16 @@ export function PaginaDetalleSesion() {
     useState<EquipoSesionListadoDto | null>(null)
   const [expulsando, setExpulsando] = useState(false)
   const [errorExpulsar, setErrorExpulsar] = useState<string | null>(null)
+
+  // HU52 — Penalización de participante (individual) o equipo (grupal) por el
+  // Operador. Objetivo seleccionado para el modal + estado de envío/errores.
+  const [participanteAPenalizar, setParticipanteAPenalizar] =
+    useState<ParticipanteSesionDto | null>(null)
+  const [equipoAPenalizar, setEquipoAPenalizar] =
+    useState<EquipoSesionListadoDto | null>(null)
+  const [penalizando, setPenalizando] = useState(false)
+  const [errorPenalizar, setErrorPenalizar] = useState<string | null>(null)
+  const [mensajePenalizacion, setMensajePenalizacion] = useState<string | null>(null)
 
   const [progresoSesion, setProgresoSesion] = useState<ProgresoSesionDto | null>(null)
   const [cargandoProgreso, setCargandoProgreso] = useState(false)
@@ -277,6 +303,7 @@ export function PaginaDetalleSesion() {
     onPuntajeCalculado: refrescarRankingTiempoReal,
     onRankingParticipantesActualizado: refrescarRankingTiempoReal,
     onRankingEquiposActualizado: refrescarRankingTiempoReal,
+    onPenalizacionAplicada: refrescarRankingTiempoReal,
     onReconectado: refrescarRankingTiempoReal
   })
 
@@ -356,7 +383,41 @@ export function PaginaDetalleSesion() {
     }
   }
 
-  // --- HU52: operación de ciclo de vida (la coordina la fachada en backend) ---
+  // --- HU52: aplicar penalización (participante individual o equipo grupal) ---
+  function cerrarModalPenalizacion() {
+    if (penalizando) return
+    setParticipanteAPenalizar(null)
+    setEquipoAPenalizar(null)
+    setErrorPenalizar(null)
+  }
+
+  async function confirmarPenalizacion(puntos: number, motivo: string) {
+    if (!token || !sesion) return
+    setPenalizando(true)
+    setErrorPenalizar(null)
+    try {
+      if (participanteAPenalizar) {
+        await penalizarParticipanteSesion(
+          sesion.id, participanteAPenalizar.participanteSesionId, puntos, motivo, token)
+      } else if (equipoAPenalizar) {
+        await penalizarEquipoSesion(
+          sesion.id, equipoAPenalizar.id, puntos, motivo, token)
+      } else {
+        return
+      }
+      setParticipanteAPenalizar(null)
+      setEquipoAPenalizar(null)
+      // No modificamos el puntaje manualmente: esperamos el evento SignalR.
+      setMensajePenalizacion('Penalización enviada. El puntaje se actualizará en tiempo real.')
+    } catch (e) {
+      setErrorPenalizar(
+        e instanceof Error ? e.message : 'No se pudo aplicar la penalización. Intenta nuevamente.')
+    } finally {
+      setPenalizando(false)
+    }
+  }
+
+  // --- Operación de ciclo de vida (la coordina la fachada en backend) ---
   function abrirOperacion(accion: AccionOperacionSesion) {
     setErrorOperacion(null)
     setMensajeOperacion(null)
@@ -590,6 +651,11 @@ export function PaginaDetalleSesion() {
   const puedeExpulsar =
     esOperador && (sesion.estado === 'EnPreparacion' || sesion.estado === 'Pausada')
   const expulsarBloqueadoPorActiva = esOperador && sesion.estado === 'Activa'
+  // HU52 — El Operador puede penalizar con la sesión Activa o Pausada (a
+  // diferencia de expulsar, que requiere EnPreparacion o Pausada). El
+  // Administrador nunca penaliza.
+  const puedePenalizar =
+    esOperador && (sesion.estado === 'Activa' || sesion.estado === 'Pausada')
   const equiposMostrados: EquipoSesionListadoDto[] = equiposListado ?? sesion.equipos.map(eq => ({
     id: eq.id,
     sesionId: sesion.id,
@@ -728,6 +794,7 @@ export function PaginaDetalleSesion() {
 
       {mensajeExito && <Alerta tono="exito">{mensajeExito}</Alerta>}
       {mensajeOperacion && <Alerta tono="exito">{mensajeOperacion}</Alerta>}
+      {mensajePenalizacion && <Alerta tono="exito">{mensajePenalizacion}</Alerta>}
 
       {/* Cabecera con nombre + badge de estado + código de acceso */}
       <section className="seccion">
@@ -896,7 +963,7 @@ export function PaginaDetalleSesion() {
                   <th>Nombre</th>
                   <th>Apellido</th>
                   <th>Fecha de unión</th>
-                  {puedeExpulsar && <th>Acciones</th>}
+                  {(puedeExpulsar || puedePenalizar) && <th>Acciones</th>}
                 </tr>
               </thead>
               <tbody>
@@ -907,15 +974,28 @@ export function PaginaDetalleSesion() {
                     <td>{p.nombre || '—'}</td>
                     <td>{p.apellido || '—'}</td>
                     <td>{formatearFechaSesion(p.fechaUnion)}</td>
-                    {puedeExpulsar && (
+                    {(puedeExpulsar || puedePenalizar) && (
                       <td>
-                        <Boton
-                          variante="peligro"
-                          tamaño="sm"
-                          onClick={() => { setErrorExpulsar(null); setParticipanteAExpulsar(p) }}
-                        >
-                          Expulsar
-                        </Boton>
+                        <div style={{ display: 'flex', gap: 'var(--espacio-2)', flexWrap: 'wrap' }}>
+                          {puedePenalizar && (
+                            <Boton
+                              variante="peligro"
+                              tamaño="sm"
+                              onClick={() => { setErrorPenalizar(null); setParticipanteAPenalizar(p) }}
+                            >
+                              Penalizar
+                            </Boton>
+                          )}
+                          {puedeExpulsar && (
+                            <Boton
+                              variante="peligro"
+                              tamaño="sm"
+                              onClick={() => { setErrorExpulsar(null); setParticipanteAExpulsar(p) }}
+                            >
+                              Expulsar
+                            </Boton>
+                          )}
+                        </div>
                       </td>
                     )}
                   </tr>
@@ -977,6 +1057,15 @@ export function PaginaDetalleSesion() {
                         >
                           Ver
                         </Boton>
+                        {puedePenalizar && (
+                          <Boton
+                            variante="peligro"
+                            tamaño="sm"
+                            onClick={() => { setErrorPenalizar(null); setEquipoAPenalizar(eq) }}
+                          >
+                            Penalizar
+                          </Boton>
+                        )}
                         {puedeExpulsar && (
                           <Boton
                             variante="peligro"
@@ -1019,6 +1108,7 @@ export function PaginaDetalleSesion() {
                     <tr>
                       <th>#</th>
                       <th>Equipo</th>
+                      <th>Penalización</th>
                       <th>Puntaje</th>
                       <th aria-label="Detalle" />
                     </tr>
@@ -1038,6 +1128,9 @@ export function PaginaDetalleSesion() {
                                 </strong>
                               </td>
                               <td><strong>{e.nombreEquipo}</strong></td>
+                              <td style={estiloPenalizacion(e.puntosPenalizados)}>
+                                {formatearPenalizacion(e.puntosPenalizados)}
+                              </td>
                               <td><strong style={{ color: 'var(--color-primario, #6366f1)' }}>{e.puntaje} pts</strong></td>
                               <td>
                                 {e.participantes.length > 0 && (
@@ -1056,6 +1149,7 @@ export function PaginaDetalleSesion() {
                                 <td style={{ paddingLeft: 'var(--espacio-4)', opacity: 0.85 }}>
                                   {p.alias}
                                 </td>
+                                <td />
                                 <td>{p.puntaje} pts</td>
                                 <td />
                               </tr>
@@ -1081,6 +1175,7 @@ export function PaginaDetalleSesion() {
                     <tr>
                       <th>#</th>
                       <th>Participante</th>
+                      <th>Penalización</th>
                       <th>Puntaje</th>
                     </tr>
                   </thead>
@@ -1096,6 +1191,9 @@ export function PaginaDetalleSesion() {
                             </strong>
                           </td>
                           <td>{p.alias}</td>
+                          <td style={estiloPenalizacion(p.puntosPenalizados)}>
+                            {formatearPenalizacion(p.puntosPenalizados)}
+                          </td>
                           <td><strong style={{ color: 'var(--color-primario, #6366f1)' }}>{p.puntaje} pts</strong></td>
                         </tr>
                       ))}
@@ -1241,7 +1339,23 @@ export function PaginaDetalleSesion() {
         )}
       </ModalConfirmacion>
 
-      {/* HU52 — Confirmar operación de ciclo de vida (iniciar/pausar/reanudar/
+      {/* HU52 — Aplicar penalización a un participante o equipo. Respuesta 202:
+          el modal se cierra y el puntaje se actualiza vía SignalR. */}
+      <ModalAplicarPenalizacion
+        abierto={participanteAPenalizar !== null || equipoAPenalizar !== null}
+        tipoObjetivo={participanteAPenalizar ? 'Participante' : 'Equipo'}
+        objetivo={
+          participanteAPenalizar
+            ? (participanteAPenalizar.alias || participanteAPenalizar.nombre || 'Participante')
+            : (equipoAPenalizar?.nombre ?? 'Equipo')
+        }
+        procesando={penalizando}
+        mensajeError={errorPenalizar}
+        onAplicar={confirmarPenalizacion}
+        onCancelar={cerrarModalPenalizacion}
+      />
+
+      {/* Confirmar operación de ciclo de vida (iniciar/pausar/reanudar/
           cancelar). El backend aplica la regla y devuelve el estado resultante. */}
       <ModalConfirmacion
         abierto={accionOperacion !== null}

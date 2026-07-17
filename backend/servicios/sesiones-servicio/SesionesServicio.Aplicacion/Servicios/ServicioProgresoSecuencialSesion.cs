@@ -21,6 +21,7 @@ public sealed class ServicioProgresoSecuencialSesion : IServicioProgresoSecuenci
     private readonly IRepositorioEtapasCompletadas _repositorioEtapasCompletadas;
     private readonly IProveedorFechaHora _reloj;
     private readonly IServicioTiempoTriviaSesion _servicioTiempoTrivia;
+    private readonly IServicioFinalizacionSesion _finalizacion;
 
     public ServicioProgresoSecuencialSesion(
         IUsuarioActual usuarioActual,
@@ -30,7 +31,8 @@ public sealed class ServicioProgresoSecuencialSesion : IServicioProgresoSecuenci
         IRepositorioEvidenciasTesoro repositorioEvidenciasTesoro,
         IRepositorioEtapasCompletadas repositorioEtapasCompletadas,
         IProveedorFechaHora reloj,
-        IServicioTiempoTriviaSesion servicioTiempoTrivia)
+        IServicioTiempoTriviaSesion servicioTiempoTrivia,
+        IServicioFinalizacionSesion finalizacion)
     {
         _usuarioActual = usuarioActual;
         _repositorioSesiones = repositorioSesiones;
@@ -40,6 +42,7 @@ public sealed class ServicioProgresoSecuencialSesion : IServicioProgresoSecuenci
         _repositorioEtapasCompletadas = repositorioEtapasCompletadas;
         _reloj = reloj;
         _servicioTiempoTrivia = servicioTiempoTrivia;
+        _finalizacion = finalizacion;
     }
 
     public async Task<ProgresoSecuencialSesionDto> ObtenerParaParticipanteActualAsync(
@@ -50,6 +53,12 @@ public sealed class ServicioProgresoSecuencialSesion : IServicioProgresoSecuenci
             ?? throw new UnauthorizedAccessException("Usuario no autenticado.");
         var sesion = await _repositorioSesiones.ObtenerPorIdAsync(sesionId, cancelacion)
             ?? throw new SesionNoEncontradaExcepcion("La sesion solicitada no existe.");
+        if (await _finalizacion.FinalizarSesionSiDuracionVencidaAsync(
+                sesion.Id, cancelacion))
+        {
+            sesion = await _repositorioSesiones.ObtenerPorIdAsync(sesionId, cancelacion)
+                ?? throw new SesionNoEncontradaExcepcion("La sesion solicitada no existe.");
+        }
 
         return await ConstruirAsync(sesion, participanteIdentidadId, cancelacion);
     }

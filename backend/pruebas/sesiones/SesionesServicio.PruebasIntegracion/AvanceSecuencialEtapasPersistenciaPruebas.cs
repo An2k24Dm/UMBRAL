@@ -6,6 +6,7 @@ using Moq;
 using SesionesServicio.Aplicacion.Procesos.VencimientoEtapas;
 using SesionesServicio.Aplicacion.Puertos;
 using SesionesServicio.Aplicacion.Servicios;
+using SesionesServicio.Commons.Dtos;
 using SesionesServicio.Dominio.Abstract;
 using SesionesServicio.Dominio.Entidades;
 using SesionesServicio.Dominio.Enums;
@@ -13,6 +14,7 @@ using SesionesServicio.Dominio.ObjetosValor;
 using SesionesServicio.Infraestructura.Persistencia;
 using SesionesServicio.Infraestructura.Persistencia.Mapeadores;
 using SesionesServicio.Infraestructura.Persistencia.Repositorios;
+using SesionesServicio.Infraestructura.ServiciosExternos;
 
 namespace SesionesServicio.PruebasIntegracion;
 
@@ -43,6 +45,7 @@ public sealed class AvanceSecuencialEtapasPersistenciaPruebas
     private readonly RepositorioEtapasCompletadasFake _etapasCompletadas = new();
     private readonly Mock<INotificadorSesionesTiempoReal> _notificador = new();
     private readonly Mock<IClienteJuegosMisiones> _juegos = new();
+    private readonly Mock<IClienteBusquedaTesoro> _tesoro = new();
 
     public AvanceSecuencialEtapasPersistenciaPruebas()
     {
@@ -196,6 +199,98 @@ public sealed class AvanceSecuencialEtapasPersistenciaPruebas
             It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
+    [Fact]
+    public async Task Worker_FinalizaSesionActiva_CuandoDuracionGlobalVence()
+    {
+        var sesion = SesionIndividual.Crear(
+            "Sesión con límite", "Descripción", _reloj.ObtenerFechaHoraUtc().AddMinutes(-5),
+            "COD003", OperadorId, _reloj.ObtenerFechaHoraUtc(), maximoParticipantes: 5);
+        sesion.AplicarDuracion(30);
+        sesion.AsignarMisiones(new[] { Mision1, Mision2 });
+        sesion.Preparar();
+        sesion.AgregarParticipante(ParticipanteId, _reloj.ObtenerFechaHoraUtc());
+        sesion.EstablecerSecuenciaEtapas(SecuenciaDosEtapas());
+        sesion.IniciarPrimeraEtapa(Mision1, Etapa1, ModoTrivia, "Trivia", 1,
+            _reloj.ObtenerFechaHoraUtc(), 120);
+
+        await PersistirNuevaAsync(sesion);
+
+        _reloj.Avanzar(TimeSpan.FromSeconds(31));
+        await EnScopeAsync(async s => await s.Procesador.EjecutarCicloAsync(default));
+
+        await using (var ctx = NuevoContexto())
+        {
+            var recuperada = await RepositorioDe(ctx).ObtenerPorIdAsync(sesion.Id, default);
+            recuperada!.Estado.Should().Be(EstadoSesion.Finalizada);
+            recuperada.EjecucionActual.Should().BeNull();
+            recuperada.FechaFinalizacionUtc.Should().Be(_reloj.ObtenerFechaHoraUtc());
+        }
+
+        _notificador.Verify(n => n.NotificarSesionActualizadaAsync(
+            sesion.Id,
+            EstadoSesion.Finalizada.ToString(),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Worker_FinalizaUltimaEtapaTesoroSinEvidencia_CuandoVenceTrasRehidratarSecuencia()
+    {
+        _tesoro
+            .Setup(c => c.ObtenerBusquedaParticipanteAsync(
+                ModoTesoro, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new BusquedaTesoroJuegosDto
+            {
+                Id = ModoTesoro,
+                Puntaje = 100
+            });
+
+        var sesion = SesionIndividual.Crear(
+            "Sesión con última búsqueda", "Descripción", _reloj.ObtenerFechaHoraUtc().AddMinutes(-5),
+            "COD004", OperadorId, _reloj.ObtenerFechaHoraUtc(), maximoParticipantes: 5);
+        sesion.AplicarDuracion(240);
+        sesion.AsignarMisiones(new[] { Mision1, Mision2 });
+        sesion.Preparar();
+        sesion.AgregarParticipante(ParticipanteId, _reloj.ObtenerFechaHoraUtc());
+        sesion.EstablecerSecuenciaEtapas(SecuenciaDosEtapas());
+        sesion.IniciarPrimeraEtapa(Mision1, Etapa1, ModoTrivia, "Trivia", 1,
+            _reloj.ObtenerFechaHoraUtc(), 120);
+
+        await PersistirNuevaAsync(sesion);
+
+        await EnScopeAsync(async s => await s.Finalizacion.ProgramarCierreTrasFeedbackAsync(
+            sesion.Id, Etapa1, default));
+
+        _reloj.Avanzar(TimeSpan.FromSeconds(6));
+        await EnScopeAsync(async s => await s.Procesador.EjecutarCicloAsync(default));
+
+        _reloj.Avanzar(TimeSpan.FromSeconds(11));
+        await EnScopeAsync(async s => await s.Procesador.EjecutarCicloAsync(default));
+
+        _reloj.Avanzar(TimeSpan.FromSeconds(121));
+        await EnScopeAsync(async s => await s.Procesador.EjecutarCicloAsync(default));
+
+        await using (var ctx = NuevoContexto())
+        {
+            var recuperada = await RepositorioDe(ctx).ObtenerPorIdAsync(sesion.Id, default);
+            recuperada!.Estado.Should().Be(EstadoSesion.Finalizada);
+            recuperada.EjecucionActual.Should().BeNull();
+            recuperada.FechaFinalizacionUtc.Should().Be(_reloj.ObtenerFechaHoraUtc());
+
+            var evidencia = await ctx.EvidenciasTesoro.SingleAsync(default);
+            evidencia.SesionId.Should().Be(sesion.Id);
+            evidencia.EtapaId.Should().Be(Etapa2);
+            evidencia.ParticipanteIdentidadId.Should().Be(ParticipanteId);
+            evidencia.EsValida.Should().BeFalse();
+            evidencia.PuntosGanados.Should().Be(0);
+        }
+
+        _etapasCompletadas.Contiene(sesion.Id, Etapa2).Should().BeTrue();
+        _notificador.Verify(n => n.NotificarSesionActualizadaAsync(
+            sesion.Id,
+            EstadoSesion.Finalizada.ToString(),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
     // ---- Infraestructura de prueba (persistencia real, nuevo scope por paso) ----
 
     private ContextoSesiones NuevoContexto()
@@ -224,7 +319,15 @@ public sealed class AvanceSecuencialEtapasPersistenciaPruebas
         var repo = RepositorioDe(ctx);
         var unidad = new UnidadTrabajoSesiones(ctx);
         var finalizacion = new ServicioFinalizacionSesion(
-            repo, _etapasCompletadas, _juegos.Object, _notificador.Object, unidad, _reloj);
+            repo,
+            _etapasCompletadas,
+            new RepositorioEvidenciasTesoro(ctx),
+            _juegos.Object,
+            _tesoro.Object,
+            _notificador.Object,
+            new PublicadorEventosRankingOutbox(ctx),
+            unidad,
+            _reloj);
         var procesador = new ProcesadorVencimientoEtapasSesion(
             repo, finalizacion, _reloj, Mock.Of<IRegistroLogsAplicacion>());
         await accion(new Servicios(finalizacion, procesador));

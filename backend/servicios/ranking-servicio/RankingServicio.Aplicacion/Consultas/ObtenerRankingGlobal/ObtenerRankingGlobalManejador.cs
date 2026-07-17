@@ -1,5 +1,6 @@
 using MediatR;
 using RankingServicio.Aplicacion.Puertos;
+using RankingServicio.Commons.Dtos.Consultas;
 
 namespace RankingServicio.Aplicacion.Consultas.ObtenerRankingGlobal;
 

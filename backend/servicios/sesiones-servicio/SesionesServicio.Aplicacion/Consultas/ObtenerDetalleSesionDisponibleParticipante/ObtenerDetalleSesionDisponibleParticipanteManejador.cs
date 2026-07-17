@@ -28,17 +28,20 @@ public sealed class ObtenerDetalleSesionDisponibleParticipanteManejador
     private readonly IClienteJuegosMisiones _clienteMisiones;
     private readonly IUsuarioActual _usuarioActual;
     private readonly IConsultasSesiones _consultas;
+    private readonly IServicioFinalizacionSesion _finalizacion;
 
     public ObtenerDetalleSesionDisponibleParticipanteManejador(
         IRepositorioSesiones repositorio,
         IClienteJuegosMisiones clienteMisiones,
         IUsuarioActual usuarioActual,
-        IConsultasSesiones consultas)
+        IConsultasSesiones consultas,
+        IServicioFinalizacionSesion finalizacion)
     {
         _repositorio = repositorio;
         _clienteMisiones = clienteMisiones;
         _usuarioActual = usuarioActual;
         _consultas = consultas;
+        _finalizacion = finalizacion;
     }
 
     public async Task<SesionDetalleMovilDto> Handle(
@@ -49,6 +52,15 @@ public sealed class ObtenerDetalleSesionDisponibleParticipanteManejador
         if (sesion is null || !EstadosDisponibles.Contains(sesion.Estado))
             throw new SesionNoEncontradaExcepcion(
                 "La sesión no está disponible para consulta.");
+
+        if (await _finalizacion.FinalizarSesionSiDuracionVencidaAsync(
+                sesion.Id, cancelacion))
+        {
+            sesion = await _repositorio.ObtenerPorIdAsync(consulta.SesionId, cancelacion);
+            if (sesion is null || !EstadosDisponibles.Contains(sesion.Estado))
+                throw new SesionNoEncontradaExcepcion(
+                    "La sesión no está disponible para consulta.");
+        }
 
         var detalle = new SesionDetalleMovilDto
         {

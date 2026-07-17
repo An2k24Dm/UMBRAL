@@ -160,4 +160,34 @@ public class RepositorioRespuestasTriviaPruebas
 
         respondidas.Should().BeEquivalentTo(new[] { Q1, Q2 });
     }
+
+    [Fact]
+    public async Task ObtenerPuntajeGanadoPorEvento_DevuelveCeroComoResultadoValido()
+    {
+        using var ctx = NuevoContexto();
+        var repo = new RepositorioRespuestasTrivia(ctx);
+        var eventoId = Guid.NewGuid();
+        await repo.AgregarAsync(Registro(Q1, Ana, equipo: null) with
+        {
+            EventoPuntuacionId = eventoId,
+            PuntosGanados = 0
+        }, CancellationToken.None);
+
+        var puntaje = await repo.ObtenerPuntajeGanadoPorEventoAsync(
+            eventoId, CancellationToken.None);
+
+        puntaje.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task ObtenerPuntajeGanadoPorEvento_SinRegistro_DevuelveNull()
+    {
+        using var ctx = NuevoContexto();
+        var repo = new RepositorioRespuestasTrivia(ctx);
+
+        var puntaje = await repo.ObtenerPuntajeGanadoPorEventoAsync(
+            Guid.NewGuid(), CancellationToken.None);
+
+        puntaje.Should().BeNull();
+    }
 }

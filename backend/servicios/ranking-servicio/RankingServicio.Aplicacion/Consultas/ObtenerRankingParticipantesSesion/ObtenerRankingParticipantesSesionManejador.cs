@@ -1,5 +1,6 @@
 using MediatR;
 using RankingServicio.Aplicacion.Puertos;
+using RankingServicio.Commons.Dtos.Consultas;
 
 namespace RankingServicio.Aplicacion.Consultas.ObtenerRankingParticipantesSesion;
 
@@ -36,7 +37,8 @@ public sealed class ObtenerRankingParticipantesSesionManejador
                 p.ParticipanteIdentidadId,
                 p.EquipoId,
                 ResolucionAlias.Resolver(p.ParticipanteIdentidadId, datos),
-                p.Puntaje.Valor))
+                p.Puntaje.Valor,
+                p.PuntosPenalizados))
             .ToList();
     }
 }

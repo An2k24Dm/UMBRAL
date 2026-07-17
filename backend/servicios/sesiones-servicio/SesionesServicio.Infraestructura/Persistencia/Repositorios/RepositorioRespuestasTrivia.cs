@@ -208,6 +208,14 @@ public sealed class RepositorioRespuestasTrivia : IRepositorioRespuestasTrivia
             .ExecuteUpdateAsync(
                 s => s.SetProperty(r => r.PuntosGanados, puntosGanados), cancelacion);
 
+    public async Task<int?> ObtenerPuntajeGanadoPorEventoAsync(
+        Guid eventoPuntuacionId, CancellationToken cancelacion)
+        => await _contexto.RespuestasTrivia
+            .AsNoTracking()
+            .Where(r => r.EventoPuntuacionId == eventoPuntuacionId)
+            .Select(r => (int?)r.PuntosGanados)
+            .SingleOrDefaultAsync(cancelacion);
+
     public async Task<IReadOnlyList<PuntajeEtapaItem>> ObtenerPuntajePorEtapaParticipanteAsync(
         Guid sesionId, Guid participanteIdentidadId, CancellationToken cancelacion)
     {
@@ -222,6 +230,13 @@ public sealed class RepositorioRespuestasTrivia : IRepositorioRespuestasTrivia
 
         return filas.AsReadOnly();
     }
+
+    public async Task<long> ObtenerPuntajeGanadoEquipoAsync(
+        Guid sesionId, Guid equipoId, CancellationToken cancelacion)
+        => await _contexto.RespuestasTrivia
+            .AsNoTracking()
+            .Where(r => r.SesionId == sesionId && r.EquipoId == equipoId)
+            .SumAsync(r => (long)r.PuntosGanados, cancelacion);
 
     private static bool EsViolacionUnicidad(DbUpdateException ex)
         => ex.InnerException is PostgresException postgres &&

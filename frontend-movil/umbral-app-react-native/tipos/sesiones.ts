@@ -149,6 +149,12 @@ export interface ProgresoSecuencialSesionDto {
   todoCompletado: boolean;
 }
 
+export interface ResultadoPuntajeDto {
+  eventoId: string;
+  procesado: boolean;
+  puntajeGanado: number | null;
+}
+
 // Historial de participaciones finalizadas del participante.
 export interface MiParticipacionDto {
   sesionId: string;

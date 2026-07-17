@@ -4,6 +4,7 @@ using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SesionesServicio.Aplicacion.Puertos;
+using SesionesServicio.Commons.Dtos.ServiciosExternos;
 
 namespace SesionesServicio.Infraestructura.ServiciosExternos;
 
