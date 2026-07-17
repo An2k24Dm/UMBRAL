@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using RankingServicio.Aplicacion.Consultas.ObtenerRankingGlobal;
 using RankingServicio.Aplicacion.Consultas.ObtenerRankingEquiposSesion;
 using RankingServicio.Aplicacion.Consultas.ObtenerRankingParticipantesSesion;
+using RankingServicio.Commons.Dtos.Consultas;
 
 namespace RankingServicio.Presentacion.Controladores;
 

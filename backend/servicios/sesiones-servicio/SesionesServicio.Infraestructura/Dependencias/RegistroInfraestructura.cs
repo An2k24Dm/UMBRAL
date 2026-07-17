@@ -41,9 +41,6 @@ public static class RegistroInfraestructura
             sp => sp.GetRequiredService<RepositorioSesiones>());
         servicios.AddScoped<IUnidadTrabajoSesiones, UnidadTrabajoSesiones>();
         servicios.AddScoped<INotificadorSesionesTiempoReal, NotificadorSesionesTiempoReal>();
-
-        // Patrón Proxy de control de acceso a los grupos SignalR. El Hub recibe
-        // la interfaz y obtiene el Proxy; el Proxy envuelve al sujeto real.
         servicios.AddScoped<TiempoReal.Grupos.ServicioGruposSesionesTiempoReal>();
         servicios.AddScoped<IServicioGruposSesionesTiempoReal>(sp =>
             new TiempoReal.Grupos.ProxyAccesoGruposSesionesTiempoReal(
@@ -70,6 +67,8 @@ public static class RegistroInfraestructura
         servicios.AddScoped<IRepositorioEvidenciasTesoro, RepositorioEvidenciasTesoro>();
         servicios.AddScoped<IRepositorioPistasLiberadas, RepositorioPistasLiberadas>();
         servicios.AddScoped<IRepositorioEtapasCompletadas, RepositorioEtapasCompletadas>();
+        servicios.AddScoped<IRepositorioPenalizacionesAplicadas, RepositorioPenalizacionesAplicadas>();
+        servicios.AddScoped<IRepositorioResultadosRankingProcesados, RepositorioResultadosRankingProcesados>();
         servicios.Configure<OpcionesPreparacionSesiones>(
             configuracion.GetSection(OpcionesPreparacionSesiones.Seccion));
         servicios.Configure<OpcionesVencimientoEtapas>(

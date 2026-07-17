@@ -1,6 +1,7 @@
 using MediatR;
 using SesionesServicio.Aplicacion.Excepciones;
 using SesionesServicio.Aplicacion.Puertos;
+using SesionesServicio.Commons.Dtos;
 using SesionesServicio.Dominio.Abstract;
 using SesionesServicio.Dominio.Entidades;
 using SesionesServicio.Dominio.Enums;
@@ -97,13 +98,27 @@ public sealed class EnviarRespuestaTriviaManejador
         if (yaRespondioAntes)
             throw new RespuestaTriviaDuplicadaExcepcion(esEquipo: equipoId.HasValue);
 
-        await RegistrarTimeoutsExpiradosAsync(
+        var timeoutsRegistrados = await RegistrarTimeoutsExpiradosAsync(
             comando,
             tiempoTrivia,
+            trivia,
+            participante.Id,
             participanteIdentidadId,
             equipoId,
             ahoraUtc,
             cancelacion);
+
+        foreach (var timeout in timeoutsRegistrados)
+        {
+            await _notificador.NotificarRespuestaRegistradaAsync(
+                comando.SesionId,
+                comando.EtapaId,
+                timeout.PreguntaId,
+                participanteIdentidadId,
+                equipoId,
+                false,
+                cancelacion);
+        }
 
         var esCorrecta = false;
         var puntajeBase = pregunta.PuntajeAsignado;
@@ -176,7 +191,9 @@ public sealed class EnviarRespuestaTriviaManejador
         }
         else
         {
-            eventoId = Guid.Empty;
+            eventoId = timeoutsRegistrados
+                .FirstOrDefault(t => t.PreguntaId == comando.PreguntaId)
+                ?.EventoId ?? Guid.Empty;
         }
 
         var totalPreguntas = trivia.Preguntas.Count;
@@ -204,14 +221,18 @@ public sealed class EnviarRespuestaTriviaManejador
             esCorrecta, eventoId, etapaCompletada);
     }
 
-    private async Task RegistrarTimeoutsExpiradosAsync(
+    private async Task<List<TimeoutTriviaRegistrado>> RegistrarTimeoutsExpiradosAsync(
         EnviarRespuestaTriviaComando comando,
         EstadoTiempoTriviaSesion tiempoTrivia,
+        TriviaParticipanteJuegosDto trivia,
+        Guid participanteSesionId,
         Guid participanteIdentidadId,
         Guid? equipoId,
         DateTime ahoraUtc,
         CancellationToken cancelacion)
     {
+        var registrados = new List<TimeoutTriviaRegistrado>();
+
         foreach (var preguntaExpiradaId in tiempoTrivia.PreguntasExpiradasIds)
         {
             var yaRespondida = await _repositorioRespuestas.ExisteRespuestaOficialAsync(
@@ -226,32 +247,51 @@ public sealed class EnviarRespuestaTriviaManejador
 
             var ventana = tiempoTrivia.ObtenerPregunta(preguntaExpiradaId);
             if (ventana is null) continue;
+            var pregunta = trivia.Preguntas.FirstOrDefault(p => p.Id == preguntaExpiradaId);
+            if (pregunta is null) continue;
+            var eventoId = Guid.NewGuid();
 
             try
             {
-                await _repositorioRespuestas.AgregarAsync(new RespuestaTriviaRegistro(
-                    SesionId: comando.SesionId,
-                    MisionId: comando.MisionId,
-                    EtapaId: comando.EtapaId,
-                    TriviaId: comando.TriviaId,
-                    PreguntaId: preguntaExpiradaId,
-                    OpcionSeleccionadaId: null,
-                    ParticipanteIdentidadId: participanteIdentidadId,
-                    EquipoId: equipoId,
-                    EsCorrecta: false,
-                    PuntosGanados: 0,
-                    // Los timeouts (0 pts) no se publican a ranking: sin correlación.
-                    EventoPuntuacionId: Guid.Empty,
-                    TiempoTardadoMs: ventana.DuracionMs,
-                    FechaRespuestaUtc: ahoraUtc),
-                    cancelacion);
+                await _unidadTrabajo.EjecutarEnTransaccionAsync(async ct =>
+                {
+                    await _repositorioRespuestas.AgregarAsync(new RespuestaTriviaRegistro(
+                        SesionId: comando.SesionId,
+                        MisionId: comando.MisionId,
+                        EtapaId: comando.EtapaId,
+                        TriviaId: comando.TriviaId,
+                        PreguntaId: preguntaExpiradaId,
+                        OpcionSeleccionadaId: null,
+                        ParticipanteIdentidadId: participanteIdentidadId,
+                        EquipoId: equipoId,
+                        EsCorrecta: false,
+                        PuntosGanados: 0,
+                        EventoPuntuacionId: eventoId,
+                        TiempoTardadoMs: ventana.DuracionMs,
+                        FechaRespuestaUtc: ahoraUtc),
+                        ct);
+
+                    await _publicadorRanking.PublicarRespuestaTriviaRegistradaAsync(
+                        eventoId,
+                        comando.SesionId, comando.MisionId, comando.EtapaId,
+                        participanteSesionId, participanteIdentidadId,
+                        equipoId, comando.TriviaId, preguntaExpiradaId, false,
+                        pregunta.PuntajeAsignado, ventana.DuracionMs, ventana.DuracionMs,
+                        ct);
+                }, cancelacion);
+
+                registrados.Add(new TimeoutTriviaRegistrado(preguntaExpiradaId, eventoId));
             }
             catch (RespuestaTriviaDuplicadaExcepcion)
             {
                 // La restriccion unica define la respuesta oficial si otra peticion gano la carrera.
             }
         }
+
+        return registrados;
     }
+
+    private sealed record TimeoutTriviaRegistrado(Guid PreguntaId, Guid EventoId);
 
     private static int CalcularTiempoTardadoServidor(
         VentanaPreguntaTriviaSesion ventana,

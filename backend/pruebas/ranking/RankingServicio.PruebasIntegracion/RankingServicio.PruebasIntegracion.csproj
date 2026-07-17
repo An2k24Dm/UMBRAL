@@ -24,6 +24,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\servicios\ranking-servicio\RankingServicio.Dominio\RankingServicio.Dominio.csproj" />
+    <ProjectReference Include="..\..\..\servicios\ranking-servicio\RankingServicio.Commons\RankingServicio.Commons.csproj" />
     <ProjectReference Include="..\..\..\servicios\ranking-servicio\RankingServicio.Aplicacion\RankingServicio.Aplicacion.csproj" />
     <ProjectReference Include="..\..\..\servicios\ranking-servicio\RankingServicio.Infraestructura\RankingServicio.Infraestructura.csproj" />
     <ProjectReference Include="..\..\..\servicios\ranking-servicio\RankingServicio.Presentacion\RankingServicio.Presentacion.csproj" />

@@ -106,6 +106,16 @@ public sealed class ManejadorErroresMiddleware
             await EscribirCodigoAsync(contexto, HttpStatusCode.Conflict,
                 "EXPULSION_NO_PERMITIDA", ex.Message);
         }
+        catch (PenalizacionInvalidaExcepcion ex)
+        {
+            await EscribirCodigoAsync(contexto, HttpStatusCode.BadRequest,
+                "PENALIZACION_INVALIDA", ex.Message);
+        }
+        catch (PenalizacionNoPermitidaExcepcion ex)
+        {
+            await EscribirCodigoAsync(contexto, HttpStatusCode.Conflict,
+                "PENALIZACION_NO_PERMITIDA", ex.Message);
+        }
         catch (SesionNoGrupalExcepcion ex)
         {
             await EscribirCodigoAsync(contexto, HttpStatusCode.Conflict,

@@ -80,6 +80,10 @@ public sealed class EnviarEvidenciaTesoroManejador
         var tiempoTranscurridoMs = (int)Math.Clamp(
             ejecucion.CalcularTiempoActivoTranscurridoMs(ahoraUtc), 0L, tiempoLimiteMs);
 
+        if (ejecucion.CalcularSegundosRestantes(ahoraUtc) <= 0)
+            throw new OperacionSesionInvalidaExcepcion(
+                "El tiempo de la etapa ya finalizó.");
+
         var eventoId = Guid.NewGuid();
         var ordenResolucion = 0;
 

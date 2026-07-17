@@ -21,5 +21,6 @@
   <ItemGroup>
     <ProjectReference Include="..\RankingServicio.Aplicacion\RankingServicio.Aplicacion.csproj" />
     <ProjectReference Include="..\RankingServicio.Dominio\RankingServicio.Dominio.csproj" />
+    <ProjectReference Include="..\RankingServicio.Commons\RankingServicio.Commons.csproj" />
   </ItemGroup>
 </Project>

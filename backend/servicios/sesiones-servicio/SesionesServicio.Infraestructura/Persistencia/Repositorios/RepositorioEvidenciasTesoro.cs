@@ -67,6 +67,19 @@ public sealed class RepositorioEvidenciasTesoro : IRepositorioEvidenciasTesoro
                 && e.EquipoId == equipoId
                 && e.EsValida, cancelacion);
 
+    public Task<bool> ExisteEvidenciaIndividualAsync(
+        Guid sesionId, Guid etapaId, Guid participanteIdentidadId, CancellationToken cancelacion)
+        => _contexto.EvidenciasTesoro.AsNoTracking()
+            .AnyAsync(e => e.SesionId == sesionId && e.EtapaId == etapaId
+                && e.EquipoId == null
+                && e.ParticipanteIdentidadId == participanteIdentidadId, cancelacion);
+
+    public Task<bool> ExisteEvidenciaEquipoAsync(
+        Guid sesionId, Guid etapaId, Guid equipoId, CancellationToken cancelacion)
+        => _contexto.EvidenciasTesoro.AsNoTracking()
+            .AnyAsync(e => e.SesionId == sesionId && e.EtapaId == etapaId
+                && e.EquipoId == equipoId, cancelacion);
+
     // Participantes distintos con evidencia válida en sesión individual (equipo_id IS NULL).
     public async Task<int> ContarParticipantesConEvidenciaValidaAsync(
         Guid sesionId, Guid etapaId, CancellationToken cancelacion)
@@ -134,6 +147,13 @@ public sealed class RepositorioEvidenciasTesoro : IRepositorioEvidenciasTesoro
 
         return filas.AsReadOnly();
     }
+
+    public async Task<long> ObtenerPuntajeGanadoEquipoAsync(
+        Guid sesionId, Guid equipoId, CancellationToken cancelacion)
+        => await _contexto.EvidenciasTesoro
+            .AsNoTracking()
+            .Where(e => e.SesionId == sesionId && e.EquipoId == equipoId)
+            .SumAsync(e => (long)e.PuntosGanados, cancelacion);
 
     private static bool EsViolacionUnicidad(DbUpdateException ex)
         => ex.InnerException is PostgresException postgres &&

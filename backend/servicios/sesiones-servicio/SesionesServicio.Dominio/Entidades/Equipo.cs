@@ -14,6 +14,7 @@ public sealed class Equipo
     public NombreEquipo Nombre { get; private set; } = null!;
     public Guid LiderParticipanteId { get; private set; }
     public PuntajeSesion Puntaje { get; private set; } = null!;
+    public int PuntosPenalizados { get; private set; }
     public DateTime? SnapshotRankingUtc { get; private set; }
     public TipoEquipo Tipo { get; private set; }
     public ContrasenaEquipoHash? ContrasenaHash { get; private set; }
@@ -238,6 +239,18 @@ public sealed class Equipo
         return participanteActualizado || equipoActualizado;
     }
 
+    public bool EstablecerPenalizacionSnapshot(
+        int puntosPenalizados, int puntajeEquipo, DateTime calculadoEnUtc)
+    {
+        if (SnapshotRankingUtc.HasValue && calculadoEnUtc <= SnapshotRankingUtc.Value)
+            return false;
+
+        PuntosPenalizados = puntosPenalizados;
+        Puntaje = PuntajeSesion.DesdePersistencia(puntajeEquipo);
+        SnapshotRankingUtc = calculadoEnUtc;
+        return true;
+    }
+
     private void RecalcularPuntajeDesdeParticipantes()
     {
         var total = PuntajeSesion.Cero();
@@ -246,16 +259,14 @@ public sealed class Equipo
         Puntaje = total;
     }
 
-    // Rehidratar recibe el entero tal como está persistido y lo reconstruye
-    // con DesdePersistencia; no recalcula desde los integrantes porque la
-    // lista puede venir parcial y la fila persistida es la fuente de verdad.
     public static Equipo Rehidratar(
         Guid id, Guid sesionId, string nombre,
         Guid liderParticipanteId, int puntaje,
         TipoEquipo tipo, string? contrasenaHash, int capacidadMaxima,
         DateTime fechaCreacion,
         IEnumerable<Participante>? integrantes = null,
-        DateTime? snapshotRankingUtc = null)
+        DateTime? snapshotRankingUtc = null,
+        int puntosPenalizados = 0)
     {
         var equipo = new Equipo
         {
@@ -264,6 +275,7 @@ public sealed class Equipo
             Nombre = NombreEquipo.Crear(nombre),
             LiderParticipanteId = liderParticipanteId,
             Puntaje = PuntajeSesion.DesdePersistencia(puntaje),
+            PuntosPenalizados = puntosPenalizados,
             SnapshotRankingUtc = snapshotRankingUtc,
             Tipo = tipo,
             ContrasenaHash = tipo == TipoEquipo.Privado && !string.IsNullOrWhiteSpace(contrasenaHash)

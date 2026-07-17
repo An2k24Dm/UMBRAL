@@ -25,6 +25,7 @@ public sealed class UnidadTrabajoSesiones : IUnidadTrabajoSesiones
             await using var transaccion = await _contexto.Database
                 .BeginTransactionAsync(cancelacion);
             await operacion(cancelacion);
+            await _contexto.SaveChangesAsync(cancelacion);
             await transaccion.CommitAsync(cancelacion);
         });
     }

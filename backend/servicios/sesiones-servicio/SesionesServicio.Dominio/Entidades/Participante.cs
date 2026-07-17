@@ -10,6 +10,10 @@ public sealed class Participante
     public Guid ParticipanteIdentidadId { get; private set; }
     public Guid? EquipoId { get; private set; }
     public PuntajeSesion Puntaje { get; private set; } = null!;
+    // HU52 — Magnitud POSITIVA acumulada de penalizaciones del participante
+    // (snapshot autoritativo de ranking; solo sesiones individuales). Se
+    // visualiza como "-N pts".
+    public int PuntosPenalizados { get; private set; }
     public DateTime? SnapshotRankingUtc { get; private set; }
     public DateTime FechaUnionSesion { get; private set; }
     public DateTime? FechaUnionEquipo { get; private set; }
@@ -62,7 +66,8 @@ public sealed class Participante
         Guid id, Guid sesionId, Guid participanteIdentidadId,
         Guid? equipoId, int puntaje,
         DateTime fechaUnionSesion, DateTime? fechaUnionEquipo,
-        DateTime? snapshotRankingUtc = null)
+        DateTime? snapshotRankingUtc = null,
+        int puntosPenalizados = 0)
         => new()
         {
             Id = id,
@@ -70,6 +75,7 @@ public sealed class Participante
             ParticipanteIdentidadId = participanteIdentidadId,
             EquipoId = equipoId,
             Puntaje = PuntajeSesion.DesdePersistencia(puntaje),
+            PuntosPenalizados = puntosPenalizados,
             SnapshotRankingUtc = snapshotRankingUtc,
             FechaUnionSesion = fechaUnionSesion,
             FechaUnionEquipo = fechaUnionEquipo
@@ -88,6 +94,22 @@ public sealed class Participante
             return false;
 
         Puntaje = PuntajeSesion.DesdePersistencia(puntaje);
+        SnapshotRankingUtc = calculadoEnUtc;
+        return true;
+    }
+
+    // HU52 — Snapshot de penalización individual: fija el puntaje resultante
+    // (autoritativo de ranking; puede ser negativo) y la magnitud acumulada
+    // penalizada. Respeta el orden causal por SnapshotRankingUtc (el resultado
+    // más reciente gana). PuntosPenalizados solo lo modifica una penalización.
+    public bool EstablecerPenalizacionSnapshot(
+        int puntosPenalizados, int puntajeResultante, DateTime calculadoEnUtc)
+    {
+        if (SnapshotRankingUtc.HasValue && calculadoEnUtc <= SnapshotRankingUtc.Value)
+            return false;
+
+        PuntosPenalizados = puntosPenalizados;
+        Puntaje = PuntajeSesion.DesdePersistencia(puntajeResultante);
         SnapshotRankingUtc = calculadoEnUtc;
         return true;
     }

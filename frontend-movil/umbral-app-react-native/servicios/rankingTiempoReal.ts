@@ -39,13 +39,18 @@ export function crearConexionRankingTiempoReal(token: string) {
 
   conexion.serverTimeoutInMilliseconds = 60000;
   conexion.keepAliveIntervalInMilliseconds = 15000;
+  conexion.on("PenalizacionAplicada", () => undefined);
   return conexion;
 }
 
 export function obtenerEventoIdOrigen(evento: PuntajeCalculadoEvento): string {
-  return evento.eventoIdOrigen ?? evento.EventoIdOrigen ?? "";
+  return normalizarEventoId(evento.eventoIdOrigen ?? evento.EventoIdOrigen ?? "");
 }
 
 export function obtenerPuntajeGanado(evento: PuntajeCalculadoEvento): number {
   return evento.puntajeGanado ?? evento.PuntajeGanado ?? 0;
+}
+
+export function normalizarEventoId(eventoId?: string | null): string {
+  return (eventoId ?? "").trim().toLowerCase();
 }

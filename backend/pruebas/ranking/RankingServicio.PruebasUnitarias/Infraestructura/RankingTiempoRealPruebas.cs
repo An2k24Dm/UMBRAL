@@ -108,6 +108,26 @@ public class RankingTiempoRealPruebas
             It.IsAny<CancellationToken>()), Times.Once);
     }
 
+    // HU52 — El notificador emite el evento explícito PenalizacionAplicada al
+    // grupo de la sesión.
+    [Fact]
+    public async Task Notificador_EnviaPenalizacionAplicadaAlGrupoSesion()
+    {
+        var sesionId = Guid.NewGuid();
+        var dto = new PenalizacionAplicadaNotificacionDto(
+            sesionId, "Participante", Guid.NewGuid(), 5, 13, -3, DateTime.UtcNow);
+        var arranque = new ArranqueNotificador();
+        var notificador = new NotificadorRankingTiempoReal(arranque.Hub.Object);
+
+        await notificador.NotificarPenalizacionAplicadaAsync(dto, CancellationToken.None);
+
+        arranque.Clients.Verify(c => c.Group($"sesion:{sesionId}"), Times.Once);
+        arranque.Cliente.Verify(c => c.SendCoreAsync(
+            "PenalizacionAplicada",
+            It.Is<object?[]>(args => args.Length == 1 && ReferenceEquals(args[0], dto)),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
     private static ClaimsPrincipal UsuarioConNameIdentifier()
         => new(new ClaimsIdentity(
             new[] { new Claim(ClaimTypes.NameIdentifier, UsuarioId.ToString()) },

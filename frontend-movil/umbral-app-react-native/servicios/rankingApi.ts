@@ -10,7 +10,10 @@ export interface RankingParticipanteDto {
   participanteIdentidadId: string;
   equipoId: string | null;
   alias: string;
+  // puntaje ya es el puntaje final autoritativo (no se resta nada en el cliente).
   puntaje: number;
+  // HU52 — Magnitud positiva acumulada de penalizaciones (se muestra "-N pts").
+  puntosPenalizados: number;
 }
 
 export interface AporteParticipanteEquipoDto {
@@ -25,7 +28,10 @@ export interface RankingEquipoDto {
   posicion: number;
   equipoId: string;
   nombreEquipo: string;
+  // puntaje ya es el puntaje final autoritativo del equipo.
   puntaje: number;
+  // HU52 — Penalización acumulada del EQUIPO (no se atribuye a integrantes).
+  puntosPenalizados: number;
   participantes: AporteParticipanteEquipoDto[];
 }
 
@@ -57,6 +63,11 @@ export interface DesgloseMisionDto {
 
 export interface MiDesgloseSesionDto {
   participanteIdentidadId: string;
+  // HU52 — puntajeBruto: puntos ganados; puntosPenalizados: magnitud positiva
+  // acumulada (individual = del participante, grupal = del equipo); puntajeTotal:
+  // puntaje final autoritativo (bruto − penalizaciones).
+  puntajeBruto: number;
+  puntosPenalizados: number;
   puntajeTotal: number;
   misiones: DesgloseMisionDto[];
 }

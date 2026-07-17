@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.Extensions.Logging;
 using RankingServicio.Aplicacion.Puertos;
+using RankingServicio.Commons.Dtos.Eventos.Salida;
 using RankingServicio.Dominio.Abstract;
 using RankingServicio.Dominio.Entidades;
 using RankingServicio.Dominio.Estrategias;

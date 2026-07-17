@@ -51,12 +51,17 @@ public class ObtenerProgresoSesionManejadorPruebas
                     par.Key, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(TriviaConPreguntas(par.Value));
         }
+        var finalizacion = new Mock<IServicioFinalizacionSesion>();
+        finalizacion.Setup(f => f.FinalizarSesionSiDuracionVencidaAsync(
+                SesionId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
 
         return new ObtenerProgresoSesionManejador(
             repoSesiones.Object,
             repoTrivia.Object,
             repoTesoro.Object,
-            clienteTrivia.Object);
+            clienteTrivia.Object,
+            finalizacion.Object);
     }
 
     private static async Task<List<ProgresoSesionParticipanteDto>> EjecutarFilas(

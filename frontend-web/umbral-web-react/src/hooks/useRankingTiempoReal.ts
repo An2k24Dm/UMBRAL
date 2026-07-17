@@ -9,6 +9,8 @@ interface OpcionesUseRankingTiempoReal {
   onPuntajeCalculado?: () => void
   onRankingParticipantesActualizado?: () => void
   onRankingEquiposActualizado?: () => void
+  // HU52 — Penalización aplicada: el frontend refresca el ranking.
+  onPenalizacionAplicada?: () => void
   onReconectado?: () => void
 }
 
@@ -20,6 +22,7 @@ export function useRankingTiempoReal({
   onPuntajeCalculado,
   onRankingParticipantesActualizado,
   onRankingEquiposActualizado,
+  onPenalizacionAplicada,
   onReconectado
 }: OpcionesUseRankingTiempoReal) {
   const callbacksRef = useRef<Callbacks>({})
@@ -27,6 +30,7 @@ export function useRankingTiempoReal({
     onPuntajeCalculado,
     onRankingParticipantesActualizado,
     onRankingEquiposActualizado,
+    onPenalizacionAplicada,
     onReconectado
   }
 
@@ -52,6 +56,10 @@ export function useRankingTiempoReal({
 
     conexion.on('RankingEquiposActualizado', () => {
       callbacksRef.current.onRankingEquiposActualizado?.()
+    })
+
+    conexion.on('PenalizacionAplicada', () => {
+      callbacksRef.current.onPenalizacionAplicada?.()
     })
 
     conexion.onreconnected(() => {
@@ -81,6 +89,7 @@ export function useRankingTiempoReal({
       conexion.off('PuntajeCalculado')
       conexion.off('RankingParticipantesActualizado')
       conexion.off('RankingEquiposActualizado')
+      conexion.off('PenalizacionAplicada')
 
       if (conexion.state === signalR.HubConnectionState.Connected) {
         conexion

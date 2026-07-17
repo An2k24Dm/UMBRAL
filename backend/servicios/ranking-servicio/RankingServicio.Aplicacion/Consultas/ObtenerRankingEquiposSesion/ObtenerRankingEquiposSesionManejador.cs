@@ -1,5 +1,6 @@
 using MediatR;
 using RankingServicio.Aplicacion.Puertos;
+using RankingServicio.Commons.Dtos.Consultas;
 
 namespace RankingServicio.Aplicacion.Consultas.ObtenerRankingEquiposSesion;
 
@@ -64,6 +65,7 @@ public sealed class ObtenerRankingEquiposSesionManejador
                 equipo.EquipoId,
                 nombre,
                 equipo.Puntaje.Valor,
+                equipo.PuntosPenalizados,
                 aportes));
         }
 

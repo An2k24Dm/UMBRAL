@@ -4,6 +4,7 @@ import type {
   MiParticipacionDto,
   ProgresoSesionParticipanteDto,
   ProgresoSecuencialSesionDto,
+  ResultadoPuntajeDto,
   SesionDetalleMovilDto,
   SesionDisponibleMovilDto,
 } from "../tipos/sesiones";
@@ -309,6 +310,23 @@ export async function obtenerProgresoSecuencialSesionApi(
     throw mapearError(respuesta.status, cuerpo?.mensaje, cuerpo);
   }
   return (await respuesta.json()) as ProgresoSecuencialSesionDto;
+}
+
+export async function obtenerResultadoPuntajeApi(
+  tokenAcceso: string,
+  eventoId: string,
+): Promise<ResultadoPuntajeDto> {
+  const respuesta = await fetch(
+    construirUrl(
+      `/api/sesiones/participante/disponibles/resultados-puntaje/${encodeURIComponent(eventoId)}`,
+    ),
+    { method: "GET", headers: obtenerEncabezadosAutenticados(tokenAcceso) },
+  );
+  if (!respuesta.ok) {
+    const cuerpo = await leerCuerpoError(respuesta);
+    throw mapearError(respuesta.status, cuerpo?.mensaje, cuerpo);
+  }
+  return (await respuesta.json()) as ResultadoPuntajeDto;
 }
 
 export async function obtenerMisParticipacionesApi(

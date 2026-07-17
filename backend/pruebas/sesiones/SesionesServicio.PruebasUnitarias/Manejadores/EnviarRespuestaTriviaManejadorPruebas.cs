@@ -344,14 +344,38 @@ public class EnviarRespuestaTriviaManejadorPruebas
         var resultado = await arr.EjecutarTimeoutAsync(sesion.Id);
 
         resultado.EsCorrecta.Should().BeFalse();
-        resultado.EventoId.Should().Be(Guid.Empty);
+        resultado.EventoId.Should().NotBe(Guid.Empty);
         arr.ClienteTrivia.Verify(c => c.VerificarRespuestaAsync(
             It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
         arr.RepoRespuestas.Verify(r => r.AgregarAsync(
             It.Is<RespuestaTriviaRegistro>(x =>
                 x.OpcionSeleccionadaId == null &&
                 !x.EsCorrecta &&
-                x.PuntosGanados == 0),
+                x.PuntosGanados == 0 &&
+                x.EventoPuntuacionId == resultado.EventoId),
+            It.IsAny<CancellationToken>()), Times.Once);
+        arr.PublicadorRanking.Verify(p => p.PublicarRespuestaTriviaRegistradaAsync(
+            resultado.EventoId,
+            sesion.Id,
+            MisionId,
+            EtapaId,
+            It.IsAny<Guid>(),
+            ParticipanteId,
+            null,
+            TriviaId,
+            PreguntaId,
+            false,
+            It.IsAny<int>(),
+            It.IsAny<int>(),
+            It.IsAny<int>(),
+            It.IsAny<CancellationToken>()), Times.Once);
+        arr.Notificador.Verify(n => n.NotificarRespuestaRegistradaAsync(
+            sesion.Id,
+            EtapaId,
+            PreguntaId,
+            ParticipanteId,
+            null,
+            false,
             It.IsAny<CancellationToken>()), Times.Once);
     }
 

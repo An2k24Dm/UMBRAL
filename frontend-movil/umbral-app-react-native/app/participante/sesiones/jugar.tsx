@@ -28,8 +28,11 @@ import {
   registrarEventoConexionSesionesTiempoReal,
   registrarErrorConexionTiempoRealDev,
 } from "../../../servicios/sesionesTiempoReal";
-import { obtenerDetalleSesionDisponibleApi } from "../../../servicios/sesionesApi";
-import { obtenerProgresoSecuencialSesionApi } from "../../../servicios/sesionesApi";
+import {
+  obtenerDetalleSesionDisponibleApi,
+  obtenerProgresoSecuencialSesionApi,
+  obtenerResultadoPuntajeApi,
+} from "../../../servicios/sesionesApi";
 import { CronometroActivo } from "../../../servicios/cronometroActivo";
 import { useRankingTiempoReal } from "../../../hooks/useRankingTiempoReal";
 import { useCorrelacionPuntaje } from "../../../hooks/useCorrelacionPuntaje";
@@ -90,8 +93,22 @@ function ContenidoJuego() {
   const [todosCompletaron, setTodosCompletaron] = useState(false);
   const [esGrupal, setEsGrupal] = useState(false);
   const [enviando, setEnviando] = useState(false);
-  const { feedbackPuntaje, esperarPuntaje, alRecibirPuntajeCalculado } =
-    useCorrelacionPuntaje({ esperaMaximaMs: 6000 });
+  const recuperarPuntaje = useCallback(
+    async (eventoId: string) => {
+      if (!token) return null;
+      const resultado = await obtenerResultadoPuntajeApi(token, eventoId);
+      return resultado.procesado ? resultado.puntajeGanado ?? 0 : null;
+    },
+    [token],
+  );
+  const {
+    feedbackPuntaje,
+    versionResolucion,
+    resueltoRef,
+    esperarPuntaje,
+    recuperarPendiente,
+    alRecibirPuntajeCalculado,
+  } = useCorrelacionPuntaje({ esperaMaximaMs: 6000, recuperarPuntaje });
   const [conflictoTipo, setConflictoTipo] = useState<"equipo" | "individual" | null>(null);
   const [transicionRestanteSeg, setTransicionRestanteSeg] = useState<number | null>(null);
   const [feedbackFinalRestanteSeg, setFeedbackFinalRestanteSeg] =
@@ -104,12 +121,15 @@ function ContenidoJuego() {
   const etapaCompletadaPendienteRef = useRef(false);
   const feedbackFinalActivoRef = useRef(false);
   const feedbackFinalTodosCompletaronRef = useRef(false);
+  const feedbackFinalPendienteRef = useRef(false);
   const feedbackFinalTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const feedbackRespuestaTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useRankingTiempoReal({
     sesionId,
     onPuntajeCalculado: alRecibirPuntajeCalculado,
+    onReconectado: async () => {
+      await recuperarPendiente();
+    },
   });
 
   const preguntaActual: PreguntaTrivia | undefined = trivia?.preguntas[indicePregunta];
@@ -156,16 +176,10 @@ function ContenidoJuego() {
     }
   }, []);
 
-  const limpiarFeedbackRespuestaTimer = useCallback(() => {
-    if (feedbackRespuestaTimerRef.current) {
-      clearTimeout(feedbackRespuestaTimerRef.current);
-      feedbackRespuestaTimerRef.current = null;
-    }
-  }, []);
-
   const completarFeedbackFinalEtapa = useCallback(() => {
     limpiarFeedbackFinalTimer();
     feedbackFinalActivoRef.current = false;
+    feedbackFinalPendienteRef.current = false;
     setFeedbackFinalRestanteSeg(null);
     mostrandoResultadoRef.current = false;
 
@@ -187,7 +201,6 @@ function ContenidoJuego() {
 
       if (feedbackFinalActivoRef.current) return;
 
-      limpiarFeedbackRespuestaTimer();
       limpiarFeedbackFinalTimer();
       feedbackFinalActivoRef.current = true;
       mostrandoResultadoRef.current = true;
@@ -211,16 +224,14 @@ function ContenidoJuego() {
     [
       completarFeedbackFinalEtapa,
       limpiarFeedbackFinalTimer,
-      limpiarFeedbackRespuestaTimer,
     ],
   );
 
   useEffect(
     () => () => {
       limpiarFeedbackFinalTimer();
-      limpiarFeedbackRespuestaTimer();
     },
-    [limpiarFeedbackFinalTimer, limpiarFeedbackRespuestaTimer],
+    [limpiarFeedbackFinalTimer],
   );
 
   // Carga inicial
@@ -251,7 +262,7 @@ function ContenidoJuego() {
 
         if (progresoSecuencial.triviaEnTransicionEntrePreguntas) {
           setTransicionRestanteSeg(
-            Math.max(1, Math.ceil(
+            Math.max(0, Math.ceil(
               (progresoSecuencial.triviaTiempoRestanteTransicionMs ?? 0) / 1000)),
           );
           setEstadoPregunta("esperando_siguiente");
@@ -377,7 +388,12 @@ function ContenidoJuego() {
     ) {
       setTransicionRestanteSeg(null);
       if (mostrandoResultadoRef.current || feedbackFinalActivoRef.current) {
-        iniciarFeedbackFinalEtapa(progreso.todoCompletado === true);
+        feedbackFinalTodosCompletaronRef.current = progreso.todoCompletado === true;
+        if (resueltoRef.current) {
+          iniciarFeedbackFinalEtapa(progreso.todoCompletado === true);
+        } else {
+          feedbackFinalPendienteRef.current = true;
+        }
         return;
       }
       setTodosCompletaron(progreso.todoCompletado === true);
@@ -390,7 +406,7 @@ function ContenidoJuego() {
     // siguiente pregunta todavía no consume su tiempo.
     if (progreso.triviaEnTransicionEntrePreguntas) {
       const restanteTransicion = Math.max(
-        1, Math.ceil((progreso.triviaTiempoRestanteTransicionMs ?? 0) / 1000));
+        0, Math.ceil((progreso.triviaTiempoRestanteTransicionMs ?? 0) / 1000));
       setTransicionRestanteSeg(restanteTransicion);
       return;
     }
@@ -419,7 +435,7 @@ function ContenidoJuego() {
     setOpcionSeleccionada(null);
     setConflictoTipo(null);
     setEstadoPregunta("esperando");
-  }, [token, sesionId, trivia, iniciarFeedbackFinalEtapa]);
+  }, [token, sesionId, trivia, iniciarFeedbackFinalEtapa, resueltoRef]);
 
   // Countdown de la ventana de feedback autoritativa. Cada segundo decrementa; al
   // llegar a 0 se re-consulta el progreso y, si el backend ya habilitó la
@@ -457,28 +473,29 @@ function ContenidoJuego() {
       mostrandoResultadoRef.current = true;
 
       if (etapaCompletadaBackend) {
-        iniciarFeedbackFinalEtapa(true);
+        feedbackFinalTodosCompletaronRef.current = true;
+        if (resueltoRef.current) {
+          iniciarFeedbackFinalEtapa(true);
+        } else {
+          feedbackFinalPendienteRef.current = true;
+        }
         return;
       }
 
-      limpiarFeedbackRespuestaTimer();
-      feedbackRespuestaTimerRef.current = setTimeout(() => {
-        feedbackRespuestaTimerRef.current = null;
-
-        if (etapaCompletadaPendienteRef.current) {
-          iniciarFeedbackFinalEtapa(true);
-          return;
-        }
-
-        void resincronizarPregunta();
-      }, 1000);
+      void resincronizarPregunta();
     },
     [
       iniciarFeedbackFinalEtapa,
-      limpiarFeedbackRespuestaTimer,
       resincronizarPregunta,
+      resueltoRef,
     ],
   );
+
+  useEffect(() => {
+    if (!feedbackFinalPendienteRef.current || !resueltoRef.current) return;
+    iniciarFeedbackFinalEtapa(
+      feedbackFinalTodosCompletaronRef.current || etapaCompletadaPendienteRef.current);
+  }, [versionResolucion, iniciarFeedbackFinalEtapa, resueltoRef]);
 
   // La pantalla de etapa completada se muestra solo brevemente; el countdown de
   // preparación de 10 s se observa en el detalle de la sesión.
@@ -496,6 +513,9 @@ function ContenidoJuego() {
     if (estadoSesion !== "Activa") return;
     setEstadoPregunta("tiempo_agotado");
     setEnviando(true);
+    // Igual que en seleccionarOpcion: marcar resultado en curso antes del await
+    // para diferir EtapaCompletada (SignalR) y no cortar el overlay final.
+    mostrandoResultadoRef.current = true;
 
     try {
       const resultado = await enviarRespuestaTrivia(
@@ -505,17 +525,21 @@ function ContenidoJuego() {
         tiempoLimite * 1000 + 1,
         token,
       );
-      esperarPuntaje(resultado.eventoId);
 
       if (resultado.conflicto) {
         setConflictoTipo(resultado.conflicto);
         setEstadoPregunta("ya_respondida");
+        mostrandoResultadoRef.current = true;
+        void resincronizarPregunta();
+        return;
       } else {
         setConflictoTipo(null);
       }
 
+      esperarPuntaje(resultado.eventoId);
       finalizarRespuesta(resultado.etapaCompletada);
     } catch (e) {
+      mostrandoResultadoRef.current = false;
       if (e instanceof ErrorRespuestaTrivia && e.codigo === "OPERACION_SESION_INVALIDA") {
         // La ventana temporal cambió: resincronizar con la pregunta autoritativa.
         setEstadoPregunta("esperando_siguiente");
@@ -552,6 +576,11 @@ function ContenidoJuego() {
     const tiempoTardadoMs = cronometroRef.current.transcurridoMs();
     setOpcionSeleccionada(opcionId);
     setEnviando(true);
+    // Marcar que hay un resultado en curso ANTES del await: si EtapaCompletada
+    // (SignalR) llega mientras la respuesta está en vuelo, se difiere en lugar
+    // de terminar la etapa de golpe, garantizando que la última pregunta muestre
+    // correcto/incorrecto y su puntaje.
+    mostrandoResultadoRef.current = true;
 
     try {
       const resultado = await enviarRespuestaTrivia(
@@ -561,27 +590,22 @@ function ContenidoJuego() {
         tiempoTardadoMs,
         token,
       );
-      esperarPuntaje(resultado.eventoId);
 
-      // La pregunta ya estaba respondida (por el equipo en grupal, o por el
-      // propio participante). No se marca como incorrecta ni suma puntos: se
-      // informa y se avanza a la siguiente pregunta.
       if (resultado.conflicto) {
         setConflictoTipo(resultado.conflicto);
         setEstadoPregunta("ya_respondida");
+        mostrandoResultadoRef.current = true;
+        void resincronizarPregunta();
+        return;
       } else {
         setConflictoTipo(null);
         setEstadoPregunta(resultado.esCorrecta ? "correcta" : "incorrecta");
       }
-
-      // Tras mostrar el resultado, NO se avanza por índice local: se resincroniza
-      // con la pregunta autoritativa del backend, salvo que sea el cierre visual
-      // de la última pregunta.
+      esperarPuntaje(resultado.eventoId);
       finalizarRespuesta(resultado.etapaCompletada);
     } catch (e) {
+      mostrandoResultadoRef.current = false;
       if (e instanceof ErrorRespuestaTrivia && e.codigo === "OPERACION_SESION_INVALIDA") {
-        // La pregunta aún no está en su ventana temporal: no es error del jugador
-        // ni un duplicado. Se resincroniza con la pregunta autoritativa actual.
         setEstadoPregunta("esperando_siguiente");
         setOpcionSeleccionada(null);
         void resincronizarPregunta();
@@ -975,7 +999,7 @@ function ContenidoJuego() {
             )}
             {feedbackFinalRestanteSeg === null && transicionRestanteSeg !== null && (
               <View style={estilos.transicionContenedor}>
-                <Text style={estilos.transicionTitulo}>Siguiente pregunta en</Text>
+                <Text style={estilos.transicionTitulo}>SIGUIENTE PREGUNTA EN</Text>
                 <Text style={estilos.transicionCuenta}>{transicionRestanteSeg}s</Text>
               </View>
             )}

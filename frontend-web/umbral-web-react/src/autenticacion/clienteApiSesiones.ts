@@ -2,9 +2,6 @@ import { manejar401 } from './eventosSesion'
 
 const URL_API = import.meta.env.VITE_API_URL ?? 'http://localhost:5000'
 
-// Helper local que admite las dos formas históricas del repo:
-//   lanzar401('msg')           → manejar401 lee el token de localStorage.
-//   lanzar401(token, 'msg')    → manejar401 usa el token explícito.
 function lanzar401(arg1?: string | null, arg2?: string): never {
   const tieneAmbos = typeof arg2 === 'string'
   const token = tieneAmbos ? (arg1 ?? null) : null
@@ -39,9 +36,6 @@ async function leerErrorOperacionSesion(respuesta: Response): Promise<string> {
   return cuerpo?.mensaje ?? `Error ${respuesta.status} al operar la sesión.`
 }
 
-// ---------------------------------------------------------------------------
-// Tipos del nuevo modelo
-// ---------------------------------------------------------------------------
 export type ModoSesionApi = 'Individual' | 'Grupal'
 
 export type EstadoSesionApi =
@@ -52,9 +46,6 @@ export type EstadoSesionApi =
   | 'Finalizada'
   | 'Cancelada'
 
-// Cuerpo del POST /api/sesiones según el ERS actual. La capacidad es
-// configurable por el Operador: se envía solo la que aplica al modo y el
-// resto viaja en null (el backend los trata como opcionales por modo).
 export interface CrearSesionSolicitud {
   nombre: string
   descripcion: string
@@ -92,7 +83,6 @@ export interface SesionListadoDto {
   cantidadMisiones: number
   cantidadParticipantes: number
   cantidadEquipos: number
-  // Capacidad configurada (solo se llena la que aplica al modo).
   maximoParticipantes: number | null
   maximoEquipos: number | null
   maximoParticipantesPorEquipo: number | null
@@ -183,7 +173,6 @@ export interface SesionDetalleDto {
   fechaCreacion: string
   fechaInicioUtc: string | null
   fechaFinalizacionUtc: string | null
-  // Capacidad configurada (solo se llena la que aplica al modo).
   maximoParticipantes: number | null
   maximoEquipos: number | null
   maximoParticipantesPorEquipo: number | null
@@ -192,10 +181,6 @@ export interface SesionDetalleDto {
   participantesIndividuales: ParticipanteSesionDto[]
 }
 
-// Cuerpo del PUT /api/sesiones/{id}. No incluye código de acceso, estado,
-// operadorCreadorId ni fechas de creación/inicio/fin: el backend los ignora
-// y no deben modificarse. La capacidad va solo en el campo que aplica al
-// modo; el resto viaja en null.
 export interface ModificarSesionSolicitud {
   nombre: string
   descripcion: string
@@ -207,8 +192,6 @@ export interface ModificarSesionSolicitud {
   maximoParticipantesPorEquipo: number | null
 }
 
-// Respuesta de las operaciones de ciclo de vida (iniciar/pausar/reanudar/
-// cancelar). El estado retornado es el resultante tras la operación.
 export interface OperacionSesionRespuestaDto {
   sesionId: string
   estado: EstadoSesionApi
@@ -217,9 +200,6 @@ export interface OperacionSesionRespuestaDto {
   mensaje: string
 }
 
-// ---------------------------------------------------------------------------
-// Crear sesión (solo Operador)
-// ---------------------------------------------------------------------------
 export async function crearSesion(
   datos: CrearSesionSolicitud,
   token: string
@@ -235,9 +215,6 @@ export async function crearSesion(
   return (await respuesta.json()) as CrearSesionRespuestaDto
 }
 
-// ---------------------------------------------------------------------------
-// Listado de sesiones (Administrador ve todo, Operador ve propias)
-// ---------------------------------------------------------------------------
 export interface FiltrosListadoSesiones {
   estado?: EstadoSesionApi | ''
 }
@@ -258,9 +235,6 @@ export async function listarSesiones(
   return (await respuesta.json()) as SesionListadoDto[]
 }
 
-// ---------------------------------------------------------------------------
-// Detalle de sesión
-// ---------------------------------------------------------------------------
 export async function obtenerSesion(
   id: string, token: string
 ): Promise<SesionDetalleDto> {
@@ -302,9 +276,6 @@ export async function obtenerDetalleEquipoSesion(
   return (await respuesta.json()) as EquipoSesionDetalleDto
 }
 
-// ---------------------------------------------------------------------------
-// Modificar sesión (solo Operador, solo sesiones propias en estado Programada)
-// ---------------------------------------------------------------------------
 export async function actualizarSesion(
   id: string,
   datos: ModificarSesionSolicitud,
@@ -318,14 +289,10 @@ export async function actualizarSesion(
   if (respuesta.status === 401) lanzar401(token, 'Debe iniciar sesión.')
   if (respuesta.status === 403) throw new Error('No tiene permiso para modificar esta sesión.')
   if (respuesta.status === 404) throw new Error('Sesión no encontrada.')
-  // 400 (validación), 409 (no está Programada) y demás traen mensaje del backend.
   if (!respuesta.ok) throw new Error(await leerError(respuesta))
   return (await respuesta.json()) as SesionDetalleDto
 }
 
-// ---------------------------------------------------------------------------
-// Eliminar sesión (solo Operador, solo sesiones propias en estado Programada)
-// ---------------------------------------------------------------------------
 export async function eliminarSesion(id: string, token: string): Promise<void> {
   const respuesta = await fetch(`${URL_API}${ENDPOINTS.porId(id)}`, {
     method: 'DELETE',
@@ -335,19 +302,10 @@ export async function eliminarSesion(id: string, token: string): Promise<void> {
   if (respuesta.status === 401) lanzar401(token, 'Debe iniciar sesión.')
   if (respuesta.status === 403) throw new Error('No tienes permisos para eliminar esta sesión.')
   if (respuesta.status === 404) throw new Error('La sesión no existe o ya fue eliminada.')
-  // 409: la sesión no está Programada. El backend envía el mensaje exacto
-  // ("Solo se pueden eliminar sesiones en estado Programada."); lo propagamos.
   if (respuesta.status === 409) throw new Error(await leerError(respuesta))
   throw new Error('No se pudo eliminar la sesión. Intenta nuevamente.')
 }
 
-// ---------------------------------------------------------------------------
-// HU52 — Operación del ciclo de vida de la sesión (solo Operador dueño).
-// El backend coordina el cambio de estado con la fachada y el patrón State y
-// devuelve el estado resultante. 409 (transición/estado inválido) y 400
-// (regla de negocio, p. ej. sin inscritos o fecha futura) traen el mensaje
-// exacto del backend.
-// ---------------------------------------------------------------------------
 type AccionSesion = 'iniciar' | 'pausar' | 'reanudar' | 'cancelar'
 
 async function operarSesion(
@@ -388,11 +346,6 @@ export function cancelarSesionOperacion(
   return operarSesion(id, 'cancelar', token)
 }
 
-// ---------------------------------------------------------------------------
-// HU44 — Expulsar participante (sesión individual) o equipo (sesión grupal).
-// Solo el Operador creador y solo con la sesión En Preparación o Pausada. El
-// backend valida la regla y devuelve 409 con el mensaje exacto si no aplica.
-// ---------------------------------------------------------------------------
 export async function expulsarParticipanteSesion(
   sesionId: string, participanteSesionId: string, token: string
 ): Promise<void> {
@@ -405,15 +358,10 @@ export async function expulsarParticipanteSesion(
   if (respuesta.status === 401) lanzar401(token, 'Debe iniciar sesión.')
   if (respuesta.status === 403) throw new Error('No tienes permisos para expulsar participantes de esta sesión.')
   if (respuesta.status === 404) throw new Error('El participante o la sesión ya no existen.')
-  // 409: la sesión no está En Preparación ni Pausada; propagamos el mensaje
-  // exacto del backend.
   if (respuesta.status === 409) throw new Error(await leerError(respuesta))
   throw new Error('No se pudo expulsar al participante. Intenta nuevamente.')
 }
 
-// HU45 — Expulsar a un participante de un equipo. Lo puede hacer el líder
-// del equipo (Participante) o el Operador dueño de la sesión. El backend
-// valida estado (EnPreparacion/Pausada) y reasigna liderazgo si aplica.
 export async function expulsarParticipanteEquipo(
   sesionId: string,
   equipoId: string,
@@ -450,11 +398,47 @@ export async function expulsarEquipoSesion(
   throw new Error('No se pudo expulsar al equipo. Intenta nuevamente.')
 }
 
-// ---------------------------------------------------------------------------
-// HU-50 — Liberar pista en una etapa de la sesión (solo operadores)
-// pistaId nulo → pista personalizada (requiere contenido).
-// pistaId no nulo → pista predefinida de la búsqueda del tesoro.
-// ---------------------------------------------------------------------------
+export interface PenalizacionEncoladaDto {
+  eventoId: string
+  estado: string
+}
+
+async function aplicarPenalizacion(
+  url: string, puntos: number, motivo: string, token: string
+): Promise<PenalizacionEncoladaDto> {
+  const respuesta = await fetch(url, {
+    method: 'POST',
+    headers: { ...auth(token), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ puntos, motivo: motivo.trim() })
+  })
+  if (respuesta.status === 202) return respuesta.json() as Promise<PenalizacionEncoladaDto>
+  if (respuesta.status === 401) lanzar401(token, 'Debe iniciar sesión.')
+  if (respuesta.status === 403) throw new Error('No tienes permisos para penalizar en esta sesión.')
+  if (respuesta.status === 404) throw new Error('La sesión o el objetivo ya no existen.')
+  if (respuesta.status === 400 || respuesta.status === 409) throw new Error(await leerError(respuesta))
+  throw new Error('No se pudo aplicar la penalización. Intenta nuevamente.')
+}
+
+export function penalizarParticipanteSesion(
+  sesionId: string, participanteSesionId: string,
+  puntos: number, motivo: string, token: string
+): Promise<PenalizacionEncoladaDto> {
+  return aplicarPenalizacion(
+    `${URL_API}${ENDPOINTS.porId(sesionId)}/participantes/` +
+    `${encodeURIComponent(participanteSesionId)}/penalizaciones`,
+    puntos, motivo, token)
+}
+
+export function penalizarEquipoSesion(
+  sesionId: string, equipoId: string,
+  puntos: number, motivo: string, token: string
+): Promise<PenalizacionEncoladaDto> {
+  return aplicarPenalizacion(
+    `${URL_API}${ENDPOINTS.porId(sesionId)}/equipos/` +
+    `${encodeURIComponent(equipoId)}/penalizaciones`,
+    puntos, motivo, token)
+}
+
 export async function liberarPista(
   sesionId: string,
   etapaId: string,
@@ -485,9 +469,6 @@ export async function liberarPista(
   throw new Error('No se pudo liberar la pista. Intenta nuevamente.')
 }
 
-// ---------------------------------------------------------------------------
-// Progreso de trivia por participante (panel del operador)
-// ---------------------------------------------------------------------------
 export interface ProgresoTriviaParticipanteDto {
   participanteIdentidadId: string
   totalRespondidas: number
@@ -510,9 +491,6 @@ export async function obtenerProgresoTrivia(
   return respuesta.json() as Promise<ProgresoTriviaParticipanteDto[]>
 }
 
-// ---------------------------------------------------------------------------
-// Progreso completo (trivia + búsqueda del tesoro) por participante
-// ---------------------------------------------------------------------------
 export interface ProgresoSesionParticipanteDto {
   participanteIdentidadId: string
   equipoId: string | null

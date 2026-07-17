@@ -74,8 +74,14 @@ public class ProcesadorVencimientoEtapasSesionPruebas
             Consultas.Setup(c => c.ListarActivasConCierrePendienteVencidoAsync(
                     It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(Array.Empty<Sesion>());
+            Consultas.Setup(c => c.ListarActivasConDuracionVencidaAsync(
+                    It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(Array.Empty<Sesion>());
             Finalizacion.Setup(f => f.AvanzarEtapaPorVencimientoAsync(
                     It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
+            Finalizacion.Setup(f => f.FinalizarSesionPorVencimientoAsync(
+                    It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
                 .Returns(Task.CompletedTask);
             Finalizacion.Setup(f => f.ActivarEtapaProgramadaAsync(
                     It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
@@ -88,6 +94,14 @@ public class ProcesadorVencimientoEtapasSesionPruebas
         public Arranque ConVencidas(params Sesion[] sesiones)
         {
             Consultas.Setup(c => c.ListarActivasConEtapaVencidaAsync(
+                    It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(sesiones);
+            return this;
+        }
+
+        public Arranque ConSesionesVencidas(params Sesion[] sesiones)
+        {
+            Consultas.Setup(c => c.ListarActivasConDuracionVencidaAsync(
                     It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(sesiones);
             return this;
@@ -124,6 +138,24 @@ public class ProcesadorVencimientoEtapasSesionPruebas
         arr.Finalizacion.Verify(f => f.AvanzarEtapaPorVencimientoAsync(
             It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
         arr.Finalizacion.Verify(f => f.ActivarEtapaProgramadaAsync(
+            It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+        arr.Finalizacion.Verify(f => f.FinalizarSesionPorVencimientoAsync(
+            It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ConSesionVencida_FinalizaLaSesion()
+    {
+        var etapaId = Guid.NewGuid();
+        var sesion = SesionConEtapa(etapaId);
+        var arr = new Arranque().ConSesionesVencidas(sesion);
+
+        var procesadas = await arr.Construir().EjecutarCicloAsync(CancellationToken.None);
+
+        procesadas.Should().Be(1);
+        arr.Finalizacion.Verify(f => f.FinalizarSesionPorVencimientoAsync(
+            sesion.Id, It.IsAny<CancellationToken>()), Times.Once);
+        arr.Finalizacion.Verify(f => f.AvanzarEtapaPorVencimientoAsync(
             It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 

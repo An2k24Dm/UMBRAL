@@ -15,6 +15,22 @@ const diagnosticosConexiones = new WeakMap<
   DiagnosticoConexionTiempoReal
 >();
 
+const EVENTOS_SESIONES_SIN_HANDLER_REQUERIDO = [
+  "ParticipantesSesionActualizados",
+  "EquiposSesionActualizados",
+  "EquipoActualizado",
+  "SesionActualizada",
+  "ParticipanteExpulsadoSesion",
+  "EquipoExpulsadoSesion",
+  "RespuestaRegistrada",
+  "EtapaCompletada",
+  "EtapaPorComenzar",
+  "EtapaIniciada",
+  "ProgresoSecuencialActualizado",
+  "PistaLiberada",
+  "UbicacionActualizada",
+] as const;
+
 function crearIdDiagnostico(): string {
   return Math.random().toString(36).slice(2, 8);
 }
@@ -257,6 +273,10 @@ export function crearConexionSesionesTiempoReal(
 
   conexion.serverTimeoutInMilliseconds = 60000;
   conexion.keepAliveIntervalInMilliseconds = 15000;
+
+  for (const evento of EVENTOS_SESIONES_SIN_HANDLER_REQUERIDO) {
+    conexion.on(evento, () => undefined);
+  }
 
   diagnosticosConexiones.set(conexion, diagnostico);
   registrarEventoConexionSesionesTiempoReal(conexion, "creando");

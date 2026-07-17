@@ -152,6 +152,15 @@ public abstract class Sesion : ISesion
             "está En Preparación o Pausada.");
     }
 
+    public void ValidarPuedePenalizar()
+    {
+        if (Estado is EstadoSesion.Activa or EstadoSesion.Pausada)
+            return;
+
+        throw new PenalizacionNoPermitidaExcepcion(
+            "Solo se puede aplicar una penalización cuando la sesión está Activa o Pausada.");
+    }
+
     public void Preparar() => _estadoActual.Preparar(this);
 
     public void Iniciar(DateTime fechaInicioUtc)

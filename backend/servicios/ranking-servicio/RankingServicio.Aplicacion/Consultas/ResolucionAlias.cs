@@ -1,5 +1,7 @@
 using RankingServicio.Aplicacion.Puertos;
 
+using RankingServicio.Commons.Dtos.ServiciosExternos;
+
 namespace RankingServicio.Aplicacion.Consultas;
 
 // Resuelve el alias de presentación a partir de los datos enriquecidos desde

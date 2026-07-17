@@ -85,6 +85,8 @@ function ContenidoTesoro() {
   const [estadoEnvio, setEstadoEnvio] = useState<EstadoEnvio>("esperando");
   const [conflictoTipo, setConflictoTipo] = useState<"equipo" | "individual" | null>(null);
   const [etapaCompletada, setEtapaCompletada] = useState(false);
+  const [cierrePorTiempo, setCierrePorTiempo] = useState(false);
+  const [feedbackPuntajeLocal, setFeedbackPuntajeLocal] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
   const { feedbackPuntaje, resueltoRef, esperarPuntaje, alRecibirPuntajeCalculado } =
     useCorrelacionPuntaje({ esperaMaximaMs: MS_VENTANA_MAXIMA_TESORO });
@@ -104,9 +106,11 @@ function ContenidoTesoro() {
   const equipoIdRef = useRef<string | null>(null);
   const conexionRef = useRef<import("@microsoft/signalr").HubConnection | null>(null);
   const estadoSesionRef = useRef<EstadoSesionJuego>(estadoSesion);
+  const estadoEnvioRef = useRef<EstadoEnvio>(estadoEnvio);
   const permisoUbicacionRef = useRef<boolean>(false);
 
   useEffect(() => { estadoSesionRef.current = estadoSesion; }, [estadoSesion]);
+  useEffect(() => { estadoEnvioRef.current = estadoEnvio; }, [estadoEnvio]);
 
   // QR scanner
   const [mostrandoCamara, setMostrandoCamara] = useState(false);
@@ -122,7 +126,17 @@ function ContenidoTesoro() {
   });
 
   const jugadorCompleto = estadoEnvio === "valido" || estadoEnvio === "ya_completado";
+  const feedbackPuntajeVisible = feedbackPuntajeLocal ?? feedbackPuntaje;
   const bloquearSalida = estadoSesion === "Activa" && !jugadorCompleto && !etapaCompletada;
+
+  const finalizarPorTiempoLocal = useCallback(() => {
+    setMostrandoCamara(false);
+    setTiempoRestante(0);
+    setCierrePorTiempo(true);
+    setFeedbackPuntajeLocal("+0 pts");
+    resueltoRef.current = true;
+    setEtapaCompletada(true);
+  }, [resueltoRef]);
 
   useEffect(() => {
     if (!bloquearSalida) return;
@@ -172,10 +186,14 @@ function ContenidoTesoro() {
       // (la evidencia del tesoro no puntúa por tiempo); solo se muestra y se
       // congela durante la pausa.
       if (datos.tiempoSegundos > 0 && !datos.yaEnvioEvidencia) {
-        setTiempoRestante(
-          detalleSesion.ejecucionActual?.segundosRestantes ?? datos.tiempoSegundos,
-        );
-        cronometroRef.current.reiniciar();
+        const segundosRestantes =
+          detalleSesion.ejecucionActual?.segundosRestantes ?? datos.tiempoSegundos;
+        setTiempoRestante(segundosRestantes);
+        if (segundosRestantes <= 0) {
+          finalizarPorTiempoLocal();
+        } else {
+          cronometroRef.current.reiniciar();
+        }
       }
       if (datos.yaEnvioEvidencia) {
         // "Ya completada" es autoridad del backend (evidencia válida del
@@ -189,7 +207,15 @@ function ContenidoTesoro() {
     } finally {
       setCargando(false);
     }
-  }, [token, sesionId, misionId, etapaId, busquedaId, refrescarEstadoSesion]);
+  }, [
+    token,
+    sesionId,
+    misionId,
+    etapaId,
+    busquedaId,
+    refrescarEstadoSesion,
+    finalizarPorTiempoLocal,
+  ]);
 
   useEffect(() => {
     void cargarBusqueda();
@@ -249,6 +275,7 @@ function ContenidoTesoro() {
             clearInterval(intervalRef.current);
             intervalRef.current = null;
           }
+          finalizarPorTiempoLocal();
           return 0;
         }
         return prev - 1;
@@ -261,7 +288,7 @@ function ContenidoTesoro() {
         intervalRef.current = null;
       }
     };
-  }, [estadoSesion, etapaCompletada, estadoEnvio, tiempoRestante]);
+  }, [estadoSesion, etapaCompletada, estadoEnvio, tiempoRestante, finalizarPorTiempoLocal]);
 
   // Si llega una pausa con la cámara abierta, cerrarla de inmediato.
   useEffect(() => {
@@ -371,7 +398,16 @@ function ContenidoTesoro() {
       const sid = (evento.sesionId ?? evento.SesionId ?? "").toLowerCase();
       const eid = (evento.etapaId ?? evento.EtapaId ?? "").toLowerCase();
       if (sid === sesionId.toLowerCase() && eid === etapaId.toLowerCase()) {
-        if (!desmontado) setEtapaCompletada(true);
+        if (!desmontado) {
+          if (
+            estadoEnvioRef.current !== "valido" &&
+            estadoEnvioRef.current !== "ya_completado"
+          ) {
+            finalizarPorTiempoLocal();
+          } else {
+            setEtapaCompletada(true);
+          }
+        }
       }
     };
 
@@ -415,7 +451,12 @@ function ContenidoTesoro() {
       // Pausa/reanudación: solo se actualiza el estado local; el efecto del
       // temporizador congela o reanuda, y la cámara se cierra al pausar.
       if (nuevo === "Activa" || nuevo === "Pausada" || nuevo === "EnPreparacion") {
+        estadoSesionRef.current = nuevo;
         setEstadoSesion(nuevo);
+        if (nuevo === "Activa") {
+          void unirseAGrupos();
+          iniciarEnvioUbicacion();
+        }
         return;
       }
 
@@ -487,55 +528,62 @@ function ContenidoTesoro() {
       }
     };
 
-    const iniciarEnvioUbicacion = () => {
-      if (__DEV__) console.log("[Ubicacion] intervalo iniciado");
-      intervaloUbicacion = setInterval(() => {
-        void (async () => {
-          if (desmontado) return;
-          if (!permisoUbicacionRef.current) {
-            if (__DEV__) console.warn("[Ubicacion] sin permiso, saltando tick");
-            return;
-          }
-          if (conexion.state !== signalR.HubConnectionState.Connected) {
-            if (__DEV__) console.warn("[Ubicacion] conexion no lista:", conexion.state);
-            return;
-          }
-          if (estadoSesionRef.current !== "Activa") {
-            if (__DEV__) console.warn("[Ubicacion] sesion no activa:", estadoSesionRef.current);
-            return;
-          }
-          try {
-            const pos = await Location.getCurrentPositionAsync({
-              accuracy: Location.Accuracy.Balanced,
-            });
-            if (__DEV__) {
-              console.log("[Ubicacion] enviando:", pos.coords.latitude, pos.coords.longitude);
-            }
-            if (!desmontado) {
-              setMiUbicacion({ latitud: pos.coords.latitude, longitud: pos.coords.longitude });
-            }
-            await conexion.invoke(
-              "EnviarUbicacion",
-              sesionId,
-              equipoIdRef.current ?? null,
-              pos.coords.latitude,
-              pos.coords.longitude,
+    const enviarUbicacionActual = async () => {
+      if (desmontado) return;
+      if (!permisoUbicacionRef.current) {
+        if (__DEV__) console.warn("[Ubicacion] sin permiso, saltando tick");
+        return;
+      }
+      if (conexion.state !== signalR.HubConnectionState.Connected) {
+        if (__DEV__) console.warn("[Ubicacion] conexion no lista:", conexion.state);
+        return;
+      }
+      if (estadoSesionRef.current !== "Activa") {
+        if (__DEV__) console.warn("[Ubicacion] sesion no activa:", estadoSesionRef.current);
+        return;
+      }
+      try {
+        const pos = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+        if (__DEV__) {
+          console.log("[Ubicacion] enviando:", pos.coords.latitude, pos.coords.longitude);
+        }
+        if (!desmontado) {
+          setMiUbicacion({ latitud: pos.coords.latitude, longitud: pos.coords.longitude });
+        }
+        await conexion.invoke(
+          "EnviarUbicacion",
+          sesionId,
+          equipoIdRef.current ?? null,
+          pos.coords.latitude,
+          pos.coords.longitude,
+        );
+      } catch (e) {
+        // Un tick fallido por transporte transitorio (timeout/WebSocket) no
+        // es un error grave: la reconexión lo resuelve y el próximo tick
+        // reintenta. Solo un fallo no transitorio se registra como error.
+        if (esErrorConexionTransitorioTiempoReal(e)) {
+          if (__DEV__) {
+            console.warn(
+              "[Ubicacion] tick omitido por conexión interrumpida; se reintentará.",
             );
-          } catch (e) {
-            // Un tick fallido por transporte transitorio (timeout/WebSocket) no
-            // es un error grave: la reconexión lo resuelve y el próximo tick
-            // reintenta. Solo un fallo no transitorio se registra como error.
-            if (esErrorConexionTransitorioTiempoReal(e)) {
-              if (__DEV__) {
-                console.warn(
-                  "[Ubicacion] tick omitido por conexión interrumpida; se reintentará.",
-                );
-              }
-            } else if (__DEV__) {
-              console.error("[Ubicacion] error en tick:", e);
-            }
           }
-        })();
+        } else if (__DEV__) {
+          console.error("[Ubicacion] error en tick:", e);
+        }
+      }
+    };
+
+    const iniciarEnvioUbicacion = () => {
+      if (intervaloUbicacion) {
+        clearInterval(intervaloUbicacion);
+        intervaloUbicacion = null;
+      }
+      if (__DEV__) console.log("[Ubicacion] intervalo iniciado");
+      void enviarUbicacionActual();
+      intervaloUbicacion = setInterval(() => {
+        void enviarUbicacionActual();
       }, 5000);
     };
 
@@ -609,7 +657,7 @@ function ContenidoTesoro() {
       conexion.off("UbicacionActualizada", manejarUbicacionActualizada);
       void cerrarConexion();
     };
-  }, [token, sesionId, etapaId, cerrarSesion, enrutador, refrescarEstadoSesion]));
+  }, [token, sesionId, etapaId, cerrarSesion, enrutador, refrescarEstadoSesion, finalizarPorTiempoLocal]));
 
   const abrirCamara = async () => {
     // Protección de UX: no abrir la cámara si la sesión no está Activa.
@@ -620,6 +668,10 @@ function ContenidoTesoro() {
           "La sesión está pausada. Espera a que el operador la reanude.",
         );
       }
+      return;
+    }
+    if (tiempoRestante !== null && tiempoRestante <= 0) {
+      finalizarPorTiempoLocal();
       return;
     }
     if (!permisosCamara?.granted) {
@@ -643,6 +695,10 @@ function ContenidoTesoro() {
       setMostrandoCamara(false);
       return;
     }
+    if (tiempoRestante !== null && tiempoRestante <= 0) {
+      finalizarPorTiempoLocal();
+      return;
+    }
     yaEscaneadoRef.current = true; // bloqueo sincrónico — evita múltiples POSTs
     setCodigoEscaneado(data);
     setMostrandoCamara(false);
@@ -653,7 +709,13 @@ function ContenidoTesoro() {
     if (!token || !codigo.trim() || enviando) return;
     // Protección de UX: no enviar evidencia si la sesión no está Activa.
     if (estadoSesion !== "Activa") return;
+    if (tiempoRestante !== null && tiempoRestante <= 0) {
+      finalizarPorTiempoLocal();
+      return;
+    }
 
+    setCierrePorTiempo(false);
+    setFeedbackPuntajeLocal(null);
     setEnviando(true);
     try {
       const resultado = await enviarEvidenciaTesoro(
@@ -720,14 +782,18 @@ function ContenidoTesoro() {
         <View style={estilos.centrado}>
           <Text style={estilos.trofeo}>🏆</Text>
           <Text style={estilos.textoExito}>
-            {conflictoTipo === "equipo"
+            {cierrePorTiempo
+              ? "Tiempo agotado"
+              : conflictoTipo === "equipo"
               ? "¡Tu equipo encontró el tesoro!"
               : "¡Encontraste el tesoro!"}
           </Text>
           <Text style={estilos.textoInfo}>
-            Espera a que los demás terminen para avanzar a la siguiente etapa.
+            {cierrePorTiempo
+              ? "No se envió evidencia antes de finalizar la etapa."
+              : "Espera a que los demás terminen para avanzar a la siguiente etapa."}
           </Text>
-          <Text style={estilos.textoInfo}>{feedbackPuntaje}</Text>
+          <Text style={estilos.textoInfo}>{feedbackPuntajeVisible}</Text>
           <TouchableOpacity
             style={estilos.boton}
             onPress={() => enrutador.replace(`/participante/sesiones/${sesionId}`)}
@@ -858,7 +924,7 @@ function ContenidoTesoro() {
               {estadoEnvio === "invalido" && (
                 <View style={estilos.tarjetaError}>
                   <Text style={estilos.textoErrorPanel}>Código incorrecto.</Text>
-                  <Text style={estilos.textoErrorDetalle}>{feedbackPuntaje}</Text>
+                  <Text style={estilos.textoErrorDetalle}>{feedbackPuntajeVisible}</Text>
                   <Text style={estilos.textoErrorDetalle}>
                     El código escaneado no coincide. Sigue buscando el tesoro.
                   </Text>
@@ -867,14 +933,19 @@ function ContenidoTesoro() {
               <TouchableOpacity
                 style={[
                   estilos.botonEscanear,
-                  estadoSesion !== "Activa" && estilos.botonEscanearDeshabilitado,
+                  (estadoSesion !== "Activa" ||
+                    (tiempoRestante !== null && tiempoRestante <= 0)) &&
+                    estilos.botonEscanearDeshabilitado,
                 ]}
                 onPress={() => void abrirCamara()}
-                disabled={estadoSesion !== "Activa"}
+                disabled={estadoSesion !== "Activa" ||
+                  (tiempoRestante !== null && tiempoRestante <= 0)}
               >
                 <Text style={estilos.textoBotonEscanear}>
                   {estadoSesion === "Pausada"
                     ? "Escaneo pausado"
+                    : tiempoRestante !== null && tiempoRestante <= 0
+                      ? "Tiempo agotado"
                     : estadoEnvio === "invalido"
                       ? "Escanear de nuevo"
                       : "Escanear código QR"}
