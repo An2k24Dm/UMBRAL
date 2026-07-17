@@ -55,6 +55,12 @@ namespace RankingServicio.Infraestructura.Persistencia.Migraciones
                         .HasColumnType("bigint")
                         .HasColumnName("puntaje");
 
+                    b.Property<int>("PuntosPenalizados")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("puntos_penalizados");
+
                     b.Property<Guid>("RankingId")
                         .HasColumnType("uuid")
                         .HasColumnName("ranking_id");
@@ -88,6 +94,12 @@ namespace RankingServicio.Infraestructura.Persistencia.Migraciones
                     b.Property<long>("Puntaje")
                         .HasColumnType("bigint")
                         .HasColumnName("puntaje");
+
+                    b.Property<int>("PuntosPenalizados")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("puntos_penalizados");
 
                     b.Property<Guid>("RankingId")
                         .HasColumnType("uuid")

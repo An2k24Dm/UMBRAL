@@ -64,6 +64,7 @@ public sealed class ObtenerRankingEquiposSesionManejador
                 equipo.EquipoId,
                 nombre,
                 equipo.Puntaje.Valor,
+                equipo.PuntosPenalizados,
                 aportes));
         }
 

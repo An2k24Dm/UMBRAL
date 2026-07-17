@@ -59,7 +59,11 @@ public sealed class ContextoRanking : DbContext
             e.Property(x => x.EquipoId).HasColumnName("equipo_id");
             e.Property(x => x.Puntaje)
                 .HasColumnName("puntaje")
-                .HasConversion(p => p.Valor, v => Puntaje.Desde(v));
+                .HasConversion(p => p.Valor, v => Puntaje.DesdePersistencia(v));
+            e.Property(x => x.PuntosPenalizados)
+                .HasColumnName("puntos_penalizados")
+                .IsRequired()
+                .HasDefaultValue(0);
             e.HasIndex("RankingId", nameof(RankingParticipante.ParticipanteSesionId)).IsUnique();
         });
 
@@ -72,7 +76,11 @@ public sealed class ContextoRanking : DbContext
             e.Property(x => x.EquipoId).HasColumnName("equipo_id").IsRequired();
             e.Property(x => x.Puntaje)
                 .HasColumnName("puntaje")
-                .HasConversion(p => p.Valor, v => Puntaje.Desde(v));
+                .HasConversion(p => p.Valor, v => Puntaje.DesdePersistencia(v));
+            e.Property(x => x.PuntosPenalizados)
+                .HasColumnName("puntos_penalizados")
+                .IsRequired()
+                .HasDefaultValue(0);
             e.HasIndex("RankingId", nameof(RankingEquipo.EquipoId)).IsUnique();
         });
 

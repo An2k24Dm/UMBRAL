@@ -419,17 +419,36 @@ public sealed class ProcesamientoPuntajePruebas
             Guid sesionId,
             CancellationToken cancelacion)
             => Task.CompletedTask;
+
+        public List<PenalizacionAplicadaNotificacionDto> Penalizaciones { get; } = new();
+
+        public Task NotificarPenalizacionAplicadaAsync(
+            PenalizacionAplicadaNotificacionDto penalizacion,
+            CancellationToken cancelacion)
+        {
+            Penalizaciones.Add(penalizacion);
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class FakePublicadorResultados : IPublicadorResultadosPuntaje
     {
         public List<PuntajeCalculadoDto> Puntajes { get; } = new();
+        public List<PenalizacionProcesadaDto> Penalizaciones { get; } = new();
 
         public Task PublicarPuntajeActualizadoAsync(
             PuntajeCalculadoDto puntaje,
             CancellationToken cancelacion)
         {
             Puntajes.Add(puntaje);
+            return Task.CompletedTask;
+        }
+
+        public Task PublicarPenalizacionProcesadaAsync(
+            PenalizacionProcesadaDto penalizacion,
+            CancellationToken cancelacion)
+        {
+            Penalizaciones.Add(penalizacion);
             return Task.CompletedTask;
         }
     }

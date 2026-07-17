@@ -10,6 +10,9 @@ public interface INotificadorRankingTiempoReal
 
     Task NotificarRankingEquiposActualizadoAsync(
         Guid sesionId, CancellationToken cancelacion);
+
+    Task NotificarPenalizacionAplicadaAsync(
+        PenalizacionAplicadaNotificacionDto penalizacion, CancellationToken cancelacion);
 }
 
 public sealed record PuntajeCalculadoDto(
@@ -22,3 +25,12 @@ public sealed record PuntajeCalculadoDto(
     long PuntajeTotalParticipante,
     long? PuntajeTotalEquipo,
     DateTime CalculadoEnUtc);
+
+public sealed record PenalizacionAplicadaNotificacionDto(
+    Guid SesionId,
+    string TipoObjetivo,
+    Guid ObjetivoId,
+    int PuntosPenalizados,
+    int PuntosPenalizadosAcumulados,
+    long PuntajeResultante,
+    DateTime AplicadaEnUtc);

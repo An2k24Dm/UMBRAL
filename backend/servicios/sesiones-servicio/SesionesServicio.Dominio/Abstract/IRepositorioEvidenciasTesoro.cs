@@ -67,4 +67,9 @@ public interface IRepositorioEvidenciasTesoro
     // agrupado por misión y etapa).
     Task<IReadOnlyList<PuntajeEtapaItem>> ObtenerPuntajePorEtapaParticipanteAsync(
         Guid sesionId, Guid participanteIdentidadId, CancellationToken cancelacion);
+
+    // HU52 — Puntaje bruto ganado por un equipo completo (SUM de PuntosGanados
+    // de todos sus integrantes). Usado por el desglose grupal.
+    Task<long> ObtenerPuntajeGanadoEquipoAsync(
+        Guid sesionId, Guid equipoId, CancellationToken cancelacion);
 }

@@ -223,6 +223,13 @@ public sealed class RepositorioRespuestasTrivia : IRepositorioRespuestasTrivia
         return filas.AsReadOnly();
     }
 
+    public async Task<long> ObtenerPuntajeGanadoEquipoAsync(
+        Guid sesionId, Guid equipoId, CancellationToken cancelacion)
+        => await _contexto.RespuestasTrivia
+            .AsNoTracking()
+            .Where(r => r.SesionId == sesionId && r.EquipoId == equipoId)
+            .SumAsync(r => (long)r.PuntosGanados, cancelacion);
+
     private static bool EsViolacionUnicidad(DbUpdateException ex)
         => ex.InnerException is PostgresException postgres &&
            postgres.SqlState == CodigoViolacionUnicidad;

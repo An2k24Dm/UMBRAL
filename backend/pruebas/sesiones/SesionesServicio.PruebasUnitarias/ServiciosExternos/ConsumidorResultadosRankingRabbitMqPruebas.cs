@@ -7,6 +7,7 @@ using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using SesionesServicio.Aplicacion.Comandos.AplicarPuntajeRanking;
+using SesionesServicio.Aplicacion.Comandos.AplicarResultadoPenalizacionRanking;
 using SesionesServicio.Infraestructura.ServiciosExternos;
 
 namespace SesionesServicio.PruebasUnitarias.ServiciosExternos;
@@ -48,6 +49,68 @@ public class ConsumidorResultadosRankingRabbitMqPruebas
                 && c.PuntajeGanado == 25
                 && c.PuntajeTotalEquipo == 300),
             It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task OnMensajeRecibidoAsync_ResultadoPenalizacion_EnviaComandoAplicarResultado()
+    {
+        var mediator = new Mock<IMediator>();
+        var consumidor = CrearConsumidor(mediator);
+        var canal = InyectarCanal(consumidor);
+        var eventoOrigen = Guid.NewGuid();
+        var equipoId = Guid.NewGuid();
+
+        await InvocarOnMensajeRecibidoAsync(consumidor, new BasicDeliverEventArgs
+        {
+            RoutingKey = "ranking.penalizacion_procesada",
+            DeliveryTag = 20,
+            Redelivered = false,
+            Body = Encoding.UTF8.GetBytes($$"""
+            {
+              "EventoIdOrigen":"{{eventoOrigen}}",
+              "PenalizacionId":"{{Guid.NewGuid()}}",
+              "SesionId":"{{Guid.NewGuid()}}",
+              "TipoObjetivo":"Equipo",
+              "ParticipanteSesionId":null,
+              "ParticipanteIdentidadId":null,
+              "EquipoId":"{{equipoId}}",
+              "PuntosPenalizados":10,
+              "PuntosPenalizadosAcumulados":20,
+              "PuntajeTotalParticipante":null,
+              "PuntajeTotalEquipo":60,
+              "CalculadoEnUtc":"2026-07-17T12:00:00Z"
+            }
+            """)
+        });
+
+        mediator.Verify(m => m.Send(
+            It.Is<AplicarResultadoPenalizacionRankingComando>(c =>
+                c.EventoIdOrigen == eventoOrigen
+                && c.TipoObjetivo == "Equipo"
+                && c.EquipoId == equipoId
+                && c.PuntosPenalizadosAcumulados == 20
+                && c.PuntajeTotalEquipo == 60),
+            It.IsAny<CancellationToken>()), Times.Once);
+        canal.Verify(c => c.BasicAck(20, false), Times.Once);
+    }
+
+    [Fact]
+    public async Task OnMensajeRecibidoAsync_RoutingKeyDesconocido_HaceAckSinComando()
+    {
+        var mediator = new Mock<IMediator>();
+        var consumidor = CrearConsumidor(mediator);
+        var canal = InyectarCanal(consumidor);
+
+        await InvocarOnMensajeRecibidoAsync(consumidor, new BasicDeliverEventArgs
+        {
+            RoutingKey = "ranking.desconocido",
+            DeliveryTag = 21,
+            Redelivered = false,
+            Body = Encoding.UTF8.GetBytes("{}")
+        });
+
+        mediator.Verify(m => m.Send(It.IsAny<object>(), It.IsAny<CancellationToken>()), Times.Never);
+        canal.Verify(c => c.BasicAck(21, false), Times.Once);
     }
 
     [Fact]

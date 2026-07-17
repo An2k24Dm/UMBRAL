@@ -135,6 +135,13 @@ public sealed class RepositorioEvidenciasTesoro : IRepositorioEvidenciasTesoro
         return filas.AsReadOnly();
     }
 
+    public async Task<long> ObtenerPuntajeGanadoEquipoAsync(
+        Guid sesionId, Guid equipoId, CancellationToken cancelacion)
+        => await _contexto.EvidenciasTesoro
+            .AsNoTracking()
+            .Where(e => e.SesionId == sesionId && e.EquipoId == equipoId)
+            .SumAsync(e => (long)e.PuntosGanados, cancelacion);
+
     private static bool EsViolacionUnicidad(DbUpdateException ex)
         => ex.InnerException is PostgresException postgres &&
            postgres.SqlState == CodigoViolacionUnicidad;

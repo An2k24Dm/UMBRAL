@@ -8,12 +8,14 @@ using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using SesionesServicio.Aplicacion.Comandos.AplicarPuntajeRanking;
+using SesionesServicio.Aplicacion.Comandos.AplicarResultadoPenalizacionRanking;
 
 namespace SesionesServicio.Infraestructura.ServiciosExternos;
 
 public sealed class ConsumidorResultadosRankingRabbitMq : BackgroundService
 {
     private const string RoutingKeyPuntajeActualizado = "ranking.puntaje_actualizado";
+    private const string RoutingKeyPenalizacionProcesada = "ranking.penalizacion_procesada";
     private const string SufijoDlq = ".dlq";
 
     private readonly IServiceScopeFactory _scopeFactory;
@@ -108,6 +110,8 @@ public sealed class ConsumidorResultadosRankingRabbitMq : BackgroundService
             autoDelete: false);
         _canal.QueueBind(
             _opciones.ColaResultadosRanking, _opciones.Exchange, RoutingKeyPuntajeActualizado);
+        _canal.QueueBind(
+            _opciones.ColaResultadosRanking, _opciones.Exchange, RoutingKeyPenalizacionProcesada);
         _canal.BasicQos(prefetchSize: 0, prefetchCount: 1, global: false);
 
         var consumidor = new AsyncEventingBasicConsumer(_canal);
@@ -117,41 +121,18 @@ public sealed class ConsumidorResultadosRankingRabbitMq : BackgroundService
 
     private async Task OnMensajeRecibidoAsync(object sender, BasicDeliverEventArgs args)
     {
+        var routingKey = args.RoutingKey;
         var cuerpo = Encoding.UTF8.GetString(args.Body.ToArray());
         try
         {
-            var ev = JsonSerializer.Deserialize<EventoPuntajeActualizadoRanking>(
-                cuerpo, OpcionesJson)!;
-
-            _log.LogInformation(
-                "Resultado de Ranking recibido. RoutingKey={RoutingKey} EventoIdOrigen={EventoIdOrigen} SesionId={SesionId} ParticipanteSesionId={ParticipanteSesionId} ParticipanteIdentidadId={ParticipanteIdentidadId} EquipoId={EquipoId}",
-                args.RoutingKey,
-                ev.EventoIdOrigen,
-                ev.SesionId,
-                ev.ParticipanteSesionId,
-                ev.ParticipanteIdentidadId,
-                ev.EquipoId);
-
-            using var scope = _scopeFactory.CreateScope();
-            var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
-            await mediator.Send(new AplicarPuntajeRankingComando(
-                ev.EventoIdOrigen,
-                ev.SesionId,
-                ev.ParticipanteSesionId,
-                ev.ParticipanteIdentidadId,
-                ev.EquipoId,
-                ev.PuntajeGanado,
-                ev.PuntajeTotalParticipante,
-                ev.PuntajeTotalEquipo,
-                ev.CalculadoEnUtc));
-
+            await ProcesarAsync(routingKey, cuerpo);
             _canal?.BasicAck(args.DeliveryTag, multiple: false);
         }
         catch (Exception ex)
         {
             _log.LogError(ex,
-                "Error procesando resultado de Ranking. Body={Body}",
-                cuerpo);
+                "Error procesando resultado de Ranking. RoutingKey={RoutingKey} Body={Body}",
+                routingKey, cuerpo);
             if (!args.Redelivered)
             {
                 _canal?.BasicNack(args.DeliveryTag, multiple: false, requeue: true);
@@ -160,6 +141,72 @@ public sealed class ConsumidorResultadosRankingRabbitMq : BackgroundService
 
             PublicarDeadLetter(args, cuerpo, ex);
             _canal?.BasicAck(args.DeliveryTag, multiple: false);
+        }
+    }
+
+    private async Task ProcesarAsync(string routingKey, string cuerpo)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+
+        switch (routingKey)
+        {
+            case RoutingKeyPuntajeActualizado:
+            {
+                var ev = JsonSerializer.Deserialize<EventoPuntajeActualizadoRanking>(
+                    cuerpo, OpcionesJson)!;
+                _log.LogInformation(
+                    "Resultado de Ranking recibido. RoutingKey={RoutingKey} EventoIdOrigen={EventoIdOrigen} SesionId={SesionId} ParticipanteSesionId={ParticipanteSesionId} ParticipanteIdentidadId={ParticipanteIdentidadId} EquipoId={EquipoId}",
+                    routingKey,
+                    ev.EventoIdOrigen,
+                    ev.SesionId,
+                    ev.ParticipanteSesionId,
+                    ev.ParticipanteIdentidadId,
+                    ev.EquipoId);
+                await mediator.Send(new AplicarPuntajeRankingComando(
+                    ev.EventoIdOrigen,
+                    ev.SesionId,
+                    ev.ParticipanteSesionId,
+                    ev.ParticipanteIdentidadId,
+                    ev.EquipoId,
+                    ev.PuntajeGanado,
+                    ev.PuntajeTotalParticipante,
+                    ev.PuntajeTotalEquipo,
+                    ev.CalculadoEnUtc));
+                break;
+            }
+            case RoutingKeyPenalizacionProcesada:
+            {
+                var ev = JsonSerializer.Deserialize<EventoPenalizacionProcesadaRanking>(
+                    cuerpo, OpcionesJson)!;
+                _log.LogInformation(
+                    "Resultado de penalización recibido. RoutingKey={RoutingKey} EventoIdOrigen={EventoIdOrigen} PenalizacionId={PenalizacionId} SesionId={SesionId} TipoObjetivo={TipoObjetivo} ParticipanteSesionId={ParticipanteSesionId} EquipoId={EquipoId}",
+                    routingKey,
+                    ev.EventoIdOrigen,
+                    ev.PenalizacionId,
+                    ev.SesionId,
+                    ev.TipoObjetivo,
+                    ev.ParticipanteSesionId,
+                    ev.EquipoId);
+                await mediator.Send(new AplicarResultadoPenalizacionRankingComando(
+                    ev.EventoIdOrigen,
+                    ev.PenalizacionId,
+                    ev.SesionId,
+                    ev.TipoObjetivo,
+                    ev.ParticipanteSesionId,
+                    ev.ParticipanteIdentidadId,
+                    ev.EquipoId,
+                    ev.PuntosPenalizados,
+                    ev.PuntosPenalizadosAcumulados,
+                    ev.PuntajeTotalParticipante,
+                    ev.PuntajeTotalEquipo,
+                    ev.CalculadoEnUtc));
+                break;
+            }
+            default:
+                _log.LogWarning(
+                    "Resultado de Ranking con routing key desconocido: {RoutingKey}", routingKey);
+                break;
         }
     }
 
@@ -206,6 +253,20 @@ public sealed class ConsumidorResultadosRankingRabbitMq : BackgroundService
         Guid? EquipoId,
         long PuntajeGanado,
         long PuntajeTotalParticipante,
+        long? PuntajeTotalEquipo,
+        DateTime CalculadoEnUtc);
+
+    private sealed record EventoPenalizacionProcesadaRanking(
+        Guid EventoIdOrigen,
+        Guid PenalizacionId,
+        Guid SesionId,
+        string TipoObjetivo,
+        Guid? ParticipanteSesionId,
+        Guid? ParticipanteIdentidadId,
+        Guid? EquipoId,
+        int PuntosPenalizados,
+        int PuntosPenalizadosAcumulados,
+        long? PuntajeTotalParticipante,
         long? PuntajeTotalEquipo,
         DateTime CalculadoEnUtc);
 

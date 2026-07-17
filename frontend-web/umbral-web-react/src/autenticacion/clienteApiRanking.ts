@@ -15,6 +15,8 @@ export interface EntradaRankingParticipanteDto {
   equipoId: string | null
   alias: string
   puntaje: number
+  // HU52 — Magnitud positiva acumulada de penalizaciones (se muestra "-N pts").
+  puntosPenalizados: number
 }
 
 // Aporte de un participante al puntaje de su equipo (detalle desplegable).
@@ -31,6 +33,8 @@ export interface EntradaRankingEquipoDto {
   equipoId: string
   nombreEquipo: string
   puntaje: number
+  // HU52 — Magnitud positiva acumulada de penalizaciones del equipo.
+  puntosPenalizados: number
   participantes: AporteParticipanteEquipoDto[]
 }
 

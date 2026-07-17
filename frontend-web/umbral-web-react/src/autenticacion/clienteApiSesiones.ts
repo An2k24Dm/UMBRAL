@@ -342,11 +342,12 @@ export async function eliminarSesion(id: string, token: string): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// HU52 — Operación del ciclo de vida de la sesión (solo Operador dueño).
-// El backend coordina el cambio de estado con la fachada y el patrón State y
-// devuelve el estado resultante. 409 (transición/estado inválido) y 400
-// (regla de negocio, p. ej. sin inscritos o fecha futura) traen el mensaje
-// exacto del backend.
+// Operación del ciclo de vida de la sesión (solo Operador dueño). El backend
+// coordina el cambio de estado con la fachada y el patrón State y devuelve el
+// estado resultante. 409 (transición/estado inválido) y 400 (regla de negocio,
+// p. ej. sin inscritos o fecha futura) traen el mensaje exacto del backend.
+// (Nota: iniciar/pausar/reanudar/cancelar NO es HU52; HU52 es Aplicar
+// penalización, más abajo.)
 // ---------------------------------------------------------------------------
 type AccionSesion = 'iniciar' | 'pausar' | 'reanudar' | 'cancelar'
 
@@ -448,6 +449,55 @@ export async function expulsarEquipoSesion(
   if (respuesta.status === 404) throw new Error('El equipo o la sesión ya no existen.')
   if (respuesta.status === 409) throw new Error(await leerError(respuesta))
   throw new Error('No se pudo expulsar al equipo. Intenta nuevamente.')
+}
+
+// ---------------------------------------------------------------------------
+// HU52 — Aplicar penalización (solo Operador dueño; sesión Activa o Pausada).
+// El cálculo del puntaje es asíncrono: el backend responde 202 Accepted y el
+// puntaje se actualiza en tiempo real vía SignalR. 400 (puntos/motivo/modo),
+// 403 (no operador/propietario), 404 (objetivo inexistente), 409 (estado).
+// ---------------------------------------------------------------------------
+export interface PenalizacionEncoladaDto {
+  penalizacionId: string
+  eventoId: string
+  estado: string
+}
+
+async function aplicarPenalizacion(
+  url: string, puntos: number, motivo: string, token: string
+): Promise<PenalizacionEncoladaDto> {
+  const respuesta = await fetch(url, {
+    method: 'POST',
+    headers: { ...auth(token), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ puntos, motivo: motivo.trim() })
+  })
+  if (respuesta.status === 202) return respuesta.json() as Promise<PenalizacionEncoladaDto>
+  if (respuesta.status === 401) lanzar401(token, 'Debe iniciar sesión.')
+  if (respuesta.status === 403) throw new Error('No tienes permisos para penalizar en esta sesión.')
+  if (respuesta.status === 404) throw new Error('La sesión o el objetivo ya no existen.')
+  // 400 (puntos/motivo/modo) y 409 (estado): propagamos el mensaje del backend.
+  if (respuesta.status === 400 || respuesta.status === 409) throw new Error(await leerError(respuesta))
+  throw new Error('No se pudo aplicar la penalización. Intenta nuevamente.')
+}
+
+export function penalizarParticipanteSesion(
+  sesionId: string, participanteSesionId: string,
+  puntos: number, motivo: string, token: string
+): Promise<PenalizacionEncoladaDto> {
+  return aplicarPenalizacion(
+    `${URL_API}${ENDPOINTS.porId(sesionId)}/participantes/` +
+    `${encodeURIComponent(participanteSesionId)}/penalizaciones`,
+    puntos, motivo, token)
+}
+
+export function penalizarEquipoSesion(
+  sesionId: string, equipoId: string,
+  puntos: number, motivo: string, token: string
+): Promise<PenalizacionEncoladaDto> {
+  return aplicarPenalizacion(
+    `${URL_API}${ENDPOINTS.porId(sesionId)}/equipos/` +
+    `${encodeURIComponent(equipoId)}/penalizaciones`,
+    puntos, motivo, token)
 }
 
 // ---------------------------------------------------------------------------

@@ -192,6 +192,14 @@ function ContenidoResultado() {
               </View>
             </View>
           ))}
+          {desglose.puntosPenalizados > 0 && (
+            <View style={estilos.desglosePenalizacionFila}>
+              <Text style={estilos.desglosePenalizacionTexto}>Penalización</Text>
+              <Text style={estilos.desglosePenalizacionPuntaje}>
+                -{desglose.puntosPenalizados} pts
+              </Text>
+            </View>
+          )}
           <View style={estilos.desgloseTotalFila}>
             <Text style={estilos.desgloseTotalTexto}>PUNTAJE TOTAL</Text>
             <Text style={estilos.desgloseTotalPuntaje}>{desglose.puntajeTotal} pts</Text>
@@ -454,6 +462,22 @@ const estilos = StyleSheet.create({
   },
   desgloseSubtotalPuntaje: {
     color: tema.colores.texto,
+    fontWeight: tema.tipografia.pesos.bold,
+  },
+  desglosePenalizacionFila: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: tema.espacios.md,
+    paddingVertical: tema.espacios.sm,
+    marginTop: tema.espacios.xs,
+  },
+  desglosePenalizacionTexto: {
+    color: tema.colores.error,
+    fontWeight: tema.tipografia.pesos.semibold,
+  },
+  desglosePenalizacionPuntaje: {
+    color: tema.colores.error,
     fontWeight: tema.tipografia.pesos.bold,
   },
   desgloseTotalFila: {

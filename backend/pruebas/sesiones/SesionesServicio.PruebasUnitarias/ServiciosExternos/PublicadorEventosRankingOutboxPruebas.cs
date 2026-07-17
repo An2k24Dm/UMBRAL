@@ -122,6 +122,41 @@ public class PublicadorEventosRankingOutboxPruebas
         payload.GetProperty("EquipoId").GetGuid().Should().Be(equipoId);
     }
 
+    [Fact]
+    public async Task PublicarPenalizacionAplicada_EncolaMensajeConContrato()
+    {
+        await using var contexto = NuevoContexto();
+        var publicador = new PublicadorEventosRankingOutbox(contexto);
+        var eventoId = Guid.NewGuid();
+        var penalizacionId = Guid.NewGuid();
+        var sesionId = Guid.NewGuid();
+        var participanteSesionId = Guid.NewGuid();
+        var participanteIdentidadId = Guid.NewGuid();
+        var operadorId = Guid.NewGuid();
+
+        await publicador.PublicarPenalizacionAplicadaAsync(
+            eventoId, penalizacionId, sesionId, "Participante",
+            participanteSesionId, participanteIdentidadId, null,
+            5, "Incumplió una regla", operadorId,
+            new DateTime(2026, 7, 17, 12, 0, 0, DateTimeKind.Utc),
+            CancellationToken.None);
+
+        var mensaje = await contexto.OutboxRanking.SingleAsync();
+        mensaje.Id.Should().Be(eventoId);
+        mensaje.RoutingKey.Should().Be("sesion.penalizacion_aplicada");
+        mensaje.Estado.Should().Be("Pendiente");
+        var payload = JsonDocument.Parse(mensaje.PayloadJson).RootElement;
+        payload.GetProperty("PenalizacionId").GetGuid().Should().Be(penalizacionId);
+        payload.GetProperty("SesionId").GetGuid().Should().Be(sesionId);
+        payload.GetProperty("TipoObjetivo").GetString().Should().Be("Participante");
+        payload.GetProperty("ParticipanteSesionId").GetGuid().Should().Be(participanteSesionId);
+        payload.GetProperty("ParticipanteIdentidadId").GetGuid().Should().Be(participanteIdentidadId);
+        payload.GetProperty("EquipoId").ValueKind.Should().Be(JsonValueKind.Null);
+        payload.GetProperty("Puntos").GetInt32().Should().Be(5);
+        payload.GetProperty("Motivo").GetString().Should().Be("Incumplió una regla");
+        payload.GetProperty("OperadorIdentidadId").GetGuid().Should().Be(operadorId);
+    }
+
     private static ContextoSesiones NuevoContexto()
     {
         var opciones = new DbContextOptionsBuilder<ContextoSesiones>()

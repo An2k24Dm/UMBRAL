@@ -43,11 +43,14 @@ public class PuntajeSesionPruebas
         PuntajeSesion.DesdePersistencia(42).Valor.Should().Be(42);
     }
 
+    // HU52 — El puntaje ACUMULADO (snapshot) puede quedar negativo tras una
+    // penalización; DesdePersistencia admite negativos. El puntaje GANADO sigue
+    // siendo no negativo (ver Crear/Sumar más abajo).
     [Fact]
-    public void DesdePersistencia_Negativo_Lanza()
+    public void DesdePersistencia_Negativo_EsValido()
     {
-        Action accion = () => PuntajeSesion.DesdePersistencia(-1);
-        accion.Should().Throw<ParticipacionInvalidaExcepcion>();
+        PuntajeSesion.DesdePersistencia(-1).Valor.Should().Be(-1);
+        PuntajeSesion.DesdePersistencia(-52).Valor.Should().Be(-52);
     }
 
     [Fact]

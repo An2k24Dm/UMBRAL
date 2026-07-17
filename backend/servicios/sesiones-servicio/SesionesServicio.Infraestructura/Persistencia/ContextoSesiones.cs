@@ -16,6 +16,7 @@ public sealed class ContextoSesiones : DbContext
     public DbSet<PistaLiberadaModelo> PistasLiberadas => Set<PistaLiberadaModelo>();
     public DbSet<EtapaCompletadaModelo> EtapasCompletadas => Set<EtapaCompletadaModelo>();
     public DbSet<OutboxMensajeRankingModelo> OutboxRanking => Set<OutboxMensajeRankingModelo>();
+    public DbSet<PenalizacionSesionModelo> Penalizaciones => Set<PenalizacionSesionModelo>();
 
     protected override void OnModelCreating(ModelBuilder constructor)
     {
@@ -100,6 +101,8 @@ public sealed class ContextoSesiones : DbContext
             e.Property(x => x.Nombre).HasColumnName("nombre").HasMaxLength(80).IsRequired();
             e.Property(x => x.LiderParticipanteId).HasColumnName("lider_participante_id").IsRequired();
             e.Property(x => x.Puntaje).HasColumnName("puntaje").IsRequired();
+            e.Property(x => x.PuntosPenalizados)
+                .HasColumnName("puntos_penalizados").IsRequired().HasDefaultValue(0);
             e.Property(x => x.SnapshotRankingUtc).HasColumnName("snapshot_ranking_utc");
             e.Property(x => x.Tipo).HasColumnName("tipo_equipo").IsRequired();
             e.Property(x => x.ContrasenaHash).HasColumnName("contrasena_hash").HasMaxLength(256);
@@ -118,6 +121,8 @@ public sealed class ContextoSesiones : DbContext
             e.Property(x => x.ParticipanteIdentidadId).HasColumnName("participante_identidad_id").IsRequired();
             e.Property(x => x.EquipoId).HasColumnName("equipo_id");
             e.Property(x => x.Puntaje).HasColumnName("puntaje").IsRequired();
+            e.Property(x => x.PuntosPenalizados)
+                .HasColumnName("puntos_penalizados").IsRequired().HasDefaultValue(0);
             e.Property(x => x.SnapshotRankingUtc).HasColumnName("snapshot_ranking_utc");
             e.Property(x => x.FechaUnionSesion).HasColumnName("fecha_union_sesion").IsRequired();
             e.Property(x => x.FechaUnionEquipo).HasColumnName("fecha_union_equipo");
@@ -232,6 +237,50 @@ public sealed class ContextoSesiones : DbContext
             e.Property(x => x.UltimoError).HasColumnName("ultimo_error").HasMaxLength(1000);
             e.Property(x => x.Estado).HasColumnName("estado").HasMaxLength(40).IsRequired();
             e.HasIndex(x => new { x.Estado, x.ProximoIntentoUtc, x.CreadoEnUtc });
+        });
+
+        constructor.Entity<PenalizacionSesionModelo>(e =>
+        {
+            e.ToTable("PenalizacionSesion", tabla =>
+            {
+                // Puntos siempre 1..100 (la cantidad recibida es positiva).
+                tabla.HasCheckConstraint(
+                    "ck_penalizacion_puntos_rango",
+                    "puntos BETWEEN 1 AND 100");
+                // Motivo obligatorio (no vacío tras Trim en el dominio).
+                tabla.HasCheckConstraint(
+                    "ck_penalizacion_motivo_no_vacio",
+                    "length(btrim(motivo)) > 0");
+                // Exactamente un tipo de objetivo, coherente con tipo_objetivo:
+                //  - Participante (0): participante_* NOT NULL, equipo_id NULL.
+                //  - Equipo (1): equipo_id NOT NULL, participante_* NULL.
+                tabla.HasCheckConstraint(
+                    "ck_penalizacion_objetivo_coherente",
+                    "(tipo_objetivo = 0 AND participante_sesion_id IS NOT NULL " +
+                    "AND participante_identidad_id IS NOT NULL AND equipo_id IS NULL) " +
+                    "OR (tipo_objetivo = 1 AND equipo_id IS NOT NULL " +
+                    "AND participante_sesion_id IS NULL AND participante_identidad_id IS NULL)");
+            });
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.EventoId).HasColumnName("evento_id").IsRequired();
+            e.Property(x => x.SesionId).HasColumnName("sesion_id").IsRequired();
+            e.Property(x => x.TipoObjetivo).HasColumnName("tipo_objetivo").IsRequired();
+            e.Property(x => x.ParticipanteSesionId).HasColumnName("participante_sesion_id");
+            e.Property(x => x.ParticipanteIdentidadId).HasColumnName("participante_identidad_id");
+            e.Property(x => x.EquipoId).HasColumnName("equipo_id");
+            e.Property(x => x.Puntos).HasColumnName("puntos").IsRequired();
+            e.Property(x => x.Motivo).HasColumnName("motivo").HasMaxLength(500).IsRequired();
+            e.Property(x => x.OperadorIdentidadId).HasColumnName("operador_identidad_id").IsRequired();
+            e.Property(x => x.AplicadaEnUtc).HasColumnName("aplicada_en_utc").IsRequired();
+            e.Property(x => x.ProcesadaEnUtc).HasColumnName("procesada_en_utc");
+            e.Property(x => x.PuntajeResultante).HasColumnName("puntaje_resultante");
+            e.Property(x => x.EstadoProcesamiento).HasColumnName("estado_procesamiento").IsRequired();
+
+            e.HasIndex(x => x.EventoId).IsUnique();
+            e.HasIndex(x => x.SesionId);
+            e.HasIndex(x => new { x.SesionId, x.EquipoId });
+            e.HasIndex(x => new { x.SesionId, x.ParticipanteSesionId });
         });
     }
 }

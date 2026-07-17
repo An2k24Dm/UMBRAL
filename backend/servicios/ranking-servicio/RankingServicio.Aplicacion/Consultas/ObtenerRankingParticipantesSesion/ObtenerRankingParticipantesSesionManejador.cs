@@ -36,7 +36,8 @@ public sealed class ObtenerRankingParticipantesSesionManejador
                 p.ParticipanteIdentidadId,
                 p.EquipoId,
                 ResolucionAlias.Resolver(p.ParticipanteIdentidadId, datos),
-                p.Puntaje.Valor))
+                p.Puntaje.Valor,
+                p.PuntosPenalizados))
             .ToList();
     }
 }

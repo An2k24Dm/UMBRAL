@@ -57,6 +57,12 @@ namespace SesionesServicio.Infraestructura.Persistencia.Migraciones
                         .HasColumnType("integer")
                         .HasColumnName("puntaje");
 
+                    b.Property<int>("PuntosPenalizados")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("puntos_penalizados");
+
                     b.Property<Guid>("SesionId")
                         .HasColumnType("uuid")
                         .HasColumnName("sesion_id");
@@ -195,6 +201,12 @@ namespace SesionesServicio.Infraestructura.Persistencia.Migraciones
                         .HasColumnType("integer")
                         .HasColumnName("puntaje");
 
+                    b.Property<int>("PuntosPenalizados")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("puntos_penalizados");
+
                     b.Property<Guid>("SesionId")
                         .HasColumnType("uuid")
                         .HasColumnName("sesion_id");
@@ -211,6 +223,88 @@ namespace SesionesServicio.Infraestructura.Persistencia.Migraciones
                         .IsUnique();
 
                     b.ToTable("Participante", "sesiones");
+                });
+
+            modelBuilder.Entity("SesionesServicio.Infraestructura.Persistencia.PenalizacionSesionModelo", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("AplicadaEnUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("aplicada_en_utc");
+
+                    b.Property<Guid?>("EquipoId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("equipo_id");
+
+                    b.Property<int>("EstadoProcesamiento")
+                        .HasColumnType("integer")
+                        .HasColumnName("estado_procesamiento");
+
+                    b.Property<Guid>("EventoId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("evento_id");
+
+                    b.Property<string>("Motivo")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("motivo");
+
+                    b.Property<Guid>("OperadorIdentidadId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("operador_identidad_id");
+
+                    b.Property<Guid?>("ParticipanteIdentidadId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("participante_identidad_id");
+
+                    b.Property<Guid?>("ParticipanteSesionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("participante_sesion_id");
+
+                    b.Property<DateTime?>("ProcesadaEnUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("procesada_en_utc");
+
+                    b.Property<long?>("PuntajeResultante")
+                        .HasColumnType("bigint")
+                        .HasColumnName("puntaje_resultante");
+
+                    b.Property<int>("Puntos")
+                        .HasColumnType("integer")
+                        .HasColumnName("puntos");
+
+                    b.Property<Guid>("SesionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("sesion_id");
+
+                    b.Property<int>("TipoObjetivo")
+                        .HasColumnType("integer")
+                        .HasColumnName("tipo_objetivo");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EventoId")
+                        .IsUnique();
+
+                    b.HasIndex("SesionId");
+
+                    b.HasIndex("SesionId", "EquipoId");
+
+                    b.HasIndex("SesionId", "ParticipanteSesionId");
+
+                    b.ToTable("PenalizacionSesion", "sesiones", t =>
+                        {
+                            t.HasCheckConstraint("ck_penalizacion_motivo_no_vacio", "length(btrim(motivo)) > 0");
+
+                            t.HasCheckConstraint("ck_penalizacion_objetivo_coherente", "(tipo_objetivo = 0 AND participante_sesion_id IS NOT NULL AND participante_identidad_id IS NOT NULL AND equipo_id IS NULL) OR (tipo_objetivo = 1 AND equipo_id IS NOT NULL AND participante_sesion_id IS NULL AND participante_identidad_id IS NULL)");
+
+                            t.HasCheckConstraint("ck_penalizacion_puntos_rango", "puntos BETWEEN 1 AND 100");
+                        });
                 });
 
             modelBuilder.Entity("SesionesServicio.Infraestructura.Persistencia.PistaLiberadaModelo", b =>
@@ -251,6 +345,7 @@ namespace SesionesServicio.Infraestructura.Persistencia.Migraciones
                         .HasColumnName("sesion_id");
 
                     b.Property<int>("Tipo")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
                         .HasDefaultValue(0)
                         .HasColumnName("tipo");

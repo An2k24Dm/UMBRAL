@@ -42,3 +42,16 @@ public sealed record EventoEquipoCreadoSesion(
     Guid EventoId,
     Guid SesionId,
     Guid EquipoId);
+
+public sealed record EventoPenalizacionAplicada(
+    Guid EventoId,
+    Guid PenalizacionId,
+    Guid SesionId,
+    string TipoObjetivo,
+    Guid? ParticipanteSesionId,
+    Guid? ParticipanteIdentidadId,
+    Guid? EquipoId,
+    int Puntos,
+    string Motivo,
+    Guid OperadorIdentidadId,
+    DateTime AplicadaEnUtc);

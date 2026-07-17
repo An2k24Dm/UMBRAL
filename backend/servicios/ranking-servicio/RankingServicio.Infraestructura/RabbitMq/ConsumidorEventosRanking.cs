@@ -10,6 +10,7 @@ using RabbitMQ.Client.Events;
 using RankingServicio.Aplicacion.Comandos.ProcesarEvidenciaTesoro;
 using RankingServicio.Aplicacion.Comandos.ProcesarEquipoCreado;
 using RankingServicio.Aplicacion.Comandos.ProcesarParticipanteUnido;
+using RankingServicio.Aplicacion.Comandos.ProcesarPenalizacion;
 using RankingServicio.Aplicacion.Comandos.ProcesarRespuestaTrivia;
 
 namespace RankingServicio.Infraestructura.RabbitMq;
@@ -20,6 +21,7 @@ public sealed class ConsumidorEventosRanking : BackgroundService
     private const string RoutingKeyTesoro = "sesion.evidencia_tesoro";
     private const string RoutingKeyParticipante = "sesion.participante_unido";
     private const string RoutingKeyEquipo = "sesion.equipo_creado";
+    private const string RoutingKeyPenalizacion = "sesion.penalizacion_aplicada";
     private const string SufijoDlq = ".dlq";
 
     private readonly IServiceScopeFactory _scopeFactory;
@@ -112,7 +114,8 @@ public sealed class ConsumidorEventosRanking : BackgroundService
         foreach (var routingKey in new[]
         {
             RoutingKeyTrivia, RoutingKeyTesoro,
-            RoutingKeyParticipante, RoutingKeyEquipo
+            RoutingKeyParticipante, RoutingKeyEquipo,
+            RoutingKeyPenalizacion
         })
         {
             _canal.QueueBind(_opciones.Cola, _opciones.Exchange, routingKey);
@@ -233,6 +236,26 @@ public sealed class ConsumidorEventosRanking : BackgroundService
                     ev.EquipoId);
                 await mediator.Send(new ProcesarEquipoCreadoComando(
                     ev.EventoId, ev.SesionId, ev.EquipoId));
+                break;
+            }
+            case RoutingKeyPenalizacion:
+            {
+                var ev = JsonSerializer.Deserialize<EventoPenalizacionAplicada>(cuerpo,
+                    OpcionesJson)!;
+                _log.LogInformation(
+                    "Penalización recibida en Ranking. RoutingKey={RoutingKey} EventoId={EventoId} PenalizacionId={PenalizacionId} SesionId={SesionId} TipoObjetivo={TipoObjetivo} ParticipanteSesionId={ParticipanteSesionId} EquipoId={EquipoId} Puntos={Puntos}",
+                    routingKey,
+                    ev.EventoId,
+                    ev.PenalizacionId,
+                    ev.SesionId,
+                    ev.TipoObjetivo,
+                    ev.ParticipanteSesionId,
+                    ev.EquipoId,
+                    ev.Puntos);
+                await mediator.Send(new ProcesarPenalizacionComando(
+                    ev.EventoId, ev.PenalizacionId, ev.SesionId, ev.TipoObjetivo,
+                    ev.ParticipanteSesionId, ev.ParticipanteIdentidadId, ev.EquipoId,
+                    ev.Puntos, ev.Motivo, ev.OperadorIdentidadId, ev.AplicadaEnUtc));
                 break;
             }
             default:

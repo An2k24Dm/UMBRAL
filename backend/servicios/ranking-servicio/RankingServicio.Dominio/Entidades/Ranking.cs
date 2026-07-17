@@ -115,13 +115,43 @@ public sealed class Ranking
             .ThenBy(p => p.ParticipanteSesionId)
             .ToList();
 
+    public RankingParticipante AplicarPenalizacionParticipante(
+        Guid participanteSesionId,
+        Guid participanteIdentidadId,
+        CantidadPenalizacion cantidad)
+    {
+        var participante = BuscarParticipante(participanteSesionId);
+        if (participante is null)
+        {
+            participante = RankingParticipante.Crear(
+                participanteSesionId, participanteIdentidadId, equipoId: null);
+            _participantes.Add(participante);
+        }
+
+        participante.AplicarPenalizacion(cantidad);
+
+        if (participante.EquipoId is Guid equipoId)
+            RecalcularPuntajeEquipo(equipoId);
+
+        return participante;
+    }
+
+    public RankingEquipo AplicarPenalizacionEquipo(
+        Guid equipoId, CantidadPenalizacion cantidad)
+    {
+        var equipo = BuscarEquipo(equipoId) ?? RegistrarEquipo(equipoId);
+        equipo.AgregarPenalizacion(cantidad);
+        RecalcularPuntajeEquipo(equipoId);
+        return equipo;
+    }
+
     private void RecalcularPuntajeEquipo(Guid equipoId)
     {
         var equipo = BuscarEquipo(equipoId) ?? RegistrarEquipo(equipoId);
         var total = _participantes
             .Where(p => p.EquipoId == equipoId)
             .Aggregate(0L, (acumulado, p) => acumulado + p.Puntaje.Valor);
-        equipo.EstablecerPuntaje(Puntaje.Desde(total));
+        equipo.EstablecerPuntaje(Puntaje.DesdePersistencia(total - equipo.PuntosPenalizados));
     }
 
     private RankingParticipante? BuscarParticipante(Guid participanteSesionId) =>

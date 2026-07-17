@@ -57,6 +57,11 @@ export interface DesgloseMisionDto {
 
 export interface MiDesgloseSesionDto {
   participanteIdentidadId: string;
+  // HU52 — puntajeBruto: puntos ganados; puntosPenalizados: magnitud positiva
+  // acumulada (individual = del participante, grupal = del equipo); puntajeTotal:
+  // puntaje final autoritativo (bruto − penalizaciones).
+  puntajeBruto: number;
+  puntosPenalizados: number;
   puntajeTotal: number;
   misiones: DesgloseMisionDto[];
 }

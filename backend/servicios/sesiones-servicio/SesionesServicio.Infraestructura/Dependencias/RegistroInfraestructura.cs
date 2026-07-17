@@ -70,6 +70,7 @@ public static class RegistroInfraestructura
         servicios.AddScoped<IRepositorioEvidenciasTesoro, RepositorioEvidenciasTesoro>();
         servicios.AddScoped<IRepositorioPistasLiberadas, RepositorioPistasLiberadas>();
         servicios.AddScoped<IRepositorioEtapasCompletadas, RepositorioEtapasCompletadas>();
+        servicios.AddScoped<IRepositorioPenalizacionesSesion, RepositorioPenalizacionesSesion>();
         servicios.Configure<OpcionesPreparacionSesiones>(
             configuracion.GetSection(OpcionesPreparacionSesiones.Seccion));
         servicios.Configure<OpcionesVencimientoEtapas>(
