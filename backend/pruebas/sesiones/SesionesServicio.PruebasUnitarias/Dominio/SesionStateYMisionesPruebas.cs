@@ -3,6 +3,7 @@ using System.Linq;
 using SesionesServicio.Dominio.Entidades;
 using SesionesServicio.Dominio.Enums;
 using SesionesServicio.Dominio.Excepciones;
+using SesionesServicio.Dominio.ObjetosValor;
 using SesionesServicio.Dominio.Politicas;
 
 namespace SesionesServicio.PruebasUnitarias.Dominio;
@@ -223,5 +224,134 @@ public class SesionStateYMisionesPruebas
         var s = NuevaIndividual();
         Action accion = () => s.AsignarMisiones(new[] { Guid.Empty });
         accion.Should().Throw<SesionInvalidaExcepcion>();
+    }
+
+    [Fact]
+    public void ModificarDatosBasicos_DescripcionVacia_Lanza()
+    {
+        var s = NuevaIndividual();
+
+        Action accion = () => s.ModificarDatosBasicos(
+            "Nueva", "   ", AhoraUtc.AddHours(2), AhoraUtc);
+
+        accion.Should().Throw<SesionInvalidaExcepcion>()
+            .WithMessage("*descripción*");
+    }
+
+    [Fact]
+    public void EstablecerSecuenciaEtapas_RechazaNullVacioNoPlanificadaOrdenYEtapaDuplicados()
+    {
+        var s = NuevaIndividual();
+        var mision = Guid.NewGuid();
+        var etapa = Guid.NewGuid();
+        var modo = Guid.NewGuid();
+        var planificada = EjecucionActualSesion.Planificar(
+            mision, etapa, modo, "Trivia", 1, 1, 1, 60);
+        var activa = EjecucionActualSesion.Crear(
+            mision, Guid.NewGuid(), modo, "Trivia", 2, AhoraUtc, 60);
+
+        s.Invoking(x => x.EstablecerSecuenciaEtapas(null!))
+            .Should().Throw<SesionInvalidaExcepcion>()
+            .WithMessage("*secuencia*");
+        s.Invoking(x => x.EstablecerSecuenciaEtapas(Array.Empty<EjecucionActualSesion>()))
+            .Should().Throw<MisionSinEtapasExcepcion>();
+        s.Invoking(x => x.EstablecerSecuenciaEtapas(new[] { activa }))
+            .Should().Throw<SesionInvalidaExcepcion>()
+            .WithMessage("*Planificada*");
+        s.Invoking(x => x.EstablecerSecuenciaEtapas(new[]
+            {
+                planificada,
+                EjecucionActualSesion.Planificar(
+                    mision, Guid.NewGuid(), modo, "Trivia", 1, 1, 2, 60)
+            }))
+            .Should().Throw<SesionInvalidaExcepcion>()
+            .WithMessage("*orden global*");
+        s.Invoking(x => x.EstablecerSecuenciaEtapas(new[]
+            {
+                planificada,
+                EjecucionActualSesion.Planificar(
+                    mision, etapa, modo, "Trivia", 2, 1, 2, 60)
+            }))
+            .Should().Throw<SesionInvalidaExcepcion>()
+            .WithMessage("*repetir etapas*");
+    }
+
+    [Fact]
+    public void AvanzarYCompletarEtapa_ValidanEstadoExistenciaYEtapaActual()
+    {
+        var etapaActual = Guid.NewGuid();
+        var ejecucion = EjecucionActualSesion.Crear(
+            Guid.NewGuid(), etapaActual, Guid.NewGuid(), "Trivia", 1, AhoraUtc, 60);
+        var activa = SesionIndividual.Rehidratar(
+            Guid.NewGuid(), "S", "D", EstadoSesion.Activa,
+            AhoraUtc.AddHours(1), "COD", Operador, AhoraUtc,
+            AhoraUtc, null, 5, ejecucionActual: ejecucion);
+        var sinEjecucion = SesionIndividual.Rehidratar(
+            Guid.NewGuid(), "S", "D", EstadoSesion.Activa,
+            AhoraUtc.AddHours(1), "COD2", Operador, AhoraUtc,
+            AhoraUtc, null, 5);
+        var programada = NuevaIndividual();
+
+        programada.Invoking(s => s.AvanzarASiguienteEtapa(
+                etapaActual, Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
+                "Trivia", 2, AhoraUtc, 60))
+            .Should().Throw<TransicionEstadoSesionInvalidaExcepcion>();
+        sinEjecucion.Invoking(s => s.AvanzarASiguienteEtapa(
+                etapaActual, Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
+                "Trivia", 2, AhoraUtc, 60))
+            .Should().Throw<SesionInvalidaExcepcion>()
+            .WithMessage("*etapa global activa*");
+        activa.Invoking(s => s.AvanzarASiguienteEtapa(
+                Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
+                "Trivia", 2, AhoraUtc, 60))
+            .Should().Throw<SesionInvalidaExcepcion>()
+            .WithMessage("*etapa indicada*");
+        sinEjecucion.Invoking(s => s.CompletarUltimaEtapa(etapaActual))
+            .Should().Throw<SesionInvalidaExcepcion>();
+        activa.Invoking(s => s.CompletarUltimaEtapa(Guid.NewGuid()))
+            .Should().Throw<SesionInvalidaExcepcion>();
+
+        activa.CompletarUltimaEtapa(etapaActual);
+
+        activa.EjecucionActual.Should().BeNull();
+    }
+
+    [Fact]
+    public void ProgramarActivarYCerrarEtapa_ValidanPrecondicionesYActualizanEjecucion()
+    {
+        var etapaActual = Guid.NewGuid();
+        var siguienteEtapa = Guid.NewGuid();
+        var ejecucion = EjecucionActualSesion.Crear(
+            Guid.NewGuid(), etapaActual, Guid.NewGuid(), "Trivia", 1, AhoraUtc, 60);
+        var activa = SesionIndividual.Rehidratar(
+            Guid.NewGuid(), "S", "D", EstadoSesion.Activa,
+            AhoraUtc.AddHours(1), "COD", Operador, AhoraUtc,
+            AhoraUtc, null, 5, ejecucionActual: ejecucion);
+        var siguiente = EjecucionActualSesion.Planificar(
+            Guid.NewGuid(), siguienteEtapa, Guid.NewGuid(), "BusquedaTesoro", 2, 1, 2, 90);
+
+        activa.Invoking(s => s.ProgramarSiguienteEtapa(
+                Guid.NewGuid(), siguiente, AhoraUtc.AddMinutes(1), 10))
+            .Should().Throw<SesionInvalidaExcepcion>();
+        activa.Invoking(s => s.ProgramarSiguienteEtapa(
+                etapaActual, null!, AhoraUtc.AddMinutes(1), 10))
+            .Should().Throw<SesionInvalidaExcepcion>();
+        activa.Invoking(s => s.ProgramarSiguienteEtapa(
+                etapaActual,
+                EjecucionActualSesion.Crear(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
+                    "Trivia", 3, AhoraUtc, 60),
+                AhoraUtc.AddMinutes(1),
+                10))
+            .Should().Throw<SesionInvalidaExcepcion>()
+            .WithMessage("*Planificada*");
+
+        activa.ProgramarSiguienteEtapa(etapaActual, siguiente, AhoraUtc.AddMinutes(1), 10);
+        activa.EjecucionActual!.EtapaId.Should().Be(siguienteEtapa);
+        activa.EjecucionActual.EstaEnPreparacion.Should().BeTrue();
+
+        activa.ActivarEtapaProgramada(siguienteEtapa, AhoraUtc.AddMinutes(2));
+        activa.EjecucionActual!.EstaActiva.Should().BeTrue();
+        activa.ProgramarCierrePendiente(siguienteEtapa, AhoraUtc.AddMinutes(3), 15);
+        activa.EjecucionActual!.EstaEnCierrePendiente.Should().BeTrue();
     }
 }
